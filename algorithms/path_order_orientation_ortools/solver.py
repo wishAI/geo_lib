@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -31,6 +32,12 @@ def load_instance(json_path: str | Path) -> Dict[str, Any]:
     matrix = data["distance_matrix"]
     if not isinstance(matrix, dict):
         raise ValueError("distance_matrix must be a dict-of-dicts keyed by point IDs")
+
+    for p in data["points"]:
+        if "x" not in p or "y" not in p:
+            raise ValueError(f"Point {p.get('id', p)} must include x and y for Euclidean distance")
+        float(p["x"])
+        float(p["y"])
 
     for pid in point_ids:
         if pid not in matrix:
@@ -82,7 +89,94 @@ def _infer_scale(values: List[float], max_decimals: int = 6) -> int:
         d = Decimal(str(v))
         places = max(0, -d.as_tuple().exponent)
         max_places = max(max_places, min(places, max_decimals))
-    return 10 ** max_places
+    return 10**max_places
+
+
+def get_euclidean_distance_matrix(instance: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+    """Build or fetch cached Euclidean distance matrix from point coordinates."""
+    cache_key = "__euclidean_distance_matrix_cache"
+    cached = instance.get(cache_key)
+    if isinstance(cached, dict):
+        return cached
+
+    coords: Dict[str, Tuple[float, float]] = {}
+    for p in instance["points"]:
+        coords[p["id"]] = (float(p["x"]), float(p["y"]))
+
+    matrix: Dict[str, Dict[str, float]] = {pid: {} for pid in coords}
+    for a, (ax, ay) in coords.items():
+        for b, (bx, by) in coords.items():
+            if a == b:
+                matrix[a][b] = 0.0
+            else:
+                matrix[a][b] = math.dist((ax, ay), (bx, by))
+
+    instance[cache_key] = matrix
+    return matrix
+
+
+def _path_id_to_index(instance: Dict[str, Any]) -> Dict[str, int]:
+    return {p["id"]: i for i, p in enumerate(instance["paths"])}
+
+
+def build_sequence_from_assignment(
+    instance: Dict[str, Any],
+    order_indices: List[int],
+    orientation_by_path_idx: Dict[int, int],
+) -> List[Dict[str, Any]]:
+    """Build minimal solver output sequence: ordered path IDs + reversed bool."""
+    paths = instance["paths"]
+    sequence: List[Dict[str, Any]] = []
+
+    for path_idx in order_indices:
+        sequence.append(
+            {
+                "path_id": paths[path_idx]["id"],
+                "reversed": orientation_by_path_idx[path_idx] == REVERSE,
+            }
+        )
+    return sequence
+
+
+def solution_to_assignment(
+    instance: Dict[str, Any],
+    solution: Dict[str, Any],
+) -> Tuple[List[int], Dict[int, int]]:
+    """Convert minimal solver output into index-based assignment representation."""
+    if "sequence" not in solution or not isinstance(solution["sequence"], list):
+        raise ValueError("solution must include list field: sequence")
+
+    sequence = solution["sequence"]
+    paths = instance["paths"]
+    n = len(paths)
+
+    if len(sequence) != n:
+        raise ValueError(f"solution sequence length {len(sequence)} must equal number of paths {n}")
+
+    id_to_idx = _path_id_to_index(instance)
+    seen: set[str] = set()
+
+    order_indices: List[int] = []
+    orientation_by_path_idx: Dict[int, int] = {}
+
+    for step in sequence:
+        if "path_id" not in step or "reversed" not in step:
+            raise ValueError("each sequence item must include path_id and reversed")
+
+        path_id = step["path_id"]
+        if path_id not in id_to_idx:
+            raise ValueError(f"unknown path_id in solution sequence: {path_id}")
+        if path_id in seen:
+            raise ValueError(f"duplicate path_id in solution sequence: {path_id}")
+
+        seen.add(path_id)
+        path_idx = id_to_idx[path_id]
+        order_indices.append(path_idx)
+
+        reversed_flag = bool(step["reversed"])
+        orientation_by_path_idx[path_idx] = REVERSE if reversed_flag else FORWARD
+
+    return order_indices, orientation_by_path_idx
 
 
 def evaluate_assignment(
@@ -92,7 +186,7 @@ def evaluate_assignment(
 ) -> float:
     """Compute transition-only cost for a full order + orientation assignment."""
     paths = instance["paths"]
-    matrix = instance["distance_matrix"]
+    matrix = get_euclidean_distance_matrix(instance)
 
     total = 0.0
     for i in range(len(order_indices) - 1):
@@ -106,26 +200,24 @@ def evaluate_assignment(
     return total
 
 
-def build_result_from_assignment(
-    instance: Dict[str, Any],
-    order_indices: List[int],
-    orientation_by_path_idx: Dict[int, int],
-    method: str,
-) -> Dict[str, Any]:
-    """Build a readable result payload from a complete assignment."""
+def score_solution(instance: Dict[str, Any], solution: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Shared scoring function used for all methods.
+
+    It computes total connection length and transition details from the same logic,
+    so OR-Tools and random baseline are judged under identical scoring.
+    """
+    order_indices, orientation_by_path_idx = solution_to_assignment(instance, solution)
+
     paths = instance["paths"]
-    matrix = instance["distance_matrix"]
+    matrix = get_euclidean_distance_matrix(instance)
 
-    sequence = []
-    order = []
-    orientation_by_path: Dict[str, str] = {}
-
+    sequence_detailed = []
     for pos, path_idx in enumerate(order_indices, start=1):
         path_obj = paths[path_idx]
         orient = orientation_by_path_idx[path_idx]
         entry, exit_ = get_oriented_endpoints(path_obj, orient)
-
-        sequence.append(
+        sequence_detailed.append(
             {
                 "position": pos,
                 "path_id": path_obj["id"],
@@ -134,14 +226,12 @@ def build_result_from_assignment(
                 "exit_point": exit_,
             }
         )
-        order.append(path_obj["id"])
-        orientation_by_path[path_obj["id"]] = orientation_name(orient)
 
     transitions = []
     total = 0.0
-    for i in range(len(sequence) - 1):
-        left = sequence[i]
-        right = sequence[i + 1]
+    for i in range(len(sequence_detailed) - 1):
+        left = sequence_detailed[i]
+        right = sequence_detailed[i + 1]
         cost = get_distance(matrix, left["exit_point"], right["entry_point"])
         total += cost
         transitions.append(
@@ -154,15 +244,13 @@ def build_result_from_assignment(
             }
         )
 
-    explanation = build_explanation(sequence, transitions, _normalize_number(total))
+    total_normalized = _normalize_number(total)
+    explanation = build_explanation(sequence_detailed, transitions, total_normalized)
 
     return {
-        "method": method,
-        "order": order,
-        "orientation_by_path": orientation_by_path,
-        "sequence": sequence,
+        "sequence_detailed": sequence_detailed,
         "transitions": transitions,
-        "total_transition_cost": _normalize_number(total),
+        "total_connection_length": total_normalized,
         "explanation": explanation,
     }
 
@@ -185,14 +273,14 @@ def build_explanation(sequence: List[Dict[str, Any]], transitions: List[Dict[str
     else:
         lines.append("Transition costs: none (only one path).")
 
-    lines.append(f"Total transition cost: {total}")
+    lines.append(f"Total connection length: {total}")
     return "\n".join(lines)
 
 
 def _build_scaled_state_transition_costs(instance: Dict[str, Any]) -> Tuple[List[List[int]], int]:
     """Transition costs between oriented states, scaled to integers for CP-SAT."""
     paths = instance["paths"]
-    matrix = instance["distance_matrix"]
+    matrix = get_euclidean_distance_matrix(instance)
     num_states = 2 * len(paths)
 
     raw_costs = [[0.0 for _ in range(num_states)] for _ in range(num_states)]
@@ -227,18 +315,11 @@ def solve_with_ortools(
     """
     Solve order + orientation optimization using CP-SAT and an AddCircuit model.
 
-    Nodes:
-      - node 0: dummy depot (breaks cycle into an open path)
-      - nodes 1..2N: oriented states (path i, orientation o)
+    Return format is intentionally minimal:
+      - ordered path sequence
+      - reversed flag per path in sequence
 
-    Constraints:
-      - exactly one orientation selected for each path
-      - selected states form one circuit that includes the dummy node
-      - unselected states are forced to self-loop
-
-    Objective:
-      - minimize transition cost between consecutive selected states
-      - arcs involving dummy have zero cost (open sequence)
+    Scoring is done separately by score_solution() for all methods.
     """
     paths = instance["paths"]
     n = len(paths)
@@ -322,19 +403,21 @@ def solve_with_ortools(
     order_indices = [state // 2 for state in ordered_states]
     orientation_by_path_idx = {path_idx: (state % 2) for path_idx, state in zip(order_indices, ordered_states)}
 
-    result = build_result_from_assignment(
+    sequence = build_sequence_from_assignment(
         instance=instance,
         order_indices=order_indices,
         orientation_by_path_idx=orientation_by_path_idx,
-        method="ortools_cp_sat",
     )
 
     objective_scaled = solver.ObjectiveValue()
     objective_raw = objective_scaled / scale
-    result["solver_objective"] = _normalize_number(objective_raw)
-    result["solver_status"] = solver.StatusName(status)
 
-    return result
+    return {
+        "method": "ortools_cp_sat",
+        "sequence": sequence,
+        "solver_objective": _normalize_number(objective_raw),
+        "solver_status": solver.StatusName(status),
+    }
 
 
 def _parse_args() -> argparse.Namespace:
@@ -357,10 +440,19 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     instance = load_instance(args.input)
-    result = solve_with_ortools(instance, time_limit_sec=args.time_limit_sec)
+    raw_solution = solve_with_ortools(instance, time_limit_sec=args.time_limit_sec)
+    scored = score_solution(instance, raw_solution)
 
-    print(json.dumps(result, indent=2))
-    print("\n" + result["explanation"])
+    output = {
+        **raw_solution,
+        "total_connection_length": scored["total_connection_length"],
+        "transitions": scored["transitions"],
+        "sequence_detailed": scored["sequence_detailed"],
+        "explanation": scored["explanation"],
+    }
+
+    print(json.dumps(output, indent=2))
+    print("\n" + output["explanation"])
 
 
 if __name__ == "__main__":

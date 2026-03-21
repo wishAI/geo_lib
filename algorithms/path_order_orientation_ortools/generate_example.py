@@ -2,66 +2,91 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import random
 from pathlib import Path
 from typing import Any, Dict, List
 
-try:
-    from .solver import FORWARD, REVERSE, get_oriented_endpoints
-except ImportError:  # Allows running as a script from this folder.
-    from solver import FORWARD, REVERSE, get_oriented_endpoints
+
+def _euclidean(a: tuple[float, float], b: tuple[float, float]) -> float:
+    return math.dist(a, b)
 
 
-def create_example_instance(num_paths: int = 8) -> Dict[str, Any]:
+def _random_endpoint_pair(
+    rng: random.Random,
+    xy_min: float,
+    xy_max: float,
+    min_sep: float,
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """Generate two endpoints with a minimum separation."""
+    for _ in range(200):
+        x1 = rng.uniform(xy_min, xy_max)
+        y1 = rng.uniform(xy_min, xy_max)
+        x2 = rng.uniform(xy_min, xy_max)
+        y2 = rng.uniform(xy_min, xy_max)
+        if _euclidean((x1, y1), (x2, y2)) >= min_sep:
+            return (x1, y1), (x2, y2)
+    # Fallback if random sampling is unlucky.
+    return (xy_min, xy_min), (xy_max, xy_max)
+
+
+def create_example_instance(
+    num_paths: int = 8,
+    seed: int = 2026,
+    xy_min: float = 0.0,
+    xy_max: float = 100.0,
+    min_endpoint_separation: float = 15.0,
+) -> Dict[str, Any]:
     """
-    Build a small but non-trivial dataset.
+    Build a seeded-random dataset with Euclidean distance matrix.
 
-    Design:
-    - Each path has unique endpoints.
-    - Most point-to-point distances are large.
-    - A single intended sequence with alternating orientations has very cheap transitions,
-      so OR-Tools should clearly beat the random baseline with fixed sampling budget.
+    Distance matrix entries are true Euclidean distances between map points.
     """
     if num_paths < 2:
         raise ValueError("num_paths must be at least 2")
+    if xy_max <= xy_min:
+        raise ValueError("xy_max must be greater than xy_min")
 
+    rng = random.Random(seed)
     points: List[Dict[str, Any]] = []
     paths: List[Dict[str, str]] = []
+    point_xy: Dict[str, tuple[float, float]] = {}
 
-    # Create 2 endpoints per path: S_i and E_i.
+    # Create 2 endpoints per path, with random coordinates.
     for i in range(1, num_paths + 1):
         s_id = f"S{i}"
         e_id = f"E{i}"
 
-        points.append({"id": s_id, "x": i * 10, "y": 0})
-        points.append({"id": e_id, "x": i * 10, "y": 10})
+        (sx, sy), (ex, ey) = _random_endpoint_pair(
+            rng=rng,
+            xy_min=xy_min,
+            xy_max=xy_max,
+            min_sep=min_endpoint_separation,
+        )
+
+        sx = round(sx, 4)
+        sy = round(sy, 4)
+        ex = round(ex, 4)
+        ey = round(ey, 4)
+
+        points.append({"id": s_id, "x": sx, "y": sy})
+        points.append({"id": e_id, "x": ex, "y": ey})
+
+        point_xy[s_id] = (sx, sy)
+        point_xy[e_id] = (ex, ey)
 
         paths.append({"id": f"P{i}", "start": s_id, "end": e_id})
 
     point_ids = [p["id"] for p in points]
 
-    # Start with a large, symmetric baseline matrix.
-    distance_matrix: Dict[str, Dict[str, int]] = {pid: {} for pid in point_ids}
-    for i, a in enumerate(point_ids):
-        for j, b in enumerate(point_ids):
-            if i == j:
-                distance_matrix[a][b] = 0
+    # Build a complete Euclidean distance matrix.
+    distance_matrix: Dict[str, Dict[str, float]] = {pid: {} for pid in point_ids}
+    for a in point_ids:
+        for b in point_ids:
+            if a == b:
+                distance_matrix[a][b] = 0.0
             else:
-                # Keep all generic transitions expensive.
-                distance_matrix[a][b] = 80 + 7 * abs(i - j)
-
-    # Intended best orientations: alternating forward/reverse.
-    intended_orientations = [FORWARD if i % 2 == 0 else REVERSE for i in range(num_paths)]
-
-    # Make only intended consecutive transitions very cheap.
-    for i in range(num_paths - 1):
-        left_path = paths[i]
-        right_path = paths[i + 1]
-
-        _, left_exit = get_oriented_endpoints(left_path, intended_orientations[i])
-        right_entry, _ = get_oriented_endpoints(right_path, intended_orientations[i + 1])
-
-        distance_matrix[left_exit][right_entry] = 1
-        distance_matrix[right_entry][left_exit] = 1
+                distance_matrix[a][b] = round(_euclidean(point_xy[a], point_xy[b]), 6)
 
     return {
         "points": points,
@@ -70,9 +95,13 @@ def create_example_instance(num_paths: int = 8) -> Dict[str, Any]:
     }
 
 
-def write_example_json(output_path: str | Path, num_paths: int = 8) -> Path:
+def write_example_json(
+    output_path: str | Path,
+    num_paths: int = 8,
+    seed: int = 2026,
+) -> Path:
     out = Path(output_path)
-    instance = create_example_instance(num_paths=num_paths)
+    instance = create_example_instance(num_paths=num_paths, seed=seed)
     out.write_text(json.dumps(instance, indent=2), encoding="utf-8")
     return out
 
@@ -86,12 +115,13 @@ def _parse_args() -> argparse.Namespace:
         help="Where to write the JSON instance",
     )
     parser.add_argument("--num_paths", type=int, default=8, help="Number of paths to generate")
+    parser.add_argument("--seed", type=int, default=2026, help="Random seed for reproducible geometry")
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
-    out = write_example_json(args.output, num_paths=args.num_paths)
+    out = write_example_json(args.output, num_paths=args.num_paths, seed=args.seed)
     print(f"Wrote example instance to: {out}")
 
 

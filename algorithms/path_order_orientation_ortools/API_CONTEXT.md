@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Find the best visiting order of paths and best orientation per path to minimize transition-only travel cost between consecutive paths.
+Find the best visiting order of paths and orientation per path to minimize transition-only Euclidean travel cost between consecutive paths.
 
 ## Dependencies
 
@@ -20,6 +20,19 @@ Input JSON object keys:
 - `paths`: list of path tasks
   - each path has `id`, `start`, `end`
 
+## Core Rule
+
+Both solvers return only a minimal solution representation:
+
+- `sequence`: ordered list of `{ "path_id": str, "reversed": bool }`
+
+Scoring for comparison is always computed by the same function:
+
+- `score_solution(instance, solution) -> dict`
+  - uses Euclidean distance between points from `points[].x` and `points[].y`
+
+This ensures OR-Tools and random baseline are judged under identical logic.
+
 ## Public Functions
 
 From `solver.py`:
@@ -27,49 +40,52 @@ From `solver.py`:
 - `load_instance(json_path) -> dict`
   - loads and validates basic schema
 - `solve_with_ortools(instance, time_limit_sec=30.0, num_workers=8) -> dict`
-  - returns optimized order + orientations + total transition cost + readable explanation
+  - returns minimal solution (`sequence` only + metadata)
+- `score_solution(instance, solution) -> dict`
+  - uses Euclidean distance between points from `points[].x` and `points[].y`
+  - shared evaluator returning
+  - `total_connection_length`
+  - `transitions`
+  - `sequence_detailed`
+  - `explanation`
 - `evaluate_assignment(instance, order_indices, orientation_by_path_idx) -> float`
-  - evaluates transition-only cost for a complete assignment
-- `build_result_from_assignment(instance, order_indices, orientation_by_path_idx, method) -> dict`
-  - builds standardized result payload
+  - low-level transition-only evaluator used internally
+- `build_sequence_from_assignment(instance, order_indices, orientation_by_path_idx) -> list`
+  - converts internal assignment to minimal sequence format
 
 From `baseline.py`:
 
 - `random_select_best(instance, samples=1500, seed=2026) -> dict`
-  - random sampling baseline with reproducible seed
+  - random sampling baseline, returns minimal solution format
 
 From `render.py`:
 
-- `render_solution_image(instance, result, output_path, title=None) -> Path`
+- `render_solution_image(instance, solution, output_path, title=None) -> Path`
   - renders one solution image with fixed-scale coordinates
+  - internally calls `score_solution()` to compute transitions and total length
   - blue lines = input paths, dark green lines = generated transitions
 
-## Solver Output Schema
+## Minimal Solution Schema
 
-Key fields from both solver and baseline:
+Shared by OR-Tools and random baseline:
 
-- `method`: solver method name
-- `order`: ordered list of path IDs
-- `orientation_by_path`: mapping `{path_id: "forward"|"reverse"}`
-- `sequence`: detailed per-step list (position, entry/exit)
-- `transitions`: transition details between consecutive steps
-- `total_transition_cost`: objective in original units
-- `explanation`: readable multi-line explanation
+- `method`: method name
+- `sequence`: list of
+  - `path_id`
+  - `reversed`
 
-Extra fields from OR-Tools solver:
-
-- `solver_objective`
-- `solver_status`
+Optional metadata fields may be present (e.g., solver status, sample count),
+but scoring fields are not part of minimal solver outputs.
 
 ## Determinism
 
-- OR-Tools solve is deterministic for this small example in practice.
+- OR-Tools solve is deterministic for this small instance in practice.
 - Baseline randomness is controlled by explicit `seed`.
-- Tests use fixed seeds and fixed sampling budget.
+- Tests use fixed seeds and fixed sampling budgets.
 
 ## Integration Notes
 
-- Keep all distances in the same unit system.
+- Euclidean distance is always computed from map coordinates (`x`, `y`).
 - Internal path lengths are intentionally excluded from objective.
 - For floating distances, solver scales costs to integers before CP-SAT optimization.
 - Test-time images are saved under `rendered_results/` in this folder.

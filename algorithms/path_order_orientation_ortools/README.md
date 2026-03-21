@@ -6,11 +6,25 @@ This module solves the following transition-cost optimization problem:
 - Each path can be traversed either `forward` (`start -> end`) or `reverse` (`end -> start`).
 - Internal path length is fixed and ignored.
 - Only transition cost between consecutive paths is optimized:
-  - `cost(A, B) = distance(exit_of_A_orientation, entry_of_B_orientation)`
+  - `cost(A, B) = euclidean(exit_of_A_orientation, entry_of_B_orientation)`
 
 The solver jointly optimizes:
 - visiting order of paths
 - orientation of each path
+
+## Important Design Rule
+
+Both methods (`solve_with_ortools` and `random_select_best`) return only:
+- ordered path sequence
+- whether each path is reversed
+
+They do **not** compute final score internally for comparison.
+
+A single shared function in `solver.py` is used for judging both methods:
+- `score_solution(instance, solution)`
+- it always computes Euclidean distances from point coordinates (`x`, `y`)
+
+This ensures both are evaluated under exactly the same scoring logic.
 
 ## Problem Formulation
 
@@ -48,15 +62,15 @@ Input file must contain:
 ```
 
 Notes:
-- `distance_matrix` is a dict-of-dicts keyed by point IDs.
-- All point pairs must exist in the matrix.
+- `distance_matrix` is kept for compatibility and schema completeness.
+- Optimization/scoring uses Euclidean distance computed from `points[].x` and `points[].y`.
 
 ## Files
 
-- `solver.py`: OR-Tools CP-SAT solver.
+- `solver.py`: OR-Tools solver + shared scoring function.
 - `baseline.py`: random baseline (`random_select_best`).
-- `render.py`: scaled image renderer for solution visualization.
-- `generate_example.py`: deterministic example generator.
+- `render.py`: scaled image renderer.
+- `generate_example.py`: seeded-random example generator.
 - `example_paths.json`: pre-generated example instance.
 - `test_solver.py`: pytest unit tests.
 - `API_CONTEXT.md`: integration contract for future agents.
@@ -72,7 +86,7 @@ pip install ortools pytest matplotlib
 
 ```bash
 cd algorithms/path_order_orientation_ortools
-python generate_example.py
+python generate_example.py --seed 20260321 --num_paths 20
 ```
 
 This writes/overwrites `example_paths.json`.
@@ -84,11 +98,9 @@ cd algorithms/path_order_orientation_ortools
 python solver.py --input example_paths.json
 ```
 
-Solver output includes:
-- selected order of paths
-- chosen orientation for each path
-- total transition cost
-- readable explanation of sequence and transitions
+CLI prints:
+- minimal solution sequence (`path_id`, `reversed`)
+- shared-score output (`total_connection_length`, transitions, explanation)
 
 ## Run Random Baseline
 
@@ -107,8 +119,8 @@ pytest -q algorithms/path_order_orientation_ortools/test_solver.py
 ```
 
 The test suite:
-- asserts OR-Tools is no worse than random baseline
-- asserts OR-Tools is strictly better on this example
+- builds a seeded-random 20-path instance
+- scores OR-Tools and random baseline with the same `score_solution()` function
 - writes two images to `algorithms/path_order_orientation_ortools/rendered_results/`:
   - `ortools_result.png`
   - `random_select_best_result.png`

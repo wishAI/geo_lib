@@ -10,6 +10,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
+try:
+    from .solver import score_solution
+except ImportError:  # Allows running as a script from this folder.
+    from solver import score_solution
+
 
 def _point_map(instance: Dict[str, Any]) -> Dict[str, tuple[float, float]]:
     return {p["id"]: (float(p["x"]), float(p["y"])) for p in instance["points"]}
@@ -17,7 +22,7 @@ def _point_map(instance: Dict[str, Any]) -> Dict[str, tuple[float, float]]:
 
 def render_solution_image(
     instance: Dict[str, Any],
-    result: Dict[str, Any],
+    solution: Dict[str, Any],
     output_path: str | Path,
     title: str | None = None,
 ) -> Path:
@@ -26,8 +31,14 @@ def render_solution_image(
 
     Colors:
     - blue: original input paths
-    - dark green: generated transition connections between paths
+    - dark green: generated transition connections
+
+    NOTE: scoring is computed by score_solution(), the same function used in tests.
     """
+    scored = score_solution(instance, solution)
+    transitions = scored["transitions"]
+    total_connection_length = scored["total_connection_length"]
+
     point_xy = _point_map(instance)
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -46,7 +57,7 @@ def render_solution_image(
         ax.text(mx, my + 0.6, path["id"], color="blue", fontsize=8, ha="center", va="bottom")
 
     # Draw generated transition connections in dark green.
-    for tr in result.get("transitions", []):
+    for tr in transitions:
         x1, y1 = point_xy[tr["from_exit"]]
         x2, y2 = point_xy[tr["to_entry"]]
         ax.plot([x1, x2], [y1, y2], color="darkgreen", linewidth=2.5, alpha=0.95)
@@ -76,9 +87,9 @@ def render_solution_image(
     ax.set_xlim(min_x - pad_x, max_x + pad_x)
     ax.set_ylim(min_y - pad_y, max_y + pad_y)
 
-    cost = result.get("total_transition_cost", "?")
-    method = result.get("method", "solution")
-    ax.set_title(title or f"{method} | transition cost = {cost}")
+    method = solution.get("method", "solution")
+    base_title = title or method
+    ax.set_title(f"{base_title} | total connection length = {total_connection_length}")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.grid(True, linestyle="--", alpha=0.25)

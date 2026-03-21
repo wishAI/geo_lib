@@ -7,9 +7,19 @@ from pathlib import Path
 from typing import Any, Dict
 
 try:
-    from .solver import build_result_from_assignment, evaluate_assignment, load_instance
+    from .solver import (
+        build_sequence_from_assignment,
+        evaluate_assignment,
+        load_instance,
+        score_solution,
+    )
 except ImportError:  # Allows running as a script from this folder.
-    from solver import build_result_from_assignment, evaluate_assignment, load_instance
+    from solver import (
+        build_sequence_from_assignment,
+        evaluate_assignment,
+        load_instance,
+        score_solution,
+    )
 
 
 def random_select_best(
@@ -17,7 +27,7 @@ def random_select_best(
     samples: int = 1500,
     seed: int = 2026,
 ) -> Dict[str, Any]:
-    """Randomly sample many feasible solutions, return the best found."""
+    """Randomly sample many feasible solutions and return minimal solution payload."""
     if samples <= 0:
         raise ValueError("samples must be > 0")
 
@@ -47,15 +57,18 @@ def random_select_best(
     assert best_order is not None
     assert best_orientation is not None
 
-    result = build_result_from_assignment(
+    sequence = build_sequence_from_assignment(
         instance=instance,
         order_indices=best_order,
         orientation_by_path_idx=best_orientation,
-        method="random_select_best",
     )
-    result["samples"] = samples
-    result["seed"] = seed
-    return result
+
+    return {
+        "method": "random_select_best",
+        "sequence": sequence,
+        "samples": samples,
+        "seed": seed,
+    }
 
 
 def _parse_args() -> argparse.Namespace:
@@ -74,10 +87,19 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     instance = load_instance(args.input)
-    result = random_select_best(instance, samples=args.samples, seed=args.seed)
+    raw_solution = random_select_best(instance, samples=args.samples, seed=args.seed)
+    scored = score_solution(instance, raw_solution)
 
-    print(json.dumps(result, indent=2))
-    print("\n" + result["explanation"])
+    output = {
+        **raw_solution,
+        "total_connection_length": scored["total_connection_length"],
+        "transitions": scored["transitions"],
+        "sequence_detailed": scored["sequence_detailed"],
+        "explanation": scored["explanation"],
+    }
+
+    print(json.dumps(output, indent=2))
+    print("\n" + output["explanation"])
 
 
 if __name__ == "__main__":
