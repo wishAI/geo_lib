@@ -1,0 +1,32 @@
+{
+  "seed": 7,
+  "camera": {
+    "width": 640,
+    "height": 480,
+    "fov_y_deg": 45.5,
+    "fps": 30,
+    "depth_range_min_m": 0.6,
+    "depth_range_max_m": 8.0,
+    "num_views": 3,
+    "ring_radius_m": 1.25,
+    "ring_height_m": 0.45,
+    "first_view_deg": -90.0,
+    "view_step_deg": 90.0
+  },
+  "scene": {
+    "bottom_size_m": [1.2, 0.8, 0.03],
+    "vertical_board_count_min": 2,
+    "vertical_board_count_max": 3,
+    "vertical_length_range_m": [0.4, 0.85],
+    "vertical_height_range_m": [0.3, 0.6],
+    "vertical_thickness_range_m": [0.02, 0.045]
+  },
+  "noise": {
+    "enable_depth_noise": true,
+    "depth_noise_a_m": 0.001,
+    "depth_noise_b_m": 0.002,
+    "enable_pose_noise": true,
+    "pose_translation_sigma_m": 0.003,
+    "pose_rotation_sigma_deg": 0.25
+  }
+}

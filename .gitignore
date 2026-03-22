@@ -1,0 +1,6 @@
+# Fake cloud generated outputs
+algorithms/fake_cloud/outputs/
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
