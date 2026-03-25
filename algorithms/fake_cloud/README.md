@@ -11,6 +11,8 @@ This module generates a synthetic ship-part style point-cloud dataset using MuJo
 - Camera azimuths are generated as: first_view_deg + i * view_step_deg.
 - Cameras always look at the bottom-plane center.
 - Per-view output is noisy point cloud directly (no clean/ and noisy/ folders).
+- `cam_info.json` stores all per-view camera transforms in one file.
+- Camera transforms in `cam_info.json` are the pose-error transforms used by `merged_with_pose_error.ply`.
 - Two merged world-frame clouds are exported:
   - one without camera pose error
   - one with small camera pose error
@@ -35,10 +37,9 @@ outputs/sample_scene/
   config_used.json
   resolved_config.json
   structure_preview.png
-  view_000.ply
-  view_000_camera.json
-  view_001.ply
-  view_001_camera.json
+  cam_info.json
+  view1.ply
+  view2.ply
   ...
   merged_without_pose_error.ply
   merged_with_pose_error.ply
@@ -47,4 +48,3 @@ outputs/sample_scene/
 
 pyenv activate ptenv
 python algorithms/fake_cloud/generate_dataset.py --output algorithms/fake_cloud/outputs/sample_scene --seed 0
-

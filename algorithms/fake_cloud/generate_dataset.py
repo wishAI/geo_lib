@@ -27,7 +27,7 @@ from algorithms.fake_cloud.visualize import save_structure_preview
 
 
 def _camera_payload(
-    camera_name: str,
+    view_name: str,
     position_world: np.ndarray,
     rotation_world_from_camera: np.ndarray,
     width: int,
@@ -38,7 +38,7 @@ def _camera_payload(
     transform[:3, :3] = rotation_world_from_camera
     transform[:3, 3] = position_world
     return {
-        "camera_name": camera_name,
+        "view_name": view_name,
         "position_world": position_world.tolist(),
         "rotation_world_from_camera": rotation_world_from_camera.tolist(),
         "transform_world_from_camera": transform.tolist(),
@@ -91,8 +91,15 @@ def generate_scene_dataset(
 
     merged_without_pose_error_parts: list[np.ndarray] = []
     merged_with_pose_error_parts: list[np.ndarray] = []
+    cam_info: dict[str, object] = {
+        "width": config.camera.width,
+        "height": config.camera.height,
+        "fov_y_deg": config.camera.fov_y_deg,
+        "includes_pose_error": bool(config.noise.enable_pose_noise),
+    }
 
-    for cam in cameras:
+    for idx, cam in enumerate(cameras, start=1):
+        view_name = f"view{idx}"
         depth = renderer.render_depth_meters(cam.name)
         noisy_depth = apply_depth_noise(depth, config.noise, rng)
 
@@ -108,17 +115,7 @@ def generate_scene_dataset(
             cam.rotation_world_from_camera_cv,
             cam.position_world,
         )
-        write_ply(output_root / f"{cam.name}.ply", points_world_nominal)
-
-        pose_payload = _camera_payload(
-            camera_name=cam.name,
-            position_world=cam.position_world,
-            rotation_world_from_camera=cam.rotation_world_from_camera_cv,
-            width=config.camera.width,
-            height=config.camera.height,
-            fov_y_deg=config.camera.fov_y_deg,
-        )
-        _save_json(output_root / f"{cam.name}_camera.json", pose_payload)
+        write_ply(output_root / f"{view_name}.ply", points_world_nominal)
 
         merged_without_pose_error_parts.append(points_world_nominal)
 
@@ -133,6 +130,22 @@ def generate_scene_dataset(
         points_world_pose_error = transform_points_world(points_cam, noisy_rot, noisy_pos)
         merged_with_pose_error_parts.append(points_world_pose_error)
 
+        noisy_pose_payload = _camera_payload(
+            view_name=view_name,
+            position_world=noisy_pos,
+            rotation_world_from_camera=noisy_rot,
+            width=config.camera.width,
+            height=config.camera.height,
+            fov_y_deg=config.camera.fov_y_deg,
+        )
+        cam_info[f"position_world_{view_name}"] = noisy_pose_payload["position_world"]
+        cam_info[f"rotation_world_from_camera_{view_name}"] = noisy_pose_payload[
+            "rotation_world_from_camera"
+        ]
+        cam_info[f"transform_world_from_camera_{view_name}"] = noisy_pose_payload[
+            "transform_world_from_camera"
+        ]
+
     merged_without_pose_error = (
         np.concatenate(merged_without_pose_error_parts, axis=0)
         if merged_without_pose_error_parts
@@ -146,6 +159,7 @@ def generate_scene_dataset(
 
     write_ply(output_root / "merged_without_pose_error.ply", merged_without_pose_error)
     write_ply(output_root / "merged_with_pose_error.ply", merged_with_pose_error)
+    _save_json(output_root / "cam_info.json", cam_info)
 
     renderer.close()
     save_config(config, output_root / "resolved_config.json")

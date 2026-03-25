@@ -12,6 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from algorithms.fake_cloud.camera_sampler import sample_cameras
+from algorithms.fake_cloud.config import load_config
 from algorithms.fake_cloud.generate_dataset import generate_scene_dataset
 from algorithms.fake_cloud.pointcloud import read_ply
 
@@ -51,7 +53,7 @@ def test_point_count_ranges(generated_scene: Path) -> None:
     assert not (generated_scene / "clean").exists()
     assert not (generated_scene / "noisy").exists()
 
-    view_paths = sorted(generated_scene.glob("view_*.ply"))
+    view_paths = sorted(generated_scene.glob("view*.ply"))
     assert 2 <= len(view_paths) <= 3
 
     counts = [len(read_ply(p)) for p in view_paths]
@@ -73,21 +75,46 @@ def test_merged_bbox_ranges(generated_scene: Path) -> None:
     assert 0.1 <= extent[2] <= 1.3
 
 
-def test_camera_pose_json(generated_scene: Path) -> None:
-    json_paths = sorted(generated_scene.glob("view_*_camera.json"))
-    ply_paths = sorted(generated_scene.glob("view_*.ply"))
-    assert len(json_paths) == len(ply_paths)
+def test_cam_info_json_has_error_poses(generated_scene: Path) -> None:
+    cam_info_path = generated_scene / "cam_info.json"
+    assert cam_info_path.exists()
 
-    for json_path in json_paths:
-        payload = json.loads(json_path.read_text(encoding="utf-8"))
-        tf = np.array(payload["transform_world_from_camera"], dtype=float)
-        rot = np.array(payload["rotation_world_from_camera"], dtype=float)
+    payload = json.loads(cam_info_path.read_text(encoding="utf-8"))
+    ply_paths = sorted(generated_scene.glob("view*.ply"))
+    assert len(ply_paths) >= 2
+
+    scene_payload = json.loads((generated_scene / "scene.json").read_text(encoding="utf-8"))
+    target_world = np.array(scene_payload["bottom_plane_center_world"], dtype=float)
+    config = load_config(generated_scene / "resolved_config.json")
+    cameras = sample_cameras(config.camera, target_world)
+
+    assert len(cameras) == len(ply_paths)
+
+    for idx, cam in enumerate(cameras, start=1):
+        view_name = f"view{idx}"
+        tf_key = f"transform_world_from_camera_{view_name}"
+        rot_key = f"rotation_world_from_camera_{view_name}"
+
+        assert tf_key in payload
+        assert rot_key in payload
+
+        tf = np.array(payload[tf_key], dtype=float)
+        rot = np.array(payload[rot_key], dtype=float)
 
         assert tf.shape == (4, 4)
         assert rot.shape == (3, 3)
 
         should_be_identity = rot.T @ rot
         assert np.allclose(should_be_identity, np.eye(3), atol=5e-3)
+
+        nominal_tf = np.eye(4)
+        nominal_tf[:3, :3] = cam.rotation_world_from_camera_cv
+        nominal_tf[:3, 3] = cam.position_world
+
+        if config.noise.enable_pose_noise:
+            assert not np.allclose(tf, nominal_tf, atol=1e-9)
+        else:
+            assert np.allclose(tf, nominal_tf, atol=1e-9)
 
 
 def test_pose_noise_effect(generated_scene: Path) -> None:
