@@ -1,0 +1,45 @@
+{
+  "ros2_environment": {
+    "ros_root_exists": true,
+    "installed_distros": [
+      "humble"
+    ],
+    "ros2_in_path": false,
+    "map_format": "ROS2 map_server compatible pgm+yaml"
+  },
+  "scene_bbox": {
+    "min": [
+      -4.665,
+      -2.5400000000000014,
+      0.0
+    ],
+    "max": [
+      4.665,
+      2.5400000000000014,
+      2.6
+    ],
+    "extent": [
+      9.33,
+      5.080000000000003,
+      2.6
+    ]
+  },
+  "wall_geom_count": 28,
+  "furniture_geom_count": 39,
+  "total_geom_count": 67,
+  "elapsed_s": 60.049999999998725,
+  "scan_min_range_m": 0.17,
+  "scan_max_range_m": 0.5900000000000003,
+  "route_waypoints": 316,
+  "waypoints_completed": 316,
+  "final_pose": {
+    "x": 3.2650000000000006,
+    "y": 1.6700000000000013,
+    "yaw": -0.3999999999999999
+  },
+  "map_ratios": {
+    "occupied_ratio": 0.07005508431617721,
+    "free_ratio": 0.5410935757493832,
+    "unknown_ratio": 0.38885133993443954
+  }
+}
