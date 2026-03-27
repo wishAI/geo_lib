@@ -4,15 +4,11 @@ import argparse
 from dataclasses import dataclass
 import json
 import math
-import os
 from pathlib import Path
 import re
 import shutil
 import xml.etree.ElementTree as ET
 
-os.environ.setdefault('MUJOCO_GL', 'egl')
-
-import mujoco
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -505,98 +501,26 @@ def _nearest_free(mask: np.ndarray, row: int, col: int) -> tuple[int, int]:
     return row, col
 
 
-def _corner_targets(inflated_occ: np.ndarray, max_targets: int = 18) -> list[tuple[int, int]]:
-    free = np.logical_not(inflated_occ)
-    raw = []
-    for row in range(1, inflated_occ.shape[0] - 1):
-        for col in range(1, inflated_occ.shape[1] - 1):
-            if not free[row, col]:
-                continue
-            n = inflated_occ[row - 1, col]
-            s = inflated_occ[row + 1, col]
-            e = inflated_occ[row, col + 1]
-            w = inflated_occ[row, col - 1]
-            if (n and w) or (n and e) or (s and w) or (s and e):
-                raw.append((row, col))
-    selected = []
-    for row, col in raw:
-        if any((row - sr) ** 2 + (col - sc) ** 2 < 36 for sr, sc in selected):
-            continue
-        selected.append((row, col))
-        if len(selected) >= max_targets:
-            break
-    return selected
+def select_robot_start(layout: SemanticLayout, robot_radius_m: float = 0.18) -> Pose2D:
+    safe_mask = _inflate(layout.occupied_grid, max(1, int(math.ceil(robot_radius_m / layout.resolution_m))))
+    row, col = _nearest_free(safe_mask, safe_mask.shape[0] // 2, safe_mask.shape[1] // 2)
+    start_x, start_y = _grid_to_world(layout, row, col)
+    return Pose2D(start_x, start_y, 0.0)
 
 
-def _astar(mask: np.ndarray, start: tuple[int, int], goal: tuple[int, int]) -> list[tuple[int, int]]:
-    import heapq
-
-    if start == goal:
-        return [start]
-    neighbors = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0), (-1, -1, math.sqrt(2.0)), (-1, 1, math.sqrt(2.0)), (1, -1, math.sqrt(2.0)), (1, 1, math.sqrt(2.0))]
-    queue = [(0.0, start)]
-    came_from = {}
-    g_score = {start: 0.0}
-    while queue:
-        _, current = heapq.heappop(queue)
-        if current == goal:
-            path = [current]
-            while current in came_from:
-                current = came_from[current]
-                path.append(current)
-            return list(reversed(path))
-        for dr, dc, move_cost in neighbors:
-            nr = current[0] + dr
-            nc = current[1] + dc
-            if not (0 <= nr < mask.shape[0] and 0 <= nc < mask.shape[1]):
-                continue
-            if mask[nr, nc]:
-                continue
-            tentative = g_score[current] + move_cost
-            node = (nr, nc)
-            if tentative >= g_score.get(node, float('inf')):
-                continue
-            came_from[node] = current
-            g_score[node] = tentative
-            heuristic = math.hypot(goal[0] - nr, goal[1] - nc)
-            heapq.heappush(queue, (tentative + heuristic, node))
-    return [start]
-
-
-def _build_route(layout: SemanticLayout, robot_radius_m: float = 0.18) -> list[tuple[float, float]]:
-    inflated = _inflate(layout.occupied_grid, max(1, int(math.ceil(robot_radius_m / layout.resolution_m))))
-    start = _nearest_free(inflated, inflated.shape[0] // 2, inflated.shape[1] // 2)
-    remaining = _corner_targets(inflated)
-    ordered = [start]
-    current = start
-    while remaining:
-        target = min(remaining, key=lambda cell: (cell[0] - current[0]) ** 2 + (cell[1] - current[1]) ** 2)
-        ordered.extend(_astar(inflated, current, target)[1:])
-        remaining.remove(target)
-        current = target
-    sparse = [ordered[0]]
-    for cell in ordered[4::4]:
-        if cell != sparse[-1]:
-            sparse.append(cell)
-    if ordered[-1] != sparse[-1]:
-        sparse.append(ordered[-1])
-    return [_grid_to_world(layout, row, col) for row, col in sparse]
-
-
-def _wrap_angle(angle: float) -> float:
-    return (angle + math.pi) % (2.0 * math.pi) - math.pi
-
-
-def build_mjcf(scene: SceneSpec, robot_start_xy: tuple[float, float]) -> str:
+def build_mjcf(scene: SceneSpec, robot_start: Pose2D) -> str:
     geoms = [
         f"    <geom name='floor' type='box' pos='0 0 {-scene.floor_thickness_m / 2.0:.4f}' size='{scene.width_m / 2.0:.4f} {scene.height_m / 2.0:.4f} {scene.floor_thickness_m / 2.0:.4f}' rgba='0.95 0.95 0.95 1'/>"
     ]
     for index, geom in enumerate(scene.wall_geoms):
-        geoms.append(f"    <geom name='wall_{index:03d}' type='box' pos='{geom.x_center_m:.4f} {geom.y_center_m:.4f} {geom.height_m / 2.0:.4f}' size='{geom.width_m / 2.0:.4f} {geom.depth_m / 2.0:.4f} {geom.height_m / 2.0:.4f}' rgba='0.28 0.31 0.33 1'/>")
+        geoms.append(
+            f"    <geom name='wall_{index:03d}' type='box' pos='{geom.x_center_m:.4f} {geom.y_center_m:.4f} {geom.height_m / 2.0:.4f}' size='{geom.width_m / 2.0:.4f} {geom.depth_m / 2.0:.4f} {geom.height_m / 2.0:.4f}' rgba='0.28 0.31 0.33 1'/>"
+        )
     for index, geom in enumerate(scene.furniture_geoms):
-        geoms.append(f"    <geom name='furniture_{index:03d}' type='box' pos='{geom.x_center_m:.4f} {geom.y_center_m:.4f} {geom.height_m / 2.0:.4f}' size='{geom.width_m / 2.0:.4f} {geom.depth_m / 2.0:.4f} {geom.height_m / 2.0:.4f}' rgba='0.83 0.74 0.57 1'/>")
-    robot_x, robot_y = robot_start_xy
-    xml = "<mujoco model='svg_auto_slam_mapping'>\n"
+        geoms.append(
+            f"    <geom name='furniture_{index:03d}' type='box' pos='{geom.x_center_m:.4f} {geom.y_center_m:.4f} {geom.height_m / 2.0:.4f}' size='{geom.width_m / 2.0:.4f} {geom.depth_m / 2.0:.4f} {geom.height_m / 2.0:.4f}' rgba='0.83 0.74 0.57 1'/>"
+        )
+    xml = "<mujoco model='svg_scene_builder'>\n"
     xml += "  <compiler angle='radian'/>\n"
     xml += "  <option timestep='0.02' gravity='0 0 -9.81'/>\n"
     xml += "  <worldbody>\n"
@@ -611,140 +535,10 @@ def build_mjcf(scene: SceneSpec, robot_start_xy: tuple[float, float]) -> str:
     xml += "    </body>\n"
     xml += "  </worldbody>\n"
     xml += "  <keyframe>\n"
-    xml += f"    <key name='start' qpos='{robot_x:.4f} {robot_y:.4f} 0'/>\n"
+    xml += f"    <key name='start' qpos='{robot_start.x:.4f} {robot_start.y:.4f} {robot_start.yaw:.4f}'/>\n"
     xml += "  </keyframe>\n"
     xml += '</mujoco>\n'
     return xml
-
-
-def _cast_lidar(layout: SemanticLayout, pose: Pose2D, beam_angles: np.ndarray, max_range_m: float) -> np.ndarray:
-    ranges = np.full(beam_angles.shape, max_range_m, dtype=float)
-    step_m = layout.resolution_m * 0.5
-    ray_start_m = max(0.08, layout.resolution_m)
-    occupied = layout.occupied_grid
-    for index, rel_angle in enumerate(beam_angles):
-        heading = pose.yaw + float(rel_angle)
-        distance = ray_start_m
-        while distance < max_range_m:
-            px = pose.x + distance * math.cos(heading)
-            py = pose.y + distance * math.sin(heading)
-            if abs(px) > layout.width_m / 2.0 or abs(py) > layout.height_m / 2.0:
-                ranges[index] = distance
-                break
-            row, col = _world_to_grid(layout, px, py)
-            if occupied[row, col]:
-                ranges[index] = distance
-                break
-            distance += step_m
-    return ranges
-
-
-class OccupancyMapper:
-    def __init__(self, layout: SemanticLayout):
-        self.layout = layout
-        self.log_odds = np.zeros(layout.shape, dtype=float)
-
-    def update(self, pose: Pose2D, beam_angles: np.ndarray, ranges: np.ndarray, max_range_m: float) -> None:
-        for rel_angle, lidar_range in zip(beam_angles, ranges):
-            heading = pose.yaw + float(rel_angle)
-            distance = 0.0
-            hit = float(lidar_range) < max_range_m - self.layout.resolution_m
-            while distance < min(float(lidar_range), max_range_m):
-                px = pose.x + distance * math.cos(heading)
-                py = pose.y + distance * math.sin(heading)
-                if abs(px) > self.layout.width_m / 2.0 or abs(py) > self.layout.height_m / 2.0:
-                    break
-                row, col = _world_to_grid(self.layout, px, py)
-                self.log_odds[row, col] -= 0.18
-                distance += self.layout.resolution_m * 0.45
-            if hit:
-                px = pose.x + float(lidar_range) * math.cos(heading)
-                py = pose.y + float(lidar_range) * math.sin(heading)
-                if abs(px) <= self.layout.width_m / 2.0 and abs(py) <= self.layout.height_m / 2.0:
-                    row, col = _world_to_grid(self.layout, px, py)
-                    self.log_odds[row, col] += 0.95
-
-    def ros_map(self) -> np.ndarray:
-        img = np.full(self.layout.shape, 205, dtype=np.uint8)
-        occupied = _inflate(self.log_odds > 0.45, 1)
-        free_seed = np.logical_and(self.log_odds < -0.10, np.logical_not(occupied))
-        free = np.logical_and(_inflate(free_seed, 1), np.logical_not(occupied))
-        img[free] = 254
-        img[occupied] = 0
-        return img
-
-
-class PlanarRobotSimulator:
-    def __init__(self, layout: SemanticLayout, scene: SceneSpec, route_xy: list[tuple[float, float]]):
-        self.layout = layout
-        self.scene = scene
-        safe_mask = _inflate(layout.occupied_grid, max(1, int(math.ceil(0.18 / layout.resolution_m))))
-        start_row, start_col = _world_to_grid(layout, route_xy[0][0], route_xy[0][1])
-        start_row, start_col = _nearest_free(safe_mask, start_row, start_col)
-        start_xy = _grid_to_world(layout, start_row, start_col)
-        self.route_xy = [start_xy, *route_xy[1:]]
-        self.xml = build_mjcf(scene, start_xy)
-        self.model = mujoco.MjModel.from_xml_string(self.xml)
-        self.data = mujoco.MjData(self.model)
-        self.pose = Pose2D(start_xy[0], start_xy[1], 0.0)
-        self.set_pose(self.pose)
-
-    def set_pose(self, pose: Pose2D) -> None:
-        self.pose = pose
-        self.data.qpos[0] = pose.x
-        self.data.qpos[1] = pose.y
-        self.data.qpos[2] = pose.yaw
-        mujoco.mj_forward(self.model, self.data)
-
-    def run(self, timeout_s: float, dt: float = 0.05, speed_mps: float = 2.4, angular_speed_radps: float = 8.0, lidar_beams: int = 181, lidar_range_m: float = 5.5) -> dict[str, object]:
-        mapper = OccupancyMapper(self.layout)
-        beam_angles = np.linspace(-math.pi, math.pi, lidar_beams, endpoint=False)
-        waypoint_index = 1
-        elapsed = 0.0
-        trajectory = []
-        min_ranges = []
-        safe_mask = _inflate(self.layout.occupied_grid, max(1, int(math.ceil(0.18 / self.layout.resolution_m))))
-        while elapsed < timeout_s:
-            if waypoint_index < len(self.route_xy):
-                target_x, target_y = self.route_xy[waypoint_index]
-                dx = target_x - self.pose.x
-                dy = target_y - self.pose.y
-                distance = math.hypot(dx, dy)
-                if distance < 0.08:
-                    waypoint_index += 1
-                else:
-                    target_yaw = math.atan2(dy, dx)
-                    yaw_error = _wrap_angle(target_yaw - self.pose.yaw)
-                    yaw_step = float(np.clip(yaw_error, -angular_speed_radps * dt, angular_speed_radps * dt))
-                    yaw = _wrap_angle(self.pose.yaw + yaw_step)
-                    move = min(distance, speed_mps * dt)
-                    ux = dx / distance
-                    uy = dy / distance
-                    candidate = Pose2D(x=self.pose.x + move * ux, y=self.pose.y + move * uy, yaw=yaw)
-                    row, col = _world_to_grid(self.layout, candidate.x, candidate.y)
-                    if not safe_mask[row, col]:
-                        self.set_pose(candidate)
-                    else:
-                        for scale in (0.5, 0.25):
-                            candidate = Pose2D(x=self.pose.x + move * scale * ux, y=self.pose.y + move * scale * uy, yaw=yaw)
-                            row, col = _world_to_grid(self.layout, candidate.x, candidate.y)
-                            if not safe_mask[row, col]:
-                                self.set_pose(candidate)
-                                break
-            ranges = _cast_lidar(self.layout, self.pose, beam_angles, lidar_range_m)
-            mapper.update(self.pose, beam_angles, ranges, lidar_range_m)
-            trajectory.append({'t': elapsed, 'x': self.pose.x, 'y': self.pose.y, 'yaw': self.pose.yaw})
-            min_ranges.append(float(np.min(ranges)))
-            elapsed += dt
-        return {
-            'elapsed_s': elapsed,
-            'trajectory': trajectory,
-            'mapper': mapper,
-            'scan_min_range_m': float(min(min_ranges)) if min_ranges else lidar_range_m,
-            'scan_max_range_m': float(max(min_ranges)) if min_ranges else lidar_range_m,
-            'final_pose': self.pose,
-            'waypoints_completed': waypoint_index,
-        }
 
 
 def detect_ros2_environment() -> dict[str, object]:
@@ -754,7 +548,6 @@ def detect_ros2_environment() -> dict[str, object]:
         'ros_root_exists': ros_root.exists(),
         'installed_distros': distros,
         'ros2_in_path': shutil.which('ros2') is not None,
-        'map_format': 'ROS2 map_server compatible pgm+yaml',
     }
 
 
@@ -763,87 +556,82 @@ def _save_image(path: Path, image: np.ndarray) -> None:
     Image.fromarray(image).save(path)
 
 
-def _save_map(output_dir: Path, layout: SemanticLayout, map_img: np.ndarray) -> dict[str, float]:
-    Image.fromarray(map_img, mode='L').save(output_dir / 'map.pgm')
-    (output_dir / 'map.yaml').write_text(
-        '\n'.join(
-            [
-                'image: map.pgm',
-                f'resolution: {layout.resolution_m:.4f}',
-                f'origin: [{-layout.width_m / 2.0:.4f}, {-layout.height_m / 2.0:.4f}, 0.0]',
-                'negate: 0',
-                'occupied_thresh: 0.65',
-                'free_thresh: 0.196',
-            ]
-        )
-        + '\n',
-        encoding='utf-8',
+def save_scene_package(output_dir: Path, layout: SemanticLayout, scene: SceneSpec, start_pose: Pose2D, scene_xml: str, svg_path: Path) -> dict[str, object]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        output_dir / 'semantic_layout.npz',
+        width_m=np.array(layout.width_m, dtype=float),
+        height_m=np.array(layout.height_m, dtype=float),
+        resolution_m=np.array(layout.resolution_m, dtype=float),
+        wall_grid=layout.wall_grid.astype(np.uint8),
+        furniture_grid=layout.furniture_grid.astype(np.uint8),
     )
-    total = float(map_img.size)
-    return {
-        'occupied_ratio': float(np.count_nonzero(map_img == 0) / total),
-        'free_ratio': float(np.count_nonzero(map_img == 254) / total),
-        'unknown_ratio': float(np.count_nonzero(map_img == 205) / total),
-    }
-
-
-def run_mapping_pipeline(output_dir: str | Path, svg_path: str | Path | None = None, timeout_s: float = 60.0, map_resolution_m: float = 0.02) -> dict[str, object]:
-    base_dir = Path(__file__).resolve().parent
-    svg_file = Path(svg_path) if svg_path is not None else base_dir / 'svg_room_map.svg'
-    output_root = Path(output_dir)
-    output_root.mkdir(parents=True, exist_ok=True)
-    layout = load_semantic_layout(svg_file, resolution_m=map_resolution_m)
-    _save_image(output_root / 'layout_preview.png', layout.preview_rgb())
-    scene = build_scene_spec(layout)
-    route_xy = _build_route(layout)
-    sim = PlanarRobotSimulator(layout, scene, route_xy)
-    result = sim.run(timeout_s=timeout_s)
-    map_img = result['mapper'].ros_map()
-    ratios = _save_map(output_root, layout, map_img)
+    _save_image(output_dir / 'layout_preview.png', layout.preview_rgb())
+    (output_dir / 'scene.xml').write_text(scene_xml, encoding='utf-8')
+    shutil.copyfile(svg_path, output_dir / 'source_svg.svg')
+    start_payload = {'x': start_pose.x, 'y': start_pose.y, 'yaw': start_pose.yaw}
+    (output_dir / 'start_pose.json').write_text(json.dumps(start_payload, indent=2), encoding='utf-8')
     summary = {
-        'ros2_environment': detect_ros2_environment(),
-        'scene_bbox': scene.bbox,
+        'bbox': scene.bbox,
         'wall_geom_count': len(scene.wall_geoms),
         'furniture_geom_count': len(scene.furniture_geoms),
         'total_geom_count': len(scene.all_geoms),
-        'elapsed_s': result['elapsed_s'],
-        'scan_min_range_m': result['scan_min_range_m'],
-        'scan_max_range_m': result['scan_max_range_m'],
-        'route_waypoints': len(route_xy),
-        'waypoints_completed': result['waypoints_completed'],
-        'final_pose': {'x': result['final_pose'].x, 'y': result['final_pose'].y, 'yaw': result['final_pose'].yaw},
-        'map_ratios': ratios,
+        'layout_shape': [layout.shape[0], layout.shape[1]],
+        'resolution_m': layout.resolution_m,
+        'start_pose': start_payload,
     }
-    (output_root / 'scene.xml').write_text(sim.xml, encoding='utf-8')
-    (output_root / 'scene_summary.json').write_text(
-        json.dumps(
-            {
-                'bbox': scene.bbox,
-                'wall_geom_count': len(scene.wall_geoms),
-                'furniture_geom_count': len(scene.furniture_geoms),
-                'total_geom_count': len(scene.all_geoms),
-            },
-            indent=2,
-        ),
-        encoding='utf-8',
-    )
-    (output_root / 'trajectory.json').write_text(json.dumps(result['trajectory'], indent=2), encoding='utf-8')
-    (output_root / 'mapping_summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
-    return summary
+    (output_dir / 'scene_summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+    package = {
+        'stage': 'svg_scene_builder',
+        'version': 1,
+        'source_svg': 'source_svg.svg',
+        'scene_xml': 'scene.xml',
+        'semantic_layout': 'semantic_layout.npz',
+        'layout_preview': 'layout_preview.png',
+        'start_pose': 'start_pose.json',
+        'scene_summary': 'scene_summary.json',
+        'ros2_environment': detect_ros2_environment(),
+        'robot_radius_m': 0.18,
+        'bbox': scene.bbox,
+        'width_m': layout.width_m,
+        'height_m': layout.height_m,
+        'resolution_m': layout.resolution_m,
+    }
+    (output_dir / 'scene_package.json').write_text(json.dumps(package, indent=2), encoding='utf-8')
+    return package
+
+
+def run_scene_builder(output_dir: str | Path, svg_path: str | Path | None = None, map_resolution_m: float = 0.02) -> dict[str, object]:
+    base_dir = Path(__file__).resolve().parent
+    svg_file = Path(svg_path) if svg_path is not None else base_dir / 'svg_room_map.svg'
+    layout = load_semantic_layout(svg_file, resolution_m=map_resolution_m)
+    scene = build_scene_spec(layout)
+    start_pose = select_robot_start(layout)
+    scene_xml = build_mjcf(scene, start_pose)
+    package = save_scene_package(Path(output_dir), layout, scene, start_pose, scene_xml, svg_file)
+    return {
+        'scene_output_dir': str(Path(output_dir)),
+        'wall_geom_count': len(scene.wall_geoms),
+        'furniture_geom_count': len(scene.furniture_geoms),
+        'total_geom_count': len(scene.all_geoms),
+        'layout_shape': [layout.shape[0], layout.shape[1]],
+        'start_pose': {'x': start_pose.x, 'y': start_pose.y, 'yaw': start_pose.yaw},
+        'bbox': scene.bbox,
+        'scene_package': package,
+    }
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='SVG to MuJoCo auto SLAM mapping pipeline')
+    parser = argparse.ArgumentParser(description='Build a MuJoCo scene package from an SVG floor plan')
     parser.add_argument('--svg', type=Path, default=Path(__file__).resolve().parent / 'svg_room_map.svg')
-    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parent / 'outputs' / 'sample_run')
-    parser.add_argument('--timeout', type=float, default=60.0)
+    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parent / 'outputs' / 'sample_scene')
     parser.add_argument('--map-resolution', type=float, default=0.02)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    summary = run_mapping_pipeline(output_dir=args.output, svg_path=args.svg, timeout_s=args.timeout, map_resolution_m=args.map_resolution)
+    summary = run_scene_builder(output_dir=args.output, svg_path=args.svg, map_resolution_m=args.map_resolution)
     print(json.dumps(summary, indent=2))
 
 

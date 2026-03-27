@@ -1,4 +1,4 @@
-<mujoco model='svg_auto_slam_mapping'>
+<mujoco model='svg_scene_builder'>
   <compiler angle='radian'/>
   <option timestep='0.02' gravity='0 0 -9.81'/>
   <worldbody>
@@ -80,6 +80,6 @@
     </body>
   </worldbody>
   <keyframe>
-    <key name='start' qpos='0.0050 -0.0100 0'/>
+    <key name='start' qpos='0.0050 -0.0100 0.0000'/>
   </keyframe>
 </mujoco>

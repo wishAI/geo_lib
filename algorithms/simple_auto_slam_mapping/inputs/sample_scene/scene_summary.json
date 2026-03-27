@@ -18,5 +18,15 @@
   },
   "wall_geom_count": 28,
   "furniture_geom_count": 39,
-  "total_geom_count": 67
+  "total_geom_count": 67,
+  "layout_shape": [
+    254,
+    466
+  ],
+  "resolution_m": 0.02,
+  "start_pose": {
+    "x": 0.004999999999999893,
+    "y": -0.009999999999998899,
+    "yaw": 0.0
+  }
 }

@@ -1,0 +1,38 @@
+{
+  "stage": "svg_scene_builder",
+  "version": 1,
+  "source_svg": "source_svg.svg",
+  "scene_xml": "scene.xml",
+  "semantic_layout": "semantic_layout.npz",
+  "layout_preview": "layout_preview.png",
+  "start_pose": "start_pose.json",
+  "scene_summary": "scene_summary.json",
+  "ros2_environment": {
+    "ros_root_exists": true,
+    "installed_distros": [
+      "humble"
+    ],
+    "ros2_in_path": false
+  },
+  "robot_radius_m": 0.18,
+  "bbox": {
+    "min": [
+      -4.665,
+      -2.5400000000000014,
+      0.0
+    ],
+    "max": [
+      4.665,
+      2.5400000000000014,
+      2.6
+    ],
+    "extent": [
+      9.33,
+      5.080000000000003,
+      2.6
+    ]
+  },
+  "width_m": 9.33,
+  "height_m": 5.080000000000003,
+  "resolution_m": 0.02
+}
