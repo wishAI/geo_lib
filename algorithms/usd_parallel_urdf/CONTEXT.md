@@ -34,9 +34,15 @@ This folder now supports two geometry variants over the same joint tree:
   - use `UsdSkel.Cache` and the mesh skinning query
   - skin the source mesh points into skeleton space
   - assign each source triangle to the dominant joint by summed skinning weights
+- Repair and fallback cascade:
+  - preserve per-face topology for each joint fragment instead of rebuilding topology from point dedup alone
+  - repair open fragments against the original watertight character mesh
+  - close boundary loops with interior fan caps that stay inside the original shell
+  - if simplification breaks watertightness, revert to the repaired closed mesh
+  - if repair still cannot produce a watertight result, fall back to low-poly or voxelized remeshing of the repaired surface
 - Simplification:
   - collect the assigned points in link-local space
-  - default mode `lowpoly_surface` reconstructs a low-poly shell from the extracted link surface samples
+  - default mode `lowpoly_surface` reconstructs a low-poly shell from extracted link surface samples or repaired closed surfaces
   - the shell is vertex-clustered to keep the face budget low enough for collision use
   - after reconstruction, the mesh is fit back toward the source link bounds so it does not inflate beyond the USD surface envelope
 - Optional alternate mode:
@@ -58,6 +64,10 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - `mesh_collision_builder.py`
   - extracts per-link surface ownership from the skinned USD mesh
   - closes and simplifies the result into STL collision meshes
+  - owns the repair/remesh fallback cascade for stubborn links
+- `mesh_repair_pipeline.py`
+  - repair-first mesh closing tool derived from `mesh_pipeline_agent_prompt.md`
+  - pure-Python fallback for winding-number checks, hole closing, and simplified mesh reporting
 - `validate_parallel_scene.py`
   - loads the source USD and a generated URDF together in Isaac
   - useful for headless scene and import validation
@@ -73,10 +83,9 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - The generated URDF stands upright and preserves the source root orientation.
 - The primitive URDF matches the extracted USD skeleton numerically in offline FK within about `2.1e-6 m` max root-relative position error.
 - The mesh URDF shares the exact same joints and transforms, so kinematics remain aligned; only the collision geometry differs.
-- The current default STL mode generates lightweight per-link meshes and fits them back toward the source bounds to prevent oversized collision shells.
-- in the latest build, all 68 links used `skinned_lowpoly_surface`
-- the latest mesh build averaged about `358` faces per link, with a max of `628`
-- sampled rebuilt/source extent ratios now sit around `1.03x` for `head_x`, `1.04x/0.92x/1.06x` for `root_x`, `1.01x/1.00x/0.98x` for `spine_02_x`, and `1.08x` for `neck_x`
+- The current STL pipeline is hybrid: repaired closed meshes are preferred, then low-poly remeshes, then voxelized closed-surface fallback when needed.
+- In the latest build all 68 exported STL links are watertight.
+- The stubborn links are now handled by the fallback cascade rather than leaving non-manifold repaired output in the URDF.
 - Headless Isaac import of the mesh URDF now completes without the earlier `Invalid PhysX transform` warnings that appeared with more detailed convex-hull meshes.
 - The validator/renderer include a short post-import warmup before applying poses so mesh-backed URDF imports have time to finish settling inside Isaac.
 - there is now a small unit-test suite under `tests/` covering config resolution, mesh-fit helpers, and skeleton/URDF utility behavior

@@ -1,0 +1,247 @@
+{
+  "head_x": {
+    "initial": {
+      "faces": 22666,
+      "loops": 1,
+      "watertight": false,
+      "euler": 0,
+      "boundary_edges": 114,
+      "nonmanifold_edges": 0,
+      "edges_total": 34056
+    },
+    "cleaned": {
+      "faces": 22666,
+      "loops": 1,
+      "watertight": false,
+      "euler": 0,
+      "boundary_edges": 114,
+      "nonmanifold_edges": 0,
+      "edges_total": 34056
+    },
+    "after_fill": {
+      "faces": 22780,
+      "holes_filled": 1,
+      "loops": 0,
+      "watertight": false,
+      "euler": 2,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 1,
+      "edges_total": 34169
+    },
+    "pre_simplify": {
+      "faces": 22780,
+      "loops": 0,
+      "watertight": false,
+      "euler": 2,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 1,
+      "edges_total": 34169
+    },
+    "simplified": {
+      "faces": 978,
+      "method": "vertex_cluster",
+      "loops": 0,
+      "watertight": false,
+      "euler": 8,
+      "boundary_edges": 54,
+      "nonmanifold_edges": 98,
+      "edges_total": 1431
+    }
+  },
+  "root_x": {
+    "initial": {
+      "faces": 5944,
+      "loops": 6,
+      "watertight": false,
+      "euler": -7,
+      "boundary_edges": 406,
+      "nonmanifold_edges": 0,
+      "edges_total": 9119
+    },
+    "cleaned": {
+      "faces": 5943,
+      "loops": 6,
+      "watertight": false,
+      "euler": -6,
+      "boundary_edges": 403,
+      "nonmanifold_edges": 0,
+      "edges_total": 9116
+    },
+    "after_fill": {
+      "faces": 6346,
+      "holes_filled": 6,
+      "loops": 0,
+      "watertight": true,
+      "euler": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 9519
+    },
+    "pre_simplify": {
+      "faces": 6346,
+      "loops": 0,
+      "watertight": true,
+      "euler": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 9519
+    },
+    "simplified": {
+      "faces": 1051,
+      "method": "vertex_cluster",
+      "loops": 0,
+      "watertight": false,
+      "euler": 36,
+      "boundary_edges": 95,
+      "nonmanifold_edges": 260,
+      "edges_total": 1428
+    }
+  },
+  "spine_02_x": {
+    "initial": {
+      "faces": 1737,
+      "loops": 2,
+      "watertight": false,
+      "euler": 0,
+      "boundary_edges": 177,
+      "nonmanifold_edges": 0,
+      "edges_total": 2694
+    },
+    "cleaned": {
+      "faces": 1737,
+      "loops": 2,
+      "watertight": false,
+      "euler": 0,
+      "boundary_edges": 177,
+      "nonmanifold_edges": 0,
+      "edges_total": 2694
+    },
+    "after_fill": {
+      "faces": 1914,
+      "holes_filled": 2,
+      "loops": 0,
+      "watertight": true,
+      "euler": 2,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 2871
+    },
+    "pre_simplify": {
+      "faces": 1914,
+      "loops": 0,
+      "watertight": true,
+      "euler": 2,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 2871
+    },
+    "simplified": {
+      "faces": 296,
+      "method": "vertex_cluster",
+      "loops": 0,
+      "watertight": false,
+      "euler": 2,
+      "boundary_edges": 15,
+      "nonmanifold_edges": 19,
+      "edges_total": 441
+    }
+  },
+  "hand_l": {
+    "initial": {
+      "faces": 94,
+      "loops": 2,
+      "watertight": false,
+      "euler": 2,
+      "boundary_edges": 74,
+      "nonmanifold_edges": 0,
+      "edges_total": 178
+    },
+    "cleaned": {
+      "faces": 94,
+      "loops": 2,
+      "watertight": false,
+      "euler": 2,
+      "boundary_edges": 74,
+      "nonmanifold_edges": 0,
+      "edges_total": 178
+    },
+    "after_fill": {
+      "faces": 168,
+      "holes_filled": 2,
+      "loops": 0,
+      "watertight": true,
+      "euler": 4,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 252
+    },
+    "pre_simplify": {
+      "faces": 168,
+      "loops": 0,
+      "watertight": true,
+      "euler": 4,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 252
+    },
+    "simplified": {
+      "faces": 41,
+      "method": "vertex_cluster",
+      "loops": 0,
+      "watertight": false,
+      "euler": 7,
+      "boundary_edges": 11,
+      "nonmanifold_edges": 10,
+      "edges_total": 58
+    }
+  },
+  "neck_x": {
+    "initial": {
+      "faces": 9,
+      "loops": 1,
+      "watertight": false,
+      "euler": 1,
+      "boundary_edges": 9,
+      "nonmanifold_edges": 0,
+      "edges_total": 18
+    },
+    "cleaned": {
+      "faces": 9,
+      "loops": 1,
+      "watertight": false,
+      "euler": 1,
+      "boundary_edges": 9,
+      "nonmanifold_edges": 0,
+      "edges_total": 18
+    },
+    "after_fill": {
+      "faces": 18,
+      "holes_filled": 1,
+      "loops": 0,
+      "watertight": true,
+      "euler": 2,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 27
+    },
+    "pre_simplify": {
+      "faces": 18,
+      "loops": 0,
+      "watertight": true,
+      "euler": 2,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "edges_total": 27
+    },
+    "simplified": {
+      "faces": 15,
+      "method": "vertex_cluster",
+      "loops": 0,
+      "watertight": false,
+      "euler": 2,
+      "boundary_edges": 2,
+      "nonmanifold_edges": 1,
+      "edges_total": 23
+    }
+  }
+}

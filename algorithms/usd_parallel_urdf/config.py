@@ -6,7 +6,12 @@ from typing import Dict, Tuple
 
 @dataclass(frozen=True)
 class LowpolyMeshConfig:
+    target_face_ratio: float = 0.25
     max_faces: int = 1200
+    max_hole_edges: int = 500
+    component_keep_area_ratio: float = 0.05
+    planar_deviation_ratio: float = 0.05
+    force_fill_max_edges: int = 10
     target_cells: Tuple[int, ...] = (24, 22, 20, 18, 16, 14, 12)
     cluster_scales: Tuple[float, ...] = (0.55, 0.75, 0.95, 1.15, 1.35, 1.65, 2.0, 2.4)
     smooth_sigma: float = 0.45
@@ -19,6 +24,8 @@ class LowpolyMeshConfig:
     fit_margin_ratio: float = 0.03
     fit_margin_min: float = 8e-4
     max_extent_ratio_xyz: Tuple[float, float, float] = (1.08, 1.08, 1.08)
+    smoothing_iterations: int = 0
+    smoothing_lambda: float = 0.35
 
 
 @dataclass(frozen=True)
@@ -41,6 +48,7 @@ DEFAULT_MESH_BUILD_CONFIG = MeshBuildConfig(
         'head_x': replace(
             DEFAULT_LOWPOLY_CONFIG,
             max_faces=760,
+            target_face_ratio=0.3,
             target_cells=(30, 28, 26, 24, 22, 20, 18),
             cluster_scales=(0.4, 0.55, 0.7, 0.85, 1.0, 1.15, 1.3, 1.5, 1.75),
             smooth_sigma=0.32,

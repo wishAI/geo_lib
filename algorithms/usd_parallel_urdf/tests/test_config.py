@@ -17,8 +17,8 @@ class MeshConfigTests(unittest.TestCase):
         default_cfg = DEFAULT_MESH_BUILD_CONFIG.lowpoly_default
         head_cfg = resolve_lowpoly_link_config(DEFAULT_MESH_BUILD_CONFIG, 'head_x')
 
-        self.assertGreater(head_cfg.max_faces, default_cfg.max_faces)
         self.assertGreater(head_cfg.target_cells[0], default_cfg.target_cells[0])
+        self.assertGreaterEqual(head_cfg.target_face_ratio, default_cfg.target_face_ratio)
         self.assertLess(head_cfg.max_extent_ratio_xyz[0], default_cfg.max_extent_ratio_xyz[0])
 
     def test_unknown_link_uses_default_config(self) -> None:

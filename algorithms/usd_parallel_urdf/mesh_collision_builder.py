@@ -494,6 +494,82 @@ def _lowpoly_surface_mesh(
     return best_candidate
 
 
+def _voxelized_mesh_surface(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    reference_points: np.ndarray,
+    min_thickness: float,
+    link_config: LowpolyMeshConfig,
+) -> tuple[np.ndarray, list[tuple[int, int, int]], dict] | None:
+    try:
+        import trimesh
+    except ImportError:
+        return None
+
+    mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=True)
+    if len(mesh.faces) == 0 or len(mesh.vertices) < 4:
+        return None
+
+    source_points = np.asarray(mesh.vertices, dtype=float)
+    best_candidate: tuple[np.ndarray, list[tuple[int, int, int]], dict] | None = None
+    for target_cells in link_config.target_cells:
+        pitch = _reconstruction_pitch(
+            source_points,
+            min_thickness=min_thickness,
+            target_cells=int(target_cells),
+            max_cells=int(link_config.max_grid_cells),
+        )
+        try:
+            voxel = mesh.voxelized(pitch=pitch)
+            voxel = voxel.fill()
+            remeshed = voxel.marching_cubes
+        except Exception:
+            continue
+        cleaned_vertices, cleaned_faces, mesh_details = _clean_mesh(
+            np.asarray(remeshed.vertices, dtype=float),
+            np.asarray(remeshed.faces, dtype=np.int64),
+        )
+        if len(cleaned_faces) == 0:
+            continue
+
+        for cluster_scale in link_config.cluster_scales:
+            clustered_vertices, clustered_faces = _cluster_mesh_vertices(
+                cleaned_vertices,
+                cleaned_faces,
+                max(pitch * cluster_scale, 1e-4),
+            )
+            clustered_vertices, clustered_faces, clustered_details = _clean_mesh(clustered_vertices, clustered_faces)
+            if len(clustered_faces) == 0:
+                continue
+            clustered_vertices, fit_details = _fit_vertices_to_reference_bounds(
+                clustered_vertices,
+                reference_points if len(reference_points) else source_points,
+                link_config,
+            )
+            candidate = (
+                clustered_vertices,
+                [tuple(int(v) for v in face) for face in clustered_faces.tolist()],
+                {
+                    'method': 'voxelized_closed_surface',
+                    'vertex_count': int(len(clustered_vertices)),
+                    'face_count': int(len(clustered_faces)),
+                    'target_cells': int(target_cells),
+                    'cluster_scale': float(cluster_scale),
+                    'pitch': float(pitch),
+                    **mesh_details,
+                    **clustered_details,
+                    **fit_details,
+                },
+            )
+            if not bool(candidate[2].get('watertight', False)):
+                continue
+            if best_candidate is None or candidate[2]['face_count'] < best_candidate[2]['face_count']:
+                best_candidate = candidate
+            if len(clustered_faces) <= link_config.max_faces:
+                return candidate
+    return best_candidate
+
+
 def _write_binary_stl(path: Path, vertices: np.ndarray, faces: Sequence[tuple[int, int, int]], solid_name: str) -> None:
     header = solid_name.encode('ascii', errors='ignore')[:80].ljust(80, b'\0')
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -529,12 +605,20 @@ def _write_binary_stl(path: Path, vertices: np.ndarray, faces: Sequence[tuple[in
             handle.write(packed)
 
 
-def _seed_surface_clouds(stage, skel, records: Sequence[dict]) -> tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], Dict[str, dict]]:
+def _seed_surface_clouds(
+    stage,
+    skel,
+    records: Sequence[dict],
+) -> tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], Dict[str, dict], np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
     from pxr import Usd, UsdGeom, UsdSkel
 
     records_by_path = {record['path']: record for record in records}
     seed_points: Dict[str, List[np.ndarray]] = {record['name']: [] for record in records}
     seed_triangles: Dict[str, List[np.ndarray]] = {record['name']: [] for record in records}
+    fragment_vertices: Dict[str, list[np.ndarray]] = {record['name']: [] for record in records}
+    fragment_faces: Dict[str, list[tuple[int, int, int]]] = {record['name']: [] for record in records}
+    fragment_vertex_maps: Dict[str, dict[tuple[str, int], int]] = {record['name']: {} for record in records}
+    original_triangles: List[np.ndarray] = []
     seed_info: Dict[str, dict] = {
         record['name']: {'seed_point_count': 0, 'seed_triangle_count': 0, 'source_meshes': []} for record in records
     }
@@ -576,9 +660,12 @@ def _seed_surface_clouds(stage, skel, records: Sequence[dict]) -> tuple[Dict[str
         weight_matrix = np.asarray(varying_weights, dtype=np.float64).reshape(-1, influences_per_point)
         face_counts = mesh.GetFaceVertexCountsAttr().Get() or []
         face_indices = mesh.GetFaceVertexIndicesAttr().Get() or []
+        mesh_path = str(prim.GetPath())
 
         touched_links: set[str] = set()
         for tri in _triangulated_faces(face_counts, face_indices):
+            triangle_points = skinned_points_np[list(tri)]
+            original_triangles.append(triangle_points)
             joint_scores: Dict[int, float] = {}
             for vertex_index in tri:
                 for influence_slot in range(influences_per_point):
@@ -596,18 +683,28 @@ def _seed_surface_clouds(stage, skel, records: Sequence[dict]) -> tuple[Dict[str
             if record is None:
                 continue
             link_name = record['name']
-            triangle_points = skinned_points_np[list(tri)]
             seed_points[link_name].append(triangle_points)
             seed_triangles[link_name].append(triangle_points)
+            face_indices_local: list[int] = []
+            for vertex_index in tri:
+                key = (mesh_path, int(vertex_index))
+                local_index = fragment_vertex_maps[link_name].get(key)
+                if local_index is None:
+                    local_index = len(fragment_vertices[link_name])
+                    fragment_vertex_maps[link_name][key] = local_index
+                    fragment_vertices[link_name].append(skinned_points_np[int(vertex_index)])
+                face_indices_local.append(local_index)
+            fragment_faces[link_name].append(tuple(face_indices_local))
             seed_info[link_name]['seed_triangle_count'] += 1
             touched_links.add(link_name)
 
-        mesh_path = str(prim.GetPath())
         for link_name in touched_links:
             seed_info[link_name]['source_meshes'].append(mesh_path)
 
     compact_points: Dict[str, np.ndarray] = {}
     compact_triangles: Dict[str, np.ndarray] = {}
+    compact_fragment_vertices: Dict[str, np.ndarray] = {}
+    compact_fragment_faces: Dict[str, np.ndarray] = {}
     for record in records:
         link_name = record['name']
         if seed_points[link_name]:
@@ -620,32 +717,140 @@ def _seed_surface_clouds(stage, skel, records: Sequence[dict]) -> tuple[Dict[str
             compact_triangles[link_name] = np.stack(seed_triangles[link_name], axis=0)
         else:
             compact_triangles[link_name] = np.zeros((0, 3, 3), dtype=float)
+        if fragment_vertices[link_name]:
+            compact_fragment_vertices[link_name] = np.asarray(fragment_vertices[link_name], dtype=float)
+        else:
+            compact_fragment_vertices[link_name] = np.zeros((0, 3), dtype=float)
+        if fragment_faces[link_name]:
+            compact_fragment_faces[link_name] = np.asarray(fragment_faces[link_name], dtype=np.int64)
+        else:
+            compact_fragment_faces[link_name] = np.zeros((0, 3), dtype=np.int64)
 
-    return compact_points, compact_triangles, seed_info
+    return (
+        compact_points,
+        compact_triangles,
+        seed_info,
+        np.stack(original_triangles, axis=0) if original_triangles else np.zeros((0, 3, 3), dtype=float),
+        compact_fragment_vertices,
+        compact_fragment_faces,
+    )
 
 
 def _build_link_mesh(
     link_name: str,
+    inverse_world: np.ndarray,
     local_points: np.ndarray,
     local_triangles: np.ndarray,
+    world_triangles: np.ndarray,
+    fragment_vertices_world: np.ndarray,
+    fragment_faces: np.ndarray,
     fallback_geoms: Sequence[dict],
     max_hull_faces: int,
     target_hull_points: int,
     min_thickness: float,
     strategy: str,
     build_config: MeshBuildConfig,
+    original_context=None,
 ) -> tuple[np.ndarray, list[tuple[int, int, int]], dict]:
     if len(local_points) >= 4:
         unique_points = _unique_points(local_points)
         if len(unique_points) >= 4:
             if strategy == 'lowpoly_surface':
+                link_cfg = resolve_lowpoly_link_config(build_config, link_name)
+                repaired_result = None
+                repaired_details = None
+                if original_context is not None and len(fragment_faces) >= 4:
+                    from mesh_repair_pipeline import RepairConfig, repair_fragment_arrays
+
+                    repaired = repair_fragment_arrays(
+                        fragment_vertices_world,
+                        fragment_faces,
+                        original_context,
+                        RepairConfig(
+                            target_face_ratio=float(link_cfg.target_face_ratio),
+                            max_faces=int(link_cfg.max_faces),
+                            max_hole_edges=int(link_cfg.max_hole_edges),
+                            component_keep_area_ratio=float(link_cfg.component_keep_area_ratio),
+                            planar_deviation_ratio=float(link_cfg.planar_deviation_ratio),
+                            force_fill_max_edges=int(link_cfg.force_fill_max_edges),
+                            merge_tolerance=1e-6,
+                            smoothing_iterations=int(link_cfg.smoothing_iterations),
+                            smoothing_lambda=float(link_cfg.smoothing_lambda),
+                        ),
+                    )
+                    if repaired is not None:
+                        repaired_vertices_world, repaired_faces, repaired_stats = repaired
+                        repaired_result = (
+                            repaired_vertices_world,
+                            [tuple(int(v) for v in face) for face in repaired_faces.tolist()],
+                        )
+                        repaired_details = {
+                            'method': 'skinned_repaired_surface',
+                            'vertex_count': int(len(repaired_vertices_world)),
+                            'face_count': int(len(repaired_faces)),
+                            'repair_original_face_count': int(repaired_stats.original_face_count),
+                            'repair_holes_found': int(repaired_stats.holes_found),
+                            'repair_holes_filled': int(repaired_stats.holes_filled),
+                            'repair_watertight': bool(repaired_stats.watertight),
+                            'repair_euler_number': repaired_stats.euler_number,
+                            'repair_method': repaired_stats.method,
+                            'repair_warnings': repaired_stats.warnings,
+                        }
+                        if bool(repaired_stats.watertight):
+                            return repaired_vertices_world, [
+                                tuple(int(v) for v in face) for face in repaired_faces.tolist()
+                            ], repaired_details
+                if repaired_result is not None:
+                    repaired_vertices_world, repaired_faces_list = repaired_result
+                    repaired_vertices_local = _transform_points(repaired_vertices_world, inverse_world)
+                    repaired_local_triangles = repaired_vertices_local[np.asarray(repaired_faces_list, dtype=np.int64)]
+                    remeshed_surface = _lowpoly_surface_mesh(
+                        repaired_local_triangles,
+                        min_thickness=min_thickness,
+                        link_config=link_cfg,
+                    )
+                    if remeshed_surface is not None:
+                        vertices, faces, details = remeshed_surface
+                        if bool(details.get('watertight', False)):
+                            return vertices, faces, {
+                                'method': 'skinned_lowpoly_surface_from_repaired',
+                                'repair_fallback': 'lowpoly_surface_from_repaired',
+                                'repair_input_watertight': bool(repaired_details.get('repair_watertight', False)),
+                                **details,
+                            }
+                    voxelized_surface = _voxelized_mesh_surface(
+                        repaired_vertices_local,
+                        np.asarray(repaired_faces_list, dtype=np.int64),
+                        reference_points=local_points,
+                        min_thickness=min_thickness,
+                        link_config=link_cfg,
+                    )
+                    if voxelized_surface is not None:
+                        vertices, faces, details = voxelized_surface
+                        return vertices, faces, {
+                            'method': 'skinned_voxelized_surface_from_repaired',
+                            'repair_fallback': 'voxelized_surface_from_repaired',
+                            'repair_input_watertight': bool(repaired_details.get('repair_watertight', False)),
+                            **details,
+                        }
                 surface = _lowpoly_surface_mesh(
                     local_triangles,
                     min_thickness=min_thickness,
-                    link_config=resolve_lowpoly_link_config(build_config, link_name),
+                    link_config=link_cfg,
                 )
                 if surface is not None:
-                    return surface
+                    vertices, faces, details = surface
+                    if repaired_result is None or bool(details.get('watertight', False)):
+                        extra = {}
+                        if repaired_result is not None:
+                            extra = {
+                                'repair_input_watertight': bool(repaired_details.get('repair_watertight', False)),
+                                'repair_fallback': 'lowpoly_surface',
+                            }
+                        return vertices, faces, {'method': 'skinned_lowpoly_surface_fallback', **details, **extra}
+                if repaired_result is not None:
+                    repaired_vertices_world, repaired_faces_list = repaired_result
+                    return repaired_vertices_world, repaired_faces_list, repaired_details
             if strategy == 'convex_hull':
                 for limit in (max(target_hull_points * 2, target_hull_points), target_hull_points, 40, 24):
                     sampled = _downsample_points(unique_points, limit)
@@ -679,7 +884,23 @@ def build_mesh_collision_assets(
     build_config = build_config or DEFAULT_MESH_BUILD_CONFIG
     mesh_dir.mkdir(parents=True, exist_ok=True)
     primitive_geoms_by_name = build_link_geometries(records)
-    seed_points_by_name, seed_triangles_by_name, seed_info_by_name = _seed_surface_clouds(stage, skel, records)
+    (
+        seed_points_by_name,
+        seed_triangles_by_name,
+        seed_info_by_name,
+        original_triangles,
+        fragment_vertices_by_name,
+        fragment_faces_by_name,
+    ) = _seed_surface_clouds(
+        stage,
+        skel,
+        records,
+    )
+    original_context = None
+    if strategy == 'lowpoly_surface' and len(original_triangles) >= 4:
+        from mesh_repair_pipeline import prepare_original_mesh_context_from_triangles
+
+        original_context = prepare_original_mesh_context_from_triangles(original_triangles)
 
     geoms_by_name: Dict[str, List[dict]] = {}
     summary: Dict[str, dict] = {}
@@ -689,19 +910,29 @@ def build_mesh_collision_assets(
         inverse_world = np.linalg.inv(np.asarray(record['world_matrix'], dtype=float))
         local_points = _transform_points(seed_points_by_name[link_name], inverse_world)
         local_triangles = _transform_triangles(seed_triangles_by_name[link_name], inverse_world)
+        world_triangles = seed_triangles_by_name[link_name]
+        fragment_vertices_world = fragment_vertices_by_name[link_name]
+        fragment_faces = fragment_faces_by_name[link_name]
         fallback_geoms = primitive_geoms_by_name[link_name]
         min_thickness = float(build_config.min_thickness)
         vertices, faces, details = _build_link_mesh(
             link_name,
+            inverse_world,
             local_points,
             local_triangles,
+            world_triangles,
+            fragment_vertices_world,
+            fragment_faces,
             fallback_geoms,
             max_hull_faces=max_hull_faces,
             target_hull_points=target_hull_points,
             min_thickness=min_thickness,
             strategy=strategy,
             build_config=build_config,
+            original_context=original_context,
         )
+        if details.get('method') == 'skinned_repaired_surface':
+            vertices = _transform_points(vertices, inverse_world)
 
         mesh_path = mesh_dir / f'{link_name}.stl'
         _write_binary_stl(mesh_path, vertices, faces, link_name)

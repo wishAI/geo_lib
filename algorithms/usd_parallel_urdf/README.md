@@ -40,6 +40,10 @@ This folder builds two URDF variants from the articulated `landau_v10.usdc` char
 - `mesh`
   - extracts skinned surface points per link from the USD mesh
   - closes the otherwise open surface data into a low-poly STL per link
+  - current pipeline is repair-first:
+    - preserve the source per-face topology for each joint fragment
+    - close boundary loops against the original watertight character mesh
+    - if simplification breaks watertightness, fall back to the repaired closed mesh or a voxel/lowpoly remesh of it
   - current default simplification is `lowpoly_surface`
   - it reconstructs a closed low-poly shell from the extracted per-link surface samples, then fits the shell back toward the source bounds so links do not balloon outward
   - `obb` and `convex_hull` remain available as fallback/debug modes
@@ -118,7 +122,7 @@ Render a posed overview:
 - The generated URDF preserves the source standing basis by keeping the original root transform through a fixed `base_link -> root_x` joint.
 - The build script uses a repo-local Kit portable root under `algorithms/usd_parallel_urdf/.kit_portable/` so it does not depend on `~/Documents/Kit/shared`.
 - The mesh URDF keeps the same kinematics as the primitive URDF. Only the collision/visual geometry changes.
-- The current default STL mode reconstructs low-poly meshes from the extracted per-link USD surface samples, then scales them back toward the source envelope. In the latest build all 68 links used this path, with an average face count of about `358` and a max of `628`.
+- The mesh builder now mixes three watertight outputs depending on the link: repaired surface, low-poly remesh, and voxelized closed-surface fallback. In the latest build all 68 links ended up watertight.
 - `config.py` is the supported tuning point for mesh density and fit tolerance. `head_x` ships with a tighter fit limit and a higher face budget than the rest of the body.
 - The validator and renderer now wait briefly after URDF import before applying poses. That warmup avoids an intermittent mesh-import timing race in Isaac where the articulated pose could be driven before mesh-backed links had fully settled.
 - GUI validation still requires launching from a real desktop session with `DISPLAY` or `WAYLAND_DISPLAY` available.
