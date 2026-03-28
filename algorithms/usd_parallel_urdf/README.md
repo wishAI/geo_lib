@@ -21,7 +21,12 @@ This folder builds two URDF variants from the articulated `landau_v10.usdc` char
   - generated from USD surface vertices/faces assigned to the dominant skinning joint
 - `outputs/mesh_collision_summary.json`
   - per-link mesh build metadata
-  - current default mesh mode is `obb`
+  - includes the resolved low-poly config used for each link
+- `config.py`
+  - user-editable mesh generation defaults
+  - includes per-link overrides such as the higher-detail `head_x` profile
+- `tests/*.py`
+  - fast unit tests for config resolution, mesh-fit helpers, and skeleton/URDF utilities
 - `outputs/validation/offline_transform_comparison.json`
   - deterministic FK comparison for the generated kinematic model
 - `outputs/validation/*.png`
@@ -36,7 +41,7 @@ This folder builds two URDF variants from the articulated `landau_v10.usdc` char
   - extracts skinned surface points per link from the USD mesh
   - closes the otherwise open surface data into a low-poly STL per link
   - current default simplification is `lowpoly_surface`
-  - it reconstructs a watertight low-poly shell from the extracted per-link surface samples, then keeps the face count bounded
+  - it reconstructs a closed low-poly shell from the extracted per-link surface samples, then fits the shell back toward the source bounds so links do not balloon outward
   - `obb` and `convex_hull` remain available as fallback/debug modes
 - `both`
   - writes both URDF variants in one build pass
@@ -62,6 +67,8 @@ Generate only the STL-backed URDF:
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --geometry-mode mesh
 ```
+
+Tune the STL build by editing `algorithms/usd_parallel_urdf/config.py`, then rebuild with the same command.
 
 Switch the mesh simplifier to convex hulls instead of the default low-poly surface reconstruction:
 
@@ -93,6 +100,12 @@ Run the deterministic FK comparison without Isaac rendering:
 python3 algorithms/usd_parallel_urdf/compare_urdf_pose_offline.py
 ```
 
+Run the local unit tests:
+
+```bash
+python3 -m unittest discover -s algorithms/usd_parallel_urdf/tests
+```
+
 Render a posed overview:
 
 ```bash
@@ -105,6 +118,7 @@ Render a posed overview:
 - The generated URDF preserves the source standing basis by keeping the original root transform through a fixed `base_link -> root_x` joint.
 - The build script uses a repo-local Kit portable root under `algorithms/usd_parallel_urdf/.kit_portable/` so it does not depend on `~/Documents/Kit/shared`.
 - The mesh URDF keeps the same kinematics as the primitive URDF. Only the collision/visual geometry changes.
-- The current default STL mode reconstructs low-poly watertight meshes from the extracted per-link USD surface samples. In the latest build all 68 links used this path, with an average face count of about `387` and a max of `478`.
+- The current default STL mode reconstructs low-poly meshes from the extracted per-link USD surface samples, then scales them back toward the source envelope. In the latest build all 68 links used this path, with an average face count of about `358` and a max of `628`.
+- `config.py` is the supported tuning point for mesh density and fit tolerance. `head_x` ships with a tighter fit limit and a higher face budget than the rest of the body.
 - The validator and renderer now wait briefly after URDF import before applying poses. That warmup avoids an intermittent mesh-import timing race in Isaac where the articulated pose could be driven before mesh-backed links had fully settled.
 - GUI validation still requires launching from a real desktop session with `DISPLAY` or `WAYLAND_DISPLAY` available.

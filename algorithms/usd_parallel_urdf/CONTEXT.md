@@ -36,8 +36,9 @@ This folder now supports two geometry variants over the same joint tree:
   - assign each source triangle to the dominant joint by summed skinning weights
 - Simplification:
   - collect the assigned points in link-local space
-  - default mode `lowpoly_surface` reconstructs a watertight low-poly shell from the extracted link surface samples
-  - the shell is then vertex-clustered to keep the face budget low enough for collision use
+  - default mode `lowpoly_surface` reconstructs a low-poly shell from the extracted link surface samples
+  - the shell is vertex-clustered to keep the face budget low enough for collision use
+  - after reconstruction, the mesh is fit back toward the source link bounds so it does not inflate beyond the USD surface envelope
 - Optional alternate mode:
   - `obb` and `convex_hull` are still available for fallback/debugging, but they are not the default
 
@@ -51,6 +52,9 @@ The important distinction from the primitive URDF is that the STL mode is still 
   - builds the skeleton JSON
   - writes the primitive URDF and/or the mesh URDF
   - writes `mesh_collision_summary.json`
+- `config.py`
+  - holds the supported mesh-generation tuning knobs
+  - default low-poly settings live here, including the `head_x` override
 - `mesh_collision_builder.py`
   - extracts per-link surface ownership from the skinned USD mesh
   - closes and simplifies the result into STL collision meshes
@@ -69,9 +73,11 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - The generated URDF stands upright and preserves the source root orientation.
 - The primitive URDF matches the extracted USD skeleton numerically in offline FK within about `2.1e-6 m` max root-relative position error.
 - The mesh URDF shares the exact same joints and transforms, so kinematics remain aligned; only the collision geometry differs.
-- The current default STL mode generates very lightweight per-link meshes.
+- The current default STL mode generates lightweight per-link meshes and fits them back toward the source bounds to prevent oversized collision shells.
 - in the latest build, all 68 links used `skinned_lowpoly_surface`
-- the latest mesh build averaged about `387` faces per link, with a max of `478`
+- the latest mesh build averaged about `358` faces per link, with a max of `628`
+- sampled rebuilt/source extent ratios now sit around `1.03x` for `head_x`, `1.04x/0.92x/1.06x` for `root_x`, `1.01x/1.00x/0.98x` for `spine_02_x`, and `1.08x` for `neck_x`
 - Headless Isaac import of the mesh URDF now completes without the earlier `Invalid PhysX transform` warnings that appeared with more detailed convex-hull meshes.
 - The validator/renderer include a short post-import warmup before applying poses so mesh-backed URDF imports have time to finish settling inside Isaac.
+- there is now a small unit-test suite under `tests/` covering config resolution, mesh-fit helpers, and skeleton/URDF utility behavior
 - GUI validation still depends on running from a real desktop session with working display environment variables.

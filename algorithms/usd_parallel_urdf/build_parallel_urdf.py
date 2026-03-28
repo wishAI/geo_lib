@@ -4,6 +4,7 @@ import argparse
 import os
 from pathlib import Path
 
+from config import DEFAULT_MESH_BUILD_CONFIG
 from mesh_collision_builder import build_mesh_collision_assets
 from skeleton_common import build_link_geometries, extract_skeleton_records, generate_urdf_text, save_json, write_records_json
 
@@ -44,19 +45,19 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--mesh-simplify-mode',
         choices=('lowpoly_surface', 'obb', 'convex_hull'),
-        default='lowpoly_surface',
+        default=DEFAULT_MESH_BUILD_CONFIG.mesh_simplify_mode,
         help='How to close and simplify the extracted per-link surface data into STL collision meshes.',
     )
     parser.add_argument(
         '--max-hull-faces',
         type=int,
-        default=48,
+        default=DEFAULT_MESH_BUILD_CONFIG.max_hull_faces,
         help='Upper bound for the convex-hull triangle count before falling back to a box mesh.',
     )
     parser.add_argument(
         '--target-hull-points',
         type=int,
-        default=24,
+        default=DEFAULT_MESH_BUILD_CONFIG.target_hull_points,
         help='Point budget used when downsampling link-local point clouds before hull generation.',
     )
     parser.add_argument(
@@ -150,6 +151,7 @@ def main() -> None:
                 strategy=args.mesh_simplify_mode,
                 max_hull_faces=args.max_hull_faces,
                 target_hull_points=args.target_hull_points,
+                build_config=DEFAULT_MESH_BUILD_CONFIG,
             )
             print('[GEN] mesh collision assets ready', flush=True)
             mesh_summary_path = args.output_dir / 'mesh_collision_summary.json'
@@ -171,6 +173,13 @@ def main() -> None:
                     'mesh_simplify_mode': args.mesh_simplify_mode,
                     'max_hull_faces': int(args.max_hull_faces),
                     'target_hull_points': int(args.target_hull_points),
+                    'config': {
+                        'min_thickness': float(DEFAULT_MESH_BUILD_CONFIG.min_thickness),
+                        'lowpoly_default': DEFAULT_MESH_BUILD_CONFIG.lowpoly_default.__dict__,
+                        'lowpoly_link_overrides': {
+                            name: cfg.__dict__ for name, cfg in DEFAULT_MESH_BUILD_CONFIG.lowpoly_link_overrides.items()
+                        },
+                    },
                     'links': mesh_assets['summary'],
                 },
             )

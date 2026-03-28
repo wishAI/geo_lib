@@ -7,6 +7,7 @@ from typing import Dict, Iterable, List, Sequence
 
 import numpy as np
 
+from config import DEFAULT_MESH_BUILD_CONFIG, LowpolyMeshConfig, MeshBuildConfig, resolve_lowpoly_link_config
 from skeleton_common import build_link_geometries, rpy_to_matrix
 
 
@@ -293,7 +294,11 @@ def _clean_mesh(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np
         return vertices, faces, {'watertight': False, 'volume': 0.0}
 
 
-def _surface_sample_points(triangles: np.ndarray, max_points: int = 45000) -> np.ndarray:
+def _surface_sample_points(
+    triangles: np.ndarray,
+    max_points: int = 45000,
+    tolerance: float = 5e-4,
+) -> np.ndarray:
     if len(triangles) == 0:
         return np.zeros((0, 3), dtype=float)
 
@@ -305,7 +310,7 @@ def _surface_sample_points(triangles: np.ndarray, max_points: int = 45000) -> np
     mid_bc = (b + c) * 0.5
     mid_ca = (c + a) * 0.5
     points = np.vstack((triangles.reshape(-1, 3), centroids, mid_ab, mid_bc, mid_ca))
-    points = _unique_points(points, tolerance=5e-4)
+    points = _unique_points(points, tolerance=tolerance)
     if len(points) > max_points:
         points = _downsample_points(points, max_points)
     return points
@@ -326,8 +331,7 @@ def _reconstruction_pitch(points: np.ndarray, min_thickness: float, target_cells
 def _marching_surface_mesh(
     points: np.ndarray,
     pitch: float,
-    smooth_sigma: float = 0.9,
-    closing_iterations: int = 1,
+    link_config: LowpolyMeshConfig,
 ) -> tuple[np.ndarray, np.ndarray, dict] | None:
     from scipy import ndimage
     from skimage import measure
@@ -335,13 +339,13 @@ def _marching_surface_mesh(
     if len(points) < 4:
         return None
 
-    padding = 2
+    padding = max(int(link_config.padding_cells), 1)
     bounds_min = points.min(axis=0) - pitch * padding
     bounds_max = points.max(axis=0) + pitch * padding
     shape = np.ceil((bounds_max - bounds_min) / pitch).astype(np.int32) + 1
     if np.any(shape < 4):
         shape = np.maximum(shape, 4)
-    if np.any(shape > 48):
+    if np.any(shape > int(link_config.max_grid_cells)):
         return None
 
     occupancy = np.zeros(shape.tolist(), dtype=bool)
@@ -350,8 +354,14 @@ def _marching_surface_mesh(
     occupancy[indices[:, 0], indices[:, 1], indices[:, 2]] = True
 
     structure = ndimage.generate_binary_structure(3, 2)
-    occupancy = ndimage.binary_dilation(occupancy, structure=structure, iterations=1)
-    occupancy = ndimage.binary_closing(occupancy, structure=np.ones((3, 3, 3), dtype=bool), iterations=closing_iterations)
+    if link_config.dilation_iterations > 0:
+        occupancy = ndimage.binary_dilation(occupancy, structure=structure, iterations=int(link_config.dilation_iterations))
+    if link_config.closing_iterations > 0:
+        occupancy = ndimage.binary_closing(
+            occupancy,
+            structure=np.ones((3, 3, 3), dtype=bool),
+            iterations=int(link_config.closing_iterations),
+        )
     occupancy = ndimage.binary_fill_holes(occupancy)
 
     labels, label_count = ndimage.label(occupancy)
@@ -361,7 +371,7 @@ def _marching_surface_mesh(
         keep[0] = False
         occupancy = keep[labels]
 
-    field = ndimage.gaussian_filter(occupancy.astype(np.float32), sigma=smooth_sigma)
+    field = ndimage.gaussian_filter(occupancy.astype(np.float32), sigma=float(link_config.smooth_sigma))
     if float(field.max()) <= 0.05:
         return None
 
@@ -379,35 +389,109 @@ def _marching_surface_mesh(
     }
 
 
+def _fit_vertices_to_reference_bounds(
+    vertices: np.ndarray,
+    reference_points: np.ndarray,
+    link_config: LowpolyMeshConfig,
+) -> tuple[np.ndarray, dict]:
+    if len(vertices) == 0 or len(reference_points) == 0:
+        return vertices, {
+            'fit_applied': False,
+            'source_extent': [0.0, 0.0, 0.0],
+            'mesh_extent_before_fit': [0.0, 0.0, 0.0],
+            'mesh_extent_after_fit': [0.0, 0.0, 0.0],
+            'fit_scale_xyz': [1.0, 1.0, 1.0],
+        }
+
+    ref_min = reference_points.min(axis=0)
+    ref_max = reference_points.max(axis=0)
+    ref_extent = np.maximum(ref_max - ref_min, 1e-8)
+    ref_center = (ref_min + ref_max) * 0.5
+
+    mesh_min = vertices.min(axis=0)
+    mesh_max = vertices.max(axis=0)
+    mesh_extent = np.maximum(mesh_max - mesh_min, 1e-8)
+
+    fit_margin = np.maximum(ref_extent * float(link_config.fit_margin_ratio), float(link_config.fit_margin_min))
+    max_extent = ref_extent * np.asarray(link_config.max_extent_ratio_xyz, dtype=float)
+    target_extent = np.maximum(ref_extent, np.minimum(ref_extent + fit_margin * 2.0, max_extent))
+    scale = np.minimum(1.0, target_extent / mesh_extent)
+
+    fitted = (vertices - ref_center) * scale + ref_center
+    fitted_min = fitted.min(axis=0)
+    fitted_max = fitted.max(axis=0)
+    target_min = ref_center - target_extent * 0.5
+    target_max = ref_center + target_extent * 0.5
+
+    shift = np.zeros(3, dtype=float)
+    for axis in range(3):
+        if fitted_min[axis] < target_min[axis]:
+            shift[axis] += target_min[axis] - fitted_min[axis]
+        if fitted_max[axis] > target_max[axis]:
+            shift[axis] += target_max[axis] - fitted_max[axis]
+    fitted = fitted + shift
+    fitted_extent = fitted.max(axis=0) - fitted.min(axis=0)
+
+    return fitted, {
+        'fit_applied': bool(np.any(scale < 0.9999) or np.linalg.norm(shift) > 1e-9),
+        'source_extent': ref_extent.tolist(),
+        'mesh_extent_before_fit': mesh_extent.tolist(),
+        'mesh_extent_after_fit': fitted_extent.tolist(),
+        'fit_scale_xyz': scale.tolist(),
+        'fit_shift_xyz': shift.tolist(),
+    }
+
+
 def _lowpoly_surface_mesh(
     triangles: np.ndarray,
     min_thickness: float,
-    max_faces: int = 480,
+    link_config: LowpolyMeshConfig,
 ) -> tuple[np.ndarray, list[tuple[int, int, int]], dict] | None:
-    points = _surface_sample_points(triangles)
+    points = _surface_sample_points(
+        triangles,
+        max_points=int(link_config.max_sample_points),
+        tolerance=float(link_config.sample_tolerance),
+    )
     if len(points) < 4:
         return None
 
-    for target_cells in (22, 18, 15, 12, 10, 8):
-        pitch = _reconstruction_pitch(points, min_thickness=min_thickness, target_cells=target_cells)
-        reconstructed = _marching_surface_mesh(points, pitch=pitch)
+    best_candidate: tuple[np.ndarray, list[tuple[int, int, int]], dict] | None = None
+    for target_cells in link_config.target_cells:
+        pitch = _reconstruction_pitch(
+            points,
+            min_thickness=min_thickness,
+            target_cells=int(target_cells),
+            max_cells=int(link_config.max_grid_cells),
+        )
+        reconstructed = _marching_surface_mesh(points, pitch=pitch, link_config=link_config)
         if reconstructed is None:
             continue
         vertices, faces, details = reconstructed
-        for cluster_scale in (0.8, 1.0, 1.3, 1.7, 2.2, 2.8):
+        for cluster_scale in link_config.cluster_scales:
             clustered_vertices, clustered_faces = _cluster_mesh_vertices(vertices, faces, max(pitch * cluster_scale, 1e-4))
             clustered_vertices, clustered_faces, mesh_details = _clean_mesh(clustered_vertices, clustered_faces)
             if len(clustered_faces) == 0:
                 continue
-            if len(clustered_faces) <= max_faces or (target_cells == 8 and cluster_scale == 2.8):
-                return clustered_vertices, [tuple(int(v) for v in face) for face in clustered_faces.tolist()], {
+            clustered_vertices, fit_details = _fit_vertices_to_reference_bounds(clustered_vertices, points, link_config)
+            candidate = (
+                clustered_vertices,
+                [tuple(int(v) for v in face) for face in clustered_faces.tolist()],
+                {
                     'method': 'skinned_lowpoly_surface',
                     'vertex_count': int(len(clustered_vertices)),
                     'face_count': int(len(clustered_faces)),
+                    'target_cells': int(target_cells),
+                    'cluster_scale': float(cluster_scale),
                     **details,
                     **mesh_details,
-                }
-    return None
+                    **fit_details,
+                },
+            )
+            if best_candidate is None or candidate[2]['face_count'] < best_candidate[2]['face_count']:
+                best_candidate = candidate
+            if len(clustered_faces) <= link_config.max_faces:
+                return candidate
+    return best_candidate
 
 
 def _write_binary_stl(path: Path, vertices: np.ndarray, faces: Sequence[tuple[int, int, int]], solid_name: str) -> None:
@@ -541,6 +625,7 @@ def _seed_surface_clouds(stage, skel, records: Sequence[dict]) -> tuple[Dict[str
 
 
 def _build_link_mesh(
+    link_name: str,
     local_points: np.ndarray,
     local_triangles: np.ndarray,
     fallback_geoms: Sequence[dict],
@@ -548,12 +633,17 @@ def _build_link_mesh(
     target_hull_points: int,
     min_thickness: float,
     strategy: str,
+    build_config: MeshBuildConfig,
 ) -> tuple[np.ndarray, list[tuple[int, int, int]], dict]:
     if len(local_points) >= 4:
         unique_points = _unique_points(local_points)
         if len(unique_points) >= 4:
             if strategy == 'lowpoly_surface':
-                surface = _lowpoly_surface_mesh(local_triangles, min_thickness=min_thickness)
+                surface = _lowpoly_surface_mesh(
+                    local_triangles,
+                    min_thickness=min_thickness,
+                    link_config=resolve_lowpoly_link_config(build_config, link_name),
+                )
                 if surface is not None:
                     return surface
             if strategy == 'convex_hull':
@@ -584,7 +674,9 @@ def build_mesh_collision_assets(
     strategy: str = 'obb',
     max_hull_faces: int = 128,
     target_hull_points: int = 96,
+    build_config: MeshBuildConfig | None = None,
 ) -> dict:
+    build_config = build_config or DEFAULT_MESH_BUILD_CONFIG
     mesh_dir.mkdir(parents=True, exist_ok=True)
     primitive_geoms_by_name = build_link_geometries(records)
     seed_points_by_name, seed_triangles_by_name, seed_info_by_name = _seed_surface_clouds(stage, skel, records)
@@ -598,8 +690,9 @@ def build_mesh_collision_assets(
         local_points = _transform_points(seed_points_by_name[link_name], inverse_world)
         local_triangles = _transform_triangles(seed_triangles_by_name[link_name], inverse_world)
         fallback_geoms = primitive_geoms_by_name[link_name]
-        min_thickness = 0.004
+        min_thickness = float(build_config.min_thickness)
         vertices, faces, details = _build_link_mesh(
+            link_name,
             local_points,
             local_triangles,
             fallback_geoms,
@@ -607,6 +700,7 @@ def build_mesh_collision_assets(
             target_hull_points=target_hull_points,
             min_thickness=min_thickness,
             strategy=strategy,
+            build_config=build_config,
         )
 
         mesh_path = mesh_dir / f'{link_name}.stl'
@@ -629,6 +723,7 @@ def build_mesh_collision_assets(
             'mesh_triangle_count': int(len(faces)),
             'bounds_min': vertices.min(axis=0).tolist(),
             'bounds_max': vertices.max(axis=0).tolist(),
+            'resolved_lowpoly_config': resolve_lowpoly_link_config(build_config, link_name).__dict__,
             **details,
         }
 
