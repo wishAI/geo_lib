@@ -4,3 +4,17 @@ algorithms/fake_cloud/outputs/
 # Python bytecode and caches
 __pycache__/
 *.pyc
+
+# Large generated / binary asset files
+*.usdc
+*.blend
+*.blend1
+*.glb
+
+# Isaac/Kit portable runtime state
+.kit_portable/
+.kit_protable/
+
+# Robot assets
+unitree_g1/
+google_robot/
