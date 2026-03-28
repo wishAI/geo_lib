@@ -72,10 +72,12 @@ def main() -> None:
     tree = ET.parse(args.urdf_path)
     root = tree.getroot()
     child_joint = {}
+    parent_links = set()
     for joint in root.findall('joint'):
         name = joint.attrib['name']
         parent = joint.find('parent').attrib['link']
         child = joint.find('child').attrib['link']
+        parent_links.add(parent)
         origin = joint.find('origin')
         xyz = [float(v) for v in origin.attrib.get('xyz', '0 0 0').split()]
         rpy = [float(v) for v in origin.attrib.get('rpy', '0 0 0').split()]
@@ -90,7 +92,8 @@ def main() -> None:
             'angle': float(pose.get(name, 0.0)),
         }
 
-    urdf_world = {'root_x': np.eye(4, dtype=float)}
+    root_links = parent_links.difference(child_joint)
+    urdf_world = {link_name: np.eye(4, dtype=float) for link_name in root_links}
     unresolved = set(child_joint)
     while unresolved:
         progressed = False
@@ -107,11 +110,15 @@ def main() -> None:
         if not progressed:
             raise RuntimeError(f'Unable to resolve URDF FK for links: {sorted(unresolved)}')
 
+    urdf_root_name = records[0]['name']
+    urdf_root_inv = np.linalg.inv(urdf_world[urdf_root_name])
+
     per_link = []
     for name, usd_matrix in usd_by_name.items():
         urdf_matrix = urdf_world.get(name)
         if urdf_matrix is None:
             continue
+        urdf_matrix = urdf_root_inv @ urdf_matrix
         pos_error = float(np.linalg.norm(usd_matrix[:3, 3] - urdf_matrix[:3, 3]))
         usd_xyz, usd_rpy = matrix_to_xyz_rpy(usd_matrix)
         urdf_xyz, urdf_rpy = matrix_to_xyz_rpy(urdf_matrix)

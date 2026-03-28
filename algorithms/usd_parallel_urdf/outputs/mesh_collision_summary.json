@@ -1,0 +1,2118 @@
+{
+  "usd_path": "/home/wishai/vscode/geo_lib/algorithms/avp_remote/landau_v10.usdc",
+  "skeleton_path": "/root/root/root",
+  "mesh_output_dir": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl",
+  "mesh_simplify_mode": "lowpoly_surface",
+  "max_hull_faces": 48,
+  "target_hull_points": 24,
+  "links": {
+    "root_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/root_x.stl",
+      "seed_point_count": 17832,
+      "seed_triangle_count": 5944,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 194,
+      "mesh_triangle_count": 394,
+      "bounds_min": [
+        -0.13629669659806212,
+        -0.05845365204755131,
+        -0.0976464719235267
+      ],
+      "bounds_max": [
+        0.13632174118093657,
+        0.14871740970581743,
+        0.10132001880906955
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 194,
+      "face_count": 394,
+      "pitch": 0.013170390530257797,
+      "grid_shape": [
+        24,
+        19,
+        17
+      ],
+      "watertight": false,
+      "volume": 0.00011482987803107122
+    },
+    "spine_01_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/spine_01_x.stl",
+      "seed_point_count": 6840,
+      "seed_triangle_count": 2280,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 214,
+      "mesh_triangle_count": 425,
+      "bounds_min": [
+        -0.05969784285288553,
+        -0.07090461381516829,
+        -0.11003645769945844
+      ],
+      "bounds_max": [
+        0.05726915962697069,
+        0.06815651619893322,
+        0.03006259975454235
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 214,
+      "face_count": 425,
+      "pitch": 0.006740549176517757,
+      "grid_shape": [
+        21,
+        23,
+        23
+      ],
+      "watertight": false,
+      "volume": 2.3348502029134102e-05
+    },
+    "spine_02_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/spine_02_x.stl",
+      "seed_point_count": 5211,
+      "seed_triangle_count": 1737,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 199,
+      "mesh_triangle_count": 396,
+      "bounds_min": [
+        -0.08173037362425137,
+        -0.022365179985230337,
+        -0.05074081827271292
+      ],
+      "bounds_max": [
+        0.07778390254038918,
+        0.1296516563167513,
+        0.11125570817519491
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 199,
+      "face_count": 396,
+      "pitch": 0.009257771505503883,
+      "grid_shape": [
+        20,
+        20,
+        20
+      ],
+      "watertight": false,
+      "volume": 4.81895351714557e-05
+    },
+    "spine_03_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/spine_03_x.stl",
+      "seed_point_count": 1734,
+      "seed_triangle_count": 578,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 210,
+      "mesh_triangle_count": 423,
+      "bounds_min": [
+        -0.042268052938155345,
+        0.0001574901457688239,
+        -0.04540733579247026
+      ],
+      "bounds_max": [
+        0.042967189358263706,
+        0.08444870770938245,
+        0.06753489175598988
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 210,
+      "face_count": 423,
+      "pitch": 0.004570140246010163,
+      "grid_shape": [
+        21,
+        22,
+        27
+      ],
+      "watertight": false,
+      "volume": 2.2616654378974634e-07
+    },
+    "neck_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/neck_x.stl",
+      "seed_point_count": 27,
+      "seed_triangle_count": 9,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 122,
+      "mesh_triangle_count": 240,
+      "bounds_min": [
+        0.013763916186163088,
+        -0.002537033233540216,
+        0.008756837136212326
+      ],
+      "bounds_max": [
+        0.030269903706182304,
+        0.01180575388322576,
+        0.02378502320415113
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 122,
+      "face_count": 240,
+      "pitch": 0.0025,
+      "grid_shape": [
+        9,
+        8,
+        8
+      ],
+      "watertight": true,
+      "volume": 1.5438174567207682e-07
+    },
+    "head_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/head_x.stl",
+      "seed_point_count": 67998,
+      "seed_triangle_count": 22666,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 170,
+      "mesh_triangle_count": 335,
+      "bounds_min": [
+        -0.2034478322384395,
+        -0.09243327192315959,
+        -0.23023578065884084
+      ],
+      "bounds_max": [
+        0.19737062408803388,
+        0.6028195816811395,
+        0.19806238626951464
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 170,
+      "face_count": 335,
+      "pitch": 0.028155806789919937,
+      "grid_shape": [
+        17,
+        27,
+        18
+      ],
+      "watertight": false,
+      "volume": 0.0003642340431761213
+    },
+    "shoulder_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/shoulder_r.stl",
+      "seed_point_count": 1347,
+      "seed_triangle_count": 449,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 222,
+      "mesh_triangle_count": 443,
+      "bounds_min": [
+        -0.07057750574334498,
+        -0.019298083970520383,
+        -0.04738194358164811
+      ],
+      "bounds_max": [
+        0.04323356891634913,
+        0.0646024617149683,
+        0.04791826859992497
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 222,
+      "face_count": 443,
+      "pitch": 0.004529545064764704,
+      "grid_shape": [
+        27,
+        22,
+        25
+      ],
+      "watertight": false,
+      "volume": 9.546527214370259e-07
+    },
+    "arm_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/arm_stretch_r.stl",
+      "seed_point_count": 768,
+      "seed_triangle_count": 256,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 202,
+      "mesh_triangle_count": 408,
+      "bounds_min": [
+        -0.04776429291732854,
+        0.02768027403962781,
+        -0.03806833621368484
+      ],
+      "bounds_max": [
+        0.024837962634154956,
+        0.10457673546742406,
+        0.03259500130258246
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 202,
+      "face_count": 408,
+      "pitch": 0.0046117750694279185,
+      "grid_shape": [
+        18,
+        20,
+        17
+      ],
+      "watertight": false,
+      "volume": 2.4278934269675433e-07
+    },
+    "arm_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/arm_twist_r.stl",
+      "seed_point_count": 1143,
+      "seed_triangle_count": 381,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 221,
+      "mesh_triangle_count": 443,
+      "bounds_min": [
+        -0.05452115150476933,
+        -0.0183126714083832,
+        -0.044302786503014294
+      ],
+      "bounds_max": [
+        0.03416796907162624,
+        0.06927664268000419,
+        0.03110424020948398
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 221,
+      "face_count": 443,
+      "pitch": 0.004316132327887224,
+      "grid_shape": [
+        23,
+        23,
+        21
+      ],
+      "watertight": false,
+      "volume": 5.729802500869171e-06
+    },
+    "forearm_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/forearm_stretch_r.stl",
+      "seed_point_count": 1905,
+      "seed_triangle_count": 635,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 216,
+      "mesh_triangle_count": 435,
+      "bounds_min": [
+        -0.04790897173840798,
+        -0.01405083407219552,
+        -0.04219550984117901
+      ],
+      "bounds_max": [
+        0.033855545473175645,
+        0.05660279879363725,
+        0.038318232307752324
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 216,
+      "face_count": 435,
+      "pitch": 0.00448941895622043,
+      "grid_shape": [
+        20,
+        19,
+        20
+      ],
+      "watertight": false,
+      "volume": 3.238646274035213e-06
+    },
+    "forearm_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/forearm_twist_r.stl",
+      "seed_point_count": 1164,
+      "seed_triangle_count": 388,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 216,
+      "mesh_triangle_count": 438,
+      "bounds_min": [
+        -0.04301955874693855,
+        -0.007847438768291536,
+        -0.039694851292377195
+      ],
+      "bounds_max": [
+        0.02502201090718842,
+        0.06282915608587543,
+        0.029251620290866795
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 216,
+      "face_count": 438,
+      "pitch": 0.004012517276941052,
+      "grid_shape": [
+        20,
+        21,
+        20
+      ],
+      "watertight": false,
+      "volume": 2.23326587416386e-06
+    },
+    "hand_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/hand_r.stl",
+      "seed_point_count": 276,
+      "seed_triangle_count": 92,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 173,
+      "mesh_triangle_count": 347,
+      "bounds_min": [
+        -0.02068998925889654,
+        -0.005254148490909242,
+        -0.019356388885183224
+      ],
+      "bounds_max": [
+        0.021408202189336804,
+        0.04728697611834541,
+        0.0238196928790181
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 173,
+      "face_count": 347,
+      "pitch": 0.0025,
+      "grid_shape": [
+        20,
+        26,
+        19
+      ],
+      "watertight": false,
+      "volume": 1.3013445033338358e-07
+    },
+    "thumb1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thumb1_r.stl",
+      "seed_point_count": 387,
+      "seed_triangle_count": 129,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 174,
+      "mesh_triangle_count": 346,
+      "bounds_min": [
+        -0.015810287761992923,
+        -0.01896396110145121,
+        -0.021526087475030573
+      ],
+      "bounds_max": [
+        0.01941122203074557,
+        0.038825363699964005,
+        0.018218354270151303
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 174,
+      "face_count": 346,
+      "pitch": 0.0025,
+      "grid_shape": [
+        18,
+        27,
+        20
+      ],
+      "watertight": false,
+      "volume": 6.113449375384365e-07
+    },
+    "thumb2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thumb2_r.stl",
+      "seed_point_count": 219,
+      "seed_triangle_count": 73,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 158,
+      "mesh_triangle_count": 313,
+      "bounds_min": [
+        -0.014566640994981108,
+        -0.011206549376216826,
+        -0.013989907267865436
+      ],
+      "bounds_max": [
+        0.014765729431938619,
+        0.025469920636083717,
+        0.014189435429198647
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 158,
+      "face_count": 313,
+      "pitch": 0.0025,
+      "grid_shape": [
+        14,
+        18,
+        14
+      ],
+      "watertight": false,
+      "volume": 6.821087422356419e-07
+    },
+    "thumb3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thumb3_r.stl",
+      "seed_point_count": 354,
+      "seed_triangle_count": 118,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 193,
+      "mesh_triangle_count": 383,
+      "bounds_min": [
+        -0.013410378261460671,
+        -0.015022706144281507,
+        -0.013591505220657297
+      ],
+      "bounds_max": [
+        0.012184530519888988,
+        0.01787472703483872,
+        0.014426188723618082
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 193,
+      "face_count": 383,
+      "pitch": 0.0025,
+      "grid_shape": [
+        13,
+        16,
+        14
+      ],
+      "watertight": false,
+      "volume": 1.7944715722384708e-07
+    },
+    "index1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index1_base_r.stl",
+      "seed_point_count": 453,
+      "seed_triangle_count": 151,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 186,
+      "mesh_triangle_count": 367,
+      "bounds_min": [
+        -0.023636011182105298,
+        -0.023174967608619864,
+        -0.021798067535537424
+      ],
+      "bounds_max": [
+        0.016673572265093892,
+        0.0656000553482206,
+        0.02362567083832315
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 186,
+      "face_count": 367,
+      "pitch": 0.0037921664594270806,
+      "grid_shape": [
+        14,
+        27,
+        15
+      ],
+      "watertight": false,
+      "volume": 4.83008419909049e-07
+    },
+    "index1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index1_r.stl",
+      "seed_point_count": 81,
+      "seed_triangle_count": 27,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 205,
+      "mesh_triangle_count": 406,
+      "bounds_min": [
+        -0.014113788600134666,
+        -0.015910907813484164,
+        -0.014155711753070201
+      ],
+      "bounds_max": [
+        0.012043811017902875,
+        0.025430245404202387,
+        0.013634268084764634
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 205,
+      "face_count": 406,
+      "pitch": 0.0025,
+      "grid_shape": [
+        13,
+        20,
+        14
+      ],
+      "watertight": true,
+      "volume": 3.8646631308640293e-07
+    },
+    "index2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index2_r.stl",
+      "seed_point_count": 276,
+      "seed_triangle_count": 92,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 151,
+      "mesh_triangle_count": 300,
+      "bounds_min": [
+        -0.012500577750593546,
+        -0.017123937715365235,
+        -0.014291822940695696
+      ],
+      "bounds_max": [
+        0.01300469262372442,
+        0.027021301857268164,
+        0.013900659066350844
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 151,
+      "face_count": 300,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        21,
+        14
+      ],
+      "watertight": false,
+      "volume": 2.827231444238033e-07
+    },
+    "index3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index3_r.stl",
+      "seed_point_count": 201,
+      "seed_triangle_count": 67,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 170,
+      "mesh_triangle_count": 336,
+      "bounds_min": [
+        -0.011756473975916518,
+        -0.0040144729368315046,
+        -0.011972501123270437
+      ],
+      "bounds_max": [
+        0.011115842898647175,
+        0.01574921886102101,
+        0.010816598689237192
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 170,
+      "face_count": 336,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        11,
+        12
+      ],
+      "watertight": true,
+      "volume": 1.1956316262588255e-07
+    },
+    "middle1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle1_base_r.stl",
+      "seed_point_count": 213,
+      "seed_triangle_count": 71,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 222,
+      "mesh_triangle_count": 438,
+      "bounds_min": [
+        -0.01993098363914236,
+        0.0019187010024561458,
+        -0.0169166664839886
+      ],
+      "bounds_max": [
+        0.01728622894386766,
+        0.054061357835389574,
+        0.020715739195861754
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 222,
+      "face_count": 438,
+      "pitch": 0.0025,
+      "grid_shape": [
+        18,
+        24,
+        18
+      ],
+      "watertight": false,
+      "volume": 3.904370699745371e-07
+    },
+    "middle1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle1_r.stl",
+      "seed_point_count": 183,
+      "seed_triangle_count": 61,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 168,
+      "mesh_triangle_count": 335,
+      "bounds_min": [
+        -0.017860619599608194,
+        -0.0051096486841260514,
+        -0.013370778881658902
+      ],
+      "bounds_max": [
+        0.015136027075362591,
+        0.0347300700124909,
+        0.014575343891332753
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 168,
+      "face_count": 335,
+      "pitch": 0.0025,
+      "grid_shape": [
+        16,
+        20,
+        14
+      ],
+      "watertight": false,
+      "volume": 4.160227314951809e-07
+    },
+    "middle2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle2_r.stl",
+      "seed_point_count": 123,
+      "seed_triangle_count": 41,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 186,
+      "mesh_triangle_count": 368,
+      "bounds_min": [
+        -0.012517849407203118,
+        -0.014954309969116768,
+        -0.011070886285103915
+      ],
+      "bounds_max": [
+        0.012868763008110604,
+        0.02376598535580484,
+        0.012696803541483921
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 186,
+      "face_count": 368,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        18,
+        12
+      ],
+      "watertight": true,
+      "volume": 9.030561872338356e-08
+    },
+    "middle3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle3_r.stl",
+      "seed_point_count": 261,
+      "seed_triangle_count": 87,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 189,
+      "mesh_triangle_count": 374,
+      "bounds_min": [
+        -0.011201015696386242,
+        -0.028388493805436565,
+        -0.014979593145453048
+      ],
+      "bounds_max": [
+        0.011729341499050713,
+        0.01668486356803946,
+        0.010498679739631105
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 189,
+      "face_count": 374,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        21,
+        13
+      ],
+      "watertight": true,
+      "volume": 1.0105396308296174e-08
+    },
+    "ring1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring1_base_r.stl",
+      "seed_point_count": 147,
+      "seed_triangle_count": 49,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 178,
+      "mesh_triangle_count": 350,
+      "bounds_min": [
+        -0.0166118750501077,
+        -0.01662913334015481,
+        -0.017550613336078914
+      ],
+      "bounds_max": [
+        0.014406382647888075,
+        0.049705717847864817,
+        0.020534095167009672
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 178,
+      "face_count": 350,
+      "pitch": 0.00276699337951965,
+      "grid_shape": [
+        15,
+        27,
+        17
+      ],
+      "watertight": false,
+      "volume": 4.425322710455658e-07
+    },
+    "ring1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring1_r.stl",
+      "seed_point_count": 132,
+      "seed_triangle_count": 44,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 215,
+      "mesh_triangle_count": 426,
+      "bounds_min": [
+        -0.017773974953291707,
+        -0.007803819808667886,
+        -0.013396359383484291
+      ],
+      "bounds_max": [
+        0.005575254516603656,
+        0.03251648784100415,
+        0.016896472871879176
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 215,
+      "face_count": 426,
+      "pitch": 0.0025,
+      "grid_shape": [
+        13,
+        19,
+        14
+      ],
+      "watertight": true,
+      "volume": 2.9138545785518385e-08
+    },
+    "ring2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring2_r.stl",
+      "seed_point_count": 114,
+      "seed_triangle_count": 38,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 180,
+      "mesh_triangle_count": 356,
+      "bounds_min": [
+        -0.01172788034282152,
+        -0.01599445123958543,
+        -0.010971202902677439
+      ],
+      "bounds_max": [
+        0.01128162779756363,
+        0.021828977346539942,
+        0.013331805355665305
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 180,
+      "face_count": 356,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        18,
+        12
+      ],
+      "watertight": true,
+      "volume": 2.9962223954230983e-07
+    },
+    "ring3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring3_r.stl",
+      "seed_point_count": 240,
+      "seed_triangle_count": 80,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 177,
+      "mesh_triangle_count": 350,
+      "bounds_min": [
+        -0.011732117526404195,
+        -0.0270101654361023,
+        -0.013345351212332502
+      ],
+      "bounds_max": [
+        0.011376566037364668,
+        0.017002685161398502,
+        0.009562361060967193
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 177,
+      "face_count": 350,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        21,
+        12
+      ],
+      "watertight": true,
+      "volume": 7.001811869388487e-08
+    },
+    "pinky1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky1_base_r.stl",
+      "seed_point_count": 441,
+      "seed_triangle_count": 147,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 195,
+      "mesh_triangle_count": 386,
+      "bounds_min": [
+        -0.01811299179447723,
+        -0.01580859792420412,
+        -0.017263037091449322
+      ],
+      "bounds_max": [
+        0.017487935133666317,
+        0.06019472441109941,
+        0.0199638887919089
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 195,
+      "face_count": 386,
+      "pitch": 0.003123346689110809,
+      "grid_shape": [
+        14,
+        27,
+        15
+      ],
+      "watertight": false,
+      "volume": 1.9709443855883253e-07
+    },
+    "pinky1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky1_r.stl",
+      "seed_point_count": 129,
+      "seed_triangle_count": 43,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 168,
+      "mesh_triangle_count": 334,
+      "bounds_min": [
+        -0.018898406221835966,
+        -0.011156767678594996,
+        -0.008898387860096798
+      ],
+      "bounds_max": [
+        0.011225500628978858,
+        0.024425682092868873,
+        0.015250021655522479
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 168,
+      "face_count": 334,
+      "pitch": 0.0025,
+      "grid_shape": [
+        15,
+        18,
+        13
+      ],
+      "watertight": false,
+      "volume": 5.111529936210894e-08
+    },
+    "pinky2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky2_r.stl",
+      "seed_point_count": 33,
+      "seed_triangle_count": 11,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 241,
+      "mesh_triangle_count": 478,
+      "bounds_min": [
+        -0.00041937123791636736,
+        -0.016085975410020756,
+        -0.009462457101418936
+      ],
+      "bounds_max": [
+        0.01232639957411824,
+        0.013385638876282763,
+        0.01096956727318529
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 241,
+      "face_count": 478,
+      "pitch": 0.0025,
+      "grid_shape": [
+        7,
+        15,
+        10
+      ],
+      "watertight": true,
+      "volume": 1.0384927414093451e-07
+    },
+    "pinky3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky3_r.stl",
+      "seed_point_count": 312,
+      "seed_triangle_count": 104,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 166,
+      "mesh_triangle_count": 328,
+      "bounds_min": [
+        -0.01192359222036089,
+        -0.019465451726370285,
+        -0.012987693130137137
+      ],
+      "bounds_max": [
+        0.011239010468756305,
+        0.017754937371558716,
+        0.010191429228423424
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 166,
+      "face_count": 328,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        18,
+        12
+      ],
+      "watertight": true,
+      "volume": 1.3983140035384674e-08
+    },
+    "shoulder_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/shoulder_l.stl",
+      "seed_point_count": 1296,
+      "seed_triangle_count": 432,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 231,
+      "mesh_triangle_count": 459,
+      "bounds_min": [
+        -0.043020912060703485,
+        -0.014172932217538967,
+        -0.049379017405718616
+      ],
+      "bounds_max": [
+        0.0690869403717445,
+        0.06903034873798758,
+        0.04848007608386509
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 231,
+      "face_count": 459,
+      "pitch": 0.004436637970046785,
+      "grid_shape": [
+        27,
+        22,
+        26
+      ],
+      "watertight": false,
+      "volume": 1.1816423341393459e-05
+    },
+    "arm_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/arm_stretch_l.stl",
+      "seed_point_count": 831,
+      "seed_triangle_count": 277,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 223,
+      "mesh_triangle_count": 452,
+      "bounds_min": [
+        -0.02512777823443417,
+        0.027872020368926376,
+        -0.03735537426522159
+      ],
+      "bounds_max": [
+        0.047880691693737494,
+        0.103901652215848,
+        0.033054529663621574
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 223,
+      "face_count": 452,
+      "pitch": 0.004331956917705404,
+      "grid_shape": [
+        19,
+        20,
+        19
+      ],
+      "watertight": false,
+      "volume": 3.0406649445099336e-07
+    },
+    "arm_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/arm_twist_l.stl",
+      "seed_point_count": 1209,
+      "seed_triangle_count": 403,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 224,
+      "mesh_triangle_count": 452,
+      "bounds_min": [
+        -0.0323031241981243,
+        -0.013434603920392483,
+        -0.04287318700932421
+      ],
+      "bounds_max": [
+        0.055165999871997974,
+        0.06609042869796614,
+        0.03359488949595846
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 224,
+      "face_count": 452,
+      "pitch": 0.0042759644357080375,
+      "grid_shape": [
+        24,
+        23,
+        20
+      ],
+      "watertight": false,
+      "volume": 2.3946282766800857e-06
+    },
+    "forearm_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/forearm_stretch_l.stl",
+      "seed_point_count": 1866,
+      "seed_triangle_count": 622,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 213,
+      "mesh_triangle_count": 428,
+      "bounds_min": [
+        -0.034619298637016904,
+        -0.01350255342310993,
+        -0.04215737443824145
+      ],
+      "bounds_max": [
+        0.04902173002720183,
+        0.05379459218060365,
+        0.038269603709134965
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 213,
+      "face_count": 428,
+      "pitch": 0.004565757311611944,
+      "grid_shape": [
+        20,
+        18,
+        20
+      ],
+      "watertight": false,
+      "volume": 5.50835164183906e-06
+    },
+    "forearm_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/forearm_twist_l.stl",
+      "seed_point_count": 1329,
+      "seed_triangle_count": 443,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 196,
+      "mesh_triangle_count": 398,
+      "bounds_min": [
+        -0.027067709643045588,
+        -0.0084031574371455,
+        -0.03798088971037361
+      ],
+      "bounds_max": [
+        0.04393657064150833,
+        0.06431874338608748,
+        0.03000714420089803
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 196,
+      "face_count": 398,
+      "pitch": 0.004167595369285001,
+      "grid_shape": [
+        20,
+        20,
+        20
+      ],
+      "watertight": false,
+      "volume": 1.9010629222688994e-06
+    },
+    "hand_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/hand_l.stl",
+      "seed_point_count": 282,
+      "seed_triangle_count": 94,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 164,
+      "mesh_triangle_count": 328,
+      "bounds_min": [
+        -0.025387266496878672,
+        -0.006827475086207485,
+        -0.01978261928639654
+      ],
+      "bounds_max": [
+        0.020032158086635863,
+        0.04917816169164412,
+        0.023065757784096627
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 164,
+      "face_count": 328,
+      "pitch": 0.0025,
+      "grid_shape": [
+        22,
+        26,
+        20
+      ],
+      "watertight": false,
+      "volume": 2.2131963403748719e-07
+    },
+    "thumb1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thumb1_l.stl",
+      "seed_point_count": 321,
+      "seed_triangle_count": 107,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 158,
+      "mesh_triangle_count": 327,
+      "bounds_min": [
+        -0.017602848181849984,
+        -0.01281320178442165,
+        -0.020997541340265446
+      ],
+      "bounds_max": [
+        0.01484367695643544,
+        0.04046376888100264,
+        0.016531100664090338
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 158,
+      "face_count": 327,
+      "pitch": 0.0025,
+      "grid_shape": [
+        16,
+        26,
+        18
+      ],
+      "watertight": false,
+      "volume": 1.0444456258637688e-06
+    },
+    "thumb2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thumb2_l.stl",
+      "seed_point_count": 174,
+      "seed_triangle_count": 58,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 222,
+      "mesh_triangle_count": 440,
+      "bounds_min": [
+        -0.015895333950248725,
+        -0.011016614816105672,
+        -0.01420017809023716
+      ],
+      "bounds_max": [
+        0.01348389838931226,
+        0.02509846248078713,
+        0.014004512928672056
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 222,
+      "face_count": 440,
+      "pitch": 0.0025,
+      "grid_shape": [
+        15,
+        18,
+        14
+      ],
+      "watertight": true,
+      "volume": 2.1625709773545558e-08
+    },
+    "thumb3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thumb3_l.stl",
+      "seed_point_count": 291,
+      "seed_triangle_count": 97,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 177,
+      "mesh_triangle_count": 350,
+      "bounds_min": [
+        -0.013075363411502818,
+        -0.01581347913808896,
+        -0.012892613591849815
+      ],
+      "bounds_max": [
+        0.011914492921037695,
+        0.017754029112385977,
+        0.012728175582140674
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 177,
+      "face_count": 350,
+      "pitch": 0.0025,
+      "grid_shape": [
+        13,
+        16,
+        13
+      ],
+      "watertight": true,
+      "volume": 1.2530546885425533e-07
+    },
+    "index1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index1_base_l.stl",
+      "seed_point_count": 546,
+      "seed_triangle_count": 182,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 188,
+      "mesh_triangle_count": 373,
+      "bounds_min": [
+        -0.017686114973055465,
+        -0.02512301801022875,
+        -0.01889697494412366
+      ],
+      "bounds_max": [
+        0.022997657002948015,
+        0.06859648670096521,
+        0.022943390977968787
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 188,
+      "face_count": 373,
+      "pitch": 0.003848725597058096,
+      "grid_shape": [
+        14,
+        27,
+        14
+      ],
+      "watertight": false,
+      "volume": 1.9264397198115347e-06
+    },
+    "index1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index1_l.stl",
+      "seed_point_count": 45,
+      "seed_triangle_count": 15,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 229,
+      "mesh_triangle_count": 454,
+      "bounds_min": [
+        -0.005972768340035848,
+        -0.011228404042691736,
+        -0.011874295929019089
+      ],
+      "bounds_max": [
+        0.01544395373411519,
+        0.024903677704363317,
+        0.015588111843720638
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 229,
+      "face_count": 454,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        22,
+        13
+      ],
+      "watertight": true,
+      "volume": 1.587983338074828e-08
+    },
+    "index2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index2_l.stl",
+      "seed_point_count": 231,
+      "seed_triangle_count": 77,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 161,
+      "mesh_triangle_count": 318,
+      "bounds_min": [
+        -0.012773744876439444,
+        -0.021647281888991253,
+        -0.013955841496143574
+      ],
+      "bounds_max": [
+        0.012950635326151977,
+        0.025417537961713636,
+        0.01434892993713038
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 161,
+      "face_count": 318,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        23,
+        13
+      ],
+      "watertight": false,
+      "volume": 3.19984108828875e-07
+    },
+    "index3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/index3_l.stl",
+      "seed_point_count": 189,
+      "seed_triangle_count": 63,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 203,
+      "mesh_triangle_count": 402,
+      "bounds_min": [
+        -0.012272405717152175,
+        -0.008272051520918589,
+        -0.011896248003346415
+      ],
+      "bounds_max": [
+        0.01269505770913977,
+        0.016356275371934195,
+        0.01218837505529057
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 203,
+      "face_count": 402,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        12,
+        12
+      ],
+      "watertight": true,
+      "volume": 2.7313342045876086e-07
+    },
+    "middle1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle1_base_l.stl",
+      "seed_point_count": 249,
+      "seed_triangle_count": 83,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 221,
+      "mesh_triangle_count": 436,
+      "bounds_min": [
+        -0.016465550053525124,
+        -0.0006247076056886177,
+        -0.016652689299164424
+      ],
+      "bounds_max": [
+        0.015274034138527941,
+        0.04939062876307654,
+        0.021138148554982535
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 221,
+      "face_count": 436,
+      "pitch": 0.0025,
+      "grid_shape": [
+        16,
+        24,
+        18
+      ],
+      "watertight": false,
+      "volume": 6.853121229785304e-08
+    },
+    "middle1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle1_l.stl",
+      "seed_point_count": 306,
+      "seed_triangle_count": 102,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 173,
+      "mesh_triangle_count": 342,
+      "bounds_min": [
+        -0.01486813524258594,
+        -0.005593778465231729,
+        -0.013823465767196445
+      ],
+      "bounds_max": [
+        0.01858357673162427,
+        0.033403041788925565,
+        0.015308857536906088
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 173,
+      "face_count": 342,
+      "pitch": 0.0025,
+      "grid_shape": [
+        16,
+        20,
+        14
+      ],
+      "watertight": false,
+      "volume": 1.3977255329723594e-07
+    },
+    "middle2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle2_l.stl",
+      "seed_point_count": 87,
+      "seed_triangle_count": 29,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 221,
+      "mesh_triangle_count": 438,
+      "bounds_min": [
+        -0.012136793545973308,
+        -0.014032776306084321,
+        -0.003876906082885406
+      ],
+      "bounds_max": [
+        0.010820438974010938,
+        0.021708245997616126,
+        0.013084658540998384
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 221,
+      "face_count": 438,
+      "pitch": 0.0025,
+      "grid_shape": [
+        11,
+        17,
+        10
+      ],
+      "watertight": true,
+      "volume": 3.1530872869974476e-08
+    },
+    "middle3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/middle3_l.stl",
+      "seed_point_count": 309,
+      "seed_triangle_count": 103,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 187,
+      "mesh_triangle_count": 370,
+      "bounds_min": [
+        -0.012046701578203239,
+        -0.02933529120030303,
+        -0.013943318115021936
+      ],
+      "bounds_max": [
+        0.01111795814171096,
+        0.01710091165361505,
+        0.010895766510222208
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 187,
+      "face_count": 370,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        22,
+        13
+      ],
+      "watertight": true,
+      "volume": 2.1533734227086752e-07
+    },
+    "ring1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring1_base_l.stl",
+      "seed_point_count": 138,
+      "seed_triangle_count": 46,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 185,
+      "mesh_triangle_count": 366,
+      "bounds_min": [
+        -0.01624831234922848,
+        -0.016781103060458748,
+        -0.00014907928734066056
+      ],
+      "bounds_max": [
+        0.00987380537520067,
+        0.048817782350107995,
+        0.020720203100233158
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 185,
+      "face_count": 366,
+      "pitch": 0.0026932267805516567,
+      "grid_shape": [
+        13,
+        28,
+        17
+      ],
+      "watertight": true,
+      "volume": 6.612650100890031e-07
+    },
+    "ring1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring1_l.stl",
+      "seed_point_count": 93,
+      "seed_triangle_count": 31,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 186,
+      "mesh_triangle_count": 368,
+      "bounds_min": [
+        -0.00939754737684475,
+        -0.00829331482817115,
+        -0.011864912208463299
+      ],
+      "bounds_max": [
+        0.016042126955893174,
+        0.03214858542512475,
+        0.015048559481782735
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 186,
+      "face_count": 368,
+      "pitch": 0.0025,
+      "grid_shape": [
+        13,
+        19,
+        14
+      ],
+      "watertight": true,
+      "volume": 1.1963770683575126e-07
+    },
+    "ring2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring2_l.stl",
+      "seed_point_count": 66,
+      "seed_triangle_count": 22,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 187,
+      "mesh_triangle_count": 370,
+      "bounds_min": [
+        -0.011975295596890152,
+        -0.014977969108023225,
+        -0.004901380153629578
+      ],
+      "bounds_max": [
+        0.008272568977303803,
+        0.020422001863024654,
+        0.013173318443563186
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 187,
+      "face_count": 370,
+      "pitch": 0.0025,
+      "grid_shape": [
+        11,
+        17,
+        9
+      ],
+      "watertight": true,
+      "volume": 1.7282146356248977e-08
+    },
+    "ring3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/ring3_l.stl",
+      "seed_point_count": 285,
+      "seed_triangle_count": 95,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 204,
+      "mesh_triangle_count": 404,
+      "bounds_min": [
+        -0.011733722352380446,
+        -0.02909826549588349,
+        -0.013258723388041755
+      ],
+      "bounds_max": [
+        0.011421201228206463,
+        0.017203433909031687,
+        0.011523050646061003
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 204,
+      "face_count": 404,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        22,
+        12
+      ],
+      "watertight": true,
+      "volume": 3.5233866392151765e-07
+    },
+    "pinky1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky1_base_l.stl",
+      "seed_point_count": 447,
+      "seed_triangle_count": 149,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 184,
+      "mesh_triangle_count": 366,
+      "bounds_min": [
+        -0.014773636370960503,
+        -0.01637014385123718,
+        -0.015964722449559345
+      ],
+      "bounds_max": [
+        0.0205643540325427,
+        0.06170527113776203,
+        0.019226556672658886
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 184,
+      "face_count": 366,
+      "pitch": 0.0032741901573295875,
+      "grid_shape": [
+        15,
+        28,
+        14
+      ],
+      "watertight": false,
+      "volume": 1.2661721327012672e-06
+    },
+    "pinky1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky1_l.stl",
+      "seed_point_count": 168,
+      "seed_triangle_count": 56,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 201,
+      "mesh_triangle_count": 398,
+      "bounds_min": [
+        -0.011484196115828875,
+        -0.011015358654039643,
+        -0.011531970347970398
+      ],
+      "bounds_max": [
+        0.021481471616231082,
+        0.02488775599760061,
+        0.017569340824077854
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 201,
+      "face_count": 398,
+      "pitch": 0.0025,
+      "grid_shape": [
+        16,
+        17,
+        14
+      ],
+      "watertight": true,
+      "volume": 6.048488412328187e-07
+    },
+    "pinky2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky2_l.stl",
+      "seed_point_count": 33,
+      "seed_triangle_count": 11,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 192,
+      "mesh_triangle_count": 386,
+      "bounds_min": [
+        -0.012163140155859743,
+        -0.015341104817896717,
+        -0.005570566898899012
+      ],
+      "bounds_max": [
+        0.002885967142395224,
+        0.013244852619856962,
+        0.011510651611967154
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 192,
+      "face_count": 386,
+      "pitch": 0.0025,
+      "grid_shape": [
+        9,
+        15,
+        10
+      ],
+      "watertight": false,
+      "volume": 4.83972572817916e-08
+    },
+    "pinky3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/pinky3_l.stl",
+      "seed_point_count": 261,
+      "seed_triangle_count": 87,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 192,
+      "mesh_triangle_count": 380,
+      "bounds_min": [
+        -0.011888199417533843,
+        -0.021485227512084436,
+        -0.012446670898287122
+      ],
+      "bounds_max": [
+        0.011284002431986365,
+        0.01650230689171653,
+        0.010754863998801881
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 192,
+      "face_count": 380,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        19,
+        12
+      ],
+      "watertight": true,
+      "volume": 4.2032192205517433e-07
+    },
+    "thigh_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thigh_stretch_l.stl",
+      "seed_point_count": 1959,
+      "seed_triangle_count": 653,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 197,
+      "mesh_triangle_count": 397,
+      "bounds_min": [
+        -0.07351013281857119,
+        0.042837097777385855,
+        -0.06279655843898842
+      ],
+      "bounds_max": [
+        0.05613952898521434,
+        0.1527142714551335,
+        0.05215093248774083
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 197,
+      "face_count": 397,
+      "pitch": 0.007161566347250844,
+      "grid_shape": [
+        20,
+        19,
+        18
+      ],
+      "watertight": false,
+      "volume": 5.583100871958678e-06
+    },
+    "thigh_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thigh_twist_l.stl",
+      "seed_point_count": 2022,
+      "seed_triangle_count": 674,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 184,
+      "mesh_triangle_count": 368,
+      "bounds_min": [
+        -0.07248603674025875,
+        -0.025771341638413922,
+        -0.06849982160886034
+      ],
+      "bounds_max": [
+        0.06640154034942868,
+        0.08732433574513705,
+        0.06845407673260813
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 184,
+      "face_count": 368,
+      "pitch": 0.007871140064002876,
+      "grid_shape": [
+        20,
+        18,
+        20
+      ],
+      "watertight": true,
+      "volume": 1.0412096728385043e-05
+    },
+    "leg_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/leg_stretch_l.stl",
+      "seed_point_count": 3837,
+      "seed_triangle_count": 1279,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 209,
+      "mesh_triangle_count": 421,
+      "bounds_min": [
+        -0.08907312040115589,
+        -0.01743826731591986,
+        -0.05573241400607456
+      ],
+      "bounds_max": [
+        0.03681852288468675,
+        0.07685566553572477,
+        0.06245562927294573
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 209,
+      "face_count": 421,
+      "pitch": 0.0068949164761210185,
+      "grid_shape": [
+        21,
+        17,
+        19
+      ],
+      "watertight": false,
+      "volume": 2.9660609788186824e-05
+    },
+    "foot_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/foot_l.stl",
+      "seed_point_count": 3582,
+      "seed_triangle_count": 1194,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 195,
+      "mesh_triangle_count": 385,
+      "bounds_min": [
+        -0.05185749334886948,
+        -0.05896137730876402,
+        -0.06640688521717897
+      ],
+      "bounds_max": [
+        0.04151844959625225,
+        0.09218889148869247,
+        0.03296070994893673
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 195,
+      "face_count": 385,
+      "pitch": 0.006547929230106827,
+      "grid_shape": [
+        17,
+        27,
+        17
+      ],
+      "watertight": false,
+      "volume": 7.486616125208788e-06
+    },
+    "toes_01_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/toes_01_l.stl",
+      "seed_point_count": 1095,
+      "seed_triangle_count": 365,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 192,
+      "mesh_triangle_count": 380,
+      "bounds_min": [
+        -0.036465415041127706,
+        -0.011433387479559376,
+        -0.02604577567171272
+      ],
+      "bounds_max": [
+        0.04372142455005683,
+        0.03969893975042549,
+        0.024718184799984035
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 192,
+      "face_count": 380,
+      "pitch": 0.003251027252396464,
+      "grid_shape": [
+        27,
+        21,
+        24
+      ],
+      "watertight": false,
+      "volume": 2.2593505018957393e-06
+    },
+    "leg_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/leg_twist_l.stl",
+      "seed_point_count": 1722,
+      "seed_triangle_count": 574,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 224,
+      "mesh_triangle_count": 450,
+      "bounds_min": [
+        -0.06892985142789873,
+        -0.01109889459290236,
+        -0.03683113443737636
+      ],
+      "bounds_max": [
+        0.01486080536535283,
+        0.06713613081769954,
+        0.04015185588994695
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 224,
+      "face_count": 450,
+      "pitch": 0.004814217444976474,
+      "grid_shape": [
+        21,
+        20,
+        19
+      ],
+      "watertight": false,
+      "volume": 4.940414330393072e-06
+    },
+    "thigh_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thigh_stretch_r.stl",
+      "seed_point_count": 1980,
+      "seed_triangle_count": 660,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 186,
+      "mesh_triangle_count": 369,
+      "bounds_min": [
+        -0.054803451758422224,
+        0.0393593514202882,
+        -0.0630024407803739
+      ],
+      "bounds_max": [
+        0.07442916774937658,
+        0.15297489765563824,
+        0.04675865029721963
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 186,
+      "face_count": 369,
+      "pitch": 0.007270595286216219,
+      "grid_shape": [
+        20,
+        19,
+        18
+      ],
+      "watertight": false,
+      "volume": 3.441792260598668e-05
+    },
+    "thigh_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/thigh_twist_r.stl",
+      "seed_point_count": 1776,
+      "seed_triangle_count": 592,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 186,
+      "mesh_triangle_count": 377,
+      "bounds_min": [
+        -0.06735762601443693,
+        -0.02235604385955431,
+        -0.07012033053635307
+      ],
+      "bounds_max": [
+        0.07277384672898728,
+        0.08344179821983656,
+        0.06800238737609954
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 186,
+      "face_count": 377,
+      "pitch": 0.007830592379084745,
+      "grid_shape": [
+        20,
+        17,
+        21
+      ],
+      "watertight": false,
+      "volume": 3.66015861402347e-06
+    },
+    "leg_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/leg_stretch_r.stl",
+      "seed_point_count": 3798,
+      "seed_triangle_count": 1266,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 201,
+      "mesh_triangle_count": 405,
+      "bounds_min": [
+        -0.036955689171460936,
+        -0.017858710126204907,
+        -0.05587222478987818
+      ],
+      "bounds_max": [
+        0.08914980261712097,
+        0.07672220307247807,
+        0.0614550246404548
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 201,
+      "face_count": 405,
+      "pitch": 0.00688725603283914,
+      "grid_shape": [
+        20,
+        17,
+        19
+      ],
+      "watertight": false,
+      "volume": 1.6113503257010907e-06
+    },
+    "foot_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/foot_r.stl",
+      "seed_point_count": 3735,
+      "seed_triangle_count": 1245,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 223,
+      "mesh_triangle_count": 442,
+      "bounds_min": [
+        -0.04545541396066758,
+        -0.061510091926590384,
+        -0.06807468635370197
+      ],
+      "bounds_max": [
+        0.05017313229118563,
+        0.08853366110952304,
+        0.03450589300433148
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 223,
+      "face_count": 442,
+      "pitch": 0.007202692997398196,
+      "grid_shape": [
+        16,
+        23,
+        16
+      ],
+      "watertight": true,
+      "volume": 6.966254208136696e-06
+    },
+    "toes_01_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/toes_01_r.stl",
+      "seed_point_count": 1182,
+      "seed_triangle_count": 394,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 193,
+      "mesh_triangle_count": 386,
+      "bounds_min": [
+        -0.04269473214983996,
+        -0.011085501426906645,
+        -0.025924100530753752
+      ],
+      "bounds_max": [
+        0.03687348838554834,
+        0.038986714296095105,
+        0.02270907774761132
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 193,
+      "face_count": 386,
+      "pitch": 0.0032208965275462615,
+      "grid_shape": [
+        27,
+        19,
+        18
+      ],
+      "watertight": false,
+      "volume": 1.255203319198625e-06
+    },
+    "leg_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/leg_twist_r.stl",
+      "seed_point_count": 1716,
+      "seed_triangle_count": 572,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 229,
+      "mesh_triangle_count": 462,
+      "bounds_min": [
+        -0.01502823405376486,
+        -0.011338693673761889,
+        -0.03731640886490361
+      ],
+      "bounds_max": [
+        0.06892722449674153,
+        0.06566346847740072,
+        0.04370877462916384
+      ],
+      "method": "skinned_lowpoly_surface",
+      "vertex_count": 229,
+      "face_count": 462,
+      "pitch": 0.00473491935085235,
+      "grid_shape": [
+        20,
+        20,
+        19
+      ],
+      "watertight": false,
+      "volume": 1.6733968759225282e-05
+    }
+  }
+}

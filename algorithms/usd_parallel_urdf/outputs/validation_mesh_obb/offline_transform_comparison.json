@@ -1,6 +1,6 @@
 {
   "skeleton_json": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/landau_v10_skeleton.json",
-  "urdf_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/usd_landau_parallel.urdf",
+  "urdf_path": "algorithms/usd_parallel_urdf/outputs/usd_landau_parallel_mesh.urdf",
   "comparison_link_count": 68,
   "max_position_error_m": 2.079938748791158e-06,
   "mean_position_error_m": 9.122119416797334e-07,

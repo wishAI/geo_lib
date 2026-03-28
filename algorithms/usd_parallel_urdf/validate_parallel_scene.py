@@ -49,7 +49,36 @@ def _parse_args() -> argparse.Namespace:
         action='store_true',
         help='Compare live Isaac prim transforms instead of using the offline URDF-vs-USD kinematic comparison.',
     )
+    parser.add_argument(
+        '--self-collision',
+        action='store_true',
+        help='Enable URDF self-collision during Isaac import. Disabled by default for stability with approximate colliders.',
+    )
+    parser.add_argument(
+        '--post-import-warmup-steps',
+        type=int,
+        default=30,
+        help='Number of Kit updates to run after URDF import before applying poses.',
+    )
+    parser.add_argument(
+        '--stay-open',
+        action='store_true',
+        help='Keep the Isaac Sim GUI open after the scene is prepared. Close the window yourself to exit.',
+    )
     return parser.parse_args()
+
+
+def _ensure_gui_environment(headless: bool) -> None:
+    if headless:
+        return
+    if os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'):
+        return
+    session_type = os.environ.get('XDG_SESSION_TYPE', '')
+    raise RuntimeError(
+        'GUI mode requires a graphical desktop session, but this shell has no DISPLAY/WAYLAND_DISPLAY '
+        f'(XDG_SESSION_TYPE={session_type or "unset"}). Run the script from a local graphical terminal or '
+        'export the appropriate display environment first.'
+    )
 
 
 def _experience_path(headless: bool) -> Path:
@@ -383,11 +412,14 @@ def _offline_summary_payload(output_dir: Path) -> dict:
 
 def main() -> None:
     args = _parse_args()
+    if args.stay_open and args.headless:
+        raise RuntimeError('--stay-open requires GUI mode. Remove --headless when using this option.')
     portable_root = args.portable_root.resolve()
     home_root = portable_root / 'home'
     (home_root / 'Documents').mkdir(parents=True, exist_ok=True)
     screenshot_dir = portable_root / 'documents' / 'Kit' / 'shared' / 'screenshots'
     screenshot_dir.mkdir(parents=True, exist_ok=True)
+    _ensure_gui_environment(args.headless)
     os.environ['HOME'] = str(home_root)
     from isaacsim import SimulationApp
 
@@ -453,7 +485,7 @@ def main() -> None:
         import_config.fix_base = True
         import_config.distance_scale = 1.0
         if hasattr(import_config, 'set_self_collision'):
-            import_config.set_self_collision(True)
+            import_config.set_self_collision(args.self_collision)
 
         status, urdf_root = omni.kit.commands.execute(
             'URDFParseAndImportFile',
@@ -465,6 +497,8 @@ def main() -> None:
             raise RuntimeError('URDF import failed.')
         _wait_for_prim(app, stage, urdf_root)
         _write_checkpoint(args.output_dir, 'urdf_imported')
+        for _ in range(max(args.post_import_warmup_steps, 0)):
+            app.update()
         robot_root = _robot_root_path(str(urdf_root))
 
         timeline = omni.timeline.get_timeline_interface()
@@ -568,6 +602,10 @@ def main() -> None:
         _log(f'[VAL] dome lights sanitized: {sanitized_domes}')
         _log(f"[VAL] wrote: {args.output_dir / 'transform_comparison.json'}")
         _write_checkpoint(args.output_dir, 'done')
+        if args.stay_open:
+            _log('[VAL] stay-open enabled. Close the Isaac Sim window to exit.')
+            while app.is_running():
+                app.update()
     finally:
         try:
             import omni.timeline

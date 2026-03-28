@@ -1,6 +1,6 @@
 # USD Parallel URDF
 
-This folder builds a simplified collision-ready URDF from the articulated `landau_v10.usdc` character and validates it next to the original USD.
+This folder builds two URDF variants from the articulated `landau_v10.usdc` character and validates them against the source USD skeleton.
 
 ## What It Produces
 
@@ -9,22 +9,37 @@ This folder builds a simplified collision-ready URDF from the articulated `landa
   - local/world rest transforms
   - inferred URDF joint axes and demo pose
 - `outputs/usd_landau_parallel.urdf`
-  - simplified parallel URDF
+  - primitive collision URDF
   - one link per USD skeleton joint
-  - simple box/sphere collision geometry derived from the skeleton edges
+  - simple box/sphere colliders derived from skeleton edges
+- `outputs/usd_landau_parallel_mesh.urdf`
+  - mesh-backed collision URDF
+  - same joints and transforms as the primitive URDF
+  - each link points at its own STL under `outputs/mesh_collision_stl/`
+- `outputs/mesh_collision_stl/*.stl`
+  - one closed simplified STL per link
+  - generated from USD surface vertices/faces assigned to the dominant skinning joint
+- `outputs/mesh_collision_summary.json`
+  - per-link mesh build metadata
+  - current default mesh mode is `obb`
 - `outputs/validation/offline_transform_comparison.json`
-  - deterministic FK comparison between the generated URDF and the extracted USD skeleton records
-- `outputs/validation/scene_rest.png`
-  - headless Isaac rest-pose render of the USD asset next to the generated scene setup
-- `outputs/validation/scene_pose.png`
-  - posed headless Isaac render artifact
-  - currently useful as a failure signal: driving the skinned USD by overwriting skeleton rest transforms in headless Isaac breaks the mesh skinning
+  - deterministic FK comparison for the generated kinematic model
+- `outputs/validation/*.png`
+  - Isaac renders for rest and posed validation scenes
 
-## Why This URDF Is Approximate
+## Geometry Modes
 
-The source asset is a skinned character USD, not a rigid articulated robot. It exposes the joint hierarchy and rest transforms, but not a ready-made rigid-body collider decomposition. This implementation therefore keeps the joint layout 1:1 with the USD skeleton and uses simplified collision boxes/spheres built from parent-child bone segments.
-
-That was the more reliable path for Isaac / URDF import than trying to recover watertight collision meshes from the skinned surface.
+- `primitives`
+  - uses boxes and spheres inferred from the skeleton only
+  - fastest and most conservative collision setup
+- `mesh`
+  - extracts skinned surface points per link from the USD mesh
+  - closes the otherwise open surface data into a low-poly STL per link
+  - current default simplification is `lowpoly_surface`
+  - it reconstructs a watertight low-poly shell from the extracted per-link surface samples, then keeps the face count bounded
+  - `obb` and `convex_hull` remain available as fallback/debug modes
+- `both`
+  - writes both URDF variants in one build pass
 
 ## Commands
 
@@ -36,31 +51,49 @@ Print the USD joint/link information:
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/inspect_usd_skeleton.py --headless
 ```
 
-Generate the simplified URDF:
+Generate both URDF variants:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --headless
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py
 ```
 
-Try the Isaac-side paired scene validation:
+Generate only the STL-backed URDF:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --geometry-mode mesh
 ```
 
-Run the same validator headless:
+Switch the mesh simplifier to convex hulls instead of the default low-poly surface reconstruction:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --geometry-mode mesh --mesh-simplify-mode convex_hull --max-hull-faces 48 --target-hull-points 24
+```
+
+Validate the primitive URDF in Isaac:
 
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --headless
 ```
 
-Generate the deterministic URDF/USD FK comparison without Isaac rendering:
+Validate the STL-backed URDF in Isaac:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --headless --urdf-path algorithms/usd_parallel_urdf/outputs/usd_landau_parallel_mesh.urdf --output-dir algorithms/usd_parallel_urdf/outputs/validation_mesh
+```
+
+Open the GUI and keep the scene open until you close Isaac yourself:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --stay-open
+```
+
+Run the deterministic FK comparison without Isaac rendering:
 
 ```bash
 python3 algorithms/usd_parallel_urdf/compare_urdf_pose_offline.py
 ```
 
-Render a single posed overview or hands shot in headless Isaac:
+Render a posed overview:
 
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/render_parallel_scene.py --headless --posed --view overview --output-path algorithms/usd_parallel_urdf/outputs/validation/scene_pose.png
@@ -69,9 +102,9 @@ Render a single posed overview or hands shot in headless Isaac:
 ## Notes
 
 - The selected articulated asset is `algorithms/avp_remote/landau_v10.usdc`.
-- The imported URDF is fixed-base on purpose so it does not collapse or drift while validating collisions and joint mapping.
-- The validator now forces Kit `--portable-root` into `algorithms/usd_parallel_urdf/.kit_portable/...` so it does not depend on `~/Documents/Kit/shared`.
-- The validator/renderer now use Isaac Sim's full app experience and wait for `app ready` before touching the stage, which avoids the prior GUI window setup errors and the reset-time crash path.
-- The generated joint axes are heuristic because the source skeleton does not encode URDF-style 1-DOF joint axes.
-- The offline FK comparison currently shows the generated URDF matches the extracted USD skeleton within about `2.1e-6 m` max root-relative position error.
-- Headless Isaac imports and renders the asset, but directly posing the skinned USD by rewriting skeleton rest transforms is not yet a safe way to produce a clean posed visual result.
+- The generated URDF preserves the source standing basis by keeping the original root transform through a fixed `base_link -> root_x` joint.
+- The build script uses a repo-local Kit portable root under `algorithms/usd_parallel_urdf/.kit_portable/` so it does not depend on `~/Documents/Kit/shared`.
+- The mesh URDF keeps the same kinematics as the primitive URDF. Only the collision/visual geometry changes.
+- The current default STL mode reconstructs low-poly watertight meshes from the extracted per-link USD surface samples. In the latest build all 68 links used this path, with an average face count of about `387` and a max of `478`.
+- The validator and renderer now wait briefly after URDF import before applying poses. That warmup avoids an intermittent mesh-import timing race in Isaac where the articulated pose could be driven before mesh-backed links had fully settled.
+- GUI validation still requires launching from a real desktop session with `DISPLAY` or `WAYLAND_DISPLAY` available.

@@ -19,6 +19,7 @@ from validate_parallel_scene import (
     _apply_pose_to_usd_skeleton,
     _capture_rgba,
     _configure_urdf_pose,
+    _ensure_gui_environment,
     _experience_path,
     _find_first_skeleton,
     _log,
@@ -51,6 +52,17 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=folder / '.kit_portable' / 'render_parallel_scene',
     )
+    parser.add_argument(
+        '--self-collision',
+        action='store_true',
+        help='Enable URDF self-collision during Isaac import. Disabled by default for stability with approximate colliders.',
+    )
+    parser.add_argument(
+        '--post-import-warmup-steps',
+        type=int,
+        default=30,
+        help='Number of Kit updates to run after URDF import before applying poses.',
+    )
     return parser.parse_args()
 
 
@@ -61,6 +73,7 @@ def main() -> None:
     (home_root / 'Documents').mkdir(parents=True, exist_ok=True)
     screenshot_dir = portable_root / 'documents' / 'Kit' / 'shared' / 'screenshots'
     screenshot_dir.mkdir(parents=True, exist_ok=True)
+    _ensure_gui_environment(args.headless)
     os.environ['HOME'] = str(home_root)
     from isaacsim import SimulationApp
 
@@ -120,11 +133,13 @@ def main() -> None:
         import_config.fix_base = True
         import_config.distance_scale = 1.0
         if hasattr(import_config, 'set_self_collision'):
-            import_config.set_self_collision(True)
+            import_config.set_self_collision(args.self_collision)
         status, urdf_root = omni.kit.commands.execute('URDFParseAndImportFile', urdf_path=str(args.urdf_path), import_config=import_config, get_articulation_root=True)
         if not status:
             raise RuntimeError('URDF import failed.')
         _wait_for_prim(app, stage, urdf_root)
+        for _ in range(max(args.post_import_warmup_steps, 0)):
+            app.update()
 
         timeline = omni.timeline.get_timeline_interface()
         timeline.play()

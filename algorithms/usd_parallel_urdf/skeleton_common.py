@@ -33,6 +33,24 @@ def matrix_to_xyz_rpy(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return np.array([tx, ty, tz], dtype=float), np.array([roll, pitch, yaw], dtype=float)
 
 
+def rpy_to_matrix(rpy: Sequence[float]) -> np.ndarray:
+    roll, pitch, yaw = (float(value) for value in rpy)
+    cr = math.cos(roll)
+    sr = math.sin(roll)
+    cp = math.cos(pitch)
+    sp = math.sin(pitch)
+    cy = math.cos(yaw)
+    sy = math.sin(yaw)
+    return np.array(
+        [
+            [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],
+            [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr],
+            [-sp, cp * sr, cp * cr],
+        ],
+        dtype=float,
+    )
+
+
 def axis_angle_matrix(axis: Sequence[float], angle_rad: float) -> np.ndarray:
     axis_arr = np.asarray(axis, dtype=float)
     norm = np.linalg.norm(axis_arr)
@@ -213,6 +231,15 @@ def _geom_sphere(radius: float) -> dict:
     }
 
 
+def _geom_mesh(filename: str) -> dict:
+    return {
+        'kind': 'mesh',
+        'origin_xyz': [0.0, 0.0, 0.0],
+        'origin_rpy': [0.0, 0.0, 0.0],
+        'filename': str(filename),
+    }
+
+
 def build_link_geometries(records: Sequence[dict]) -> Dict[str, List[dict]]:
     by_name: Dict[str, List[dict]] = {}
     children_by_parent: Dict[int, List[int]] = {record['index']: [] for record in records}
@@ -278,7 +305,12 @@ def _inertial_from_geoms(geoms: Sequence[dict]) -> tuple[float, tuple[float, flo
     return mass, (max(ixx, 1e-5), max(iyy, 1e-5), max(izz, 1e-5))
 
 
-def generate_urdf_text(robot_name: str, records: Sequence[dict]) -> str:
+def generate_urdf_text(
+    robot_name: str,
+    records: Sequence[dict],
+    geoms_by_name: Dict[str, List[dict]] | None = None,
+    inertial_geoms_by_name: Dict[str, List[dict]] | None = None,
+) -> str:
     import xml.etree.ElementTree as ET
 
     root_records = [record for record in records if record['parent_index'] < 0]
@@ -288,7 +320,9 @@ def generate_urdf_text(robot_name: str, records: Sequence[dict]) -> str:
     base_link_name = 'base_link'
 
     robot = ET.Element('robot', name=robot_name)
-    geoms_by_name = build_link_geometries(records)
+    primitive_geoms_by_name = build_link_geometries(records)
+    render_geoms_by_name = geoms_by_name or primitive_geoms_by_name
+    inertial_geoms_by_name = inertial_geoms_by_name or primitive_geoms_by_name
 
     base_link = ET.SubElement(robot, 'link', name=base_link_name)
     inertial = ET.SubElement(base_link, 'inertial')
@@ -307,8 +341,8 @@ def generate_urdf_text(robot_name: str, records: Sequence[dict]) -> str:
 
     for record in records:
         link = ET.SubElement(robot, 'link', name=record['name'])
-        geoms = geoms_by_name[record['name']]
-        mass, inertia = _inertial_from_geoms(geoms)
+        inertial_geoms = inertial_geoms_by_name[record['name']]
+        mass, inertia = _inertial_from_geoms(inertial_geoms)
         inertial = ET.SubElement(link, 'inertial')
         _append_origin(inertial, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
         ET.SubElement(inertial, 'mass', value=f'{mass:.6f}')
@@ -324,12 +358,14 @@ def generate_urdf_text(robot_name: str, records: Sequence[dict]) -> str:
         )
 
         for tag in ('visual', 'collision'):
-            for geom in geoms:
+            for geom in render_geoms_by_name[record['name']]:
                 elem = ET.SubElement(link, tag)
                 _append_origin(elem, geom['origin_xyz'], geom['origin_rpy'])
                 geometry = ET.SubElement(elem, 'geometry')
                 if geom['kind'] == 'sphere':
                     ET.SubElement(geometry, 'sphere', radius=f"{geom['radius']:.6f}")
+                elif geom['kind'] == 'mesh':
+                    ET.SubElement(geometry, 'mesh', filename=geom['filename'])
                 else:
                     ET.SubElement(
                         geometry,
