@@ -6,10 +6,12 @@ from pathlib import Path
 
 import numpy as np
 
+from asset_paths import default_usd_path, resolve_asset_paths
 from skeleton_common import (
     apply_pose_to_local_matrices,
-    build_demo_pose,
+    build_pose_preset,
     extract_skeleton_records,
+    pose_preset_names,
     root_height_offset,
     root_height_offset_from_world_matrices,
     world_matrices_from_local,
@@ -18,11 +20,13 @@ from validate_parallel_scene import (
     _add_ground_plane,
     _apply_pose_to_usd_skeleton,
     _capture_rgba,
+    _camera_eye_target,
     _configure_urdf_pose,
     _ensure_gui_environment,
     _experience_path,
     _find_first_skeleton,
     _log,
+    _scene_offsets,
     _sanitize_dome_lights,
     _set_camera_view,
     _set_translate,
@@ -35,11 +39,17 @@ from validate_parallel_scene import (
 def _parse_args() -> argparse.Namespace:
     folder = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description='Render one source-USD plus generated-URDF scene view.')
-    parser.add_argument('--usd-path', type=Path, default=folder.parents[1] / 'algorithms' / 'avp_remote' / 'landau_v10.usdc')
-    parser.add_argument('--urdf-path', type=Path, default=folder / 'outputs' / 'usd_landau_parallel.urdf')
+    parser.add_argument('--usd-path', type=Path, default=default_usd_path())
+    parser.add_argument('--urdf-path', type=Path, default=None)
     parser.add_argument('--output-path', type=Path, required=True)
-    parser.add_argument('--view', choices=['overview', 'hands'], default='overview')
+    parser.add_argument('--view', choices=['overview', 'front', 'walk_side', 'hands'], default='overview')
     parser.add_argument('--posed', action='store_true', default=False)
+    parser.add_argument(
+        '--pose-preset',
+        choices=pose_preset_names(),
+        default='demo',
+        help='Named pose preset to use when --posed is enabled.',
+    )
     parser.add_argument(
         '--usd-animation',
         choices=['auto', 'none', 'rest', 'posed'],
@@ -63,11 +73,19 @@ def _parse_args() -> argparse.Namespace:
         default=30,
         help='Number of Kit updates to run after URDF import before applying poses.',
     )
+    parser.add_argument(
+        '--preserve-usd-dome-lights',
+        action='store_true',
+        help='Keep authored dome-light textures on the source USD instead of sanitizing them for headless robustness.',
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
+    folder = Path(__file__).resolve().parent
+    asset_paths = resolve_asset_paths(args.usd_path, folder / 'outputs')
+    urdf_path = args.urdf_path or asset_paths.primitive_urdf
     portable_root = args.portable_root.resolve()
     home_root = portable_root / 'home'
     (home_root / 'Documents').mkdir(parents=True, exist_ok=True)
@@ -80,7 +98,6 @@ def main() -> None:
     app = SimulationApp(
         {
             'headless': args.headless,
-            'renderer': 'RayTracedLighting',
             'extra_args': [
                 '--portable-root',
                 str(portable_root),
@@ -108,13 +125,14 @@ def main() -> None:
         usd_root = '/World/UsdCharacter'
         add_reference_to_stage(usd_path=str(args.usd_path), prim_path=usd_root)
         _wait_for_prim(app, stage, usd_root)
-        _sanitize_dome_lights(stage, usd_root)
+        if not args.preserve_usd_dome_lights:
+            _sanitize_dome_lights(stage, usd_root)
         usd_skel = _find_first_skeleton(stage, usd_root)
         if usd_skel is None:
             raise RuntimeError('Referenced USD did not expose a skeleton under /World/UsdCharacter')
         extracted = extract_skeleton_records(usd_skel)
         records = extracted['records']
-        pose = build_demo_pose(records)
+        pose = build_pose_preset(records, args.pose_preset if args.posed else 'rest')
         local_rest = [record['local_matrix'].copy() for record in records]
         local_posed = apply_pose_to_local_matrices(records, pose)
         posed_world_local = world_matrices_from_local(records, local_posed)
@@ -134,7 +152,7 @@ def main() -> None:
         import_config.distance_scale = 1.0
         if hasattr(import_config, 'set_self_collision'):
             import_config.set_self_collision(args.self_collision)
-        status, urdf_root = omni.kit.commands.execute('URDFParseAndImportFile', urdf_path=str(args.urdf_path), import_config=import_config, get_articulation_root=True)
+        status, urdf_root = omni.kit.commands.execute('URDFParseAndImportFile', urdf_path=str(urdf_path), import_config=import_config, get_articulation_root=True)
         if not status:
             raise RuntimeError('URDF import failed.')
         _wait_for_prim(app, stage, urdf_root)
@@ -146,9 +164,9 @@ def main() -> None:
         for _ in range(8):
             app.update()
         scene_base_z = posed_base_z if (args.posed or usd_animation_mode == 'posed') else base_z
-        side_offset = 0.35 if args.view == 'hands' else 0.55
-        _set_translate(stage, usd_root, np.array([-side_offset, 0.0, scene_base_z], dtype=float))
-        _configure_urdf_pose(stage, str(urdf_root), np.array([side_offset, 0.0, scene_base_z], dtype=float), pose if args.posed else {})
+        usd_offset, urdf_offset = _scene_offsets(args.view, scene_base_z)
+        _set_translate(stage, usd_root, usd_offset)
+        _configure_urdf_pose(stage, str(urdf_root), urdf_offset, pose if args.posed else {})
 
         if usd_animation_mode == 'rest':
             _apply_pose_to_usd_skeleton(stage, usd_skel, local_rest)
@@ -158,12 +176,7 @@ def main() -> None:
         for _ in range(20):
             app.update()
 
-        if args.view == 'overview':
-            eye = np.array([4.0, -4.0, 2.2], dtype=float)
-            target = np.array([0.0, 0.0, 0.5], dtype=float)
-        else:
-            eye = np.array([0.0, -3.0, 1.0], dtype=float)
-            target = np.array([0.0, 0.0, 0.68], dtype=float)
+        eye, target = _camera_eye_target(args.view)
         camera = Camera(prim_path='/World/RenderCamera', position=eye, resolution=(1280, 720), frequency=1)
         camera.initialize()
         _set_camera_view(camera, eye, target)

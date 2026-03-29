@@ -1,25 +1,28 @@
 # USD Parallel URDF
 
-This folder builds two URDF variants from the articulated `landau_v10.usdc` character and validates them against the source USD skeleton.
+This folder builds two URDF variants from an articulated `.usd`/`.usdc` character and validates them against the source USD skeleton.
 
 ## What It Produces
 
-- `outputs/landau_v10_skeleton.json`
-  - extracted 68-joint skeleton hierarchy from `landau_v10.usdc`
+- `inputs/landau_v10.usdc`
+  - canonical local copy of the current source asset
+  - new assets should also go under `inputs/`
+- `outputs/<asset>_skeleton.json`
+  - extracted 68-joint skeleton hierarchy from the selected input asset
   - local/world rest transforms
   - inferred URDF joint axes and demo pose
-- `outputs/usd_landau_parallel.urdf`
+- `outputs/<asset>_parallel.urdf`
   - primitive collision URDF
   - one link per USD skeleton joint
   - simple box/sphere colliders derived from skeleton edges
-- `outputs/usd_landau_parallel_mesh.urdf`
+- `outputs/<asset>_parallel_mesh.urdf`
   - mesh-backed collision URDF
   - same joints and transforms as the primitive URDF
-  - each link points at its own STL under `outputs/mesh_collision_stl/`
-- `outputs/mesh_collision_stl/*.stl`
+  - each link points at its own STL under `outputs/mesh_collision_stl/<asset>/`
+- `outputs/mesh_collision_stl/<asset>/*.stl`
   - one closed simplified STL per link
   - generated from USD surface vertices/faces assigned to the dominant skinning joint
-- `outputs/mesh_collision_summary.json`
+- `outputs/<asset>_mesh_collision_summary.json`
   - per-link mesh build metadata
   - includes the resolved low-poly config used for each link
 - `config.py`
@@ -27,9 +30,9 @@ This folder builds two URDF variants from the articulated `landau_v10.usdc` char
   - includes per-link overrides such as the higher-detail `head_x` profile
 - `tests/*.py`
   - fast unit tests for config resolution, mesh-fit helpers, and skeleton/URDF utilities
-- `outputs/validation/offline_transform_comparison.json`
+- `outputs/validation_<asset>/offline_transform_comparison.json`
   - deterministic FK comparison for the generated kinematic model
-- `outputs/validation/*.png`
+- `outputs/validation_<asset>/*.png`
   - Isaac renders for rest and posed validation scenes
 
 ## Geometry Modes
@@ -89,13 +92,19 @@ Validate the primitive URDF in Isaac:
 Validate the STL-backed URDF in Isaac:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --headless --urdf-path algorithms/usd_parallel_urdf/outputs/usd_landau_parallel_mesh.urdf --output-dir algorithms/usd_parallel_urdf/outputs/validation_mesh
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --headless --urdf-path algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf --output-dir algorithms/usd_parallel_urdf/outputs/validation_mesh_landau_v10
 ```
 
 Open the GUI and keep the scene open until you close Isaac yourself:
 
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --stay-open
+```
+
+Play a looping synchronized animation in Isaac GUI so you can inspect the USD and URDF side by side:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/play_parallel_animation.py --urdf-path algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf --animation-clip walk_cycle --camera-view walk_side
 ```
 
 Run the deterministic FK comparison without Isaac rendering:
@@ -113,16 +122,18 @@ python3 -m unittest discover -s algorithms/usd_parallel_urdf/tests
 Render a posed overview:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/render_parallel_scene.py --headless --posed --view overview --output-path algorithms/usd_parallel_urdf/outputs/validation/scene_pose.png
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/render_parallel_scene.py --headless --posed --view overview --output-path algorithms/usd_parallel_urdf/outputs/validation_landau_v10/scene_pose.png
 ```
 
 ## Notes
 
-- The selected articulated asset is `algorithms/avp_remote/landau_v10.usdc`.
+- The canonical selected articulated asset is `algorithms/usd_parallel_urdf/inputs/landau_v10.usdc`.
+- Output names are now derived from the input asset stem so multiple characters can coexist without overriding each other.
 - The generated URDF preserves the source standing basis by keeping the original root transform through a fixed `base_link -> root_x` joint.
 - The build script uses a repo-local Kit portable root under `algorithms/usd_parallel_urdf/.kit_portable/` so it does not depend on `~/Documents/Kit/shared`.
 - The mesh URDF keeps the same kinematics as the primitive URDF. Only the collision/visual geometry changes.
 - The mesh builder now mixes three watertight outputs depending on the link: repaired surface, low-poly remesh, and voxelized closed-surface fallback. In the latest build all 68 links ended up watertight.
 - `config.py` is the supported tuning point for mesh density and fit tolerance. `head_x` ships with a tighter fit limit and a higher face budget than the rest of the body.
-- The validator and renderer now wait briefly after URDF import before applying poses. That warmup avoids an intermittent mesh-import timing race in Isaac where the articulated pose could be driven before mesh-backed links had fully settled.
+- The validator, renderer, and animation player now wait briefly after URDF import before applying poses. That warmup avoids an intermittent mesh-import timing race in Isaac where the articulated pose could be driven before mesh-backed links had fully settled.
+- The current URDF has `67` controllable revolute joints plus the fixed `base_link -> root_x` root joint.
 - GUI validation still requires launching from a real desktop session with `DISPLAY` or `WAYLAND_DISPLAY` available.

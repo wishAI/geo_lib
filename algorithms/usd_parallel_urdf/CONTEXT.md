@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a parallel URDF representation of `landau_v10.usdc` that keeps the USD skeleton 1:1 while exposing practical collision geometry for Isaac Sim and other URDF-capable simulators.
+Build a parallel URDF representation of an articulated input asset under `inputs/` that keeps the USD skeleton 1:1 while exposing practical collision geometry for Isaac Sim and other URDF-capable simulators.
 
 This folder now supports two geometry variants over the same joint tree:
 
@@ -13,12 +13,15 @@ This folder now supports two geometry variants over the same joint tree:
 
 ## Source Asset Choice
 
-- `landau_v10.usdc` is the articulated asset with the full 68-joint humanoid plus fingers skeleton.
+- `inputs/landau_v10.usdc` is the current canonical articulated asset with the full 68-joint humanoid plus fingers skeleton.
 - `lantu.usdc` and `landau_v8.usdc` do not expose the full hand joint set needed for this workflow.
 
 ## Design Constraints
 
 - Keep this folder self-contained; do not depend on runtime code inside `algorithms/avp_remote`.
+- Treat `inputs/` as the canonical asset location.
+  - Scripts may fall back to the old `algorithms/avp_remote` copy only if the local input file is missing.
+- Output names must be derived from the selected input stem so different assets do not override each other.
 - Use the Isaac Sim Python environment for USD and skeleton work:
   - `/home/wishai/vscode/IsaacLab/isaaclab.sh -p ...`
 - Preserve the source standing orientation.
@@ -57,7 +60,7 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - `build_parallel_urdf.py`
   - builds the skeleton JSON
   - writes the primitive URDF and/or the mesh URDF
-  - writes `mesh_collision_summary.json`
+  - writes `<asset>_mesh_collision_summary.json`
 - `config.py`
   - holds the supported mesh-generation tuning knobs
   - default low-poly settings live here, including the `head_x` override
@@ -71,6 +74,9 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - `validate_parallel_scene.py`
   - loads the source USD and a generated URDF together in Isaac
   - useful for headless scene and import validation
+- `play_parallel_animation.py`
+  - plays a looping synchronized USD + URDF animation in Isaac
+  - useful for GUI validation when static screenshots are not enough
 - `render_parallel_scene.py`
   - one-shot renderer for rest or posed comparison images
 - `compare_urdf_pose_offline.py`
@@ -83,10 +89,13 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - The generated URDF stands upright and preserves the source root orientation.
 - The primitive URDF matches the extracted USD skeleton numerically in offline FK within about `2.1e-6 m` max root-relative position error.
 - The mesh URDF shares the exact same joints and transforms, so kinematics remain aligned; only the collision geometry differs.
+- The current generated URDF exposes `67` revolute joints plus a fixed `base_link -> root_x` base joint.
 - The current STL pipeline is hybrid: repaired closed meshes are preferred, then low-poly remeshes, then voxelized closed-surface fallback when needed.
 - In the latest build all 68 exported STL links are watertight.
 - The stubborn links are now handled by the fallback cascade rather than leaving non-manifold repaired output in the URDF.
 - Headless Isaac import of the mesh URDF now completes without the earlier `Invalid PhysX transform` warnings that appeared with more detailed convex-hull meshes.
-- The validator/renderer include a short post-import warmup before applying poses so mesh-backed URDF imports have time to finish settling inside Isaac.
+- The validator/renderer/animation player include a short post-import warmup before applying poses so mesh-backed URDF imports have time to finish settling inside Isaac.
+- Bend-axis inference now avoids rotating leg and arm stretch joints around their own bone direction.
+  - The earlier default axis selection made walk poses look nearly static because the knees and hips were rotating almost exactly along the limb axis.
 - there is now a small unit-test suite under `tests/` covering config resolution, mesh-fit helpers, and skeleton/URDF utility behavior
 - GUI validation still depends on running from a real desktop session with working display environment variables.

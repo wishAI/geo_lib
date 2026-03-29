@@ -12,7 +12,14 @@ MODULE_ROOT = Path(__file__).resolve().parents[1]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from skeleton_common import build_link_geometries, generate_urdf_text, matrix_to_xyz_rpy, rpy_to_matrix
+from skeleton_common import (
+    build_link_geometries,
+    generate_urdf_text,
+    infer_joint_axis,
+    infer_lateral_axis_world,
+    matrix_to_xyz_rpy,
+    rpy_to_matrix,
+)
 
 
 class SkeletonCommonTests(unittest.TestCase):
@@ -104,6 +111,87 @@ class SkeletonCommonTests(unittest.TestCase):
         self.assertIn('base_link', link_names)
         self.assertIsNotNone(fixed_joint)
         self.assertEqual(fixed_joint.attrib['type'], 'fixed')
+
+    def test_generate_urdf_is_pretty_printed(self) -> None:
+        records = [
+            {
+                'index': 0,
+                'path': 'root_x',
+                'name': 'root_x',
+                'parent_index': -1,
+                'parent_path': None,
+                'parent_name': None,
+                'children': [],
+                'child_names': [],
+                'local_matrix': np.eye(4, dtype=float),
+                'world_matrix': np.eye(4, dtype=float),
+                'local_xyz': np.zeros(3, dtype=float),
+                'local_rpy': np.zeros(3, dtype=float),
+                'world_xyz': np.zeros(3, dtype=float),
+                'world_rpy': np.zeros(3, dtype=float),
+                'incoming_length': 0.0,
+                'axis': np.array([0.0, 1.0, 0.0], dtype=float),
+                'limits': (-1.0, 1.0),
+            },
+        ]
+
+        urdf_text = generate_urdf_text('demo', records)
+
+        self.assertTrue(urdf_text.startswith('<?xml'))
+        self.assertIn('\n  <link name="base_link">', urdf_text)
+        self.assertGreater(len(urdf_text.splitlines()), 5)
+
+    def test_infer_lateral_axis_world_prefers_left_right_joint_pair(self) -> None:
+        records = [
+            {'name': 'thigh_stretch_l', 'world_xyz': np.array([0.12, 0.0, 0.4], dtype=float)},
+            {'name': 'thigh_stretch_r', 'world_xyz': np.array([-0.12, 0.0, 0.4], dtype=float)},
+        ]
+
+        lateral = infer_lateral_axis_world(records)
+
+        np.testing.assert_allclose(lateral, [1.0, 0.0, 0.0], atol=1e-9)
+
+    def test_infer_joint_axis_uses_non_bone_axis_for_bend_joint(self) -> None:
+        local_matrix = np.eye(4, dtype=float)
+
+        axis = infer_joint_axis(
+            'leg_stretch_l',
+            local_matrix=local_matrix,
+            primary_local_axis=np.array([0.0, 1.0, 0.0], dtype=float),
+            lateral_axis_world=np.array([1.0, 0.0, 0.0], dtype=float),
+        )
+
+        np.testing.assert_allclose(axis, [1.0, 0.0, 0.0], atol=1e-9)
+
+    def test_infer_joint_axis_aligns_bend_axis_to_world_lateral_direction(self) -> None:
+        local_matrix = np.eye(4, dtype=float)
+        local_matrix[:3, :3] = np.array(
+            [
+                [0.28580889, 0.0188995, 0.9580977],
+                [0.11888605, -0.99278063, -0.0158798],
+                [0.95088321, 0.11844356, -0.28598943],
+            ],
+            dtype=float,
+        )
+
+        axis = infer_joint_axis(
+            'thigh_stretch_l',
+            local_matrix=local_matrix,
+            primary_local_axis=np.array([0.0, 1.0, 0.0], dtype=float),
+            lateral_axis_world=np.array([1.0, 0.0, 0.0], dtype=float),
+        )
+
+        np.testing.assert_allclose(axis, [0.0, 0.0, 1.0], atol=1e-9)
+
+    def test_infer_joint_axis_keeps_twist_axis_aligned_to_primary_direction(self) -> None:
+        axis = infer_joint_axis(
+            'leg_twist_l',
+            local_matrix=np.eye(4, dtype=float),
+            primary_local_axis=np.array([0.0, 1.0, 0.0], dtype=float),
+            lateral_axis_world=np.array([1.0, 0.0, 0.0], dtype=float),
+        )
+
+        np.testing.assert_allclose(axis, [0.0, 1.0, 0.0], atol=1e-9)
 
 
 if __name__ == '__main__':

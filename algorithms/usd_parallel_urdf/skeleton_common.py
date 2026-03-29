@@ -103,16 +103,75 @@ def make_unique_link_names(paths: Sequence[str]) -> Dict[str, str]:
     return result
 
 
-def infer_joint_axis(name: str) -> np.ndarray:
+def _normalize_axis(axis: Sequence[float], fallback: Sequence[float]) -> np.ndarray:
+    axis_arr = np.asarray(axis, dtype=float)
+    norm = np.linalg.norm(axis_arr)
+    if norm < 1e-8:
+        return np.asarray(fallback, dtype=float)
+    return axis_arr / norm
+
+
+def _nearest_cardinal_axis(vector: Sequence[float], fallback: Sequence[float]) -> np.ndarray:
+    direction = _normalize_axis(vector, fallback)
+    axis = np.zeros(3, dtype=float)
+    dominant_index = int(np.argmax(np.abs(direction)))
+    axis[dominant_index] = 1.0 if direction[dominant_index] >= 0.0 else -1.0
+    return axis
+
+
+def infer_lateral_axis_world(records: Sequence[dict]) -> np.ndarray:
+    by_name = {record['name']: record for record in records}
+    preferred_pairs = (
+        ('thigh_stretch_l', 'thigh_stretch_r'),
+        ('shoulder_l', 'shoulder_r'),
+        ('foot_l', 'foot_r'),
+        ('arm_stretch_l', 'arm_stretch_r'),
+    )
+    for left_name, right_name in preferred_pairs:
+        left = by_name.get(left_name)
+        right = by_name.get(right_name)
+        if left is None or right is None:
+            continue
+        lateral = np.asarray(left['world_xyz'], dtype=float) - np.asarray(right['world_xyz'], dtype=float)
+        if np.linalg.norm(lateral) > 1e-8:
+            return lateral / np.linalg.norm(lateral)
+    return np.array([1.0, 0.0, 0.0], dtype=float)
+
+
+def _choose_bend_axis(local_rotation: np.ndarray, primary_local_axis: np.ndarray, lateral_axis_world: np.ndarray) -> np.ndarray:
+    rotation = _orthonormalize(np.asarray(local_rotation, dtype=float))
+    primary = _normalize_axis(primary_local_axis, [0.0, 1.0, 0.0])
+    lateral = _normalize_axis(lateral_axis_world, [1.0, 0.0, 0.0])
+    candidates = [np.eye(3, dtype=float)[idx] for idx in range(3)]
+    orthogonal = [axis for axis in candidates if abs(float(np.dot(axis, primary))) < 0.45]
+    search_axes = orthogonal or candidates
+
+    best_axis = search_axes[0]
+    best_world = rotation @ best_axis
+    best_score = abs(float(np.dot(best_world, lateral)))
+    for axis in search_axes[1:]:
+        world_axis = rotation @ axis
+        score = abs(float(np.dot(world_axis, lateral)))
+        if score > best_score:
+            best_axis = axis
+            best_world = world_axis
+            best_score = score
+    if float(np.dot(best_world, lateral)) < 0.0:
+        best_axis = -best_axis
+    return best_axis
+
+
+def infer_joint_axis(name: str, local_matrix: np.ndarray, primary_local_axis: Sequence[float], lateral_axis_world: Sequence[float]) -> np.ndarray:
+    primary = _normalize_axis(primary_local_axis, [0.0, 1.0, 0.0])
     if 'twist' in name:
-        return np.array([1.0, 0.0, 0.0], dtype=float)
+        return _nearest_cardinal_axis(primary, [0.0, 1.0, 0.0])
     if name.startswith('thumb1_'):
         return np.array([0.0, 1.0, 0.0], dtype=float)
     if 'thumb' in name or 'index' in name or 'middle' in name or 'ring' in name or 'pinky' in name:
         return np.array([0.0, 0.0, 1.0], dtype=float)
     if 'shoulder' in name or name.startswith('hand_'):
         return np.array([0.0, 0.0, 1.0], dtype=float)
-    return np.array([0.0, 1.0, 0.0], dtype=float)
+    return _choose_bend_axis(np.asarray(local_matrix, dtype=float)[:3, :3], primary, np.asarray(lateral_axis_world, dtype=float))
 
 
 def infer_joint_limits(name: str) -> tuple[float, float]:
@@ -181,8 +240,6 @@ def extract_skeleton_records(skel) -> dict:
         world_xyz, world_rpy = matrix_to_xyz_rpy(world_mats[index])
         incoming_length = 0.0 if parents[index] < 0 else float(np.linalg.norm(local_xyz))
         name = link_name_by_path[path]
-        axis = infer_joint_axis(name)
-        lower, upper = infer_joint_limits(name)
         records.append(
             {
                 'index': index,
@@ -200,10 +257,24 @@ def extract_skeleton_records(skel) -> dict:
                 'world_xyz': world_xyz,
                 'world_rpy': world_rpy,
                 'incoming_length': incoming_length,
-                'axis': axis,
-                'limits': (lower, upper),
             }
         )
+
+    lateral_axis_world = infer_lateral_axis_world(records)
+    for record in records:
+        child_vectors = [
+            np.asarray(records[child_index]['local_xyz'], dtype=float)
+            for child_index in children[record['index']]
+            if np.linalg.norm(records[child_index]['local_xyz']) > 1e-8
+        ]
+        if child_vectors:
+            primary_local_axis = max(child_vectors, key=lambda vec: float(np.linalg.norm(vec)))
+        elif np.linalg.norm(record['local_xyz']) > 1e-8:
+            primary_local_axis = np.asarray(record['local_xyz'], dtype=float)
+        else:
+            primary_local_axis = np.array([0.0, 1.0, 0.0], dtype=float)
+        record['axis'] = infer_joint_axis(record['name'], record['local_matrix'], primary_local_axis, lateral_axis_world)
+        record['limits'] = infer_joint_limits(record['name'])
 
     return {
         'records': records,
@@ -398,13 +469,18 @@ def generate_urdf_text(
         )
         ET.SubElement(joint, 'dynamics', damping='1.0', friction='0.05')
 
-    xml_bytes = ET.tostring(robot, encoding='utf-8')
-    return "<?xml version=\'1.0\'?>\n" + xml_bytes.decode('utf-8')
+    tree = ET.ElementTree(robot)
+    try:
+        ET.indent(tree, space='  ')
+    except AttributeError:
+        pass
+    xml_bytes = ET.tostring(robot, encoding='utf-8', xml_declaration=True)
+    text = xml_bytes.decode('utf-8')
+    return text if text.endswith('\n') else text + '\n'
 
 
-def build_demo_pose(records: Sequence[dict]) -> Dict[str, float]:
-    names = {record['name'] for record in records}
-    pose = {
+POSE_PRESETS_RADIANS: Dict[str, Dict[str, float]] = {
+    'demo': {
         'spine_02_x': 0.10,
         'neck_x': -0.08,
         'arm_stretch_r': -0.40,
@@ -432,8 +508,112 @@ def build_demo_pose(records: Sequence[dict]) -> Dict[str, float]:
         'arm_stretch_l': 0.18,
         'forearm_stretch_l': -0.35,
         'hand_l': -0.10,
-    }
+    },
+    'open_arms': {
+        'spine_01_x': 0.02,
+        'spine_02_x': 0.06,
+        'neck_x': -0.04,
+        'shoulder_r': -0.30,
+        'arm_stretch_r': -1.45,
+        'forearm_stretch_r': -0.08,
+        'hand_r': 0.04,
+        'shoulder_l': 0.30,
+        'arm_stretch_l': 1.45,
+        'forearm_stretch_l': -0.08,
+        'hand_l': -0.04,
+        'thumb1_r': 0.10,
+        'thumb1_l': -0.10,
+    },
+    'walk': {
+        'spine_01_x': 0.03,
+        'spine_02_x': 0.08,
+        'neck_x': -0.05,
+        'arm_stretch_r': -0.48,
+        'forearm_stretch_r': 0.32,
+        'arm_stretch_l': 0.34,
+        'forearm_stretch_l': 0.10,
+        'thigh_stretch_l': 0.92,
+        'leg_stretch_l': 0.86,
+        'foot_l': -0.22,
+        'toes_01_l': 0.10,
+        'thigh_stretch_r': -0.52,
+        'leg_stretch_r': 0.22,
+        'foot_r': 0.08,
+    },
+    'walk_right': {
+        'spine_01_x': 0.03,
+        'spine_02_x': 0.08,
+        'neck_x': -0.05,
+        'arm_stretch_r': -0.34,
+        'forearm_stretch_r': 0.10,
+        'arm_stretch_l': 0.48,
+        'forearm_stretch_l': 0.32,
+        'thigh_stretch_l': -0.52,
+        'leg_stretch_l': 0.22,
+        'foot_l': 0.08,
+        'thigh_stretch_r': 0.92,
+        'leg_stretch_r': 0.86,
+        'foot_r': -0.22,
+        'toes_01_r': 0.10,
+    },
+}
+
+ANIMATION_CLIPS: Dict[str, List[tuple[str, float]]] = {
+    'pose_cycle': [
+        ('rest', 0.50),
+        ('demo', 0.75),
+        ('open_arms', 0.75),
+        ('walk', 0.55),
+        ('walk_right', 0.55),
+    ],
+    'walk_cycle': [
+        ('walk', 0.45),
+        ('walk_right', 0.45),
+    ],
+}
+
+
+def pose_preset_names() -> List[str]:
+    return ['rest', *POSE_PRESETS_RADIANS.keys()]
+
+
+def build_pose_preset(records: Sequence[dict], preset: str) -> Dict[str, float]:
+    if preset == 'rest':
+        return {}
+    if preset not in POSE_PRESETS_RADIANS:
+        raise KeyError(f'Unknown pose preset: {preset}')
+    names = {record['name'] for record in records}
+    pose = POSE_PRESETS_RADIANS[preset]
     return {name: angle for name, angle in pose.items() if name in names}
+
+
+def animation_clip_names() -> List[str]:
+    return list(ANIMATION_CLIPS.keys())
+
+
+def build_animation_clip(records: Sequence[dict], clip_name: str) -> List[tuple[str, Dict[str, float], float]]:
+    if clip_name not in ANIMATION_CLIPS:
+        raise KeyError(f'Unknown animation clip: {clip_name}')
+    clip = []
+    for preset_name, duration_s in ANIMATION_CLIPS[clip_name]:
+        clip.append((preset_name, build_pose_preset(records, preset_name), float(duration_s)))
+    return clip
+
+
+def interpolate_pose_dict(start_pose: Dict[str, float], end_pose: Dict[str, float], alpha: float) -> Dict[str, float]:
+    clamped = float(np.clip(alpha, 0.0, 1.0))
+    result: Dict[str, float] = {}
+    for joint_name in sorted(set(start_pose) | set(end_pose)):
+        start = float(start_pose.get(joint_name, 0.0))
+        end = float(end_pose.get(joint_name, 0.0))
+        value = (1.0 - clamped) * start + clamped * end
+        if abs(value) > 1e-10:
+            result[joint_name] = value
+    return result
+
+
+def build_demo_pose(records: Sequence[dict]) -> Dict[str, float]:
+    return build_pose_preset(records, 'demo')
 
 
 def apply_pose_to_local_matrices(records: Sequence[dict], pose_by_name: Dict[str, float]) -> List[np.ndarray]:

@@ -8,8 +8,11 @@ from pathlib import Path
 
 import numpy as np
 
+from asset_paths import default_usd_path, resolve_asset_paths
+from compare_urdf_pose_offline import compare_offline_pose
 from skeleton_common import (
     apply_pose_to_local_matrices,
+    build_pose_preset,
     build_demo_pose,
     extract_skeleton_records,
     root_height_offset,
@@ -26,17 +29,17 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--usd-path',
         type=Path,
-        default=folder.parents[1] / 'algorithms' / 'avp_remote' / 'landau_v10.usdc',
+        default=default_usd_path(),
     )
     parser.add_argument(
         '--urdf-path',
         type=Path,
-        default=folder / 'outputs' / 'usd_landau_parallel.urdf',
+        default=None,
     )
     parser.add_argument(
         '--output-dir',
         type=Path,
-        default=folder / 'outputs' / 'validation',
+        default=None,
     )
     parser.add_argument('--headless', action='store_true')
     parser.add_argument(
@@ -64,6 +67,22 @@ def _parse_args() -> argparse.Namespace:
         '--stay-open',
         action='store_true',
         help='Keep the Isaac Sim GUI open after the scene is prepared. Close the window yourself to exit.',
+    )
+    parser.add_argument(
+        '--capture-gallery',
+        action='store_true',
+        help='Capture a small validation image gallery after the scene is loaded.',
+    )
+    parser.add_argument(
+        '--capture-dir',
+        type=Path,
+        default=None,
+        help='Optional directory for captured validation images. Defaults to <output-dir>/captures.',
+    )
+    parser.add_argument(
+        '--preserve-usd-dome-lights',
+        action='store_true',
+        help='Keep authored dome-light textures on the source USD instead of sanitizing them for headless robustness.',
     )
     return parser.parse_args()
 
@@ -241,7 +260,7 @@ def _set_drive_parameters(drive, target_deg: float, stiffness: float, damping: f
             drive.GetMaxForceAttr().Set(max_force)
 
 
-def _configure_urdf_pose(stage, urdf_root: str, root_xyz: np.ndarray, pose: dict[str, float]) -> int:
+def _configure_urdf_pose(stage, urdf_root: str, root_xyz: np.ndarray, pose: dict[str, float], reset_missing: bool = True) -> int:
     from pxr import PhysxSchema, Usd, UsdPhysics
 
     robot_root = _robot_root_path(urdf_root)
@@ -266,6 +285,14 @@ def _configure_urdf_pose(stage, urdf_root: str, root_xyz: np.ndarray, pose: dict
     angular_stiffness = math.radians(5.0e6)
     angular_damping = math.radians(5.0e5)
     max_force = 1.0e7
+    if reset_missing:
+        for joint_prim in drive_prims.values():
+            if joint_prim is None or not joint_prim.IsValid():
+                continue
+            drive = UsdPhysics.DriveAPI.Get(joint_prim, 'angular')
+            if not drive:
+                continue
+            _set_drive_parameters(drive, 0.0, angular_stiffness, angular_damping, max_force)
     for joint_name, angle_rad in pose.items():
         joint_prim = drive_prims.get(joint_name)
         if joint_prim is None or not joint_prim.IsValid():
@@ -410,8 +437,99 @@ def _offline_summary_payload(output_dir: Path) -> dict:
     return payload
 
 
+def _camera_eye_target(view: str) -> tuple[np.ndarray, np.ndarray]:
+    if view == 'overview':
+        return (
+            np.array([4.0, -4.0, 2.2], dtype=float),
+            np.array([0.0, 0.0, 0.5], dtype=float),
+        )
+    if view == 'front':
+        return (
+            np.array([0.0, -5.5, 1.9], dtype=float),
+            np.array([0.0, 0.0, 0.9], dtype=float),
+        )
+    if view == 'walk_side':
+        return (
+            np.array([6.5, -2.2, 1.55], dtype=float),
+            np.array([0.0, 0.0, 0.72], dtype=float),
+        )
+    return (
+        np.array([0.0, -3.0, 1.0], dtype=float),
+        np.array([0.0, 0.0, 0.68], dtype=float),
+    )
+
+
+def _scene_offsets(view: str, base_z: float) -> tuple[np.ndarray, np.ndarray]:
+    if view == 'walk_side':
+        return (
+            np.array([-0.12, -0.55, base_z], dtype=float),
+            np.array([0.12, 0.55, base_z], dtype=float),
+        )
+    if view == 'hands':
+        return (
+            np.array([-0.35, 0.0, base_z], dtype=float),
+            np.array([0.35, 0.0, base_z], dtype=float),
+        )
+    return (
+        np.array([-0.55, 0.0, base_z], dtype=float),
+        np.array([0.55, 0.0, base_z], dtype=float),
+    )
+
+
+def _capture_validation_gallery(app, stage, records, usd_root: str, urdf_root: str, usd_skel, capture_dir: Path) -> list[str]:
+    from isaacsim.sensors.camera import Camera
+
+    capture_dir.mkdir(parents=True, exist_ok=True)
+    for existing in capture_dir.glob('*.png'):
+        existing.unlink()
+    rest_local = [record['local_matrix'].copy() for record in records]
+    rest_base_z = root_height_offset(records)
+    gallery_specs = [
+        ('rest', 'overview'),
+        ('demo', 'overview'),
+        ('open_arms', 'front'),
+        ('walk', 'overview'),
+        ('walk', 'walk_side'),
+        ('walk_right', 'walk_side'),
+        ('demo', 'hands'),
+    ]
+
+    camera = Camera(prim_path='/World/ValidationCamera', position=np.array([4.0, -4.0, 2.2], dtype=float), resolution=(1280, 720), frequency=1)
+    camera.initialize()
+
+    written: list[str] = []
+    for preset, view in gallery_specs:
+        pose = build_pose_preset(records, preset)
+        local_matrices = rest_local if preset == 'rest' else apply_pose_to_local_matrices(records, pose)
+        posed_world_local = world_matrices_from_local(records, local_matrices)
+        posed_base_z = max(rest_base_z, root_height_offset_from_world_matrices(posed_world_local))
+        if preset in {'walk', 'walk_right'}:
+            posed_base_z += 0.12
+        usd_offset, urdf_offset = _scene_offsets(view, posed_base_z)
+        _set_translate(stage, usd_root, usd_offset)
+        _configure_urdf_pose(stage, urdf_root, urdf_offset, pose, reset_missing=True)
+        _apply_pose_to_usd_skeleton(stage, usd_skel, local_matrices)
+        for _ in range(20):
+            app.update()
+        eye, target = _camera_eye_target(view)
+        _set_camera_view(camera, eye, target)
+        output_path = capture_dir / f'{preset}_{view}.png'
+        _capture_rgba(camera, app, output_path)
+        written.append(str(output_path))
+    return written
+
+
 def main() -> None:
     args = _parse_args()
+    folder = Path(__file__).resolve().parent
+    asset_paths = resolve_asset_paths(args.usd_path, folder / 'outputs')
+    urdf_path = args.urdf_path or asset_paths.primitive_urdf
+    default_output_dir = asset_paths.primitive_validation_dir
+    if '_mesh' in urdf_path.stem:
+        default_output_dir = asset_paths.mesh_validation_dir
+        if args.capture_gallery:
+            default_output_dir = asset_paths.mesh_validation_gallery_dir
+    output_dir = args.output_dir or default_output_dir
     if args.stay_open and args.headless:
         raise RuntimeError('--stay-open requires GUI mode. Remove --headless when using this option.')
     portable_root = args.portable_root.resolve()
@@ -426,7 +544,6 @@ def main() -> None:
     app = SimulationApp(
         {
             'headless': args.headless,
-            'renderer': 'RayTracedLighting',
             'extra_args': [
                 '--portable-root',
                 str(portable_root),
@@ -445,14 +562,14 @@ def main() -> None:
         from isaacsim.core.utils.stage import add_reference_to_stage
         from pxr import Sdf, UsdLux
 
-        if not args.urdf_path.exists():
-            raise RuntimeError(f'URDF does not exist yet: {args.urdf_path}')
+        if not urdf_path.exists():
+            raise RuntimeError(f'URDF does not exist yet: {urdf_path}')
 
-        args.output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
         _wait_for_app_ready(app)
         stage = omni.usd.get_context().get_stage()
         _log(f'[VAL] app ready: {omni.kit.app.get_app().is_app_ready()}')
-        _write_checkpoint(args.output_dir, 'app_ready')
+        _write_checkpoint(output_dir, 'app_ready')
         _upsert_physics_scene(stage)
         _add_ground_plane(stage)
 
@@ -462,14 +579,17 @@ def main() -> None:
         usd_root = '/World/UsdCharacter'
         add_reference_to_stage(usd_path=str(args.usd_path), prim_path=usd_root)
         _wait_for_prim(app, stage, usd_root)
-        _write_checkpoint(args.output_dir, 'usd_loaded')
-        sanitized_domes = _sanitize_dome_lights(stage, usd_root)
+        _write_checkpoint(output_dir, 'usd_loaded')
+        sanitized_domes = 0
+        if not args.preserve_usd_dome_lights:
+            sanitized_domes = _sanitize_dome_lights(stage, usd_root)
         usd_skel = _find_first_skeleton(stage, usd_root)
         if usd_skel is None:
             raise RuntimeError('Referenced USD did not expose a skeleton under /World/UsdCharacter')
 
         extracted = extract_skeleton_records(usd_skel)
         records = extracted['records']
+        pose_preset = 'demo'
         pose = build_demo_pose(records)
         local_posed = apply_pose_to_local_matrices(records, pose)
         posed_world_local = world_matrices_from_local(records, local_posed)
@@ -489,14 +609,14 @@ def main() -> None:
 
         status, urdf_root = omni.kit.commands.execute(
             'URDFParseAndImportFile',
-            urdf_path=str(args.urdf_path),
+            urdf_path=str(urdf_path),
             import_config=import_config,
             get_articulation_root=True,
         )
         if not status:
             raise RuntimeError('URDF import failed.')
         _wait_for_prim(app, stage, urdf_root)
-        _write_checkpoint(args.output_dir, 'urdf_imported')
+        _write_checkpoint(output_dir, 'urdf_imported')
         for _ in range(max(args.post_import_warmup_steps, 0)):
             app.update()
         robot_root = _robot_root_path(str(urdf_root))
@@ -505,30 +625,32 @@ def main() -> None:
         timeline.play()
         for _ in range(8):
             app.update()
-        _write_checkpoint(args.output_dir, 'timeline_playing')
+        _write_checkpoint(output_dir, 'timeline_playing')
 
-        usd_offset = np.array([-0.55, 0.0, posed_base_z], dtype=float)
-        urdf_offset = np.array([0.55, 0.0, posed_base_z], dtype=float)
+        usd_offset, urdf_offset = _scene_offsets('overview', posed_base_z)
         _set_translate(stage, usd_root, usd_offset)
         driven_joint_count = _configure_urdf_pose(stage, str(urdf_root), urdf_offset, pose)
         _log(f'[VAL] configured URDF drives: {driven_joint_count}')
-        _write_checkpoint(args.output_dir, 'urdf_pose_applied')
+        _write_checkpoint(output_dir, 'urdf_pose_applied')
         usd_anim_path = _apply_pose_to_usd_skeleton(stage, usd_skel, local_posed)
         _log(f'[VAL] usd animation: {usd_anim_path}')
-        _write_checkpoint(args.output_dir, 'usd_pose_applied')
+        _write_checkpoint(output_dir, 'usd_pose_applied')
 
         for _ in range(20):
             app.update()
-        _write_checkpoint(args.output_dir, 'pose_settled')
+        _write_checkpoint(output_dir, 'pose_settled')
+
+        capture_dir = (args.capture_dir or (output_dir / 'captures')).resolve()
 
         summary = {
             'usd_path': str(args.usd_path),
-            'urdf_path': str(args.urdf_path),
+            'urdf_path': str(urdf_path),
             'usd_root_prim': usd_root,
             'usd_animation_prim': usd_anim_path,
             'urdf_root_prim': robot_root,
             'urdf_articulation_prim': str(urdf_root),
             'pose_radians': pose,
+            'pose_preset': pose_preset,
             'rest_root_height_offset_m': rest_base_z,
             'posed_root_height_offset_m': posed_base_z,
             'sanitized_dome_light_count': sanitized_domes,
@@ -586,9 +708,34 @@ def main() -> None:
                 }
             )
         else:
-            summary.update(_offline_summary_payload(args.output_dir))
+            offline_path = output_dir / 'offline_transform_comparison.json'
+            offline_summary = compare_offline_pose(
+                records=records,
+                urdf_path=urdf_path,
+                pose=pose,
+                pose_preset=pose_preset,
+                skeleton_json_path=asset_paths.skeleton_json,
+            )
+            save_json(offline_path, offline_summary)
+            offline_summary['comparison_mode'] = 'offline_root_relative_kinematics'
+            offline_summary['offline_transform_comparison_path'] = str(offline_path)
+            summary.update(offline_summary)
 
-        save_json(args.output_dir / 'transform_comparison.json', summary)
+        if args.capture_gallery:
+            captured_images = _capture_validation_gallery(
+                app=app,
+                stage=stage,
+                records=records,
+                usd_root=usd_root,
+                urdf_root=str(urdf_root),
+                usd_skel=usd_skel,
+                capture_dir=capture_dir,
+            )
+            summary['captured_images'] = captured_images
+            summary['capture_dir'] = str(capture_dir)
+            _log(f'[VAL] captured gallery images: {len(captured_images)}')
+
+        save_json(output_dir / 'transform_comparison.json', summary)
         _log(f'[VAL] usd root: {usd_root}')
         _log(f'[VAL] urdf root: {urdf_root}')
         if args.live_prim_comparison:
@@ -600,8 +747,8 @@ def main() -> None:
             _log(f"[VAL] comparison mode: {summary['comparison_mode']}")
             _log(f"[VAL] offline comparison: {summary.get('offline_transform_comparison_path')}")
         _log(f'[VAL] dome lights sanitized: {sanitized_domes}')
-        _log(f"[VAL] wrote: {args.output_dir / 'transform_comparison.json'}")
-        _write_checkpoint(args.output_dir, 'done')
+        _log(f"[VAL] wrote: {output_dir / 'transform_comparison.json'}")
+        _write_checkpoint(output_dir, 'done')
         if args.stay_open:
             _log('[VAL] stay-open enabled. Close the Isaac Sim window to exit.')
             while app.is_running():

@@ -4,6 +4,7 @@ import argparse
 import os
 from pathlib import Path
 
+from asset_paths import default_usd_path, resolve_asset_paths
 from config import DEFAULT_MESH_BUILD_CONFIG
 from mesh_collision_builder import build_mesh_collision_assets
 from skeleton_common import build_link_geometries, extract_skeleton_records, generate_urdf_text, save_json, write_records_json
@@ -15,7 +16,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--usd-path',
         type=Path,
-        default=folder.parents[1] / 'algorithms' / 'avp_remote' / 'landau_v10.usdc',
+        default=default_usd_path(),
         help='Path to the articulated USD/USDC file.',
     )
     parser.add_argument(
@@ -30,7 +31,7 @@ def _parse_args() -> argparse.Namespace:
         default='both',
         help='Which URDF geometry variants to write.',
     )
-    parser.add_argument('--robot-name', default='usd_landau_parallel', help='Name of the generated URDF robot.')
+    parser.add_argument('--robot-name', default=None, help='Optional name override for the generated primitive URDF robot.')
     parser.add_argument(
         '--mesh-robot-name',
         default=None,
@@ -39,8 +40,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--mesh-output-dir',
         type=Path,
-        default=folder / 'outputs' / 'mesh_collision_stl',
-        help='Directory where the per-link STL collision meshes will be written.',
+        default=None,
+        help='Directory where the per-link STL collision meshes will be written. Defaults to outputs/mesh_collision_stl/<input-stem>/',
     )
     parser.add_argument(
         '--mesh-simplify-mode',
@@ -72,6 +73,13 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
+    asset_paths = resolve_asset_paths(
+        usd_path=args.usd_path,
+        output_dir=args.output_dir,
+        robot_name=args.robot_name,
+        mesh_robot_name=args.mesh_robot_name,
+        mesh_output_dir=args.mesh_output_dir,
+    )
     portable_root = args.portable_root.resolve()
     home_root = portable_root / 'home'
     (home_root / 'Documents').mkdir(parents=True, exist_ok=True)
@@ -122,7 +130,7 @@ def main() -> None:
         primitive_geoms_by_name = build_link_geometries(records)
         print(f'[GEN] extracted skeleton: {len(records)} joints', flush=True)
 
-        skeleton_json_path = args.output_dir / 'landau_v10_skeleton.json'
+        skeleton_json_path = asset_paths.skeleton_json
         write_records_json(skeleton_json_path, extracted['skeleton_path'], args.usd_path, records)
 
         print(f'[GEN] source USD: {args.usd_path}')
@@ -131,30 +139,30 @@ def main() -> None:
         print(f'[GEN] wrote: {skeleton_json_path}')
 
         if args.geometry_mode in ('primitives', 'both'):
-            primitive_urdf_path = args.output_dir / f'{args.robot_name}.urdf'
+            primitive_urdf_path = asset_paths.primitive_urdf
             primitive_urdf_path.write_text(
-                generate_urdf_text(args.robot_name, records, geoms_by_name=primitive_geoms_by_name),
+                generate_urdf_text(asset_paths.primitive_robot_name, records, geoms_by_name=primitive_geoms_by_name),
                 encoding='utf-8',
             )
             print(f'[GEN] wrote primitive URDF: {primitive_urdf_path}')
 
         if args.geometry_mode in ('mesh', 'both'):
-            mesh_robot_name = args.mesh_robot_name or f'{args.robot_name}_mesh'
-            mesh_urdf_path = args.output_dir / f'{mesh_robot_name}.urdf'
+            mesh_robot_name = asset_paths.mesh_robot_name
+            mesh_urdf_path = asset_paths.mesh_urdf
             print('[GEN] building mesh collision assets...', flush=True)
             mesh_assets = build_mesh_collision_assets(
                 stage=stage,
                 skel=skel,
                 records=records,
                 urdf_dir=args.output_dir,
-                mesh_dir=args.mesh_output_dir,
+                mesh_dir=asset_paths.mesh_output_dir,
                 strategy=args.mesh_simplify_mode,
                 max_hull_faces=args.max_hull_faces,
                 target_hull_points=args.target_hull_points,
                 build_config=DEFAULT_MESH_BUILD_CONFIG,
             )
             print('[GEN] mesh collision assets ready', flush=True)
-            mesh_summary_path = args.output_dir / 'mesh_collision_summary.json'
+            mesh_summary_path = asset_paths.mesh_summary
             mesh_urdf_path.write_text(
                 generate_urdf_text(
                     mesh_robot_name,
@@ -169,7 +177,7 @@ def main() -> None:
                 {
                     'usd_path': str(args.usd_path),
                     'skeleton_path': extracted['skeleton_path'],
-                    'mesh_output_dir': str(args.mesh_output_dir),
+                    'mesh_output_dir': str(asset_paths.mesh_output_dir),
                     'mesh_simplify_mode': args.mesh_simplify_mode,
                     'max_hull_faces': int(args.max_hull_faces),
                     'target_hull_points': int(args.target_hull_points),
@@ -185,7 +193,7 @@ def main() -> None:
             )
             print(f'[GEN] wrote mesh URDF: {mesh_urdf_path}')
             print(f'[GEN] wrote mesh summary: {mesh_summary_path}')
-            print(f'[GEN] wrote mesh STL directory: {args.mesh_output_dir}')
+            print(f'[GEN] wrote mesh STL directory: {asset_paths.mesh_output_dir}')
     finally:
         app.close()
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from asset_paths import default_usd_path
 from mesh_collision_builder import _seed_surface_clouds
 from mesh_repair_pipeline import (
     RepairConfig,
@@ -69,7 +70,7 @@ def main() -> None:
 
     from pxr import Usd, UsdSkel
 
-    usd_path = folder.parents[1] / 'algorithms' / 'avp_remote' / 'landau_v10.usdc'
+    usd_path = default_usd_path()
     try:
         stage = Usd.Stage.Open(str(usd_path))
         if not stage:

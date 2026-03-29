@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from asset_paths import default_usd_path
 from skeleton_common import (
     apply_pose_to_local_matrices,
     build_demo_pose,
@@ -27,7 +28,7 @@ from validate_parallel_scene import (
 def _parse_args() -> argparse.Namespace:
     folder = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description='Render the source USD with optional authored skeleton animation.')
-    parser.add_argument('--usd-path', type=Path, default=folder.parents[1] / 'algorithms' / 'avp_remote' / 'landau_v10.usdc')
+    parser.add_argument('--usd-path', type=Path, default=default_usd_path())
     parser.add_argument('--output-path', type=Path, required=True)
     parser.add_argument('--headless', action='store_true')
     parser.add_argument('--mode', choices=['none', 'rest', 'posed'], default='none')
@@ -35,6 +36,11 @@ def _parse_args() -> argparse.Namespace:
         '--portable-root',
         type=Path,
         default=folder / '.kit_portable' / 'debug_usd_animation',
+    )
+    parser.add_argument(
+        '--preserve-usd-dome-lights',
+        action='store_true',
+        help='Keep authored dome-light textures on the source USD instead of sanitizing them for headless robustness.',
     )
     return parser.parse_args()
 
@@ -81,7 +87,8 @@ def main() -> None:
         usd_root = '/World/UsdCharacter'
         add_reference_to_stage(usd_path=str(args.usd_path), prim_path=usd_root)
         _wait_for_prim(app, stage, usd_root)
-        _sanitize_dome_lights(stage, usd_root)
+        if not args.preserve_usd_dome_lights:
+            _sanitize_dome_lights(stage, usd_root)
         usd_skel = _find_first_skeleton(stage, usd_root)
         if usd_skel is None:
             raise RuntimeError('Referenced USD did not expose a skeleton under /World/UsdCharacter')

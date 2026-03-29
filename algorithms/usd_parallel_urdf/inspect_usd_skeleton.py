@@ -5,21 +5,23 @@ from pathlib import Path
 
 from isaacsim import SimulationApp
 
+from asset_paths import default_usd_path, resolve_asset_paths
 from skeleton_common import extract_skeleton_records, write_records_json
 
 
 def _parse_args() -> argparse.Namespace:
+    folder = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description='Print the articulated skeleton structure for the source USD.')
     parser.add_argument(
         '--usd-path',
         type=Path,
-        default=Path(__file__).resolve().parents[1] / 'avp_remote' / 'landau_v10.usdc',
+        default=default_usd_path(),
         help='Path to the source USD/USDC character asset.',
     )
     parser.add_argument(
         '--output-json',
         type=Path,
-        default=Path(__file__).resolve().parent / 'outputs' / 'landau_v10_skeleton.json',
+        default=None,
         help='Optional JSON export path.',
     )
     parser.add_argument('--headless', action='store_true', default=False, help='Run Isaac Sim headless.')
@@ -28,6 +30,9 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
+    folder = Path(__file__).resolve().parent
+    asset_paths = resolve_asset_paths(args.usd_path, folder / 'outputs')
+    output_json = args.output_json or asset_paths.skeleton_json
     app = SimulationApp({'headless': args.headless})
 
     try:
@@ -71,8 +76,8 @@ def main() -> None:
                 f"world_xyz={[round(float(v), 4) for v in record['world_xyz']]}"
             )
 
-        write_records_json(args.output_json, extracted['skeleton_path'], args.usd_path, records)
-        print(f'[USD] wrote JSON summary to {args.output_json}')
+        write_records_json(output_json, extracted['skeleton_path'], args.usd_path, records)
+        print(f'[USD] wrote JSON summary to {output_json}')
     finally:
         app.close()
 

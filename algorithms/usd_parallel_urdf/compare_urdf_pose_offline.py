@@ -7,15 +7,30 @@ from pathlib import Path
 
 import numpy as np
 
-from skeleton_common import apply_pose_to_local_matrices, build_demo_pose, matrix_to_xyz_rpy, save_json, world_matrices_from_local
+from asset_paths import default_usd_path, resolve_asset_paths
+from skeleton_common import (
+    apply_pose_to_local_matrices,
+    build_pose_preset,
+    matrix_to_xyz_rpy,
+    pose_preset_names,
+    save_json,
+    world_matrices_from_local,
+)
 
 
 def _parse_args() -> argparse.Namespace:
     folder = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description='Offline FK comparison between the generated URDF and USD skeleton records.')
-    parser.add_argument('--skeleton-json', type=Path, default=folder / 'outputs' / 'landau_v10_skeleton.json')
-    parser.add_argument('--urdf-path', type=Path, default=folder / 'outputs' / 'usd_landau_parallel.urdf')
-    parser.add_argument('--output-path', type=Path, default=folder / 'outputs' / 'validation' / 'offline_transform_comparison.json')
+    parser.add_argument('--usd-path', type=Path, default=default_usd_path())
+    parser.add_argument('--skeleton-json', type=Path, default=None)
+    parser.add_argument('--urdf-path', type=Path, default=None)
+    parser.add_argument('--output-path', type=Path, default=None)
+    parser.add_argument(
+        '--pose-preset',
+        choices=pose_preset_names(),
+        default='demo',
+        help='Named pose preset to evaluate.',
+    )
     return parser.parse_args()
 
 
@@ -50,26 +65,35 @@ def _matrix_from_origin(xyz: list[float], rpy: list[float]) -> np.ndarray:
     return matrix
 
 
-def main() -> None:
+def load_records_from_json(skeleton_json_path: Path) -> tuple[dict, list[dict]]:
     import json
 
-    args = _parse_args()
-    payload = json.loads(args.skeleton_json.read_text())
+    payload = json.loads(skeleton_json_path.read_text())
     records = payload['records']
     for record in records:
         record['local_matrix'] = np.asarray(record['local_matrix'], dtype=float)
         record['world_matrix'] = np.asarray(record['world_matrix'], dtype=float)
         record['axis'] = np.asarray(record['axis'], dtype=float)
         record['limits'] = tuple(record['limits'])
-    pose = payload.get('demo_pose_radians') or build_demo_pose(records)
+    return payload, records
 
+
+def compare_offline_pose(
+    *,
+    records: list[dict],
+    urdf_path: Path,
+    pose: dict[str, float],
+    pose_preset: str,
+    skeleton_json_path: Path | None = None,
+) -> dict:
+    skeleton_json_str = str(skeleton_json_path) if skeleton_json_path is not None else None
     record_by_name = {record['name']: record for record in records}
     usd_local = apply_pose_to_local_matrices(records, pose)
     usd_world = world_matrices_from_local(records, usd_local)
     usd_root_inv = np.linalg.inv(usd_world[0])
     usd_by_name = {record['name']: usd_root_inv @ usd_world[record['index']] for record in records}
 
-    tree = ET.parse(args.urdf_path)
+    tree = ET.parse(urdf_path)
     root = tree.getroot()
     child_joint = {}
     parent_links = set()
@@ -131,19 +155,38 @@ def main() -> None:
             'urdf_xyz': [float(v) for v in urdf_xyz],
         })
     per_link.sort(key=lambda item: item['position_error_m'], reverse=True)
-    summary = {
-        'skeleton_json': str(args.skeleton_json),
-        'urdf_path': str(args.urdf_path),
+    return {
+        'skeleton_json': skeleton_json_str,
+        'urdf_path': str(urdf_path),
+        'pose_preset': pose_preset,
         'comparison_link_count': len(per_link),
         'max_position_error_m': max((item['position_error_m'] for item in per_link), default=0.0),
         'mean_position_error_m': float(np.mean([item['position_error_m'] for item in per_link])) if per_link else 0.0,
         'max_rotation_rpy_delta_norm': max((item['rotation_rpy_delta_norm'] for item in per_link), default=0.0),
         'worst_links': per_link[:15],
     }
-    save_json(args.output_path, summary)
-    print(f'[OFFLINE] compared links: {len(per_link)}')
+
+
+def main() -> None:
+    args = _parse_args()
+    folder = Path(__file__).resolve().parent
+    asset_paths = resolve_asset_paths(args.usd_path, folder / 'outputs')
+    skeleton_json_path = args.skeleton_json or asset_paths.skeleton_json
+    urdf_path = args.urdf_path or asset_paths.primitive_urdf
+    output_path = args.output_path or (asset_paths.primitive_validation_dir / 'offline_transform_comparison.json')
+    _, records = load_records_from_json(skeleton_json_path)
+    pose = build_pose_preset(records, args.pose_preset)
+    summary = compare_offline_pose(
+        records=records,
+        urdf_path=urdf_path,
+        pose=pose,
+        pose_preset=args.pose_preset,
+        skeleton_json_path=skeleton_json_path,
+    )
+    save_json(output_path, summary)
+    print(f"[OFFLINE] compared links: {summary['comparison_link_count']}")
     print(f"[OFFLINE] max position error: {summary['max_position_error_m']:.6f} m")
-    print(f"[OFFLINE] wrote: {args.output_path}")
+    print(f"[OFFLINE] wrote: {output_path}")
 
 
 if __name__ == '__main__':

@@ -1,0 +1,5326 @@
+{
+  "usd_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/inputs/landau_v10.usdc",
+  "skeleton_path": "/root/root/root",
+  "mesh_output_dir": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10",
+  "mesh_simplify_mode": "lowpoly_surface",
+  "max_hull_faces": 48,
+  "target_hull_points": 24,
+  "config": {
+    "min_thickness": 0.004,
+    "lowpoly_default": {
+      "target_face_ratio": 0.25,
+      "max_faces": 1200,
+      "max_hole_edges": 500,
+      "component_keep_area_ratio": 0.05,
+      "planar_deviation_ratio": 0.05,
+      "force_fill_max_edges": 10,
+      "target_cells": [
+        24,
+        22,
+        20,
+        18,
+        16,
+        14,
+        12
+      ],
+      "cluster_scales": [
+        0.55,
+        0.75,
+        0.95,
+        1.15,
+        1.35,
+        1.65,
+        2.0,
+        2.4
+      ],
+      "smooth_sigma": 0.45,
+      "closing_iterations": 1,
+      "dilation_iterations": 0,
+      "padding_cells": 1,
+      "max_grid_cells": 44,
+      "max_sample_points": 45000,
+      "sample_tolerance": 0.0003,
+      "fit_margin_ratio": 0.03,
+      "fit_margin_min": 0.0008,
+      "max_extent_ratio_xyz": [
+        1.08,
+        1.08,
+        1.08
+      ],
+      "smoothing_iterations": 0,
+      "smoothing_lambda": 0.35
+    },
+    "lowpoly_link_overrides": {
+      "head_x": {
+        "target_face_ratio": 0.3,
+        "max_faces": 760,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          30,
+          28,
+          26,
+          24,
+          22,
+          20,
+          18
+        ],
+        "cluster_scales": [
+          0.4,
+          0.55,
+          0.7,
+          0.85,
+          1.0,
+          1.15,
+          1.3,
+          1.5,
+          1.75
+        ],
+        "smooth_sigma": 0.32,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.015,
+        "fit_margin_min": 0.0005,
+        "max_extent_ratio_xyz": [
+          1.04,
+          1.04,
+          1.04
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      }
+    }
+  },
+  "links": {
+    "root_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/root_x.stl",
+      "seed_point_count": 17832,
+      "seed_triangle_count": 5944,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 3173,
+      "mesh_triangle_count": 6346,
+      "bounds_min": [
+        -0.11825301619116727,
+        -0.039973318576812245,
+        -0.0765114460652401
+      ],
+      "bounds_max": [
+        0.11881401335347308,
+        0.1372577250003828,
+        0.07656844081707861
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 3173,
+      "face_count": 6346,
+      "repair_original_face_count": 5943,
+      "repair_holes_found": 6,
+      "repair_holes_filled": 6,
+      "repair_watertight": true,
+      "repair_euler_number": 0,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "spine_01_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/spine_01_x.stl",
+      "seed_point_count": 6840,
+      "seed_triangle_count": 2280,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 1207,
+      "mesh_triangle_count": 2410,
+      "bounds_min": [
+        -0.051678001733536906,
+        -0.0635673305727617,
+        -0.09883303401048658
+      ],
+      "bounds_max": [
+        0.051769997056740104,
+        0.057762554604557925,
+        0.021176914781944743
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 1207,
+      "face_count": 2410,
+      "repair_original_face_count": 2280,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "spine_02_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/spine_02_x.stl",
+      "seed_point_count": 5211,
+      "seed_triangle_count": 1737,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 959,
+      "mesh_triangle_count": 1914,
+      "bounds_min": [
+        -0.06660703569596513,
+        -0.013494662230096766,
+        -0.03947145779355049
+      ],
+      "bounds_max": [
+        0.06672500818918083,
+        0.11877273201972705,
+        0.09939511478900775
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 959,
+      "face_count": 1914,
+      "repair_original_face_count": 1737,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "spine_03_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/spine_03_x.stl",
+      "seed_point_count": 1734,
+      "seed_triangle_count": 578,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 371,
+      "mesh_triangle_count": 734,
+      "bounds_min": [
+        -0.036214997820332495,
+        0.0041612821915349985,
+        -0.03781955842620931
+      ],
+      "bounds_max": [
+        0.03645800196242101,
+        0.07903754095698379,
+        0.06272352698601427
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 371,
+      "face_count": 734,
+      "repair_original_face_count": 563,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "neck_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/neck_x.stl",
+      "seed_point_count": 27,
+      "seed_triangle_count": 9,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 11,
+      "mesh_triangle_count": 18,
+      "bounds_min": [
+        0.016339375922194033,
+        0.0015013642872403477,
+        0.011513712653730357
+      ],
+      "bounds_max": [
+        0.027465004939912743,
+        0.008462911386588612,
+        0.019519474663562797
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 11,
+      "face_count": 18,
+      "repair_original_face_count": 9,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "head_x": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/head_x.stl",
+      "seed_point_count": 67998,
+      "seed_triangle_count": 22666,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 972,
+      "mesh_triangle_count": 1940,
+      "bounds_min": [
+        -0.16243920590776265,
+        -0.06653402058176716,
+        -0.18933883371867977
+      ],
+      "bounds_max": [
+        0.16264321407185867,
+        0.5714765612778188,
+        0.16038421719722518
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.3,
+        "max_faces": 760,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          30,
+          28,
+          26,
+          24,
+          22,
+          20,
+          18
+        ],
+        "cluster_scales": [
+          0.4,
+          0.55,
+          0.7,
+          0.85,
+          1.0,
+          1.15,
+          1.3,
+          1.5,
+          1.75
+        ],
+        "smooth_sigma": 0.32,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.015,
+        "fit_margin_min": 0.0005,
+        "max_extent_ratio_xyz": [
+          1.04,
+          1.04,
+          1.04
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "voxelized_closed_surface",
+      "repair_fallback": "voxelized_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 972,
+      "face_count": 1940,
+      "target_cells": 20,
+      "cluster_scale": 0.4,
+      "pitch": 0.03,
+      "watertight": true,
+      "volume": 59.5,
+      "fit_applied": true,
+      "source_extent": [
+        0.31561399998021483,
+        0.6194277493782386,
+        0.3395369426368009
+      ],
+      "mesh_extent_before_fit": [
+        11.0,
+        21.0,
+        12.0
+      ],
+      "mesh_extent_after_fit": [
+        0.3250824199796213,
+        0.6380105818595859,
+        0.34972305091590494
+      ],
+      "fit_scale_xyz": [
+        0.029552947270874663,
+        0.030381456279027896,
+        0.029143587576325413
+      ],
+      "fit_shift_xyz": [
+        -0.14776172183311514,
+        -0.2961441179284898,
+        -0.16071165237095575
+      ]
+    },
+    "shoulder_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/shoulder_r.stl",
+      "seed_point_count": 1347,
+      "seed_triangle_count": 449,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 275,
+      "mesh_triangle_count": 546,
+      "bounds_min": [
+        -0.06398829668783175,
+        -0.01458860540239085,
+        -0.04255356802680632
+      ],
+      "bounds_max": [
+        0.035661694736991746,
+        0.061548468359568204,
+        0.045633254986632954
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 275,
+      "face_count": 546,
+      "repair_original_face_count": 449,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "arm_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/arm_stretch_r.stl",
+      "seed_point_count": 768,
+      "seed_triangle_count": 256,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 185,
+      "mesh_triangle_count": 366,
+      "bounds_min": [
+        -0.04034989575071385,
+        0.030257638518093044,
+        -0.030352456185319676
+      ],
+      "bounds_max": [
+        0.0180173139391109,
+        0.1021221730461957,
+        0.024337681841963443
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 185,
+      "face_count": 366,
+      "repair_original_face_count": 256,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "arm_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/arm_twist_r.stl",
+      "seed_point_count": 1143,
+      "seed_triangle_count": 381,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 247,
+      "mesh_triangle_count": 490,
+      "bounds_min": [
+        -0.047925126813414626,
+        -0.011483185004750707,
+        -0.04056605577259187
+      ],
+      "bounds_max": [
+        0.027707811657250447,
+        0.06620719689721932,
+        0.024552094693830462
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 247,
+      "face_count": 490,
+      "repair_original_face_count": 381,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "forearm_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/forearm_stretch_r.stl",
+      "seed_point_count": 1905,
+      "seed_triangle_count": 635,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 368,
+      "mesh_triangle_count": 732,
+      "bounds_min": [
+        -0.04041113841666267,
+        -0.0123649973929979,
+        -0.034795553976147586
+      ],
+      "bounds_max": [
+        0.026930145926643785,
+        0.049101910782446356,
+        0.03130198638293785
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 368,
+      "face_count": 732,
+      "repair_original_face_count": 635,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "forearm_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/forearm_twist_r.stl",
+      "seed_point_count": 1164,
+      "seed_triangle_count": 388,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 235,
+      "mesh_triangle_count": 466,
+      "bounds_min": [
+        -0.037618289429466226,
+        -0.01312689892456953,
+        -0.03326838595826542
+      ],
+      "bounds_max": [
+        0.019156492418133386,
+        0.057245483839112876,
+        0.02467582809109331
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 235,
+      "face_count": 466,
+      "repair_original_face_count": 388,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "hand_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/hand_r.stl",
+      "seed_point_count": 276,
+      "seed_triangle_count": 92,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 85,
+      "mesh_triangle_count": 158,
+      "bounds_min": [
+        -0.018562177986860592,
+        -0.004119266388499243,
+        -0.015235575885477748
+      ],
+      "bounds_max": [
+        0.018044535715855632,
+        0.046655840208919164,
+        0.01918797994342103
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 85,
+      "face_count": 158,
+      "repair_original_face_count": 92,
+      "repair_holes_found": 3,
+      "repair_holes_filled": 3,
+      "repair_watertight": true,
+      "repair_euler_number": 6,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "thumb1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thumb1_r.stl",
+      "seed_point_count": 387,
+      "seed_triangle_count": 129,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 93,
+      "mesh_triangle_count": 182,
+      "bounds_min": [
+        -0.011801871567938105,
+        -0.016635184700914907,
+        -0.020228436901876284
+      ],
+      "bounds_max": [
+        0.01940638914946341,
+        0.036503002621553815,
+        0.015447077756013172
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 93,
+      "face_count": 182,
+      "repair_original_face_count": 129,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "thumb2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thumb2_r.stl",
+      "seed_point_count": 219,
+      "seed_triangle_count": 73,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 455,
+      "mesh_triangle_count": 906,
+      "bounds_min": [
+        -0.00960542159812501,
+        -0.007874574892190393,
+        -0.010545967254073729
+      ],
+      "bounds_max": [
+        0.010666868214439839,
+        0.021463009782167974,
+        0.011637179608225778
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 455,
+      "face_count": 906,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        12,
+        16,
+        12
+      ],
+      "watertight": true,
+      "volume": 1.4108154358590132e-07,
+      "fit_applied": true,
+      "source_extent": [
+        0.0211648864815165,
+        0.030342086020027415,
+        0.020583146862299506
+      ],
+      "mesh_extent_before_fit": [
+        0.020272289812564848,
+        0.029337584674358368,
+        0.02279235288500786
+      ],
+      "mesh_extent_after_fit": [
+        0.020272289812564848,
+        0.029337584674358368,
+        0.022183146862299507
+      ],
+      "fit_scale_xyz": [
+        1.0,
+        1.0,
+        0.9732714728583782
+      ],
+      "fit_shift_xyz": [
+        0.0,
+        0.0,
+        0.0002838470335500883
+      ]
+    },
+    "thumb3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thumb3_r.stl",
+      "seed_point_count": 354,
+      "seed_triangle_count": 118,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 76,
+      "mesh_triangle_count": 148,
+      "bounds_min": [
+        -0.009336519814087757,
+        -0.012393283263572336,
+        -0.009423796279853291
+      ],
+      "bounds_max": [
+        0.008934174721603017,
+        0.014016867795144772,
+        0.010953427220593948
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 76,
+      "face_count": 148,
+      "repair_original_face_count": 118,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "index1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index1_base_r.stl",
+      "seed_point_count": 453,
+      "seed_triangle_count": 151,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 110,
+      "mesh_triangle_count": 216,
+      "bounds_min": [
+        -0.018717800852796174,
+        -0.02086023555346292,
+        -0.016374155591972195
+      ],
+      "bounds_max": [
+        0.01216264547464152,
+        0.06256742655393285,
+        0.018679693605394676
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 110,
+      "face_count": 216,
+      "repair_original_face_count": 149,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "index1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index1_r.stl",
+      "seed_point_count": 81,
+      "seed_triangle_count": 27,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 252,
+      "mesh_triangle_count": 500,
+      "bounds_min": [
+        -0.01140542242951715,
+        -0.0020669548994051313,
+        -0.01107552685103144
+      ],
+      "bounds_max": [
+        0.008426793475672364,
+        0.021650875679080996,
+        0.00923642405584349
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 252,
+      "face_count": 500,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        11,
+        18,
+        11
+      ],
+      "watertight": true,
+      "volume": 1.1353912450466515e-07,
+      "fit_applied": true,
+      "source_extent": [
+        0.018792088411072674,
+        0.03552161777452442,
+        0.01880736195081012
+      ],
+      "mesh_extent_before_fit": [
+        0.019832215905189514,
+        0.02371783057848613,
+        0.021885569691658023
+      ],
+      "mesh_extent_after_fit": [
+        0.019832215905189514,
+        0.02371783057848613,
+        0.02031195090687493
+      ],
+      "fit_scale_xyz": [
+        1.0,
+        1.0,
+        0.928097883356315
+      ],
+      "fit_shift_xyz": [
+        -0.0013923166144961373,
+        0.0,
+        -0.0005368874005597137
+      ]
+    },
+    "index2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index2_r.stl",
+      "seed_point_count": 276,
+      "seed_triangle_count": 92,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 74,
+      "mesh_triangle_count": 144,
+      "bounds_min": [
+        -0.008322915802687528,
+        -0.015517261394227197,
+        -0.01012606741794786
+      ],
+      "bounds_max": [
+        0.008434870856833962,
+        0.023848340256489894,
+        0.010015402099532056
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 74,
+      "face_count": 144,
+      "repair_original_face_count": 92,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "index3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index3_r.stl",
+      "seed_point_count": 201,
+      "seed_triangle_count": 67,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 46,
+      "mesh_triangle_count": 88,
+      "bounds_min": [
+        -0.007650166908939493,
+        -0.001230022303270975,
+        -0.008180040562471791
+      ],
+      "bounds_max": [
+        0.007583050918862244,
+        0.01195410686677141,
+        0.00801012619134489
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 46,
+      "face_count": 88,
+      "repair_original_face_count": 67,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "middle1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle1_base_r.stl",
+      "seed_point_count": 213,
+      "seed_triangle_count": 71,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 66,
+      "mesh_triangle_count": 124,
+      "bounds_min": [
+        -0.01724761009850248,
+        0.004384109834290939,
+        -0.013959928884786033
+      ],
+      "bounds_max": [
+        0.01410235582421411,
+        0.05116731461773685,
+        0.017440310977479168
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 66,
+      "face_count": 124,
+      "repair_original_face_count": 71,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=2"
+      ]
+    },
+    "middle1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle1_r.stl",
+      "seed_point_count": 183,
+      "seed_triangle_count": 61,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 63,
+      "mesh_triangle_count": 120,
+      "bounds_min": [
+        -0.01469692733137569,
+        -0.002680810712098136,
+        -0.009385269120981088
+      ],
+      "bounds_max": [
+        0.012117375873860955,
+        0.032574194336558476,
+        0.01142109431972238
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 63,
+      "face_count": 120,
+      "repair_original_face_count": 61,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 3,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "middle2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle2_r.stl",
+      "seed_point_count": 123,
+      "seed_triangle_count": 41,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 42,
+      "mesh_triangle_count": 78,
+      "bounds_min": [
+        -0.008384797773368279,
+        -0.011457142962981781,
+        -0.007281557985641118
+      ],
+      "bounds_max": [
+        0.008131861095914149,
+        0.02078874341479392,
+        0.009043742896311824
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 42,
+      "face_count": 78,
+      "repair_original_face_count": 41,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 3,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "middle3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle3_r.stl",
+      "seed_point_count": 261,
+      "seed_triangle_count": 87,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 57,
+      "mesh_triangle_count": 110,
+      "bounds_min": [
+        -0.007241403110782051,
+        -0.02483708143165536,
+        -0.01096508516629846
+      ],
+      "bounds_max": [
+        0.008109841595483551,
+        0.013630408853464143,
+        0.007324698006933805
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 57,
+      "face_count": 110,
+      "repair_original_face_count": 87,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "ring1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring1_base_r.stl",
+      "seed_point_count": 147,
+      "seed_triangle_count": 49,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 49,
+      "mesh_triangle_count": 86,
+      "bounds_min": [
+        -0.013532910956321087,
+        -0.01418307193111712,
+        -0.010010524261724829
+      ],
+      "bounds_max": [
+        0.01197772939128739,
+        0.046690782418315174,
+        0.01715080322549062
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 49,
+      "face_count": 86,
+      "repair_original_face_count": 48,
+      "repair_holes_found": 4,
+      "repair_holes_filled": 4,
+      "repair_watertight": true,
+      "repair_euler_number": 6,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "ring1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring1_r.stl",
+      "seed_point_count": 132,
+      "seed_triangle_count": 44,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 401,
+      "mesh_triangle_count": 798,
+      "bounds_min": [
+        -0.01755946274522089,
+        -0.00458703325476348,
+        -0.010152173081891458
+      ],
+      "bounds_max": [
+        0.0031379775596062,
+        0.02749958618197739,
+        0.012528856059057791
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 401,
+      "face_count": 798,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        11,
+        16,
+        12
+      ],
+      "watertight": true,
+      "volume": 9.94720892356086e-08,
+      "fit_applied": true,
+      "source_extent": [
+        0.019164296578543606,
+        0.03134248169071849,
+        0.021259714418818965
+      ],
+      "mesh_extent_before_fit": [
+        0.02189497545361519,
+        0.03208661943674087,
+        0.02268102914094925
+      ],
+      "mesh_extent_after_fit": [
+        0.02069744030482709,
+        0.03208661943674087,
+        0.02268102914094925
+      ],
+      "fit_scale_xyz": [
+        0.9453054810988443,
+        1.0,
+        1.0
+      ],
+      "fit_shift_xyz": [
+        -0.00039460500188622134,
+        -0.0011299411737760168,
+        0.000485956203937531
+      ]
+    },
+    "ring2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring2_r.stl",
+      "seed_point_count": 114,
+      "seed_triangle_count": 38,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 18,
+      "mesh_triangle_count": 30,
+      "bounds_min": [
+        -0.005890336275462807,
+        -0.012234888791918308,
+        -0.008268560283067605
+      ],
+      "bounds_max": [
+        0.007647763855635587,
+        0.01933523242001417,
+        0.008549962624931129
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 18,
+      "face_count": 30,
+      "repair_original_face_count": 36,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 3,
+      "repair_method": "vertex_cluster",
+      "repair_warnings": []
+    },
+    "ring3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring3_r.stl",
+      "seed_point_count": 240,
+      "seed_triangle_count": 80,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 54,
+      "mesh_triangle_count": 104,
+      "bounds_min": [
+        -0.007610932246021563,
+        -0.024509885219766048,
+        -0.009216680706153169
+      ],
+      "bounds_max": [
+        0.007727456681494894,
+        0.013887599838435627,
+        0.006508571072272262
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 54,
+      "face_count": 104,
+      "repair_original_face_count": 80,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "pinky1_base_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky1_base_r.stl",
+      "seed_point_count": 441,
+      "seed_triangle_count": 147,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 100,
+      "mesh_triangle_count": 196,
+      "bounds_min": [
+        -0.015063378318552556,
+        -0.011877122383404798,
+        -0.012246934051531932
+      ],
+      "bounds_max": [
+        0.012148505374283343,
+        0.056836504777033,
+        0.016264071972967697
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 100,
+      "face_count": 196,
+      "repair_original_face_count": 146,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "pinky1_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky1_r.stl",
+      "seed_point_count": 129,
+      "seed_triangle_count": 43,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 37,
+      "mesh_triangle_count": 70,
+      "bounds_min": [
+        -0.01642051823374545,
+        -0.008320580457485127,
+        -0.005957837860621318
+      ],
+      "bounds_max": [
+        0.0061480496269310375,
+        0.022379204727900948,
+        0.011617055513207741
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 37,
+      "face_count": 70,
+      "repair_original_face_count": 42,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "pinky2_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky2_r.stl",
+      "seed_point_count": 33,
+      "seed_triangle_count": 11,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 169,
+      "mesh_triangle_count": 334,
+      "bounds_min": [
+        0.0001795928592710841,
+        -0.013030391816771436,
+        -0.00594863215254648
+      ],
+      "bounds_max": [
+        0.008419454657330148,
+        0.011595308051168462,
+        0.0066993879127373816
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 169,
+      "face_count": 334,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        7,
+        13,
+        8
+      ],
+      "watertight": true,
+      "volume": 8.491616279045378e-08,
+      "fit_applied": true,
+      "source_extent": [
+        0.0076295016648695035,
+        0.023025699867939897,
+        0.011711129690077648
+      ],
+      "mesh_extent_before_fit": [
+        0.009980513006448746,
+        0.024745174795389176,
+        0.014874121099710464
+      ],
+      "mesh_extent_after_fit": [
+        0.008239861798059064,
+        0.024625699867939898,
+        0.012648020065283861
+      ],
+      "fit_scale_xyz": [
+        0.8255950162817294,
+        0.9951717889068401,
+        0.8503373060160216
+      ],
+      "fit_shift_xyz": [
+        -7.52188743244099e-05,
+        0.00031196524802406395,
+        -0.00033110434917224454
+      ]
+    },
+    "pinky3_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky3_r.stl",
+      "seed_point_count": 312,
+      "seed_triangle_count": 104,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 66,
+      "mesh_triangle_count": 128,
+      "bounds_min": [
+        -0.007786626442635905,
+        -0.01626627210681958,
+        -0.008838928370834997
+      ],
+      "bounds_max": [
+        0.007697794441417619,
+        0.013788697948989848,
+        0.007194503929591756
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 66,
+      "face_count": 128,
+      "repair_original_face_count": 104,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "shoulder_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/shoulder_l.stl",
+      "seed_point_count": 1296,
+      "seed_triangle_count": 432,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 261,
+      "mesh_triangle_count": 518,
+      "bounds_min": [
+        -0.03561521682916193,
+        -0.012043598023386403,
+        -0.047579562955124666
+      ],
+      "bounds_max": [
+        0.06199081851186733,
+        0.061925437208935355,
+        0.04539739540119425
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 261,
+      "face_count": 518,
+      "repair_original_face_count": 432,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "arm_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/arm_stretch_l.stl",
+      "seed_point_count": 831,
+      "seed_triangle_count": 277,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 194,
+      "mesh_triangle_count": 384,
+      "bounds_min": [
+        -0.017919175988934423,
+        0.03127691614712175,
+        -0.030115546443882646
+      ],
+      "bounds_max": [
+        0.0413407455574129,
+        0.10295425571395384,
+        0.02685153660815931
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 194,
+      "face_count": 384,
+      "repair_original_face_count": 277,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "arm_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/arm_twist_l.stl",
+      "seed_point_count": 1209,
+      "seed_triangle_count": 403,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 255,
+      "mesh_triangle_count": 506,
+      "bounds_min": [
+        -0.026978407057377293,
+        -0.011032924637990105,
+        -0.037389065995472204
+      ],
+      "bounds_max": [
+        0.049988952785367385,
+        0.06252498174719551,
+        0.02537568132983037
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 255,
+      "face_count": 506,
+      "repair_original_face_count": 403,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "forearm_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/forearm_stretch_l.stl",
+      "seed_point_count": 1866,
+      "seed_triangle_count": 622,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 361,
+      "mesh_triangle_count": 718,
+      "bounds_min": [
+        -0.027100189532145866,
+        -0.009665270361439937,
+        -0.0346397165217478
+      ],
+      "bounds_max": [
+        0.04138617014203329,
+        0.04809282428025577,
+        0.031566497120660286
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 361,
+      "face_count": 718,
+      "repair_original_face_count": 622,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "forearm_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/forearm_twist_l.stl",
+      "seed_point_count": 1329,
+      "seed_triangle_count": 443,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 268,
+      "mesh_triangle_count": 532,
+      "bounds_min": [
+        -0.023536333605833765,
+        -0.014202220259265208,
+        -0.033163975375753274
+      ],
+      "bounds_max": [
+        0.0384884735080569,
+        0.05774531414708964,
+        0.025241946151446926
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 268,
+      "face_count": 532,
+      "repair_original_face_count": 443,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "hand_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/hand_l.stl",
+      "seed_point_count": 282,
+      "seed_triangle_count": 94,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 88,
+      "mesh_triangle_count": 168,
+      "bounds_min": [
+        -0.022957762052676883,
+        -0.005620088873517948,
+        -0.015957509114164548
+      ],
+      "bounds_max": [
+        0.017350229652589172,
+        0.046114287727765435,
+        0.019279123866722203
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 88,
+      "face_count": 168,
+      "repair_original_face_count": 94,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "thumb1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thumb1_l.stl",
+      "seed_point_count": 321,
+      "seed_triangle_count": 107,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 74,
+      "mesh_triangle_count": 144,
+      "bounds_min": [
+        -0.014038983934140603,
+        -0.011160802998702146,
+        -0.01908706816678124
+      ],
+      "bounds_max": [
+        0.011324940869636091,
+        0.04004021534911156,
+        0.012830436424542013
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 74,
+      "face_count": 144,
+      "repair_original_face_count": 103,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "thumb2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thumb2_l.stl",
+      "seed_point_count": 174,
+      "seed_triangle_count": 58,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 56,
+      "mesh_triangle_count": 104,
+      "bounds_min": [
+        -0.013022222769287592,
+        -0.007627528291460184,
+        -0.010022814966492433
+      ],
+      "bounds_max": [
+        0.010643347622897259,
+        0.02265154875883424,
+        0.009997872307869471
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 56,
+      "face_count": 104,
+      "repair_original_face_count": 56,
+      "repair_holes_found": 3,
+      "repair_holes_filled": 3,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "thumb3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thumb3_l.stl",
+      "seed_point_count": 291,
+      "seed_triangle_count": 97,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 64,
+      "mesh_triangle_count": 124,
+      "bounds_min": [
+        -0.009589202924566248,
+        -0.013211395067644849,
+        -0.008790399966984996
+      ],
+      "bounds_max": [
+        0.00827207561799248,
+        0.013572899099005803,
+        0.009906881274096724
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 64,
+      "face_count": 124,
+      "repair_original_face_count": 97,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "index1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index1_base_l.stl",
+      "seed_point_count": 546,
+      "seed_triangle_count": 182,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 134,
+      "mesh_triangle_count": 264,
+      "bounds_min": [
+        -0.013543302592532794,
+        -0.02031304746532364,
+        -0.01395376465231074
+      ],
+      "bounds_max": [
+        0.018715971083842084,
+        0.06435891566995447,
+        0.01828131123070459
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 134,
+      "face_count": 264,
+      "repair_original_face_count": 182,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "index1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index1_l.stl",
+      "seed_point_count": 45,
+      "seed_triangle_count": 15,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 268,
+      "mesh_triangle_count": 532,
+      "bounds_min": [
+        -0.0011168166933778348,
+        -0.005686277148694543,
+        -0.009156506961798861
+      ],
+      "bounds_max": [
+        0.013624342537092823,
+        0.02318883180859611,
+        0.012038911427181265
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 268,
+      "face_count": 532,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        9,
+        20,
+        11
+      ],
+      "watertight": true,
+      "volume": 2.166116589119928e-08,
+      "fit_applied": true,
+      "source_extent": [
+        0.01370451293415155,
+        0.04039781621321947,
+        0.01962538739720382
+      ],
+      "mesh_extent_before_fit": [
+        0.014741159230470658,
+        0.028875108957290653,
+        0.022010489851236343
+      ],
+      "mesh_extent_after_fit": [
+        0.014741159230470657,
+        0.028875108957290653,
+        0.021195418388980126
+      ],
+      "fit_scale_xyz": [
+        1.0,
+        1.0,
+        0.9629689539957952
+      ],
+      "fit_shift_xyz": [
+        0.0007451170416568403,
+        0.0,
+        -0.00011378160970057331
+      ]
+    },
+    "index2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index2_l.stl",
+      "seed_point_count": 231,
+      "seed_triangle_count": 77,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 66,
+      "mesh_triangle_count": 128,
+      "bounds_min": [
+        -0.00870336495613562,
+        -0.020417948688753282,
+        -0.009785442535632682
+      ],
+      "bounds_max": [
+        0.008761020586230628,
+        0.022345054900228437,
+        0.009860858522973026
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 66,
+      "face_count": 128,
+      "repair_original_face_count": 77,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "index3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/index3_l.stl",
+      "seed_point_count": 189,
+      "seed_triangle_count": 63,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 45,
+      "mesh_triangle_count": 86,
+      "bounds_min": [
+        -0.008318948428708131,
+        -0.005205212541197518,
+        -0.008011511107785196
+      ],
+      "bounds_max": [
+        0.008140854031988415,
+        0.011888575099417958,
+        0.008831195286927773
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 45,
+      "face_count": 86,
+      "repair_original_face_count": 63,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "middle1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle1_base_l.stl",
+      "seed_point_count": 249,
+      "seed_triangle_count": 83,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 69,
+      "mesh_triangle_count": 130,
+      "bounds_min": [
+        -0.013496340246265427,
+        0.004608473411571612,
+        -0.0137224810035807
+      ],
+      "bounds_max": [
+        0.013963977779378398,
+        0.04699244350444767,
+        0.017740904206406005
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 69,
+      "face_count": 130,
+      "repair_original_face_count": 82,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "middle1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle1_l.stl",
+      "seed_point_count": 306,
+      "seed_triangle_count": 102,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 87,
+      "mesh_triangle_count": 170,
+      "bounds_min": [
+        -0.011992503749587075,
+        -0.0031649349507459346,
+        -0.009656473336310811
+      ],
+      "bounds_max": [
+        0.01494684064848352,
+        0.031870836315458506,
+        0.011765830254402143
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 87,
+      "face_count": 170,
+      "repair_original_face_count": 102,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "middle2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle2_l.stl",
+      "seed_point_count": 87,
+      "seed_triangle_count": 29,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 30,
+      "mesh_triangle_count": 54,
+      "bounds_min": [
+        -0.008037201053988939,
+        -0.01142247604828231,
+        -0.0009409974438801538
+      ],
+      "bounds_max": [
+        0.006746535979427447,
+        0.018255362792404944,
+        0.009140233312093182
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 30,
+      "face_count": 54,
+      "repair_original_face_count": 29,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 3,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "middle3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/middle3_l.stl",
+      "seed_point_count": 309,
+      "seed_triangle_count": 103,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 65,
+      "mesh_triangle_count": 126,
+      "bounds_min": [
+        -0.007907821224782265,
+        -0.026911130630396796,
+        -0.010558931933190574
+      ],
+      "bounds_max": [
+        0.00798679470168838,
+        0.013856553016250994,
+        0.007760391166099501
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 65,
+      "face_count": 126,
+      "repair_original_face_count": 103,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "ring1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring1_base_l.stl",
+      "seed_point_count": 138,
+      "seed_triangle_count": 46,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 45,
+      "mesh_triangle_count": 82,
+      "bounds_min": [
+        -0.012301605063421088,
+        -0.014319784344061476,
+        -0.013216185862841678
+      ],
+      "bounds_max": [
+        0.0070547753373715605,
+        0.04493120482807497,
+        0.01775244366898343
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 45,
+      "face_count": 82,
+      "repair_original_face_count": 45,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "ring1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring1_l.stl",
+      "seed_point_count": 93,
+      "seed_triangle_count": 31,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 350,
+      "mesh_triangle_count": 696,
+      "bounds_min": [
+        -0.006109590209519554,
+        -0.007060002829532928,
+        -0.009726683490591225
+      ],
+      "bounds_max": [
+        0.018035611235106302,
+        0.0297239186022911,
+        0.012395776666087929
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 350,
+      "face_count": 696,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        13,
+        17,
+        12
+      ],
+      "watertight": true,
+      "volume": 2.7418147505929605e-07,
+      "fit_applied": true,
+      "source_extent": [
+        0.02290239745573561,
+        0.034701812671532106,
+        0.02064033652871422
+      ],
+      "mesh_extent_before_fit": [
+        0.024145201444625855,
+        0.036826350241899494,
+        0.022122460156679152
+      ],
+      "mesh_extent_after_fit": [
+        0.024145201444625855,
+        0.03678392143182403,
+        0.022122460156679152
+      ],
+      "fit_scale_xyz": [
+        1.0,
+        0.998847868176,
+        1.0
+      ],
+      "fit_shift_xyz": [
+        0.0003827409267425537,
+        -0.00014939959043690568,
+        0.00014891384243965154
+      ]
+    },
+    "ring2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring2_l.stl",
+      "seed_point_count": 66,
+      "seed_triangle_count": 22,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 192,
+      "mesh_triangle_count": 380,
+      "bounds_min": [
+        -0.008381824617849844,
+        -0.009049354791640925,
+        -0.0013921458048229357
+      ],
+      "bounds_max": [
+        0.0054782308742264765,
+        0.01778919160366089,
+        0.009288367312323239
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_lowpoly_surface",
+      "repair_fallback": "lowpoly_surface_from_repaired",
+      "repair_input_watertight": false,
+      "vertex_count": 192,
+      "face_count": 380,
+      "target_cells": 24,
+      "cluster_scale": 0.55,
+      "pitch": 0.0025,
+      "grid_shape": [
+        9,
+        15,
+        7
+      ],
+      "watertight": true,
+      "volume": 4.2162893256447583e-08,
+      "fit_applied": true,
+      "source_extent": [
+        0.01283338471488548,
+        0.02887898797309882,
+        0.00988936399735757
+      ],
+      "mesh_extent_before_fit": [
+        0.014963248372077942,
+        0.026838546395301817,
+        0.012570044100284576
+      ],
+      "mesh_extent_after_fit": [
+        0.01386005549207632,
+        0.026838546395301817,
+        0.010680513117146174
+      ],
+      "fit_scale_xyz": [
+        0.9262731692631511,
+        1.0,
+        0.8496798445523653
+      ],
+      "fit_shift_xyz": [
+        0.0001917879577361982,
+        -0.0011805385554633403,
+        -0.0001414080382248703
+      ]
+    },
+    "ring3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/ring3_l.stl",
+      "seed_point_count": 285,
+      "seed_triangle_count": 95,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 63,
+      "mesh_triangle_count": 122,
+      "bounds_min": [
+        -0.007605963350231341,
+        -0.026772622666743462,
+        -0.009126435736741323
+      ],
+      "bounds_max": [
+        0.007654777434751434,
+        0.01390374913233064,
+        0.008066171313857562
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 63,
+      "face_count": 122,
+      "repair_original_face_count": 95,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "pinky1_base_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky1_base_l.stl",
+      "seed_point_count": 447,
+      "seed_triangle_count": 149,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 102,
+      "mesh_triangle_count": 200,
+      "bounds_min": [
+        -0.012668544115956673,
+        -0.013812531868044264,
+        -0.01213288981829358
+      ],
+      "bounds_max": [
+        0.01801071376000686,
+        0.05821965159320666,
+        0.015480780491035684
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 102,
+      "face_count": 200,
+      "repair_original_face_count": 149,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "pinky1_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky1_l.stl",
+      "seed_point_count": 168,
+      "seed_triangle_count": 56,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 49,
+      "mesh_triangle_count": 90,
+      "bounds_min": [
+        -0.004358522909962637,
+        -0.00770783991851165,
+        -0.00801860702138113
+      ],
+      "bounds_max": [
+        0.019201475612251967,
+        0.021831102975162303,
+        0.012441190863550944
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 49,
+      "face_count": 90,
+      "repair_original_face_count": 53,
+      "repair_holes_found": 3,
+      "repair_holes_filled": 3,
+      "repair_watertight": true,
+      "repair_euler_number": 4,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "pinky2_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky2_l.stl",
+      "seed_point_count": 33,
+      "seed_triangle_count": 11,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 13,
+      "mesh_triangle_count": 22,
+      "bounds_min": [
+        -0.008031561725326333,
+        -0.012294080657273165,
+        -0.0023775596383380226
+      ],
+      "bounds_max": [
+        0.00031790056535614675,
+        0.01051570517257927,
+        0.007817590401758723
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 13,
+      "face_count": 22,
+      "repair_original_face_count": 11,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster",
+      "repair_warnings": []
+    },
+    "pinky3_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/pinky3_l.stl",
+      "seed_point_count": 261,
+      "seed_triangle_count": 87,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 57,
+      "mesh_triangle_count": 110,
+      "bounds_min": [
+        -0.007742023101689782,
+        -0.02002124266501565,
+        -0.008276684501259152
+      ],
+      "bounds_max": [
+        0.007795861669321211,
+        0.01368594543354179,
+        0.0075484507240986265
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 57,
+      "face_count": 110,
+      "repair_original_face_count": 87,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "thigh_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thigh_stretch_l.stl",
+      "seed_point_count": 1959,
+      "seed_triangle_count": 653,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 405,
+      "mesh_triangle_count": 806,
+      "bounds_min": [
+        -0.06265539855186605,
+        0.04259008077535964,
+        -0.052175814437186004
+      ],
+      "bounds_max": [
+        0.0447680966568966,
+        0.14373660827355458,
+        0.039084173475918194
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 405,
+      "face_count": 806,
+      "repair_original_face_count": 653,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": [
+        "post_simplify_force_fill=1"
+      ]
+    },
+    "thigh_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thigh_twist_l.stl",
+      "seed_point_count": 2022,
+      "seed_triangle_count": 674,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 383,
+      "mesh_triangle_count": 762,
+      "bounds_min": [
+        -0.06240036784986021,
+        -0.014714754751683656,
+        -0.058961922216325055
+      ],
+      "bounds_max": [
+        0.054162414055526034,
+        0.08319608451630417,
+        0.042021944623952014
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 383,
+      "face_count": 762,
+      "repair_original_face_count": 598,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "leg_stretch_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/leg_stretch_l.stl",
+      "seed_point_count": 3837,
+      "seed_triangle_count": 1279,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 704,
+      "mesh_triangle_count": 1404,
+      "bounds_min": [
+        -0.0777101229967907,
+        -0.008253329028237,
+        -0.04419789120387469
+      ],
+      "bounds_max": [
+        0.025713624145024577,
+        0.07070724593356574,
+        0.05001548623567187
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 704,
+      "face_count": 1404,
+      "repair_original_face_count": 1279,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "foot_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/foot_l.stl",
+      "seed_point_count": 3582,
+      "seed_triangle_count": 1194,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 652,
+      "mesh_triangle_count": 1300,
+      "bounds_min": [
+        -0.041033403014726216,
+        -0.05197171023123152,
+        -0.056408007732901166
+      ],
+      "bounds_max": [
+        0.033235648478375845,
+        0.09208273283111867,
+        0.021314534048949223
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 652,
+      "face_count": 1300,
+      "repair_original_face_count": 1194,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "toes_01_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/toes_01_l.stl",
+      "seed_point_count": 1095,
+      "seed_triangle_count": 365,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 209,
+      "mesh_triangle_count": 414,
+      "bounds_min": [
+        -0.03178523111711036,
+        -0.015519589075895561,
+        -0.02061179220719203
+      ],
+      "bounds_max": [
+        0.03973736843561185,
+        0.03490044232614314,
+        0.0396020045568919
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 209,
+      "face_count": 414,
+      "repair_original_face_count": 365,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "leg_twist_l": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/leg_twist_l.stl",
+      "seed_point_count": 1722,
+      "seed_triangle_count": 574,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 345,
+      "mesh_triangle_count": 686,
+      "bounds_min": [
+        -0.062364971838802644,
+        -0.015104776595838282,
+        -0.03018581364722658
+      ],
+      "bounds_max": [
+        0.009848289835844466,
+        0.0678890614274783,
+        0.03470163506786372
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 345,
+      "face_count": 686,
+      "repair_original_face_count": 574,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "thigh_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thigh_stretch_r.stl",
+      "seed_point_count": 1980,
+      "seed_triangle_count": 660,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 410,
+      "mesh_triangle_count": 816,
+      "bounds_min": [
+        -0.04512503833347588,
+        0.041391476141156514,
+        -0.052164440886447505
+      ],
+      "bounds_max": [
+        0.0639338909597674,
+        0.14276281306501384,
+        0.038409939008197475
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 410,
+      "face_count": 816,
+      "repair_original_face_count": 660,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "thigh_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/thigh_twist_r.stl",
+      "seed_point_count": 1776,
+      "seed_triangle_count": 592,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 362,
+      "mesh_triangle_count": 720,
+      "bounds_min": [
+        -0.05496893290523516,
+        -0.013510326113728821,
+        -0.059053993213025874
+      ],
+      "bounds_max": [
+        0.060350486838620675,
+        0.07710340460404486,
+        0.04168020412031569
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 362,
+      "face_count": 720,
+      "repair_original_face_count": 552,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "leg_stretch_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/leg_stretch_r.stl",
+      "seed_point_count": 3798,
+      "seed_triangle_count": 1266,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 696,
+      "mesh_triangle_count": 1388,
+      "bounds_min": [
+        -0.025482827838531976,
+        -0.00829023220224323,
+        -0.04435043434127794
+      ],
+      "bounds_max": [
+        0.07782601265405512,
+        0.0709104523512099,
+        0.04970238301937617
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 696,
+      "face_count": 1388,
+      "repair_original_face_count": 1266,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "foot_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/foot_r.stl",
+      "seed_point_count": 3735,
+      "seed_triangle_count": 1245,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 678,
+      "mesh_triangle_count": 1352,
+      "bounds_min": [
+        -0.03345545271157665,
+        -0.05187140112664325,
+        -0.05639060637225789
+      ],
+      "bounds_max": [
+        0.040665011447055754,
+        0.07777707282652427,
+        0.02123803818859904
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 678,
+      "face_count": 1352,
+      "repair_original_face_count": 1245,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "toes_01_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/toes_01_r.stl",
+      "seed_point_count": 1182,
+      "seed_triangle_count": 394,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 221,
+      "mesh_triangle_count": 438,
+      "bounds_min": [
+        -0.038252551695311145,
+        -0.007609186499219274,
+        -0.020536255187182773
+      ],
+      "bounds_max": [
+        0.0326071719107066,
+        0.034760454772211936,
+        0.019423719073259287
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 221,
+      "face_count": 438,
+      "repair_original_face_count": 394,
+      "repair_holes_found": 1,
+      "repair_holes_filled": 1,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    },
+    "leg_twist_r": {
+      "stl_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/mesh_collision_stl/landau_v10/leg_twist_r.stl",
+      "seed_point_count": 1716,
+      "seed_triangle_count": 572,
+      "source_meshes": [
+        "/root/root/material/material"
+      ],
+      "mesh_vertex_count": 345,
+      "mesh_triangle_count": 686,
+      "bounds_min": [
+        -0.0085837912677184,
+        -0.015294568325531652,
+        -0.03016763126499974
+      ],
+      "bounds_max": [
+        0.06243999899506686,
+        0.06070145814553046,
+        0.03426199138625966
+      ],
+      "resolved_lowpoly_config": {
+        "target_face_ratio": 0.25,
+        "max_faces": 1200,
+        "max_hole_edges": 500,
+        "component_keep_area_ratio": 0.05,
+        "planar_deviation_ratio": 0.05,
+        "force_fill_max_edges": 10,
+        "target_cells": [
+          24,
+          22,
+          20,
+          18,
+          16,
+          14,
+          12
+        ],
+        "cluster_scales": [
+          0.55,
+          0.75,
+          0.95,
+          1.15,
+          1.35,
+          1.65,
+          2.0,
+          2.4
+        ],
+        "smooth_sigma": 0.45,
+        "closing_iterations": 1,
+        "dilation_iterations": 0,
+        "padding_cells": 1,
+        "max_grid_cells": 44,
+        "max_sample_points": 45000,
+        "sample_tolerance": 0.0003,
+        "fit_margin_ratio": 0.03,
+        "fit_margin_min": 0.0008,
+        "max_extent_ratio_xyz": [
+          1.08,
+          1.08,
+          1.08
+        ],
+        "smoothing_iterations": 0,
+        "smoothing_lambda": 0.35
+      },
+      "method": "skinned_repaired_surface",
+      "vertex_count": 345,
+      "face_count": 686,
+      "repair_original_face_count": 572,
+      "repair_holes_found": 2,
+      "repair_holes_filled": 2,
+      "repair_watertight": true,
+      "repair_euler_number": 2,
+      "repair_method": "vertex_cluster_reverted",
+      "repair_warnings": []
+    }
+  }
+}
