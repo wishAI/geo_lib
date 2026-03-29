@@ -514,7 +514,7 @@ POSE_PRESETS_RADIANS: Dict[str, Dict[str, float]] = {
         'spine_02_x': 0.06,
         'neck_x': -0.04,
         'shoulder_r': -0.30,
-        'arm_stretch_r': -1.45,
+        'arm_stretch_r': 1.45,
         'forearm_stretch_r': -0.08,
         'hand_r': 0.04,
         'shoulder_l': 0.30,
