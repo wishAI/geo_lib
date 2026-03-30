@@ -479,125 +479,28 @@ def generate_urdf_text(
     return text if text.endswith('\n') else text + '\n'
 
 
-POSE_PRESETS_RADIANS: Dict[str, Dict[str, float]] = {
-    'demo': {
-        'spine_02_x': 0.10,
-        'neck_x': -0.08,
-        'arm_stretch_r': -0.40,
-        'forearm_stretch_r': -0.85,
-        'hand_r': 0.22,
-        'thumb1_r': 0.35,
-        'thumb2_r': 0.45,
-        'thumb3_r': 0.35,
-        'index1_base_r': 0.10,
-        'index1_r': 0.65,
-        'index2_r': 0.55,
-        'index3_r': 0.35,
-        'middle1_base_r': 0.06,
-        'middle1_r': 0.70,
-        'middle2_r': 0.58,
-        'middle3_r': 0.38,
-        'ring1_base_r': -0.04,
-        'ring1_r': 0.66,
-        'ring2_r': 0.55,
-        'ring3_r': 0.35,
-        'pinky1_base_r': -0.12,
-        'pinky1_r': 0.60,
-        'pinky2_r': 0.48,
-        'pinky3_r': 0.30,
-        'arm_stretch_l': 0.18,
-        'forearm_stretch_l': -0.35,
-        'hand_l': -0.10,
-    },
-    'open_arms': {
-        'spine_01_x': 0.02,
-        'spine_02_x': 0.06,
-        'neck_x': -0.04,
-        'shoulder_r': -0.30,
-        'arm_stretch_r': 1.45,
-        'forearm_stretch_r': -0.08,
-        'hand_r': 0.04,
-        'shoulder_l': 0.30,
-        'arm_stretch_l': 1.45,
-        'forearm_stretch_l': -0.08,
-        'hand_l': -0.04,
-        'thumb1_r': 0.10,
-        'thumb1_l': -0.10,
-    },
-    'walk': {
-        'spine_01_x': 0.03,
-        'spine_02_x': 0.08,
-        'neck_x': -0.05,
-        'arm_stretch_r': -0.48,
-        'forearm_stretch_r': 0.32,
-        'arm_stretch_l': 0.34,
-        'forearm_stretch_l': 0.10,
-        'thigh_stretch_l': 0.92,
-        'leg_stretch_l': 0.86,
-        'foot_l': -0.22,
-        'toes_01_l': 0.10,
-        'thigh_stretch_r': -0.52,
-        'leg_stretch_r': 0.22,
-        'foot_r': 0.08,
-    },
-    'walk_right': {
-        'spine_01_x': 0.03,
-        'spine_02_x': 0.08,
-        'neck_x': -0.05,
-        'arm_stretch_r': -0.34,
-        'forearm_stretch_r': 0.10,
-        'arm_stretch_l': 0.48,
-        'forearm_stretch_l': 0.32,
-        'thigh_stretch_l': -0.52,
-        'leg_stretch_l': 0.22,
-        'foot_l': 0.08,
-        'thigh_stretch_r': 0.92,
-        'leg_stretch_r': 0.86,
-        'foot_r': -0.22,
-        'toes_01_r': 0.10,
-    },
-}
-
-ANIMATION_CLIPS: Dict[str, List[tuple[str, float]]] = {
-    'pose_cycle': [
-        ('rest', 0.50),
-        ('demo', 0.75),
-        ('open_arms', 0.75),
-        ('walk', 0.55),
-        ('walk_right', 0.55),
-    ],
-    'walk_cycle': [
-        ('walk', 0.45),
-        ('walk_right', 0.45),
-    ],
-}
-
-
 def pose_preset_names() -> List[str]:
-    return ['rest', *POSE_PRESETS_RADIANS.keys()]
+    from pose_semantics import pose_preset_names as _pose_preset_names
+
+    return _pose_preset_names()
 
 
 def build_pose_preset(records: Sequence[dict], preset: str) -> Dict[str, float]:
-    if preset == 'rest':
-        return {}
-    if preset not in POSE_PRESETS_RADIANS:
-        raise KeyError(f'Unknown pose preset: {preset}')
-    names = {record['name'] for record in records}
-    pose = POSE_PRESETS_RADIANS[preset]
-    return {name: angle for name, angle in pose.items() if name in names}
+    from pose_semantics import build_pose_preset as _build_pose_preset
+
+    return _build_pose_preset(records, preset)
 
 
 def animation_clip_names() -> List[str]:
-    return list(ANIMATION_CLIPS.keys())
+    from pose_semantics import animation_clip_names as _animation_clip_names
+
+    return _animation_clip_names()
 
 
 def build_animation_clip(records: Sequence[dict], clip_name: str) -> List[tuple[str, Dict[str, float], float]]:
-    if clip_name not in ANIMATION_CLIPS:
-        raise KeyError(f'Unknown animation clip: {clip_name}')
-    clip = []
-    for preset_name, duration_s in ANIMATION_CLIPS[clip_name]:
-        clip.append((preset_name, build_pose_preset(records, preset_name), float(duration_s)))
-    return clip
+    from pose_semantics import build_animation_clip as _build_animation_clip
+
+    return _build_animation_clip(records, clip_name)
 
 
 def interpolate_pose_dict(start_pose: Dict[str, float], end_pose: Dict[str, float], alpha: float) -> Dict[str, float]:
@@ -613,7 +516,9 @@ def interpolate_pose_dict(start_pose: Dict[str, float], end_pose: Dict[str, floa
 
 
 def build_demo_pose(records: Sequence[dict]) -> Dict[str, float]:
-    return build_pose_preset(records, 'demo')
+    from pose_semantics import build_demo_pose as _build_demo_pose
+
+    return _build_demo_pose(records)
 
 
 def apply_pose_to_local_matrices(records: Sequence[dict], pose_by_name: Dict[str, float]) -> List[np.ndarray]:

@@ -9,8 +9,10 @@ import numpy as np
 
 from skeleton_common import (
     apply_pose_to_local_matrices,
+    build_animation_clip,
     build_pose_preset,
     infer_lateral_axis_world,
+    interpolate_pose_dict,
     world_matrices_from_local,
 )
 
@@ -185,6 +187,70 @@ def progressive_arm_symmetry_scan(records: Sequence[dict], pose: dict[str, float
             }
         )
     return scan
+
+
+def pose_for_clip_time(clip: list[tuple[str, dict[str, float], float]], time_s: float) -> tuple[str, str, dict[str, float]]:
+    if len(clip) == 1:
+        preset_name, pose, _ = clip[0]
+        return preset_name, preset_name, dict(pose)
+    total_duration = sum(duration for _, _, duration in clip)
+    wrapped = time_s % total_duration
+    elapsed = 0.0
+    for index, (preset_name, pose, duration_s) in enumerate(clip):
+        next_name, next_pose, _ = clip[(index + 1) % len(clip)]
+        end = elapsed + duration_s
+        if wrapped <= end or index == len(clip) - 1:
+            alpha = 0.0 if duration_s <= 1e-8 else (wrapped - elapsed) / duration_s
+            return preset_name, next_name, interpolate_pose_dict(pose, next_pose, alpha)
+        elapsed = end
+    preset_name, pose, _ = clip[-1]
+    return preset_name, preset_name, dict(pose)
+
+
+def animation_clip_balance_report(
+    records: Sequence[dict],
+    clip_name: str,
+    *,
+    link_pairs: Sequence[tuple[str, str]] = (('hand_l', 'hand_r'),),
+    sample_count: int = 120,
+) -> dict:
+    clip = build_animation_clip(records, clip_name)
+    total_duration = sum(duration for _, _, duration in clip)
+    per_link_samples: dict[str, list[np.ndarray]] = {name: [] for pair in link_pairs for name in pair}
+
+    for step in range(max(sample_count, 1) + 1):
+        time_s = (step / max(sample_count, 1)) * total_duration
+        _, _, pose = pose_for_clip_time(clip, time_s)
+        world_map = root_relative_world_map(records, pose)
+        for left_name, right_name in link_pairs:
+            per_link_samples[left_name].append(world_map[left_name][:3, 3].copy())
+            per_link_samples[right_name].append(world_map[right_name][:3, 3].copy())
+
+    pair_metrics = []
+    for left_name, right_name in link_pairs:
+        left_samples = np.asarray(per_link_samples[left_name], dtype=float)
+        right_samples = np.asarray(per_link_samples[right_name], dtype=float)
+        left_path = float(np.sum(np.linalg.norm(np.diff(left_samples, axis=0), axis=1)))
+        right_path = float(np.sum(np.linalg.norm(np.diff(right_samples, axis=0), axis=1)))
+        smaller = min(left_path, right_path)
+        ratio = float(max(left_path, right_path) / smaller) if smaller > 1e-8 else float('inf')
+        pair_metrics.append(
+            {
+                'left': left_name,
+                'right': right_name,
+                'left_path_length_m': left_path,
+                'right_path_length_m': right_path,
+                'path_length_ratio': ratio,
+                'left_range_xyz_m': [float(v) for v in (left_samples.max(axis=0) - left_samples.min(axis=0))],
+                'right_range_xyz_m': [float(v) for v in (right_samples.max(axis=0) - right_samples.min(axis=0))],
+            }
+        )
+    return {
+        'clip_name': clip_name,
+        'sample_count': int(max(sample_count, 1) + 1),
+        'duration_s': float(total_duration),
+        'pair_metrics': pair_metrics,
+    }
 
 
 def arm_pose_symmetry_report(

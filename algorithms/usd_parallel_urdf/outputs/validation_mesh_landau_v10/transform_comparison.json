@@ -1,0 +1,276 @@
+{
+  "usd_path": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/inputs/landau_v10.usdc",
+  "urdf_path": "algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf",
+  "usd_root_prim": "/World/UsdCharacter",
+  "usd_animation_prim": "/World/UsdCharacter/root/ParallelPoseAnim",
+  "urdf_root_prim": "/landau_v10_parallel_mesh",
+  "urdf_articulation_prim": "/landau_v10_parallel_mesh/root_joint",
+  "pose_radians": {
+    "spine_02_x": 0.1,
+    "neck_x": -0.08,
+    "arm_stretch_r": -0.4,
+    "forearm_stretch_r": -0.85,
+    "hand_r": 0.22,
+    "thumb1_r": 0.35,
+    "thumb2_r": 0.45,
+    "thumb3_r": 0.35,
+    "index1_base_r": 0.1,
+    "index1_r": 0.65,
+    "index2_r": 0.55,
+    "index3_r": 0.35,
+    "middle1_base_r": 0.06,
+    "middle1_r": 0.7,
+    "middle2_r": 0.58,
+    "middle3_r": 0.38,
+    "ring1_base_r": -0.04,
+    "ring1_r": 0.66,
+    "ring2_r": 0.55,
+    "ring3_r": 0.35,
+    "pinky1_base_r": -0.12,
+    "pinky1_r": 0.6,
+    "pinky2_r": 0.48,
+    "pinky3_r": 0.3,
+    "arm_stretch_l": 0.18,
+    "forearm_stretch_l": -0.35,
+    "hand_l": -0.1
+  },
+  "pose_preset": "demo",
+  "rest_root_height_offset_m": -0.0012001691702424704,
+  "posed_root_height_offset_m": -0.0012001691702424704,
+  "sanitized_dome_light_count": 1,
+  "live_prim_comparison_enabled": false,
+  "skeleton_json": "/home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/outputs/landau_v10_skeleton.json",
+  "comparison_link_count": 68,
+  "max_position_error_m": 2.099909217879946e-06,
+  "mean_position_error_m": 7.654737021798002e-07,
+  "max_rotation_rpy_delta_norm": 5.814576640233394e-05,
+  "worst_links": [
+    {
+      "name": "ring3_l",
+      "position_error_m": 2.099909217879946e-06,
+      "rotation_rpy_delta_norm": 2.4933207093445823e-06,
+      "usd_xyz": [
+        0.2082548087441315,
+        -0.0014480736250911397,
+        -0.0304577838954131
+      ],
+      "urdf_xyz": [
+        0.20825593055558786,
+        -0.001449552013422506,
+        -0.030458766507097022
+      ]
+    },
+    {
+      "name": "ring2_l",
+      "position_error_m": 1.717373610386388e-06,
+      "rotation_rpy_delta_norm": 2.1340276807371963e-06,
+      "usd_xyz": [
+        0.20561266635999126,
+        0.0098069243434325,
+        -0.027527333948007195
+      ],
+      "urdf_xyz": [
+        0.20561367347864695,
+        0.009805824635946925,
+        -0.027528185844466382
+      ]
+    },
+    {
+      "name": "ring1_l",
+      "position_error_m": 1.475236135217871e-06,
+      "rotation_rpy_delta_norm": 3.826648319733542e-06,
+      "usd_xyz": [
+        0.2007911106230001,
+        0.022299716054581864,
+        -0.02503592961271237
+      ],
+      "urdf_xyz": [
+        0.2007920155267368,
+        0.02229885594653297,
+        -0.025036715542115145
+      ]
+    },
+    {
+      "name": "pinky3_l",
+      "position_error_m": 1.426062309219767e-06,
+      "rotation_rpy_delta_norm": 2.7690029233367187e-06,
+      "usd_xyz": [
+        0.19559839391244516,
+        0.009745586735110778,
+        -0.045485764401138176
+      ],
+      "urdf_xyz": [
+        0.19559973648015916,
+        0.009746062160652325,
+        -0.04548569273386851
+      ]
+    },
+    {
+      "name": "ring3_r",
+      "position_error_m": 1.41021235242833e-06,
+      "rotation_rpy_delta_norm": 2.303223810220492e-06,
+      "usd_xyz": [
+        0.014479592070712186,
+        -0.006835545033706203,
+        -0.008109586434096094
+      ],
+      "urdf_xyz": [
+        0.0144807626811105,
+        -0.006836282267964955,
+        -0.008109860032016445
+      ]
+    },
+    {
+      "name": "pinky1_l",
+      "position_error_m": 1.3595662128885747e-06,
+      "rotation_rpy_delta_norm": 2.4449722240528433e-06,
+      "usd_xyz": [
+        0.19508285201161946,
+        0.02350005820061496,
+        -0.03831712473205509
+      ],
+      "urdf_xyz": [
+        0.1950841961534887,
+        0.023499990989327257,
+        -0.03831731756764661
+      ]
+    },
+    {
+      "name": "pinky2_l",
+      "position_error_m": 1.3569296495458545e-06,
+      "rotation_rpy_delta_norm": 2.043968734662537e-06,
+      "usd_xyz": [
+        0.19579302830236786,
+        0.016618357626242086,
+        -0.04196368217115229
+      ],
+      "urdf_xyz": [
+        0.19579434352415961,
+        0.016618690555786186,
+        -0.0419636575209803
+      ]
+    },
+    {
+      "name": "middle2_l",
+      "position_error_m": 1.3188387919004557e-06,
+      "rotation_rpy_delta_norm": 4.544853714851175e-05,
+      "usd_xyz": [
+        0.21093552243191918,
+        0.007439541512641257,
+        -0.010380409510482266
+      ],
+      "urdf_xyz": [
+        0.21093654779938764,
+        0.007438856921304415,
+        -0.010380877796735712
+      ]
+    },
+    {
+      "name": "ring2_r",
+      "position_error_m": 1.2825948372399803e-06,
+      "rotation_rpy_delta_norm": 2.0120775071914883e-06,
+      "usd_xyz": [
+        0.009777783946028889,
+        -0.002695256226288245,
+        -0.01825817265826268
+      ],
+      "urdf_xyz": [
+        0.009778734968948736,
+        -0.002695842989848929,
+        -0.018258802192571748
+      ]
+    },
+    {
+      "name": "thumb3_l",
+      "position_error_m": 1.2683907258004524e-06,
+      "rotation_rpy_delta_norm": 1.4814973789042627e-06,
+      "usd_xyz": [
+        0.17037751092730155,
+        0.025998707121012377,
+        0.024465916477654094
+      ],
+      "urdf_xyz": [
+        0.17037856800007675,
+        0.025999384940238013,
+        0.024465737666920125
+      ]
+    },
+    {
+      "name": "middle1_l",
+      "position_error_m": 1.234177016570672e-06,
+      "rotation_rpy_delta_norm": 3.737777342247953e-06,
+      "usd_xyz": [
+        0.20360107826118817,
+        0.023177798756043533,
+        -0.011091471456504654
+      ],
+      "urdf_xyz": [
+        0.20360203119206843,
+        0.023177159283557236,
+        -0.011091925538639236
+      ]
+    },
+    {
+      "name": "pinky1_base_l",
+      "position_error_m": 1.229418003099908e-06,
+      "rotation_rpy_delta_norm": 7.1992691227119476e-06,
+      "usd_xyz": [
+        0.1816393058301093,
+        0.0640284987342234,
+        -0.03146044103077765
+      ],
+      "urdf_xyz": [
+        0.18164052408058975,
+        0.06402845144510655,
+        -0.03146059945467931
+      ]
+    },
+    {
+      "name": "ring1_r",
+      "position_error_m": 1.1449232222070646e-06,
+      "rotation_rpy_delta_norm": 2.1870834222098194e-06,
+      "usd_xyz": [
+        0.0026225217387676014,
+        0.006598550426893668,
+        -0.025182888320959926
+      ],
+      "urdf_xyz": [
+        0.002623275018739754,
+        0.0065981188965919535,
+        -0.02518363477930907
+      ]
+    },
+    {
+      "name": "ring1_base_l",
+      "position_error_m": 1.0894151088597182e-06,
+      "rotation_rpy_delta_norm": 2.823019129232763e-05,
+      "usd_xyz": [
+        0.1836134158143659,
+        0.06172687381105013,
+        -0.023114593894452157
+      ],
+      "urdf_xyz": [
+        0.18361406007103934,
+        0.06172636601291437,
+        -0.023115310762411738
+      ]
+    },
+    {
+      "name": "middle3_l",
+      "position_error_m": 1.081627167810702e-06,
+      "rotation_rpy_delta_norm": 5.814576640233394e-05,
+      "usd_xyz": [
+        0.21541824225214637,
+        -0.004641672814887587,
+        -0.010566624539291315
+      ],
+      "urdf_xyz": [
+        0.2154191715420362,
+        -0.0046419615897728694,
+        -0.010567096711607805
+      ]
+    }
+  ],
+  "comparison_mode": "offline_root_relative_kinematics",
+  "offline_transform_comparison_path": "algorithms/usd_parallel_urdf/outputs/validation_mesh_landau_v10/offline_transform_comparison.json"
+}

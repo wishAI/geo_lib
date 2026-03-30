@@ -10,7 +10,8 @@ if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
 from compare_urdf_pose_offline import load_records_from_json
-from pose_diagnostics import arm_pose_symmetry_report
+from pose_diagnostics import animation_clip_balance_report, arm_pose_symmetry_report, mirror_matrix_from_records, root_relative_world_map
+from skeleton_common import build_pose_preset
 
 
 class PoseDiagnosticsTests(unittest.TestCase):
@@ -49,6 +50,33 @@ class PoseDiagnosticsTests(unittest.TestCase):
 
         self.assertLess(max_pos, 1e-3)
         self.assertLess(max_rot, 1.0)
+
+    def test_walk_and_walk_right_keyframes_are_mirrored_across_arm_and_leg_links(self) -> None:
+        mirror = mirror_matrix_from_records(self.records)
+        walk_world = root_relative_world_map(self.records, build_pose_preset(self.records, 'walk'))
+        walk_right_world = root_relative_world_map(self.records, build_pose_preset(self.records, 'walk_right'))
+
+        for left_name, right_name in (
+            ('arm_stretch_l', 'arm_stretch_r'),
+            ('forearm_stretch_l', 'forearm_stretch_r'),
+            ('hand_l', 'hand_r'),
+            ('thigh_stretch_l', 'thigh_stretch_r'),
+            ('foot_l', 'foot_r'),
+        ):
+            walk_left = walk_world[left_name][:3, 3]
+            mirrored_walk_right = mirror @ walk_right_world[right_name][:3, 3]
+            walk_right = walk_world[right_name][:3, 3]
+            mirrored_walk_left = mirror @ walk_right_world[left_name][:3, 3]
+            self.assertLess(float(((walk_left - mirrored_walk_right) ** 2).sum() ** 0.5), 1e-3)
+            self.assertLess(float(((walk_right - mirrored_walk_left) ** 2).sum() ** 0.5), 1e-3)
+
+    def test_walk_cycle_keeps_left_and_right_hands_similarly_active(self) -> None:
+        report = animation_clip_balance_report(self.records, 'walk_cycle', sample_count=120)
+        hand_metrics = next(metric for metric in report['pair_metrics'] if metric['left'] == 'hand_l')
+
+        self.assertGreater(hand_metrics['left_path_length_m'], 0.03)
+        self.assertGreater(hand_metrics['right_path_length_m'], 0.03)
+        self.assertLess(hand_metrics['path_length_ratio'], 1.35)
 
 
 if __name__ == '__main__':
