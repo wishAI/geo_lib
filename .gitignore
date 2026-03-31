@@ -10,10 +10,14 @@ __pycache__/
 *.blend
 *.blend1
 *.glb
+*.stl
 
 # Isaac/Kit portable runtime state
 .kit_portable/
 .kit_protable/
+
+# Logs
+logs/
 
 # Robot assets
 unitree_g1/
