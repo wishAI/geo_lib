@@ -11,10 +11,17 @@ import omni
 class WasdSe2Keyboard:
     """Keyboard controller for ``(v_x, v_y, yaw_rate)`` commands using WASD plus Q/E."""
 
-    def __init__(self, v_x_sensitivity: float = 0.8, v_y_sensitivity: float = 0.5, omega_z_sensitivity: float = 1.0):
+    def __init__(
+        self,
+        v_x_sensitivity: float = 0.8,
+        v_y_sensitivity: float = 0.5,
+        omega_z_sensitivity: float = 1.0,
+        debug_print: bool = True,
+    ):
         self.v_x_sensitivity = v_x_sensitivity
         self.v_y_sensitivity = v_y_sensitivity
         self.omega_z_sensitivity = omega_z_sensitivity
+        self.debug_print = debug_print
         self._appwindow = omni.appwindow.get_default_app_window()
         self._input = carb.input.acquire_input_interface()
         self._keyboard = self._appwindow.get_keyboard()
@@ -33,9 +40,9 @@ class WasdSe2Keyboard:
     def __str__(self) -> str:
         return (
             "WASD Keyboard Controller\n"
-            "\tW / S: forward / backward\n"
-            "\tA / D: left / right strafe\n"
-            "\tQ / E: yaw left / yaw right\n"
+            "\tW / S or Up / Down or Numpad 8 / 2: forward / backward\n"
+            "\tA / D or Left / Right or Numpad 4 / 6: left / right strafe\n"
+            "\tQ / E or Z / X or Numpad 7 / 9: yaw left / yaw right\n"
             "\tL: zero the command"
         )
 
@@ -49,16 +56,26 @@ class WasdSe2Keyboard:
         return self._base_command
 
     def _on_keyboard_event(self, event, *args, **kwargs):
+        key_name = event.input.name
+        if self.debug_print and key_name in self._DEBUG_KEYS:
+            event_name = str(event.type).split(".")[-1]
+            print(f"[TELEOP] key_event type={event_name} key={key_name}", flush=True)
         if event.type == carb.input.KeyboardEventType.KEY_PRESS:
-            if event.input.name == "L":
+            if key_name == "L":
                 self.reset()
-            elif event.input.name in self._INPUT_KEY_MAPPING:
-                self._base_command += self._INPUT_KEY_MAPPING[event.input.name]
-            if event.input.name in self._additional_callbacks:
-                self._additional_callbacks[event.input.name]()
+                if self.debug_print:
+                    print(f"[TELEOP] command reset -> {self._base_command.tolist()}", flush=True)
+            elif key_name in self._INPUT_KEY_MAPPING:
+                self._base_command += self._INPUT_KEY_MAPPING[key_name]
+                if self.debug_print:
+                    print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
+            if key_name in self._additional_callbacks:
+                self._additional_callbacks[key_name]()
         if event.type == carb.input.KeyboardEventType.KEY_RELEASE:
-            if event.input.name in self._INPUT_KEY_MAPPING:
-                self._base_command -= self._INPUT_KEY_MAPPING[event.input.name]
+            if key_name in self._INPUT_KEY_MAPPING:
+                self._base_command -= self._INPUT_KEY_MAPPING[key_name]
+                if self.debug_print:
+                    print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
         return True
 
     def _create_key_bindings(self) -> None:
@@ -67,7 +84,19 @@ class WasdSe2Keyboard:
             "S": np.asarray([-1.0, 0.0, 0.0]) * self.v_x_sensitivity,
             "A": np.asarray([0.0, 1.0, 0.0]) * self.v_y_sensitivity,
             "D": np.asarray([0.0, -1.0, 0.0]) * self.v_y_sensitivity,
+            "UP": np.asarray([1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "DOWN": np.asarray([-1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "LEFT": np.asarray([0.0, 1.0, 0.0]) * self.v_y_sensitivity,
+            "RIGHT": np.asarray([0.0, -1.0, 0.0]) * self.v_y_sensitivity,
+            "NUMPAD_8": np.asarray([1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "NUMPAD_2": np.asarray([-1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "NUMPAD_4": np.asarray([0.0, 1.0, 0.0]) * self.v_y_sensitivity,
+            "NUMPAD_6": np.asarray([0.0, -1.0, 0.0]) * self.v_y_sensitivity,
             "Q": np.asarray([0.0, 0.0, 1.0]) * self.omega_z_sensitivity,
             "E": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
+            "Z": np.asarray([0.0, 0.0, 1.0]) * self.omega_z_sensitivity,
+            "X": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
+            "NUMPAD_7": np.asarray([0.0, 0.0, 1.0]) * self.omega_z_sensitivity,
+            "NUMPAD_9": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
         }
-
+        self._DEBUG_KEYS = set(self._INPUT_KEY_MAPPING) | {"L"}

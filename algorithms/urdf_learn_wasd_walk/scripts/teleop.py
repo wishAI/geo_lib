@@ -30,6 +30,7 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import gymnasium as gym
+import omni.ui
 import omni.usd
 import torch
 from rsl_rl.runners import OnPolicyRunner
@@ -39,6 +40,7 @@ from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapper
 
 from algorithms.urdf_learn_wasd_walk.command_frame import semantic_command_to_env_command
 from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
+    clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
     log_root_for_experiment,
@@ -65,6 +67,15 @@ def _make_device():
         device = Se2Gamepad()
     print(device)
     return device
+
+
+def _focus_teleop_window() -> None:
+    viewport_window = omni.ui.Workspace.get_window("Viewport")
+    if viewport_window is not None:
+        viewport_window.focus()
+        print("[TELEOP] Focused Isaac 'Viewport' window for keyboard input.", flush=True)
+    else:
+        print("[TELEOP] Could not find the 'Viewport' window to focus automatically.", flush=True)
 
 
 def main() -> None:
@@ -105,14 +116,33 @@ def main() -> None:
     ppo_runner.load(resume_path)
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
     teleop_device = _make_device()
+    if args_cli.input_device == "keyboard":
+        _focus_teleop_window()
+        print(
+            "[TELEOP] Click inside the Isaac GUI viewport before using the keyboard. "
+            "The terminal does not receive teleop key input.",
+            flush=True,
+        )
+        print(
+            "[TELEOP] If W/A/S/D conflicts with viewport navigation, use Up/Down/Left/Right or Numpad 8/2/4/6. "
+            "Yaw also works on Q/E, Z/X, or Numpad 7/9.",
+            flush=True,
+        )
+        print("[TELEOP] Mapped key presses and releases will be printed below.", flush=True)
 
     obs, _ = env.get_observations()
     if visualizer is not None:
         visualizer.sync_from_robot(robot)
     step_count = 0
+    last_env_command = None
     while simulation_app.is_running():
         semantic_command = tuple(float(value) for value in teleop_device.advance())
-        env_command = semantic_command_to_env_command(task_spec.key, semantic_command)
+        env_command = clamp_base_velocity_command(
+            env_cfg, semantic_command_to_env_command(task_spec.key, semantic_command)
+        )
+        if env_command != last_env_command:
+            print(f"[TELEOP] env_command -> {env_command}", flush=True)
+            last_env_command = env_command
         force_base_velocity_command(env.unwrapped, env_command)
         with torch.inference_mode():
             actions = policy(obs)

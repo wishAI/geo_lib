@@ -74,3 +74,11 @@ def force_base_velocity_command(env, command: tuple[float, float, float]) -> Non
     if hasattr(command_term, "is_standing_env"):
         command_term.is_standing_env[:] = False
     command_term.time_left[:] = 1.0e9
+
+
+def clamp_base_velocity_command(env_cfg: Any, command: tuple[float, float, float]) -> tuple[float, float, float]:
+    ranges = env_cfg.commands.base_velocity.ranges
+    vx = min(max(float(command[0]), float(ranges.lin_vel_x[0])), float(ranges.lin_vel_x[1]))
+    vy = min(max(float(command[1]), float(ranges.lin_vel_y[0])), float(ranges.lin_vel_y[1]))
+    yaw = min(max(float(command[2]), float(ranges.ang_vel_z[0])), float(ranges.ang_vel_z[1]))
+    return (vx, vy, yaw)

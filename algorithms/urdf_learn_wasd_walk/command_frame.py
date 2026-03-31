@@ -9,7 +9,7 @@ def semantic_command_to_env_command(robot_key: str, command: tuple[float, float,
 
     forward, strafe, yaw = command
     if robot_key.lower() == "landau":
-        return (strafe, -forward, yaw)
+        return (strafe, forward, yaw)
     return command
 
 

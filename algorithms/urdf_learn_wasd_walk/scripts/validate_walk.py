@@ -46,6 +46,7 @@ from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapper
 
 from algorithms.urdf_learn_wasd_walk.command_frame import semantic_command_to_env_command, semantic_forward_dir_xy
 from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
+    clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
     log_root_for_experiment,
@@ -136,7 +137,7 @@ def main() -> None:
 
     obs, _ = env.get_observations()
     semantic_command = (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)
-    env_command = semantic_command_to_env_command(task_spec.key, semantic_command)
+    env_command = clamp_base_velocity_command(env_cfg, semantic_command_to_env_command(task_spec.key, semantic_command))
     force_base_velocity_command(env.unwrapped, env_command)
 
     initial_root_pos = robot.data.root_pos_w[0].detach().cpu()
@@ -146,7 +147,6 @@ def main() -> None:
         semantic_forward_dir_xy(task_spec.key, initial_root_quat.tolist()),
         dtype=torch.float32,
     )
-    initial_foot_pos = robot.data.body_pos_w[0, robot_body_ids].detach().cpu()
     initial_left_support_pos = robot.data.body_pos_w[0, left_support_robot_ids].detach().cpu()
     initial_right_support_pos = robot.data.body_pos_w[0, right_support_robot_ids].detach().cpu()
     min_left_support_xy = initial_left_support_pos[:, :2].clone()
@@ -167,6 +167,8 @@ def main() -> None:
         [float(initial_left_support_pos[:, 2].max()), float(initial_right_support_pos[:, 2].max())], dtype=torch.float32
     )
     max_side_planar_travel = torch.zeros(2, dtype=torch.float32)
+    sum_root_lin_vel_b = torch.zeros(3, dtype=torch.float32)
+    sum_root_ang_vel_w = torch.zeros(3, dtype=torch.float32)
     last_contact = torch.stack(
         (
             _contact_mask(contact_sensor, left_support_sensor_ids, args_cli.contact_threshold)[0].any(),
@@ -184,7 +186,8 @@ def main() -> None:
         done_count += int(dones[0].item())
 
         root_pos = robot.data.root_pos_w[0].detach().cpu()
-        foot_pos = robot.data.body_pos_w[0, robot_body_ids].detach().cpu()
+        root_lin_vel_b = robot.data.root_lin_vel_b[0].detach().cpu()
+        root_ang_vel_w = robot.data.root_ang_vel_w[0].detach().cpu()
         left_support_pos = robot.data.body_pos_w[0, left_support_robot_ids].detach().cpu()
         right_support_pos = robot.data.body_pos_w[0, right_support_robot_ids].detach().cpu()
         current_contact = torch.stack(
@@ -228,9 +231,29 @@ def main() -> None:
         max_side_planar_travel = torch.maximum(max_side_planar_travel, planar_travel)
         contact_switches += (current_contact != last_contact).to(dtype=torch.int64)
         last_contact = current_contact
+        sum_root_lin_vel_b += root_lin_vel_b
+        sum_root_ang_vel_w += root_ang_vel_w
 
     forward_displacement = max_forward_progress
     side_height_range = max_side_z - min_side_z
+    final_planar_delta = robot.data.root_pos_w[0].detach().cpu()[:2] - initial_root_pos[:2]
+    final_body_axis_displacement = torch.tensor(
+        (
+            float(torch.dot(final_planar_delta, initial_body_x_xy)),
+            float(torch.dot(final_planar_delta, initial_body_y_xy)),
+        ),
+        dtype=torch.float32,
+    )
+    mean_root_lin_vel_b = sum_root_lin_vel_b / float(args_cli.steps)
+    mean_root_ang_vel_w = sum_root_ang_vel_w / float(args_cli.steps)
+    mean_command_error_b = torch.tensor(env_command, dtype=torch.float32) - torch.tensor(
+        (
+            float(mean_root_lin_vel_b[0]),
+            float(mean_root_lin_vel_b[1]),
+            float(mean_root_ang_vel_w[2]),
+        ),
+        dtype=torch.float32,
+    )
 
     print(f"[VALIDATE] feet={foot_names}", flush=True)
     print(f"[VALIDATE] support_left={left_support_names}", flush=True)
@@ -240,10 +263,14 @@ def main() -> None:
     print(f"[VALIDATE] forward_displacement={forward_displacement:.4f}", flush=True)
     print(f"[VALIDATE] planar_displacement={max_planar_displacement:.4f}", flush=True)
     print(f"[VALIDATE] body_axis_displacement_abs={max_abs_body_axis_progress.tolist()}", flush=True)
+    print(f"[VALIDATE] final_body_axis_displacement={final_body_axis_displacement.tolist()}", flush=True)
     print(f"[VALIDATE] lateral_separation={lateral_separation:.4f}", flush=True)
     print(f"[VALIDATE] side_planar_travel={max_side_planar_travel.tolist()}", flush=True)
     print(f"[VALIDATE] side_height_range={side_height_range.tolist()}", flush=True)
     print(f"[VALIDATE] contact_switches={contact_switches.tolist()}", flush=True)
+    print(f"[VALIDATE] mean_root_lin_vel_b={mean_root_lin_vel_b.tolist()}", flush=True)
+    print(f"[VALIDATE] mean_root_ang_vel_w={mean_root_ang_vel_w.tolist()}", flush=True)
+    print(f"[VALIDATE] mean_command_error={mean_command_error_b.tolist()}", flush=True)
     print(f"[VALIDATE] done_count={done_count}", flush=True)
 
     _validate_metric(lateral_separation >= args_cli.min_lateral_separation, "two-leg lateral separation", lateral_separation, args_cli.min_lateral_separation)

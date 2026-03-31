@@ -41,6 +41,7 @@ from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapper, export_poli
 
 from algorithms.urdf_learn_wasd_walk.command_frame import semantic_command_to_env_command
 from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
+    clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
     log_root_for_experiment,
@@ -106,7 +107,9 @@ def main() -> None:
     fixed_command = None
     if None not in (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw):
         semantic_command = (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)
-        fixed_command = semantic_command_to_env_command(task_spec.key, semantic_command)
+        fixed_command = clamp_base_velocity_command(
+            env_cfg, semantic_command_to_env_command(task_spec.key, semantic_command)
+        )
         print(f"[INFO] Forcing base command: semantic={semantic_command} env={fixed_command}")
 
     obs, _ = env.get_observations()
