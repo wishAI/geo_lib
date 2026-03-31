@@ -1,0 +1,59 @@
+- In folder urdf_learn_wasd_walk, fix this problem when I press W A S D, fix them on branch task/fix_urdf_learn, create a pull request when you are ready
+
+AttributeError: 'str' object has no attribute 'name'
+[TELEOP] key_event type=KEY_REPEAT key=A
+Traceback (most recent call last):
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 30, in <lambda>
+    lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 59, in _on_keyboard_event
+    key_name = event.input.name
+AttributeError: 'str' object has no attribute 'name'
+[TELEOP] key_event type=KEY_REPEAT key=A
+Traceback (most recent call last):
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 30, in <lambda>
+    lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 59, in _on_keyboard_event
+    key_name = event.input.name
+AttributeError: 'str' object has no attribute 'name'
+[TELEOP] key_event type=KEY_REPEAT key=A
+Traceback (most recent call last):
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 30, in <lambda>
+    lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 59, in _on_keyboard_event
+    key_name = event.input.name
+AttributeError: 'str' object has no attribute 'name'
+[TELEOP] key_event type=KEY_REPEAT key=A
+[TELEOP] key_event type=KEY_RELEASE key=A
+[TELEOP] command -> [1.1920929132713809e-08, 0.0, 0.0]
+[TELEOP] env_command -> (0.0, 1.1920929132713809e-08, 0.0)
+Traceback (most recent call last):
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 30, in <lambda>
+    lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 59, in _on_keyboard_event
+    key_name = event.input.name
+AttributeError: 'str' object has no attribute 'name'
+[TELEOP] key_event type=KEY_PRESS key=D
+[TELEOP] command -> [1.1920929132713809e-08, -0.5, 0.0]
+[TELEOP] env_command -> (-0.5, 1.1920929132713809e-08, 0.0)
+Traceback (most recent call last):
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 30, in <lambda>
+    lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/teleop_input.py", line 59, in _on_keyboard_event
+    key_name = event.input.name
+AttributeError: 'str' object has no attribute 'name'
+[TELEOP] key_event type=KEY_RELEASE key=D
+[TELEOP] command -> [1.1920929132713809e-08, 0.0, 0.0]
+[TELEOP] env_command -> (0.0, 1.1920929132713809e-08, 0.0)
+
+
+- In folder simple_auto_slam_mapping, it seems the map will update after 30s according to current output,
+can you check if the robot is stuck or something else, optimize the auto explore nav algorithm if necessary,
+add the map outputs to .gitignore
+fix them on branch task/fix_auto_slam, create a pull request when you are ready
+
+----
+
+Read CONTEXT.md, follow the sandbox rule. 
+This is the isaac python env:  /home/wishai/vscode/IsaacLab/isaaclab.sh
+This is the normal python env:  pyenv activate ptenv
+
