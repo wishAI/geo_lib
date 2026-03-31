@@ -34,7 +34,10 @@ class WasdSe2Keyboard:
         self._create_key_bindings()
 
     def __del__(self):
-        self._input.unsubscribe_from_keyboard_events(self._keyboard, self._keyboard_sub)
+        keyboard_sub = getattr(self, "_keyboard_sub", None)
+        if keyboard_sub is None:
+            return
+        self._input.unsubscribe_from_keyboard_events(self._keyboard, keyboard_sub)
         self._keyboard_sub = None
 
     def __str__(self) -> str:
@@ -55,12 +58,17 @@ class WasdSe2Keyboard:
     def advance(self) -> np.ndarray:
         return self._base_command
 
+    @staticmethod
+    def _normalize_event_name(value: object) -> str:
+        raw_value = getattr(value, "name", value)
+        return str(raw_value).split(".")[-1].upper()
+
     def _on_keyboard_event(self, event, *args, **kwargs):
-        key_name = event.input.name
+        key_name = self._normalize_event_name(getattr(event, "input", ""))
+        event_name = self._normalize_event_name(getattr(event, "type", ""))
         if self.debug_print and key_name in self._DEBUG_KEYS:
-            event_name = str(event.type).split(".")[-1]
             print(f"[TELEOP] key_event type={event_name} key={key_name}", flush=True)
-        if event.type == carb.input.KeyboardEventType.KEY_PRESS:
+        if event_name == "KEY_PRESS":
             if key_name == "L":
                 self.reset()
                 if self.debug_print:
@@ -71,7 +79,7 @@ class WasdSe2Keyboard:
                     print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
             if key_name in self._additional_callbacks:
                 self._additional_callbacks[key_name]()
-        if event.type == carb.input.KeyboardEventType.KEY_RELEASE:
+        if event_name == "KEY_RELEASE":
             if key_name in self._INPUT_KEY_MAPPING:
                 self._base_command -= self._INPUT_KEY_MAPPING[key_name]
                 if self.debug_print:
