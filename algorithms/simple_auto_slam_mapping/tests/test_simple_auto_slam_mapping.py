@@ -14,7 +14,12 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from algorithms.simple_auto_slam_mapping.mapping import load_scene_input, run_mapping_pipeline, sync_scene_input
+from algorithms.simple_auto_slam_mapping.mapping import (
+    PlanarRobotSimulator,
+    load_scene_input,
+    run_mapping_pipeline,
+    sync_scene_input,
+)
 from algorithms.svg_scene_builder.builder import run_scene_builder
 
 
@@ -80,6 +85,17 @@ def test_mapping_stops_when_route_finishes(staged_paths: tuple[Path, Path, Path]
     assert summary['route_completed_at_s'] == pytest.approx(summary['elapsed_s'])
     assert summary['waypoints_completed'] == summary['route_waypoints']
     assert summary['waypoints_skipped'] >= 0
+
+
+def test_mapping_can_continue_after_route_completion(staged_paths: tuple[Path, Path, Path]) -> None:
+    mapping_input, _, _ = staged_paths
+    layout, scene_xml, start_pose, _ = load_scene_input(mapping_input)
+    sim = PlanarRobotSimulator(layout, scene_xml, start_pose, route_xy=[(start_pose.x, start_pose.y)])
+    result = sim.run(timeout_s=0.2, snapshot_period_s=0.1, stop_on_route_complete=False)
+    assert result['stop_reason'] == 'timeout_after_route_complete'
+    assert result['route_completed_at_s'] is not None
+    assert result['elapsed_s'] >= 0.2
+    assert [snapshot['time_s'] for snapshot in result['snapshots']] == [0.1, 0.2]
 
 
 def test_mapping_rejects_paths_outside_inputs_outputs(staged_paths: tuple[Path, Path, Path]) -> None:

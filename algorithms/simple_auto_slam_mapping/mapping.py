@@ -259,6 +259,7 @@ class PlanarRobotSimulator:
         lidar_beams: int = 181,
         lidar_range_m: float = 5.5,
         snapshot_period_s: float = 10.0,
+        stop_on_route_complete: bool = True,
     ) -> dict[str, object]:
         mapper = OccupancyMapper(self.layout)
         beam_angles = np.linspace(-math.pi, math.pi, lidar_beams, endpoint=False)
@@ -322,9 +323,13 @@ class PlanarRobotSimulator:
                 snapshots.append({'time_s': float(next_snapshot_s), 'map_img': mapper.ros_map().copy()})
                 next_snapshot_s += snapshot_period_s
             if waypoint_index >= len(self.route_xy):
-                stop_reason = 'route_complete'
-                route_completed_at_s = elapsed
-                break
+                if route_completed_at_s is None:
+                    route_completed_at_s = elapsed
+                if stop_on_route_complete:
+                    stop_reason = 'route_complete'
+                    break
+        if stop_reason == 'timeout' and route_completed_at_s is not None:
+            stop_reason = 'timeout_after_route_complete'
         return {
             'elapsed_s': elapsed,
             'trajectory': trajectory,
@@ -443,6 +448,7 @@ def run_mapping_pipeline(
     output_dir: str | Path,
     timeout_s: float = 60.0,
     snapshot_period_s: float = 10.0,
+    stop_on_route_complete: bool = True,
 ) -> dict[str, object]:
     input_root = _require_stage_dir(input_dir, 'inputs', 'Mapping input')
     output_root = _require_stage_dir(output_dir, 'outputs', 'Mapping output')
@@ -450,7 +456,11 @@ def run_mapping_pipeline(
     layout, scene_xml, start_pose, package = load_scene_input(input_root)
     route_xy = _build_route(layout, start_pose, robot_radius_m=float(package.get('robot_radius_m', 0.18)))
     sim = PlanarRobotSimulator(layout, scene_xml, start_pose, route_xy, robot_radius_m=float(package.get('robot_radius_m', 0.18)))
-    result = sim.run(timeout_s=timeout_s, snapshot_period_s=snapshot_period_s)
+    result = sim.run(
+        timeout_s=timeout_s,
+        snapshot_period_s=snapshot_period_s,
+        stop_on_route_complete=stop_on_route_complete,
+    )
     map_img = result['mapper'].ros_map()
     ratios = _save_map(output_root, layout, map_img)
     saved_snapshots = _save_snapshots(output_root, layout, result['snapshots'])
@@ -487,6 +497,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--timeout', type=float, default=60.0)
     parser.add_argument('--snapshot-period', type=float, default=10.0)
     parser.add_argument('--copy-from', type=Path, default=None, help='Optional scene-builder output directory to copy into --input before running')
+    parser.add_argument(
+        '--continue-after-route-complete',
+        action='store_true',
+        help='Keep scanning and saving snapshots until --timeout even after all route waypoints are complete.',
+    )
     return parser.parse_args()
 
 
@@ -499,6 +514,7 @@ def main() -> None:
         output_dir=args.output,
         timeout_s=args.timeout,
         snapshot_period_s=args.snapshot_period,
+        stop_on_route_complete=not args.continue_after_route_complete,
     )
     print(json.dumps(summary, indent=2))
 

@@ -24,8 +24,8 @@
       2.6
     ]
   },
-  "elapsed_s": 29.600000000000286,
-  "stop_reason": "route_complete",
+  "elapsed_s": 60.049999999998725,
+  "stop_reason": "timeout_after_route_complete",
   "route_completed_at_s": 29.600000000000286,
   "scan_min_range_m": 0.17,
   "scan_max_range_m": 0.5900000000000003,
@@ -38,9 +38,9 @@
     "yaw": -0.3999999999999999
   },
   "map_ratios": {
-    "occupied_ratio": 0.07010577540468385,
-    "free_ratio": 0.54106823020513,
-    "unknown_ratio": 0.3888259943901862
+    "occupied_ratio": 0.07005508431617721,
+    "free_ratio": 0.5410935757493832,
+    "unknown_ratio": 0.38885133993443954
   },
   "input_dir": "/home/wishai/vscode/geo_lib/algorithms/simple_auto_slam_mapping/inputs/sample_scene",
   "output_dir": "/home/wishai/vscode/geo_lib/algorithms/simple_auto_slam_mapping/outputs/sample_run",
@@ -48,6 +48,10 @@
   "snapshot_period_s": 10.0,
   "saved_map_snapshots": [
     "snapshots/map_010s.pgm",
-    "snapshots/map_020s.pgm"
+    "snapshots/map_020s.pgm",
+    "snapshots/map_030s.pgm",
+    "snapshots/map_040s.pgm",
+    "snapshots/map_050s.pgm",
+    "snapshots/map_060s.pgm"
   ]
 }
