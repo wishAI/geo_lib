@@ -14,12 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from algorithms.simple_auto_slam_mapping.mapping import (
-    PlanarRobotSimulator,
-    load_scene_input,
-    run_mapping_pipeline,
-    sync_scene_input,
-)
+from algorithms.simple_auto_slam_mapping.mapping import PlanarRobotSimulator, load_scene_input, run_mapping_pipeline, sync_scene_input
 from algorithms.svg_scene_builder.builder import run_scene_builder
 
 
@@ -77,14 +72,23 @@ def test_mapping_outputs_ros_map_ratios_and_snapshots(staged_paths: tuple[Path, 
     assert (mapping_output / 'snapshots' / 'map_002s.pgm').exists()
 
 
-def test_mapping_stops_when_route_finishes(staged_paths: tuple[Path, Path, Path]) -> None:
+def test_mapping_keeps_exploring_after_30_seconds_before_route_completion(staged_paths: tuple[Path, Path, Path]) -> None:
     mapping_input, mapping_output, _ = staged_paths
-    summary = run_mapping_pipeline(input_dir=mapping_input, output_dir=mapping_output, timeout_s=60.0, snapshot_period_s=10.0)
+    summary = run_mapping_pipeline(input_dir=mapping_input, output_dir=mapping_output, timeout_s=60.0, snapshot_period_s=30.0)
+    layout, _, _, _ = load_scene_input(mapping_input)
+    img_30 = np.array(Image.open(mapping_output / 'snapshots' / 'map_030s.pgm'))
+    img_final = np.array(Image.open(mapping_output / 'map.pgm'))
+    free_gt = np.logical_not(layout.occupied_grid)
+    unknown_30 = float(np.count_nonzero((img_30 == 205) & free_gt) / np.count_nonzero(free_gt))
+    unknown_final = float(np.count_nonzero((img_final == 205) & free_gt) / np.count_nonzero(free_gt))
     assert summary['stop_reason'] == 'route_complete'
-    assert summary['elapsed_s'] < 60.0
+    assert 40.0 < summary['elapsed_s'] < 60.0
     assert summary['route_completed_at_s'] == pytest.approx(summary['elapsed_s'])
     assert summary['waypoints_completed'] == summary['route_waypoints']
     assert summary['waypoints_skipped'] >= 0
+    assert summary['frontier_goals_planned'] == 0
+    assert unknown_final < unknown_30 - 0.15
+    assert np.count_nonzero(img_30 != img_final) > 10000
 
 
 def test_mapping_can_continue_after_route_completion(staged_paths: tuple[Path, Path, Path]) -> None:
@@ -92,8 +96,8 @@ def test_mapping_can_continue_after_route_completion(staged_paths: tuple[Path, P
     layout, scene_xml, start_pose, _ = load_scene_input(mapping_input)
     sim = PlanarRobotSimulator(layout, scene_xml, start_pose, route_xy=[(start_pose.x, start_pose.y)])
     result = sim.run(timeout_s=0.2, snapshot_period_s=0.1, stop_on_route_complete=False)
-    assert result['stop_reason'] == 'timeout_after_route_complete'
-    assert result['route_completed_at_s'] is not None
+    assert result['stop_reason'] == 'timeout'
+    assert result['frontier_goals_planned'] > 0
     assert result['elapsed_s'] >= 0.2
     assert [snapshot['time_s'] for snapshot in result['snapshots']] == [0.1, 0.2]
 
