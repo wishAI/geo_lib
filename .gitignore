@@ -1,5 +1,6 @@
 # Fake cloud generated outputs
 algorithms/fake_cloud/outputs/
+algorithms/simple_auto_slam_mapping/outputs/
 
 # Python bytecode and caches
 __pycache__/

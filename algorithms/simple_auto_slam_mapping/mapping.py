@@ -157,9 +157,11 @@ def _build_route(layout: SemanticLayout, start_pose: Pose2D, robot_radius_m: flo
     current = start
     while remaining:
         target = min(remaining, key=lambda cell: (cell[0] - current[0]) ** 2 + (cell[1] - current[1]) ** 2)
-        ordered.extend(_astar(inflated, current, target)[1:])
+        segment = _astar(inflated, current, target)
+        if len(segment) > 1:
+            ordered.extend(segment[1:])
         remaining.remove(target)
-        current = target
+        current = segment[-1]
     sparse = [ordered[0]]
     for cell in ordered[4::4]:
         if cell != sparse[-1]:
@@ -267,6 +269,11 @@ class PlanarRobotSimulator:
         snapshots = []
         next_snapshot_s = snapshot_period_s if snapshot_period_s > 0.0 else None
         safe_mask = _inflate(self.layout.occupied_grid, max(1, int(math.ceil(self.robot_radius_m / self.layout.resolution_m))))
+        stalled_steps = 0
+        stall_limit_steps = max(1, int(math.ceil(1.5 / dt)))
+        skipped_waypoints = 0
+        stop_reason = 'timeout'
+        route_completed_at_s = None
         while elapsed < timeout_s:
             if waypoint_index < len(self.route_xy):
                 target_x, target_y = self.route_xy[waypoint_index]
@@ -275,6 +282,7 @@ class PlanarRobotSimulator:
                 distance = math.hypot(dx, dy)
                 if distance < 0.08:
                     waypoint_index += 1
+                    stalled_steps = 0
                 else:
                     target_yaw = math.atan2(dy, dx)
                     yaw_error = (target_yaw - self.pose.yaw + math.pi) % (2.0 * math.pi) - math.pi
@@ -285,15 +293,26 @@ class PlanarRobotSimulator:
                     uy = dy / distance
                     candidate = Pose2D(x=self.pose.x + move * ux, y=self.pose.y + move * uy, yaw=yaw)
                     row, col = _world_to_grid(self.layout, candidate.x, candidate.y)
+                    moved = False
                     if not safe_mask[row, col]:
                         self.set_pose(candidate)
+                        moved = True
                     else:
                         for scale in (0.5, 0.25):
                             candidate = Pose2D(x=self.pose.x + move * scale * ux, y=self.pose.y + move * scale * uy, yaw=yaw)
                             row, col = _world_to_grid(self.layout, candidate.x, candidate.y)
                             if not safe_mask[row, col]:
                                 self.set_pose(candidate)
+                                moved = True
                                 break
+                    if moved:
+                        stalled_steps = 0
+                    else:
+                        stalled_steps += 1
+                        if stalled_steps >= stall_limit_steps:
+                            waypoint_index += 1
+                            skipped_waypoints += 1
+                            stalled_steps = 0
             ranges = _cast_lidar(self.layout, self.pose, beam_angles, lidar_range_m)
             mapper.update(self.pose, beam_angles, ranges, lidar_range_m)
             trajectory.append({'t': elapsed, 'x': self.pose.x, 'y': self.pose.y, 'yaw': self.pose.yaw})
@@ -302,6 +321,10 @@ class PlanarRobotSimulator:
             while next_snapshot_s is not None and elapsed + 1e-9 >= next_snapshot_s:
                 snapshots.append({'time_s': float(next_snapshot_s), 'map_img': mapper.ros_map().copy()})
                 next_snapshot_s += snapshot_period_s
+            if waypoint_index >= len(self.route_xy):
+                stop_reason = 'route_complete'
+                route_completed_at_s = elapsed
+                break
         return {
             'elapsed_s': elapsed,
             'trajectory': trajectory,
@@ -311,6 +334,9 @@ class PlanarRobotSimulator:
             'scan_max_range_m': float(max(min_ranges)) if min_ranges else lidar_range_m,
             'final_pose': self.pose,
             'waypoints_completed': waypoint_index,
+            'waypoints_skipped': skipped_waypoints,
+            'stop_reason': stop_reason,
+            'route_completed_at_s': route_completed_at_s,
         }
 
 
@@ -432,10 +458,13 @@ def run_mapping_pipeline(
         'ros2_environment': detect_ros2_environment(),
         'scene_bbox': package['bbox'],
         'elapsed_s': result['elapsed_s'],
+        'stop_reason': result['stop_reason'],
+        'route_completed_at_s': result['route_completed_at_s'],
         'scan_min_range_m': result['scan_min_range_m'],
         'scan_max_range_m': result['scan_max_range_m'],
         'route_waypoints': len(route_xy),
         'waypoints_completed': result['waypoints_completed'],
+        'waypoints_skipped': result['waypoints_skipped'],
         'final_pose': {'x': result['final_pose'].x, 'y': result['final_pose'].y, 'yaw': result['final_pose'].yaw},
         'map_ratios': ratios,
         'input_dir': str(input_root),

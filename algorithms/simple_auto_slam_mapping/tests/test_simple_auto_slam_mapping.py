@@ -72,6 +72,16 @@ def test_mapping_outputs_ros_map_ratios_and_snapshots(staged_paths: tuple[Path, 
     assert (mapping_output / 'snapshots' / 'map_002s.pgm').exists()
 
 
+def test_mapping_stops_when_route_finishes(staged_paths: tuple[Path, Path, Path]) -> None:
+    mapping_input, mapping_output, _ = staged_paths
+    summary = run_mapping_pipeline(input_dir=mapping_input, output_dir=mapping_output, timeout_s=60.0, snapshot_period_s=10.0)
+    assert summary['stop_reason'] == 'route_complete'
+    assert summary['elapsed_s'] < 60.0
+    assert summary['route_completed_at_s'] == pytest.approx(summary['elapsed_s'])
+    assert summary['waypoints_completed'] == summary['route_waypoints']
+    assert summary['waypoints_skipped'] >= 0
+
+
 def test_mapping_rejects_paths_outside_inputs_outputs(staged_paths: tuple[Path, Path, Path]) -> None:
     mapping_input, _, root = staged_paths
     bad_input = root / 'bad_input'
