@@ -105,6 +105,34 @@ def _corner_targets(inflated_occ: np.ndarray, max_targets: int = 18) -> list[tup
     return selected
 
 
+def _coverage_targets(
+    inflated_occ: np.ndarray,
+    seed_targets: list[tuple[int, int]],
+    sample_step: int = 14,
+    max_targets: int = 10,
+    min_separation_cells: int = 30,
+) -> list[tuple[int, int]]:
+    free = np.logical_not(inflated_occ)
+    candidates = [(row, col) for row in range(0, inflated_occ.shape[0], sample_step) for col in range(0, inflated_occ.shape[1], sample_step) if free[row, col]]
+    selected = list(seed_targets)
+    extras = []
+    while candidates and len(extras) < max_targets:
+        target = max(
+            candidates,
+            key=lambda cell: min((cell[0] - row) ** 2 + (cell[1] - col) ** 2 for row, col in selected),
+        )
+        if min((target[0] - row) ** 2 + (target[1] - col) ** 2 for row, col in selected) < min_separation_cells ** 2:
+            break
+        extras.append(target)
+        selected.append(target)
+        candidates = [
+            cell
+            for cell in candidates
+            if (cell[0] - target[0]) ** 2 + (cell[1] - target[1]) ** 2 >= min_separation_cells ** 2
+        ]
+    return extras
+
+
 def _astar(mask: np.ndarray, start: tuple[int, int], goal: tuple[int, int]) -> list[tuple[int, int]]:
     import heapq
 
@@ -149,24 +177,105 @@ def _astar(mask: np.ndarray, start: tuple[int, int], goal: tuple[int, int]) -> l
     return [start]
 
 
+def _sparsify_grid_path(path: list[tuple[int, int]], every_n: int = 4) -> list[tuple[int, int]]:
+    if not path:
+        return []
+    sparse = [path[0]]
+    for cell in path[every_n::every_n]:
+        if cell != sparse[-1]:
+            sparse.append(cell)
+    if path[-1] != sparse[-1]:
+        sparse.append(path[-1])
+    return sparse
+
+
+def _connected_components(mask: np.ndarray) -> list[list[tuple[int, int]]]:
+    components: list[list[tuple[int, int]]] = []
+    visited = np.zeros(mask.shape, dtype=bool)
+    for row, col in np.argwhere(mask):
+        row = int(row)
+        col = int(col)
+        if visited[row, col]:
+            continue
+        stack = [(row, col)]
+        visited[row, col] = True
+        component = []
+        while stack:
+            rr, cc = stack.pop()
+            component.append((rr, cc))
+            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nr = rr + dr
+                nc = cc + dc
+                if not (0 <= nr < mask.shape[0] and 0 <= nc < mask.shape[1]):
+                    continue
+                if visited[nr, nc] or not mask[nr, nc]:
+                    continue
+                visited[nr, nc] = True
+                stack.append((nr, nc))
+        components.append(component)
+    return components
+
+
+def _frontier_goal(
+    map_img: np.ndarray,
+    safe_mask: np.ndarray,
+    current: tuple[int, int],
+    prior_goals: list[tuple[int, int]],
+    revisit_radius_cells: int = 10,
+    unknown_window_radius: int = 24,
+    min_frontier_cluster_size: int = 6,
+) -> tuple[int, int] | None:
+    free = map_img == 254
+    unknown = map_img == 205
+    frontier = free & (
+        np.pad(unknown[1:, :], ((0, 1), (0, 0)))
+        | np.pad(unknown[:-1, :], ((1, 0), (0, 0)))
+        | np.pad(unknown[:, 1:], ((0, 0), (0, 1)))
+        | np.pad(unknown[:, :-1], ((0, 0), (1, 0)))
+    )
+    components = _connected_components(frontier)
+    best_goal = None
+    best_score = -1.0
+    for component in components:
+        if len(component) < min_frontier_cluster_size:
+            continue
+        rows = np.asarray([row for row, _ in component], dtype=int)
+        cols = np.asarray([col for _, col in component], dtype=int)
+        center_row = float(rows.mean())
+        center_col = float(cols.mean())
+        goal = min(component, key=lambda cell: (cell[0] - center_row) ** 2 + (cell[1] - center_col) ** 2)
+        if any((goal[0] - row) ** 2 + (goal[1] - col) ** 2 < revisit_radius_cells ** 2 for row, col in prior_goals):
+            continue
+        path = _astar(safe_mask, current, goal)
+        if len(path) <= 1:
+            continue
+        row_min = max(0, goal[0] - unknown_window_radius)
+        row_max = min(map_img.shape[0], goal[0] + unknown_window_radius + 1)
+        col_min = max(0, goal[1] - unknown_window_radius)
+        col_max = min(map_img.shape[1], goal[1] + unknown_window_radius + 1)
+        local_unknown = int(np.count_nonzero(unknown[row_min:row_max, col_min:col_max]))
+        score = (local_unknown + len(component) * 3) / len(path)
+        if score > best_score:
+            best_score = score
+            best_goal = goal
+    return best_goal
+
+
 def _build_route(layout: SemanticLayout, start_pose: Pose2D, robot_radius_m: float = 0.18) -> list[tuple[float, float]]:
     inflated = _inflate(layout.occupied_grid, max(1, int(math.ceil(robot_radius_m / layout.resolution_m))))
     start = _nearest_free(inflated, *_world_to_grid(layout, start_pose.x, start_pose.y))
     remaining = _corner_targets(inflated)
+    remaining.extend(_coverage_targets(inflated, [start, *remaining]))
     ordered = [start]
     current = start
     while remaining:
         target = min(remaining, key=lambda cell: (cell[0] - current[0]) ** 2 + (cell[1] - current[1]) ** 2)
-        ordered.extend(_astar(inflated, current, target)[1:])
+        segment = _astar(inflated, current, target)
+        if len(segment) > 1:
+            ordered.extend(segment[1:])
         remaining.remove(target)
-        current = target
-    sparse = [ordered[0]]
-    for cell in ordered[4::4]:
-        if cell != sparse[-1]:
-            sparse.append(cell)
-    if ordered[-1] != sparse[-1]:
-        sparse.append(ordered[-1])
-    return [_grid_to_world(layout, row, col) for row, col in sparse]
+        current = segment[-1]
+    return [_grid_to_world(layout, row, col) for row, col in _sparsify_grid_path(ordered)]
 
 
 def _cast_lidar(layout: SemanticLayout, pose: Pose2D, beam_angles: np.ndarray, max_range_m: float) -> np.ndarray:
@@ -257,6 +366,7 @@ class PlanarRobotSimulator:
         lidar_beams: int = 181,
         lidar_range_m: float = 5.5,
         snapshot_period_s: float = 10.0,
+        stop_on_route_complete: bool = True,
     ) -> dict[str, object]:
         mapper = OccupancyMapper(self.layout)
         beam_angles = np.linspace(-math.pi, math.pi, lidar_beams, endpoint=False)
@@ -267,6 +377,13 @@ class PlanarRobotSimulator:
         snapshots = []
         next_snapshot_s = snapshot_period_s if snapshot_period_s > 0.0 else None
         safe_mask = _inflate(self.layout.occupied_grid, max(1, int(math.ceil(self.robot_radius_m / self.layout.resolution_m))))
+        stalled_steps = 0
+        stall_limit_steps = max(1, int(math.ceil(1.5 / dt)))
+        skipped_waypoints = 0
+        frontier_goals_planned = 0
+        stop_reason = 'timeout'
+        route_completed_at_s = None
+        frontier_goal_history: list[tuple[int, int]] = []
         while elapsed < timeout_s:
             if waypoint_index < len(self.route_xy):
                 target_x, target_y = self.route_xy[waypoint_index]
@@ -275,6 +392,7 @@ class PlanarRobotSimulator:
                 distance = math.hypot(dx, dy)
                 if distance < 0.08:
                     waypoint_index += 1
+                    stalled_steps = 0
                 else:
                     target_yaw = math.atan2(dy, dx)
                     yaw_error = (target_yaw - self.pose.yaw + math.pi) % (2.0 * math.pi) - math.pi
@@ -285,15 +403,26 @@ class PlanarRobotSimulator:
                     uy = dy / distance
                     candidate = Pose2D(x=self.pose.x + move * ux, y=self.pose.y + move * uy, yaw=yaw)
                     row, col = _world_to_grid(self.layout, candidate.x, candidate.y)
+                    moved = False
                     if not safe_mask[row, col]:
                         self.set_pose(candidate)
+                        moved = True
                     else:
                         for scale in (0.5, 0.25):
                             candidate = Pose2D(x=self.pose.x + move * scale * ux, y=self.pose.y + move * scale * uy, yaw=yaw)
                             row, col = _world_to_grid(self.layout, candidate.x, candidate.y)
                             if not safe_mask[row, col]:
                                 self.set_pose(candidate)
+                                moved = True
                                 break
+                    if moved:
+                        stalled_steps = 0
+                    else:
+                        stalled_steps += 1
+                        if stalled_steps >= stall_limit_steps:
+                            waypoint_index += 1
+                            skipped_waypoints += 1
+                            stalled_steps = 0
             ranges = _cast_lidar(self.layout, self.pose, beam_angles, lidar_range_m)
             mapper.update(self.pose, beam_angles, ranges, lidar_range_m)
             trajectory.append({'t': elapsed, 'x': self.pose.x, 'y': self.pose.y, 'yaw': self.pose.yaw})
@@ -302,6 +431,24 @@ class PlanarRobotSimulator:
             while next_snapshot_s is not None and elapsed + 1e-9 >= next_snapshot_s:
                 snapshots.append({'time_s': float(next_snapshot_s), 'map_img': mapper.ros_map().copy()})
                 next_snapshot_s += snapshot_period_s
+            if waypoint_index >= len(self.route_xy):
+                current_cell = _world_to_grid(self.layout, self.pose.x, self.pose.y)
+                frontier_goal = _frontier_goal(mapper.ros_map(), safe_mask, current_cell, frontier_goal_history)
+                if frontier_goal is not None:
+                    frontier_goal_history.append(frontier_goal)
+                    frontier_goals_planned += 1
+                    extension = _sparsify_grid_path(_astar(safe_mask, current_cell, frontier_goal))
+                    extension_world = [_grid_to_world(self.layout, row, col) for row, col in extension[1:]]
+                    if extension_world:
+                        self.route_xy.extend(extension_world)
+                        continue
+                if route_completed_at_s is None:
+                    route_completed_at_s = elapsed
+                if stop_on_route_complete:
+                    stop_reason = 'route_complete'
+                    break
+        if stop_reason == 'timeout' and route_completed_at_s is not None:
+            stop_reason = 'timeout_after_route_complete'
         return {
             'elapsed_s': elapsed,
             'trajectory': trajectory,
@@ -311,6 +458,10 @@ class PlanarRobotSimulator:
             'scan_max_range_m': float(max(min_ranges)) if min_ranges else lidar_range_m,
             'final_pose': self.pose,
             'waypoints_completed': waypoint_index,
+            'waypoints_skipped': skipped_waypoints,
+            'frontier_goals_planned': frontier_goals_planned,
+            'stop_reason': stop_reason,
+            'route_completed_at_s': route_completed_at_s,
         }
 
 
@@ -417,6 +568,7 @@ def run_mapping_pipeline(
     output_dir: str | Path,
     timeout_s: float = 60.0,
     snapshot_period_s: float = 10.0,
+    stop_on_route_complete: bool = True,
 ) -> dict[str, object]:
     input_root = _require_stage_dir(input_dir, 'inputs', 'Mapping input')
     output_root = _require_stage_dir(output_dir, 'outputs', 'Mapping output')
@@ -424,7 +576,11 @@ def run_mapping_pipeline(
     layout, scene_xml, start_pose, package = load_scene_input(input_root)
     route_xy = _build_route(layout, start_pose, robot_radius_m=float(package.get('robot_radius_m', 0.18)))
     sim = PlanarRobotSimulator(layout, scene_xml, start_pose, route_xy, robot_radius_m=float(package.get('robot_radius_m', 0.18)))
-    result = sim.run(timeout_s=timeout_s, snapshot_period_s=snapshot_period_s)
+    result = sim.run(
+        timeout_s=timeout_s,
+        snapshot_period_s=snapshot_period_s,
+        stop_on_route_complete=stop_on_route_complete,
+    )
     map_img = result['mapper'].ros_map()
     ratios = _save_map(output_root, layout, map_img)
     saved_snapshots = _save_snapshots(output_root, layout, result['snapshots'])
@@ -432,10 +588,14 @@ def run_mapping_pipeline(
         'ros2_environment': detect_ros2_environment(),
         'scene_bbox': package['bbox'],
         'elapsed_s': result['elapsed_s'],
+        'stop_reason': result['stop_reason'],
+        'route_completed_at_s': result['route_completed_at_s'],
         'scan_min_range_m': result['scan_min_range_m'],
         'scan_max_range_m': result['scan_max_range_m'],
         'route_waypoints': len(route_xy),
         'waypoints_completed': result['waypoints_completed'],
+        'waypoints_skipped': result['waypoints_skipped'],
+        'frontier_goals_planned': result['frontier_goals_planned'],
         'final_pose': {'x': result['final_pose'].x, 'y': result['final_pose'].y, 'yaw': result['final_pose'].yaw},
         'map_ratios': ratios,
         'input_dir': str(input_root),
@@ -458,6 +618,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--timeout', type=float, default=60.0)
     parser.add_argument('--snapshot-period', type=float, default=10.0)
     parser.add_argument('--copy-from', type=Path, default=None, help='Optional scene-builder output directory to copy into --input before running')
+    parser.add_argument(
+        '--continue-after-route-complete',
+        action='store_true',
+        help='Keep scanning and saving snapshots until --timeout even after all route waypoints are complete.',
+    )
     return parser.parse_args()
 
 
@@ -470,6 +635,7 @@ def main() -> None:
         output_dir=args.output,
         timeout_s=args.timeout,
         snapshot_period_s=args.snapshot_period,
+        stop_on_route_complete=not args.continue_after_route_complete,
     )
     print(json.dumps(summary, indent=2))
 
