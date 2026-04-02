@@ -2,6 +2,254 @@
 
 Last updated: 2026-04-02
 
+### Read this first
+
+This file should be treated as an agent handoff, not just a raw log.
+
+Important:
+
+- some older sections below record what we believed at that time
+- several of those earlier "passing" checkpoints were later invalidated by stricter anti-crawl validation
+- current truth is the combination of:
+  - `Current status`
+  - `Current Stage A config snapshot`
+  - `Important checkpoints to know`
+  - `Current qualitative diagnosis`
+
+Landau command semantics:
+
+- semantic forward is `(+vx, 0, 0)`
+- Landau body forward axis is body `+Y`
+- the environment remaps semantic `vx` into env `lin_vel_y`
+- GUI `teleop` keyboard `W` currently sends semantic forward `0.8`
+
+### Current status
+
+Status as of the latest work on branch `task/fix_urdf_learn`:
+
+- the original user report about `model_3050.pt` "sitting on the ground and moving" was correct
+- older checkpoints such as `model_500.pt`, `model_3050.pt`, and `model_3248.pt` are now known false positives
+- the current code and validator are much better than before at rejecting crawling or seated sliding
+- the latest clean checkpoint is better than the old one:
+  - upper body stays up more reliably
+  - non-support crawl contacts can be driven to zero
+  - the robot is no longer obviously moving by sitting on the ground
+- but the task is still **not solved as normal walking/running**
+
+Current qualitative diagnosis:
+
+- the latest checkpoint looks more like a wide-leg stabilizing shuffle than a natural walk
+- it tends to open the legs, keep the upper body from falling, and move forward slowly or stiffly
+- it is **not** yet the usual alternating "left leg up then right leg up" walking/running pattern a person would expect
+- in other words:
+  - better than seated sliding
+  - better than crawl-dragging
+  - still not a convincing daily-life walk or run
+
+### Current Stage A config snapshot
+
+These notes describe the current code, not the earliest history.
+
+Policy / action / observation interface:
+
+- action dim: `29`
+- observation dim: `99`
+- controlled joints:
+  - legs
+  - feet / toes
+  - torso
+  - arms / hands
+- fingers are still not actively controlled in the policy action space
+
+Current Stage A command distribution in `LandauFwdOnlyEnvCfg`:
+
+- `lin_vel_x = (0.0, 0.0)`
+- `lin_vel_y = (0.45, 1.0)`
+- `ang_vel_z = (0.0, 0.0)`
+
+Current Stage A reward / termination ideas:
+
+- strong forward tracking:
+  - `track_lin_vel_xy_exp.weight = 3.0`
+  - `track_lin_vel_xy_exp.std = 0.2`
+- keep yaw / slip from becoming the main solution:
+  - `track_ang_vel_z_exp.weight = 1.0`
+  - `feet_slide.weight = -0.2`
+- step shaping:
+  - `feet_air_time.weight = 0.5`
+  - `feet_step_contact.weight = 1.0`
+- anti-crawl shaping:
+  - non-support contact count penalty
+  - dense non-support contact force penalty
+  - control-root height floor penalty
+  - gait-guard illegal-contact termination
+
+Current gait-guard design:
+
+- include controllable or load-bearing non-foot bodies such as:
+  - thighs
+  - shins / legs
+  - arms / forearms / hands
+- exclude fingertip phalanges
+  - reason: Stage A does not directly control finger joints, and fingertip contacts created optimizer noise without clean control authority
+
+Current PPO config that matters:
+
+- `num_steps_per_env = 24`
+- `max_iterations = 2500` for fresh Stage A runs
+- `save_interval = 50`
+- actor / critic hidden dims:
+  - `[512, 256, 128]`
+
+### Training / validation workflow for future agent
+
+Fresh Stage A run:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
+  --robot landau --stage fwd_only --headless \
+  --run_name <RUN_NAME>
+```
+
+Resume run:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
+  --robot landau --stage fwd_only --headless \
+  --resume True \
+  --experiment_name geo_landau_fwd_only \
+  --load_run <RUN_NAME> \
+  --checkpoint model_<N>.pt \
+  --max_iterations <K> \
+  --run_name <NEW_RUN_NAME>
+```
+
+Important resume gotcha:
+
+- in this setup, `--max_iterations` during resume behaves like "train for this many more iterations"
+- example:
+  - resuming from iteration `3050` with `--max_iterations 3250` produced training up to about `6300`
+- future agent should not assume `--max_iterations` means absolute target iteration on resume
+
+Validation commands that matter:
+
+Strict Stage A default:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.validate_walk \
+  --robot landau --stage fwd_only --headless \
+  --experiment_name geo_landau_fwd_only \
+  --load_run <RUN_NAME> \
+  --checkpoint model_<N>.pt
+```
+
+Teleop operating point:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.validate_walk \
+  --robot landau --stage fwd_only --headless \
+  --experiment_name geo_landau_fwd_only \
+  --load_run <RUN_NAME> \
+  --checkpoint model_<N>.pt \
+  --command-vx 0.8 --command-vy 0.0 --command-yaw 0.0 \
+  --min-planar-displacement 0.0
+```
+
+Fast forward operating point:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.validate_walk \
+  --robot landau --stage fwd_only --headless \
+  --experiment_name geo_landau_fwd_only \
+  --load_run <RUN_NAME> \
+  --checkpoint model_<N>.pt \
+  --command-vx 1.0 --command-vy 0.0 --command-yaw 0.0 \
+  --min-planar-displacement 0.0
+```
+
+Polling advice:
+
+- 10-20 minute polling is fine for long runs
+- but do not trust PPO reward alone
+- always re-run `validate_walk.py`
+- when a checkpoint looks visually suspicious in GUI, inspect:
+  - `done_count`
+  - `non_support_contact_step_sum`
+  - `non_support_contact_top`
+  - `mean_root_lin_vel_b`
+  - `contact_switches`
+
+### Important checkpoints to know
+
+These are the checkpoints another agent should remember first.
+
+1. `2026-04-02_15-59-09_staged_fix_fullbody_stage_a/model_500.pt`
+   - historical importance:
+     - first checkpoint that passed the old Stage A validator
+     - first proof that the 29-action / 99-observation full-body policy was much better than the earlier lower-body-only version
+   - later problem:
+     - strict anti-crawl validation showed it was still a false positive
+     - `non_support_contact_step_sum=1235`
+
+2. `2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover/model_3050.pt`
+   - historical importance:
+     - first "good" fast-run checkpoint we used in GUI
+   - later problem:
+     - user correctly noticed it was moving while seated / dragging
+     - strict anti-crawl validation:
+       - `non_support_contact_step_sum=1171`
+       - `min_control_root_height=0.0947`
+
+3. `2026-04-02_19-12-13_staged_fix_fast_forward_crawl_guard_force_resume/model_3249.pt`
+   - importance:
+     - first checkpoint in the recovery line that was clearly no longer dominated by crawling
+   - performance at semantic `(0.5, 0.0, 0.0)`:
+     - planar displacement `0.5550 m`
+     - mean forward speed `0.1353 m/s`
+     - `done_count=6`
+     - `non_support_contact_step_sum=20`
+   - problem:
+     - still too unstable for the strict Stage A validator
+
+4. `2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume/model_3300.pt`
+   - importance:
+     - good "speed side" checkpoint in the latest recovery family
+   - performance at semantic `(0.5, 0.0, 0.0)`:
+     - planar displacement `2.2823 m`
+     - mean forward speed `0.3903 m/s`
+     - `done_count=1`
+     - `non_support_contact_step_sum=4`
+   - problem:
+     - orthogonal drift still too high:
+       - `0.132 > 0.1`
+
+5. `2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume/model_3348.pt`
+   - importance:
+     - current cleanest anti-crawl checkpoint
+     - best GUI / teleop replacement for the old `model_3050.pt`
+   - performance:
+     - semantic `(0.8, 0.0, 0.0)`:
+       - planar displacement `1.1738 m`
+       - mean forward speed `0.1624 m/s`
+       - `done_count=0`
+       - `non_support_contact_step_sum=0`
+       - strict validator pass
+     - semantic `(1.0, 0.0, 0.0)`:
+       - planar displacement `1.0851 m`
+       - mean forward speed `0.1574 m/s`
+       - `done_count=0`
+       - `non_support_contact_step_sum=0`
+       - strict validator pass
+     - semantic `(0.5, 0.0, 0.0)`:
+       - planar displacement `0.6986 m`
+       - mean forward speed `0.1208 m/s`
+       - `done_count=0`
+       - `non_support_contact_step_sum=0`
+       - fails only because forward speed is slightly below the `0.15 m/s` strict Stage A threshold
+   - current qualitative problem:
+     - cleaner than the old crawl checkpoints
+     - still looks like a stiff wide-leg stabilizing gait rather than natural alternating walking
+
 ### Goal
 
 Make `algorithms/urdf_learn_wasd_walk` Stage A (`--stage fwd_only`) produce a checkpoint that passes:
@@ -233,7 +481,7 @@ That bug is fixed. Stage A defaults must remain:
 - semantic `(0.5, 0.0, 0.0)`
 - env `(0.0, 0.5, 0.0)` after Landau remap
 
-### Current diagnosis
+### Historical diagnosis at that time
 
 The main Stage A blocker is resolved.
 
@@ -492,7 +740,7 @@ If the goal is specifically "make Landau run faster" rather than "just pass Stag
    - normal forward command `(0.5, 0.0, 0.0)`
    - fast forward command `(1.0, 0.0, 0.0)`
 
-### Current bottom line
+### Historical bottom line at that time
 
 - The original Stage A pass is preserved.
 - Fast-running support now works with validated checkpoints.
@@ -622,7 +870,7 @@ Key checkpoints:
   - `non_support_contact_step_sum=0`
   - validator pass
 
-### Recommended checkpoints now
+### Current recommended starting points
 
 For GUI `play` / `teleop` and the original "it is sitting on the ground" user complaint:
 
@@ -631,6 +879,7 @@ For GUI `play` / `teleop` and the original "it is sitting on the ground" user co
   - validated at semantic `0.8` and `1.0`
   - `done_count=0`
   - `non_support_contact_step_sum=0`
+  - but this is still not final-quality human-like walking
 
 For future tuning if the goal is specifically "pass the strict Stage A validator at semantic `0.5`":
 
@@ -653,3 +902,27 @@ If a future agent sees Landau "moving while seated" again:
 5. Exclude fingertip phalanges from the gait guard.
 6. Lower the Stage A minimum commanded forward speed from `0.55` to `0.45` when recovering the semantic `0.5` validation case.
 7. Treat `model_3348.pt` as the clean non-crawling baseline for GUI usage, then continue tuning low-speed drift / speed from there if needed.
+
+### Current qualitative diagnosis
+
+This is the most important plain-language summary for a future coding agent:
+
+- the latest checkpoint is **not** doing the old seated crawl anymore
+- it is also better than the previous fast-run checkpoints because the upper body stays up and the forbidden crawl contacts are gone
+- however, it still does not look like ordinary walking or running
+- the current motion is closer to:
+  - opening the legs wide
+  - using that wide stance to keep the torso from falling
+  - moving forward with a conservative stiff shuffle
+- that is why the project should be considered:
+  - improved
+  - anti-crawl
+  - but still not solved as natural gait
+
+If a future agent continues from here, the target is no longer "remove sitting crawl".
+The target becomes:
+
+- convert the current anti-crawl wide-stance shuffle into a real alternating walk / run
+- keep the upper body stable
+- keep non-support contact near zero
+- keep the new strict validator behavior
