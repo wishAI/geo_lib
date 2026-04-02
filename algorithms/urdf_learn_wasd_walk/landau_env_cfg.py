@@ -244,3 +244,49 @@ class LandauFlatEnvCfg_PLAY(LandauFlatEnvCfg):
         self.events.push_robot = None
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (1.0e9, 1.0e9)
+
+
+# ---------------------------------------------------------------------------
+# Staged curriculum configs
+# ---------------------------------------------------------------------------
+# Stage A: forward-only — learn to translate before anything else.
+# Landau forward = body Y, so we command lin_vel_y only.
+
+
+@configclass
+class LandauFwdOnlyEnvCfg(LandauFlatEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+
+
+@configclass
+class LandauFwdOnlyEnvCfg_PLAY(LandauFlatEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+
+
+# Stage B: forward + yaw — add heading control once forward is proven.
+
+
+@configclass
+class LandauFwdYawEnvCfg(LandauFlatEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)
+
+
+@configclass
+class LandauFwdYawEnvCfg_PLAY(LandauFlatEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)

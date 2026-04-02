@@ -5,11 +5,18 @@ import argparse
 from isaaclab.app import AppLauncher
 
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
+from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate that a trained checkpoint loads and produces biped locomotion.")
     parser.add_argument("--robot", choices=supported_robot_keys(), required=True)
+    parser.add_argument(
+        "--stage",
+        choices=LANDAU_CURRICULUM_STAGES,
+        default=None,
+        help="Landau curriculum stage. Sets stage-appropriate default thresholds.",
+    )
     parser.add_argument("--disable_fabric", action="store_true", default=False)
     parser.add_argument("--num_envs", type=int, default=1)
     parser.add_argument("--seed", type=int, default=0)
@@ -93,9 +100,36 @@ def _validate_metric(condition: bool, label: str, value, threshold) -> None:
         raise AssertionError(f"{label} failed: value={value} threshold={threshold}")
 
 
+def _apply_stage_defaults(args) -> None:
+    """Override CLI defaults with stage-specific acceptance thresholds."""
+    stage = args.stage
+    if stage is None or args.robot != "landau":
+        return
+    if stage == "fwd_only":
+        # forward-only: must show clear translation, no yaw needed
+        if args.command_vx == 0.5 and args.command_vy == 0.0:
+            # default command — override to match stage semantics (forward = env Y for Landau)
+            args.command_vx = 0.0
+            args.command_vy = 0.5
+        if args.min_planar_displacement == 0.05:
+            args.min_planar_displacement = 0.3
+        if args.steps == 256:
+            args.steps = 500
+    elif stage == "fwd_yaw":
+        if args.command_vx == 0.5 and args.command_vy == 0.0:
+            args.command_vx = 0.0
+            args.command_vy = 0.4
+            args.command_yaw = 0.3
+        if args.min_planar_displacement == 0.05:
+            args.min_planar_displacement = 0.2
+        if args.steps == 256:
+            args.steps = 500
+
+
 def main() -> None:
+    _apply_stage_defaults(args_cli)
     register_gym_envs()
-    task_spec = resolve_robot_task_spec(args_cli.robot)
+    task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
     env_cfg, agent_cfg = load_env_and_runner_cfg(task_spec.play_task_id, args_cli)
     env_cfg.scene.num_envs = 1
 
@@ -137,14 +171,14 @@ def main() -> None:
 
     obs, _ = env.get_observations()
     semantic_command = (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)
-    env_command = clamp_base_velocity_command(env_cfg, semantic_command_to_env_command(task_spec.key, semantic_command))
+    env_command = clamp_base_velocity_command(env_cfg, semantic_command_to_env_command(task_spec.forward_body_axis, semantic_command))
     force_base_velocity_command(env.unwrapped, env_command)
 
     initial_root_pos = robot.data.root_pos_w[0].detach().cpu()
     initial_root_quat = robot.data.root_quat_w[0].detach().cpu()
     initial_body_x_xy, initial_body_y_xy = _body_axes_xy(initial_root_quat)
     initial_forward_dir_xy = torch.tensor(
-        semantic_forward_dir_xy(task_spec.key, initial_root_quat.tolist()),
+        semantic_forward_dir_xy(task_spec.forward_body_axis, initial_root_quat.tolist()),
         dtype=torch.float32,
     )
     initial_left_support_pos = robot.data.body_pos_w[0, left_support_robot_ids].detach().cpu()
@@ -258,10 +292,13 @@ def main() -> None:
     print(f"[VALIDATE] feet={foot_names}", flush=True)
     print(f"[VALIDATE] support_left={left_support_names}", flush=True)
     print(f"[VALIDATE] support_right={right_support_names}", flush=True)
+    print(f"[VALIDATE] forward_body_axis={task_spec.forward_body_axis}", flush=True)
     print(f"[VALIDATE] semantic_command={semantic_command}", flush=True)
     print(f"[VALIDATE] env_command={env_command}", flush=True)
     print(f"[VALIDATE] forward_displacement={forward_displacement:.4f}", flush=True)
     print(f"[VALIDATE] planar_displacement={max_planar_displacement:.4f}", flush=True)
+    print(f"[VALIDATE] raw_root_x_displacement={final_body_axis_displacement[0]:.4f}", flush=True)
+    print(f"[VALIDATE] raw_root_y_displacement={final_body_axis_displacement[1]:.4f}", flush=True)
     print(f"[VALIDATE] body_axis_displacement_abs={max_abs_body_axis_progress.tolist()}", flush=True)
     print(f"[VALIDATE] final_body_axis_displacement={final_body_axis_displacement.tolist()}", flush=True)
     print(f"[VALIDATE] lateral_separation={lateral_separation:.4f}", flush=True)
@@ -297,6 +334,24 @@ def main() -> None:
             int(contact_switches[index]),
             args_cli.min_contact_switches,
         )
+
+    # Stage-specific acceptance gates
+    if args_cli.stage == "fwd_only":
+        # commanded axis should show at least 0.2 m/s mean speed
+        fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
+        mean_fwd_speed = abs(float(mean_root_lin_vel_b[fwd_axis_idx]))
+        _validate_metric(mean_fwd_speed >= 0.15, "fwd_only mean forward speed", f"{mean_fwd_speed:.3f}", 0.15)
+        # orthogonal axis should stay small
+        ortho_idx = 0 if fwd_axis_idx == 1 else 1
+        mean_ortho_speed = abs(float(mean_root_lin_vel_b[ortho_idx]))
+        _validate_metric(mean_ortho_speed < 0.1, "fwd_only orthogonal drift", f"{mean_ortho_speed:.3f}", "< 0.1")
+    elif args_cli.stage == "fwd_yaw":
+        fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
+        mean_fwd_speed = abs(float(mean_root_lin_vel_b[fwd_axis_idx]))
+        _validate_metric(mean_fwd_speed >= 0.1, "fwd_yaw mean forward speed", f"{mean_fwd_speed:.3f}", 0.1)
+        mean_yaw_rate = abs(float(mean_root_ang_vel_w[2]))
+        if abs(args_cli.command_yaw) > 0.1:
+            _validate_metric(mean_yaw_rate >= 0.1, "fwd_yaw mean yaw rate", f"{mean_yaw_rate:.3f}", 0.1)
 
     print("[VALIDATE] walk validation passed", flush=True)
     env.close()

@@ -41,3 +41,15 @@ class LandauFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
 
+
+@configclass
+class LandauFwdOnlyPPORunnerCfg(LandauFlatPPORunnerCfg):
+    experiment_name = "geo_landau_fwd_only"
+    max_iterations = 1500
+
+
+@configclass
+class LandauFwdYawPPORunnerCfg(LandauFlatPPORunnerCfg):
+    experiment_name = "geo_landau_fwd_yaw"
+    max_iterations = 2000
+

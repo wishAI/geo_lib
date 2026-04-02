@@ -68,6 +68,44 @@ def test_keyboard_events_accept_string_inputs(monkeypatch) -> None:
     assert fake_input.unsubscribe_calls == 1
 
 
+def test_keyboard_repeat_without_initial_press_still_acts_like_held_key(monkeypatch) -> None:
+    module, _ = _load_teleop_module(monkeypatch)
+    device = module.WasdSe2Keyboard(debug_print=False)
+
+    try:
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_REPEAT"))
+        np.testing.assert_allclose(
+            device.advance(),
+            np.asarray([device.v_x_sensitivity, 0.0, 0.0], dtype=np.float32),
+        )
+
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_REPEAT"))
+        np.testing.assert_allclose(
+            device.advance(),
+            np.asarray([device.v_x_sensitivity, 0.0, 0.0], dtype=np.float32),
+        )
+
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_RELEASE"))
+        np.testing.assert_allclose(device.advance(), np.zeros(3, dtype=np.float32))
+    finally:
+        device.__del__()
+
+
+def test_keyboard_reset_clears_active_keys(monkeypatch) -> None:
+    module, _ = _load_teleop_module(monkeypatch)
+    device = module.WasdSe2Keyboard(debug_print=False)
+
+    try:
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_REPEAT"))
+        device._on_keyboard_event(SimpleNamespace(input="L", type="KEY_PRESS"))
+        np.testing.assert_allclose(device.advance(), np.zeros(3, dtype=np.float32))
+
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_RELEASE"))
+        np.testing.assert_allclose(device.advance(), np.zeros(3, dtype=np.float32))
+    finally:
+        device.__del__()
+
+
 def test_keyboard_events_accept_named_inputs(monkeypatch) -> None:
     module, _ = _load_teleop_module(monkeypatch)
     device = module.WasdSe2Keyboard(debug_print=False)

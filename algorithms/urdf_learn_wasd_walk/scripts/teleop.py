@@ -5,11 +5,14 @@ import argparse
 from isaaclab.app import AppLauncher
 
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
+from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Teleoperate a trained locomotion policy with keyboard or gamepad.")
     parser.add_argument("--robot", choices=supported_robot_keys(), required=True)
+    parser.add_argument("--stage", choices=LANDAU_CURRICULUM_STAGES, default=None,
+                        help="Landau curriculum stage (sets experiment name for checkpoint lookup).")
     parser.add_argument("--input-device", choices=("keyboard", "gamepad"), default="keyboard")
     parser.add_argument("--visual-mode", choices=("auto", "urdf", "usd", "both"), default="auto")
     parser.add_argument("--disable_fabric", action="store_true", default=False)
@@ -83,7 +86,7 @@ def main() -> None:
         raise RuntimeError("Teleoperation requires GUI mode. Run without --headless.")
 
     register_gym_envs()
-    task_spec = resolve_robot_task_spec(args_cli.robot)
+    task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
     env_cfg, agent_cfg = load_env_and_runner_cfg(task_spec.play_task_id, args_cli)
     visual_mode = _resolve_visual_mode(args_cli.robot, args_cli.visual_mode)
 
@@ -135,10 +138,11 @@ def main() -> None:
         visualizer.sync_from_robot(robot)
     step_count = 0
     last_env_command = None
+    diag_interval = 50  # print velocity diagnostics every N steps
     while simulation_app.is_running():
         semantic_command = tuple(float(value) for value in teleop_device.advance())
         env_command = clamp_base_velocity_command(
-            env_cfg, semantic_command_to_env_command(task_spec.key, semantic_command)
+            env_cfg, semantic_command_to_env_command(task_spec.forward_body_axis, semantic_command)
         )
         if env_command != last_env_command:
             print(f"[TELEOP] env_command -> {env_command}", flush=True)
@@ -150,6 +154,14 @@ def main() -> None:
         if visualizer is not None:
             visualizer.sync_from_robot(robot)
         step_count += 1
+        if step_count % diag_interval == 0:
+            lin_vel_b = robot.data.root_lin_vel_b[0].detach().cpu()
+            ang_vel_w = robot.data.root_ang_vel_w[0].detach().cpu()
+            print(
+                f"[TELEOP] vel_b=({lin_vel_b[0]:.3f}, {lin_vel_b[1]:.3f}, {lin_vel_b[2]:.3f}) "
+                f"yaw_rate={ang_vel_w[2]:.3f} cmd={env_command}",
+                flush=True,
+            )
         if args_cli.steps is not None and step_count >= args_cli.steps:
             break
 

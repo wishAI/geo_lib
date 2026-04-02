@@ -30,6 +30,7 @@ class WasdSe2Keyboard:
             lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
         )
         self._base_command = np.zeros(3, dtype=np.float32)
+        self._active_keys: set[str] = set()
         self._additional_callbacks: dict[str, Callable[[], None]] = {}
         self._create_key_bindings()
 
@@ -50,6 +51,7 @@ class WasdSe2Keyboard:
         )
 
     def reset(self) -> None:
+        self._active_keys.clear()
         self._base_command.fill(0.0)
 
     def add_callback(self, key: str, func: Callable[[], None]) -> None:
@@ -68,23 +70,32 @@ class WasdSe2Keyboard:
         event_name = self._normalize_event_name(getattr(event, "type", ""))
         if self.debug_print and key_name in self._DEBUG_KEYS:
             print(f"[TELEOP] key_event type={event_name} key={key_name}", flush=True)
-        if event_name == "KEY_PRESS":
+        if event_name in {"KEY_PRESS", "KEY_REPEAT"}:
             if key_name == "L":
-                self.reset()
-                if self.debug_print:
-                    print(f"[TELEOP] command reset -> {self._base_command.tolist()}", flush=True)
+                if event_name == "KEY_PRESS":
+                    self.reset()
+                    if self.debug_print:
+                        print(f"[TELEOP] command reset -> {self._base_command.tolist()}", flush=True)
             elif key_name in self._INPUT_KEY_MAPPING:
-                self._base_command += self._INPUT_KEY_MAPPING[key_name]
-                if self.debug_print:
-                    print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
-            if key_name in self._additional_callbacks:
+                if key_name not in self._active_keys:
+                    self._active_keys.add(key_name)
+                    self._rebuild_base_command()
+                    if self.debug_print:
+                        print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
+            if event_name == "KEY_PRESS" and key_name in self._additional_callbacks:
                 self._additional_callbacks[key_name]()
         if event_name == "KEY_RELEASE":
-            if key_name in self._INPUT_KEY_MAPPING:
-                self._base_command -= self._INPUT_KEY_MAPPING[key_name]
+            if key_name in self._INPUT_KEY_MAPPING and key_name in self._active_keys:
+                self._active_keys.remove(key_name)
+                self._rebuild_base_command()
                 if self.debug_print:
                     print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
         return True
+
+    def _rebuild_base_command(self) -> None:
+        self._base_command.fill(0.0)
+        for key_name in self._active_keys:
+            self._base_command += self._INPUT_KEY_MAPPING[key_name]
 
     def _create_key_bindings(self) -> None:
         self._INPUT_KEY_MAPPING = {

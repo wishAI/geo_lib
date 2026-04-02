@@ -23,19 +23,21 @@ class RobotTaskSpec:
     train_task_id: str
     play_task_id: str
     experiment_name: str
+    forward_body_axis: str = "x"  # "x" or "y" — which body-frame axis is semantic forward
+    control_root_link: str | None = None  # explicit control root; None means use root_link_name
 
 
 @dataclass(frozen=True)
 class LandauRobotSpec(RobotTaskSpec):
-    urdf_path: Path
-    root_link_name: str
-    primary_foot_links: tuple[str, ...]
-    support_link_names: tuple[str, ...]
-    termination_link_names: tuple[str, ...]
-    joint_groups: JointGroups
-    default_joint_positions: dict[str, float]
-    init_root_height: float
-    missing_meshes: tuple[Path, ...]
+    urdf_path: Path = Path()
+    root_link_name: str = ""
+    primary_foot_links: tuple[str, ...] = ()
+    support_link_names: tuple[str, ...] = ()
+    termination_link_names: tuple[str, ...] = ()
+    joint_groups: JointGroups | None = None
+    default_joint_positions: dict[str, float] | None = None
+    init_root_height: float = 0.0
+    missing_meshes: tuple[Path, ...] = ()
 
 
 G1_TASK_SPEC = RobotTaskSpec(
@@ -65,7 +67,34 @@ def _build_landau_default_joint_positions() -> dict[str, float]:
     }
 
 
-def load_landau_robot_spec(urdf_path: Path | None = None) -> LandauRobotSpec:
+_LANDAU_STAGE_TASK_IDS: dict[str, dict[str, str]] = {
+    "full": {
+        "train": "Geo-Velocity-Flat-Landau-v0",
+        "play": "Geo-Velocity-Flat-Landau-Play-v0",
+        "experiment": "geo_landau_flat",
+    },
+    "fwd_only": {
+        "train": "Geo-Velocity-Flat-Landau-FwdOnly-v0",
+        "play": "Geo-Velocity-Flat-Landau-FwdOnly-Play-v0",
+        "experiment": "geo_landau_fwd_only",
+    },
+    "fwd_yaw": {
+        "train": "Geo-Velocity-Flat-Landau-FwdYaw-v0",
+        "play": "Geo-Velocity-Flat-Landau-FwdYaw-Play-v0",
+        "experiment": "geo_landau_fwd_yaw",
+    },
+}
+
+
+def load_landau_robot_spec(
+    urdf_path: Path | None = None, stage: str = "full"
+) -> LandauRobotSpec:
+    if stage not in _LANDAU_STAGE_TASK_IDS:
+        raise ValueError(
+            f"Unknown Landau stage '{stage}'. "
+            f"Expected one of: {', '.join(_LANDAU_STAGE_TASK_IDS)}"
+        )
+    ids = _LANDAU_STAGE_TASK_IDS[stage]
     resolved_urdf = Path(urdf_path or landau_urdf_path()).resolve()
     model = load_urdf_model(resolved_urdf)
     root_link_name = model.root_links[0] if model.root_links else "base_link"
@@ -84,9 +113,11 @@ def load_landau_robot_spec(urdf_path: Path | None = None) -> LandauRobotSpec:
     return LandauRobotSpec(
         key="landau",
         display_name="Landau v10 URDF",
-        train_task_id="Geo-Velocity-Flat-Landau-v0",
-        play_task_id="Geo-Velocity-Flat-Landau-Play-v0",
-        experiment_name="geo_landau_flat",
+        train_task_id=ids["train"],
+        play_task_id=ids["play"],
+        experiment_name=ids["experiment"],
+        forward_body_axis="y",
+        control_root_link="root_x",
         urdf_path=resolved_urdf,
         root_link_name=root_link_name,
         primary_foot_links=primary_feet,
