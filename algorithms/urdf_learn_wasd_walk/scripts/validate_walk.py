@@ -106,19 +106,18 @@ def _apply_stage_defaults(args) -> None:
     if stage is None or args.robot != "landau":
         return
     if stage == "fwd_only":
-        # forward-only: must show clear translation, no yaw needed
+        # forward-only: semantic forward is still +vx; command mapping handles Landau's body-Y forward axis
         if args.command_vx == 0.5 and args.command_vy == 0.0:
-            # default command — override to match stage semantics (forward = env Y for Landau)
-            args.command_vx = 0.0
-            args.command_vy = 0.5
+            args.command_vx = 0.5
+            args.command_vy = 0.0
         if args.min_planar_displacement == 0.05:
             args.min_planar_displacement = 0.3
         if args.steps == 256:
             args.steps = 500
     elif stage == "fwd_yaw":
         if args.command_vx == 0.5 and args.command_vy == 0.0:
-            args.command_vx = 0.0
-            args.command_vy = 0.4
+            args.command_vx = 0.4
+            args.command_vy = 0.0
             args.command_yaw = 0.3
         if args.min_planar_displacement == 0.05:
             args.min_planar_displacement = 0.2

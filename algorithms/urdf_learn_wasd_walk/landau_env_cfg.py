@@ -258,7 +258,8 @@ class LandauFwdOnlyEnvCfg(LandauFlatEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        # Bias Stage A toward meaningful forward tracking instead of near-zero "successes".
+        self.commands.base_velocity.ranges.lin_vel_y = (0.35, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
 
@@ -279,7 +280,7 @@ class LandauFwdYawEnvCfg(LandauFlatEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.35, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)
 
 
