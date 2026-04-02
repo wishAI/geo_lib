@@ -13,7 +13,10 @@ TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
 if TORCH_AVAILABLE:
     import torch
 
-    from algorithms.urdf_learn_wasd_walk.custom_rewards import grouped_support_mode_time
+    from algorithms.urdf_learn_wasd_walk.custom_rewards import (
+        grouped_support_first_contact_reward,
+        grouped_support_mode_time,
+    )
 
 
 @unittest.skipUnless(TORCH_AVAILABLE, "torch is not available in the system test interpreter")
@@ -35,6 +38,25 @@ class GroupedSupportModeTimeTests(unittest.TestCase):
 
         self.assertTrue(torch.equal(in_contact, torch.tensor([False])))
         self.assertTrue(torch.allclose(mode_time, torch.tensor([0.5])))
+
+
+@unittest.skipUnless(TORCH_AVAILABLE, "torch is not available in the system test interpreter")
+class GroupedSupportFirstContactRewardTests(unittest.TestCase):
+    def test_rewards_group_landing_after_threshold(self) -> None:
+        first_contact = torch.tensor([[True, False], [False, False]], dtype=torch.bool)
+        last_air_time = torch.tensor([[0.7, 0.6], [0.9, 0.8]], dtype=torch.float32)
+
+        reward = grouped_support_first_contact_reward(first_contact, last_air_time, threshold=0.4)
+
+        self.assertTrue(torch.allclose(reward, torch.tensor([0.3, 0.0])))
+
+    def test_uses_longest_air_time_in_group(self) -> None:
+        first_contact = torch.tensor([[False, True]], dtype=torch.bool)
+        last_air_time = torch.tensor([[0.45, 0.8]], dtype=torch.float32)
+
+        reward = grouped_support_first_contact_reward(first_contact, last_air_time, threshold=0.5)
+
+        self.assertTrue(torch.allclose(reward, torch.tensor([0.3])))
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ from isaaclab.utils import configclass
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
 from .asset_setup import prepare_landau_inputs
+from .custom_rewards import grouped_support_first_contact_biped
 from .robot_specs import load_landau_robot_spec
 from .urdf_utils import load_urdf_model
 
@@ -36,6 +37,9 @@ LANDAU_UPPER_BODY_JOINTS = tuple(
     (*LANDAU_SPEC.joint_groups.arm_joints, *LANDAU_SPEC.joint_groups.hand_joints)
 )
 LANDAU_PRIMARY_FOOT_LINKS = tuple(LANDAU_SPEC.primary_foot_links)
+LANDAU_SUPPORT_LINKS = tuple(LANDAU_SPEC.support_link_names)
+LANDAU_LEFT_SUPPORT_LINKS = tuple(name for name in LANDAU_SUPPORT_LINKS if name.endswith("_l"))
+LANDAU_RIGHT_SUPPORT_LINKS = tuple(name for name in LANDAU_SUPPORT_LINKS if name.endswith("_r"))
 
 
 def build_landau_action_scale(
@@ -163,6 +167,16 @@ class LandauRewards(RewardsCfg):
             "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_PRIMARY_FOOT_LINKS)),
             "threshold": 0.4,
+        },
+    )
+    feet_step_contact = RewTerm(
+        func=grouped_support_first_contact_biped,
+        weight=0.0,
+        params={
+            "command_name": "base_velocity",
+            "threshold": 0.4,
+            "left_sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_LEFT_SUPPORT_LINKS)),
+            "right_sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_RIGHT_SUPPORT_LINKS)),
         },
     )
     feet_slide = RewTerm(
@@ -298,19 +312,23 @@ class LandauFwdOnlyEnvCfg(LandauFlatEnvCfg):
             leg_scale=0.5,
             foot_scale=0.35,
             toe_scale=0.25,
-            torso_scale=0.35,
-            arm_scale=0.25,
-            hand_scale=0.2,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
         )
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
-        # Bias Stage A toward meaningful forward tracking instead of near-zero "successes".
-        self.commands.base_velocity.ranges.lin_vel_y = (0.35, 0.5)
+        # Bias Stage A toward a faster gait instead of converging to one comfortable walk speed.
+        self.commands.base_velocity.ranges.lin_vel_y = (0.55, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
-        # Stage A should reward forward translation, not "standing still with zero yaw error".
+        # Keep forward speed dominant, but make uncontrolled yaw and slip materially expensive.
         self.rewards.track_lin_vel_xy_exp.weight = 3.0
         self.rewards.track_lin_vel_xy_exp.params["std"] = 0.2
-        self.rewards.track_ang_vel_z_exp.weight = 0.0
-        self.rewards.feet_air_time.weight = 1.0
+        self.rewards.track_ang_vel_z_exp.weight = 1.0
+        self.rewards.feet_air_time.weight = 0.5
+        self.rewards.feet_step_contact.weight = 1.0
+        self.rewards.feet_slide.weight = -0.2
+        self.rewards.joint_deviation_upper.weight = -0.06
+        self.rewards.joint_deviation_torso.weight = -0.05
         self.rewards.action_rate_l2.weight = -0.0025
 
 
@@ -322,12 +340,12 @@ class LandauFwdOnlyEnvCfg_PLAY(LandauFlatEnvCfg_PLAY):
             leg_scale=0.5,
             foot_scale=0.35,
             toe_scale=0.25,
-            torso_scale=0.35,
-            arm_scale=0.25,
-            hand_scale=0.2,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
         )
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
 
@@ -342,12 +360,12 @@ class LandauFwdYawEnvCfg(LandauFlatEnvCfg):
             leg_scale=0.5,
             foot_scale=0.35,
             toe_scale=0.25,
-            torso_scale=0.35,
-            arm_scale=0.25,
-            hand_scale=0.2,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
         )
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.35, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.55, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)
         self.rewards.track_lin_vel_xy_exp.weight = 2.0
         self.rewards.track_lin_vel_xy_exp.params["std"] = 0.25
@@ -361,10 +379,10 @@ class LandauFwdYawEnvCfg_PLAY(LandauFlatEnvCfg_PLAY):
             leg_scale=0.5,
             foot_scale=0.35,
             toe_scale=0.25,
-            torso_scale=0.35,
-            arm_scale=0.25,
-            hand_scale=0.2,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
         )
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)

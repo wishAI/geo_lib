@@ -20,6 +20,18 @@ def grouped_support_mode_time(
     return in_contact, mode_time
 
 
+def grouped_support_first_contact_reward(
+    first_contact: torch.Tensor,
+    last_air_time: torch.Tensor,
+    threshold: float,
+) -> torch.Tensor:
+    """Reward a grouped support side only when it lands after sufficient air time."""
+
+    group_first_contact = torch.any(first_contact, dim=1)
+    group_last_air_time = torch.max(last_air_time, dim=1).values
+    return torch.clamp(group_last_air_time - threshold, min=0.0) * group_first_contact
+
+
 def grouped_support_air_time_positive_biped(
     env,
     command_name: str,
@@ -47,5 +59,33 @@ def grouped_support_air_time_positive_biped(
     reward = torch.minimum(left_mode_time, right_mode_time)
     reward = torch.where(single_stance, reward, torch.zeros_like(reward))
     reward = torch.clamp(reward, max=threshold)
+    reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
+    return reward
+
+
+def grouped_support_first_contact_biped(
+    env,
+    command_name: str,
+    threshold: float,
+    left_sensor_cfg: "SceneEntityCfg",
+    right_sensor_cfg: "SceneEntityCfg",
+) -> torch.Tensor:
+    """Reward real left/right landings for grouped support links on a biped."""
+
+    contact_sensor = env.scene.sensors[left_sensor_cfg.name]
+    first_contact = contact_sensor.compute_first_contact(env.step_dt)
+
+    left_reward = grouped_support_first_contact_reward(
+        first_contact[:, left_sensor_cfg.body_ids],
+        contact_sensor.data.last_air_time[:, left_sensor_cfg.body_ids],
+        threshold,
+    )
+    right_reward = grouped_support_first_contact_reward(
+        first_contact[:, right_sensor_cfg.body_ids],
+        contact_sensor.data.last_air_time[:, right_sensor_cfg.body_ids],
+        threshold,
+    )
+
+    reward = left_reward + right_reward
     reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
     return reward

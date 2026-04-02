@@ -315,3 +315,185 @@ This is the working method that produced the first passing Stage A checkpoint:
 - `model_800.pt` from `staged_fix_strict_reward` was the first checkpoint to pass displacement but still failed speed (`0.097 m/s`).
 - During long training, polling every 10-20 minutes is reasonable.
 - Do not assume PPO reward means the walk is fixed. Always rerun `validate_walk.py`.
+
+## 2026-04-02 Fast-Run Optimization Follow-Up
+
+This section records the later Stage A speed-optimization work after the first pass.
+
+### Goal
+
+- Keep the passing Stage A walk.
+- Increase top forward speed.
+- Keep actual left/right stepping quality instead of accepting a one-sided hop.
+
+### Config evolution
+
+Fast-run tuning was applied in `landau_env_cfg.py`:
+
+1. Raise Stage A/FwdYaw command ceiling from `0.8` to `1.0`.
+2. Keep stronger forward tracking and add stronger yaw/slip pressure.
+3. Reduce upper-body action authority slightly so the policy cannot buy speed mostly through spin torque.
+
+Then a second fix was needed:
+
+1. The stock upstream `feet_air_time_positive_biped` reward can still score a pathological one-sided single-stance gait.
+2. To correct that, a grouped side-landing reward was added in `custom_rewards.py`:
+   - `grouped_support_first_contact_biped`
+3. Stage A was then retuned to use:
+   - `feet_air_time.weight = 0.5`
+   - `feet_step_contact.weight = 1.0`
+
+### Runs and results
+
+#### 1. Fast-forward baseline resume
+
+Run:
+- `2026-04-02_16-18-45_staged_fix_fast_forward`
+
+Method:
+- resumed from the first passing Stage A checkpoint
+- widened Stage A command band toward faster forward motion
+
+Useful checkpoints:
+- `model_1500.pt` at semantic command `(1.0, 0.0, 0.0)` was not available yet because play was still capped below `1.0`
+- `model_1750.pt` under the widened play cap showed:
+  - at semantic command `(1.0, 0.0, 0.0)`
+    - planar displacement `0.5098 m`
+    - mean forward speed `0.5050 m/s`
+    - mean yaw rate `1.6505 rad/s`
+    - validator pass, but still very spin-heavy
+  - at semantic command `(0.5, 0.0, 0.0)`
+    - planar displacement `0.5469 m`
+    - mean forward speed `0.4060 m/s`
+    - mean yaw rate `1.2716 rad/s`
+
+Interpretation:
+- faster than the original passing walk
+- still too spin-heavy
+- not good enough as the final fast-run solution
+
+#### 2. Anti-spin fast-run resume
+
+Run:
+- `2026-04-02_16-56-24_staged_fix_fast_forward_spin_control`
+
+Command:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
+  --robot landau --stage fwd_only --headless \
+  --resume True \
+  --load_run 2026-04-02_16-18-45_staged_fix_fast_forward \
+  --checkpoint model_1750.pt \
+  --max_iterations 1000 \
+  --run_name staged_fix_fast_forward_spin_control
+```
+
+Result:
+- this pushed speed materially higher
+- but it exposed a new failure mode at high speed: the right side stopped switching contacts
+
+Representative checkpoints at semantic command `(1.0, 0.0, 0.0)`:
+- `model_2200.pt`
+  - planar displacement `0.8096 m`
+  - mean forward speed `0.6074 m/s`
+  - mean yaw rate `1.3031 rad/s`
+  - failed validator: `right_leg contact switches = 0`
+- `model_2500.pt`
+  - planar displacement `0.7538 m`
+  - mean forward speed `0.5995 m/s`
+  - mean yaw rate `1.2900 rad/s`
+  - failed validator: `right_leg contact switches = 0`
+- `model_2749.pt`
+  - planar displacement `0.8822 m`
+  - mean forward speed `0.6693 m/s`
+  - mean yaw rate `1.2676 rad/s`
+  - failed validator: `right_leg contact switches = 0`
+
+Important diagnosis:
+- the policy got faster and cleaner in yaw than the earlier fast-forward run
+- but it did so by drifting into a one-sided gait
+- this is why PPO reward alone was misleading here
+
+#### 3. Contact-recovery resume with grouped side-landing reward
+
+Run:
+- `2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover`
+
+Command:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
+  --robot landau --stage fwd_only --headless \
+  --resume True \
+  --load_run 2026-04-02_16-56-24_staged_fix_fast_forward_spin_control \
+  --checkpoint model_2749.pt \
+  --max_iterations 500 \
+  --run_name staged_fix_fast_forward_contact_recover
+```
+
+This run kept the fast forward speed but restored actual contact switching.
+
+Best balanced checkpoint:
+- `model_3050.pt`
+  - at semantic command `(1.0, 0.0, 0.0)`
+    - planar displacement `0.9028 m`
+    - contact switches `[2, 2]`
+    - mean forward speed `0.5951 m/s`
+    - mean yaw rate `1.2702 rad/s`
+    - validator pass
+  - at semantic command `(0.5, 0.0, 0.0)`
+    - planar displacement `0.8005 m`
+    - contact switches `[4, 10]`
+    - mean forward speed `0.3005 m/s`
+    - mean yaw rate `0.6442 rad/s`
+    - validator pass
+
+Fastest passing checkpoint:
+- `model_3248.pt`
+  - at semantic command `(1.0, 0.0, 0.0)`
+    - planar displacement `0.8609 m`
+    - contact switches `[2, 2]`
+    - mean forward speed `0.6788 m/s`
+    - mean yaw rate `1.4363 rad/s`
+    - validator pass
+  - at semantic command `(0.5, 0.0, 0.0)`
+    - planar displacement `0.7114 m`
+    - contact switches `[4, 54]`
+    - mean forward speed `0.3289 m/s`
+    - mean yaw rate `0.6893 rad/s`
+    - validator pass
+
+### Recommended checkpoints now
+
+For general use:
+- `2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover/model_3050.pt`
+  - better balanced fast-run checkpoint
+  - still substantially faster than the pre-optimization Stage A walk
+
+For maximum straight-line speed:
+- `2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover/model_3248.pt`
+  - highest validated mean forward speed so far
+  - slightly more yaw and more asymmetric low-speed switching than `model_3050.pt`
+
+### Updated method for future agent
+
+If the goal is specifically "make Landau run faster" rather than "just pass Stage A":
+
+1. Start from the first passing walk:
+   - `2026-04-02_15-59-09_staged_fix_fullbody_stage_a/model_500.pt`
+2. Do the fast-forward resume:
+   - `2026-04-02_16-18-45_staged_fix_fast_forward`
+3. Do the anti-spin resume:
+   - `2026-04-02_16-56-24_staged_fix_fast_forward_spin_control`
+4. If high-speed validation fails contact switches, use the grouped side-landing reward and recover from the late fast checkpoint:
+   - `2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover`
+5. Validate both:
+   - normal forward command `(0.5, 0.0, 0.0)`
+   - fast forward command `(1.0, 0.0, 0.0)`
+
+### Current bottom line
+
+- The original Stage A pass is preserved.
+- Fast-running support now works with validated checkpoints.
+- PPO reward alone was not sufficient to judge success; the high-speed gait needed contact-switch validation to rule out a one-sided hop.
