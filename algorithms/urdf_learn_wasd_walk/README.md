@@ -81,9 +81,9 @@ Replay a known-good Stage A checkpoint and optionally force a fixed command:
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.play \
   --robot landau --stage fwd_only --headless \
-  --load_run 2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover \
-  --checkpoint model_3050.pt \
-  --steps 500 --command-vx 0.5 --command-vy 0.0 --command-yaw 0.0
+  --load_run 2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume \
+  --checkpoint model_3348.pt \
+  --steps 500 --command-vx 0.8 --command-vy 0.0 --command-yaw 0.0
 ```
 
 The script exports `policy.pt` and `policy.onnx` next to the loaded checkpoint under an `exported/` folder.
@@ -94,8 +94,8 @@ For `landau`, you can also launch GUI playback and mirror the live URDF articula
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.play \
   --robot landau --stage fwd_only --visual-mode usd \
-  --load_run 2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover \
-  --checkpoint model_3050.pt \
+  --load_run 2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume \
+  --checkpoint model_3348.pt \
   --steps 500
 ```
 
@@ -108,13 +108,14 @@ Keyboard teleop uses `W/S` for forward/backward, `A/D` for left/right strafe, an
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.teleop \
   --robot landau --stage fwd_only \
-  --load_run 2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover \
-  --checkpoint model_3050.pt
+  --load_run 2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume \
+  --checkpoint model_3348.pt
 ```
 
 For `landau`, GUI teleop defaults to the synced colored `.usdc` model. Pass `--visual-mode urdf` to see only the imported URDF visuals, or `--visual-mode both` to overlay both.
 `teleop` requires GUI mode, so do not pass `--headless`.
 `teleop` also requires a trained checkpoint for the selected robot and stage.
+`teleop` keyboard `W` maps to semantic forward `0.8`; `model_3348.pt` was validated at semantic `0.8` and `1.0` without non-support crawl contacts.
 
 Gamepad teleop:
 
@@ -135,3 +136,4 @@ Gamepad teleop:
 - The custom reward weights are starting values, not tuned final values.
 - The `landau` task is flat-ground only in this first implementation.
 - `play` and `teleop` use local play-task variants with randomized command resampling disabled.
+- Older fast-run checkpoints such as `model_3050.pt` and `model_3248.pt` are no longer recommended for GUI use; the stricter anti-crawl validator found they could move by dragging non-support links on the ground.

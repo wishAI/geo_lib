@@ -28,6 +28,9 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(spec.experiment_name, "geo_landau_fwd_only")
         self.assertEqual(spec.forward_body_axis, "y")
         self.assertEqual(spec.control_root_link, "root_x")
+        self.assertGreater(spec.nominal_control_root_height, 0.2)
+        self.assertIn("leg_stretch_l", spec.gait_guard_link_names)
+        self.assertNotIn("middle3_r", spec.gait_guard_link_names)
 
     def test_landau_unknown_stage_raises(self) -> None:
         with self.assertRaises(ValueError):

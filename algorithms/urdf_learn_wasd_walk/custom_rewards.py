@@ -89,3 +89,16 @@ def grouped_support_first_contact_biped(
     reward = left_reward + right_reward
     reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
     return reward
+
+
+def body_height_below_min(
+    env,
+    min_height: float,
+    asset_cfg: "SceneEntityCfg",
+) -> torch.Tensor:
+    """Penalize configured bodies when they sink below a minimum world-space height."""
+
+    asset = env.scene[asset_cfg.name]
+    body_height = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
+    min_body_height = torch.min(body_height, dim=1).values
+    return torch.clamp(min_height - min_body_height, min=0.0)

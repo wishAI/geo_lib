@@ -497,3 +497,159 @@ If the goal is specifically "make Landau run faster" rather than "just pass Stag
 - The original Stage A pass is preserved.
 - Fast-running support now works with validated checkpoints.
 - PPO reward alone was not sufficient to judge success; the high-speed gait needed contact-switch validation to rule out a one-sided hop.
+
+## Anti-crawl recovery after GUI visualizer report
+
+### Problem that was discovered later
+
+The GUI report about `model_3050.pt` "moving while sitting on the ground" was correct.
+
+The older Stage A and fast-run checkpoints were false positives under the earlier validator:
+
+- `2026-04-02_15-59-09_staged_fix_fullbody_stage_a/model_500.pt`
+  - `non_support_contact_step_sum=1235`
+  - `min_control_root_height=0.1030`
+- `2026-04-02_17-20-34_staged_fix_fast_forward_contact_recover/model_3050.pt`
+  - `non_support_contact_step_sum=1171`
+  - `min_control_root_height=0.0947`
+
+The dominant contact bodies were `leg_stretch_*` plus fingertip links such as `middle3_r` and `index3_r`.
+That means the policy had learned a seated or crawling locomotion mode that still satisfied the earlier foot-contact and displacement checks.
+
+### Code changes that fixed the diagnosis
+
+The recovery used four changes:
+
+1. `validate_walk.py` gained default Stage A/B gait-guard contact reporting and limits.
+2. `landau_env_cfg.py` gained:
+   - non-support contact count penalty
+   - dense non-support contact force penalty
+   - gait-guard illegal-contact termination
+   - stronger control-root height floor reward
+3. `robot_specs.py` now defines `gait_guard_link_names`.
+4. Finger phalanges were explicitly excluded from the gait guard because Stage A does not control finger joints, so fingertip contacts were creating optimizer noise without giving the policy a clean way to fix them.
+
+Important lesson:
+
+- Do not gate Landau on "all non-support links" blindly.
+- Exclude uncontrolled fingertip chains from the gait guard.
+- Keep shins, thighs, arms, forearms, and hands in the gait guard.
+
+### Recovery runs
+
+#### 1. Crawl-guard probe from `model_3050.pt`
+
+Run:
+- `2026-04-02_19-06-49_staged_fix_fast_forward_crawl_guard_probe`
+
+Method:
+- resumed from `model_3050.pt`
+- added gait-guard penalties and termination
+
+Representative result:
+- `model_3100.pt` at semantic `(0.5, 0.0, 0.0)`
+  - planar displacement `0.8989 m`
+  - contact switches `[12, 24]`
+  - mean forward speed `0.5302 m/s`
+  - `non_support_contact_step_sum=1056`
+  - `min_control_root_height=0.1027`
+  - still failed badly on crawling
+
+Interpretation:
+- resuming from `3050` was still the right direction
+- but count-only gait-guard penalties were too weak as dense signals
+
+#### 2. Dense-force crawl-guard resume from `model_3100.pt`
+
+Run:
+- `2026-04-02_19-12-13_staged_fix_fast_forward_crawl_guard_force_resume`
+
+Method:
+- resumed from `model_3100.pt`
+- added `mdp.contact_forces` penalty on gait-guard links
+- lowered gait-guard termination threshold
+
+Representative checkpoints:
+- `model_3200.pt` at semantic `(0.5, 0.0, 0.0)`
+  - planar displacement `0.3885 m`
+  - mean forward speed `0.1364 m/s`
+  - `done_count=7`
+  - `non_support_contact_step_sum=112`
+- `model_3249.pt` at semantic `(0.5, 0.0, 0.0)`
+  - planar displacement `0.5550 m`
+  - mean forward speed `0.1353 m/s`
+  - `done_count=6`
+  - `non_support_contact_step_sum=20`
+
+Interpretation:
+- this run removed the seated sliding failure
+- the remaining problem was no longer crawling
+- the new failure mode was a stability / low-speed tracking tradeoff near the validator's `0.5` command
+
+#### 3. Guard-trim resume from `model_3249.pt`
+
+Run:
+- `2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume`
+
+Method:
+- resumed from `model_3249.pt`
+- trimmed gait guard to exclude fingertip phalanges
+- lowered Stage A command floor from `(0.55, 1.0)` to `(0.45, 1.0)` so semantic `0.5` stayed on-manifold while keeping fast-forward support
+
+Key checkpoints:
+- `model_3300.pt` at semantic `(0.5, 0.0, 0.0)`
+  - planar displacement `2.2823 m`
+  - mean forward speed `0.3903 m/s`
+  - `done_count=1`
+  - `non_support_contact_step_sum=4`
+  - failed only on orthogonal drift: `0.132 > 0.1`
+- `model_3348.pt` at semantic `(0.5, 0.0, 0.0)`
+  - planar displacement `0.6986 m`
+  - mean forward speed `0.1208 m/s`
+  - `done_count=0`
+  - `non_support_contact_step_sum=0`
+  - failed only on forward speed threshold `0.1208 < 0.15`
+- `model_3348.pt` at semantic `(0.8, 0.0, 0.0)`
+  - planar displacement `1.1738 m`
+  - mean forward speed `0.1624 m/s`
+  - `done_count=0`
+  - `non_support_contact_step_sum=0`
+  - validator pass
+- `model_3348.pt` at semantic `(1.0, 0.0, 0.0)`
+  - planar displacement `1.0851 m`
+  - mean forward speed `0.1574 m/s`
+  - `done_count=0`
+  - `non_support_contact_step_sum=0`
+  - validator pass
+
+### Recommended checkpoints now
+
+For GUI `play` / `teleop` and the original "it is sitting on the ground" user complaint:
+
+- `2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume/model_3348.pt`
+  - cleanest anti-crawl checkpoint
+  - validated at semantic `0.8` and `1.0`
+  - `done_count=0`
+  - `non_support_contact_step_sum=0`
+
+For future tuning if the goal is specifically "pass the strict Stage A validator at semantic `0.5`":
+
+- continue from either:
+  - `2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume/model_3300.pt`
+    - enough forward speed, but too much orthogonal drift
+  - `2026-04-02_19-17-48_staged_fix_fast_forward_guard_trim_resume/model_3348.pt`
+    - very clean gait, but slightly under the `0.15 m/s` forward-speed bar at semantic `0.5`
+
+### Reproduction method for future agent
+
+If a future agent sees Landau "moving while seated" again:
+
+1. Validate with gait-guard contacts, not just foot contacts and displacement.
+2. Start the recovery from `model_3050.pt`, not from scratch.
+3. Add both:
+   - count-based gait-guard penalty
+   - dense contact-force penalty
+4. Add a gait-guard illegal-contact termination.
+5. Exclude fingertip phalanges from the gait guard.
+6. Lower the Stage A minimum commanded forward speed from `0.55` to `0.45` when recovering the semantic `0.5` validation case.
+7. Treat `model_3348.pt` as the clean non-crawling baseline for GUI usage, then continue tuning low-speed drift / speed from there if needed.

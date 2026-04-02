@@ -14,6 +14,7 @@ if TORCH_AVAILABLE:
     import torch
 
     from algorithms.urdf_learn_wasd_walk.custom_rewards import (
+        body_height_below_min,
         grouped_support_first_contact_reward,
         grouped_support_mode_time,
     )
@@ -57,6 +58,38 @@ class GroupedSupportFirstContactRewardTests(unittest.TestCase):
         reward = grouped_support_first_contact_reward(first_contact, last_air_time, threshold=0.5)
 
         self.assertTrue(torch.allclose(reward, torch.tensor([0.3])))
+
+
+@unittest.skipUnless(TORCH_AVAILABLE, "torch is not available in the system test interpreter")
+class BodyHeightBelowMinTests(unittest.TestCase):
+    def test_penalizes_only_height_below_floor(self) -> None:
+        env = type("Env", (), {})()
+        env.scene = {
+            "robot": type(
+                "Robot",
+                (),
+                {
+                    "data": type(
+                        "Data",
+                        (),
+                        {
+                            "body_pos_w": torch.tensor(
+                                [
+                                    [[0.0, 0.0, 0.30], [0.0, 0.0, 0.18]],
+                                    [[0.0, 0.0, 0.12], [0.0, 0.0, 0.22]],
+                                ],
+                                dtype=torch.float32,
+                            )
+                        },
+                    )()
+                },
+            )()
+        }
+        asset_cfg = type("Cfg", (), {"name": "robot", "body_ids": [0, 1]})()
+
+        penalty = body_height_below_min(env, min_height=0.2, asset_cfg=asset_cfg)
+
+        self.assertTrue(torch.allclose(penalty, torch.tensor([0.02, 0.08])))
 
 
 if __name__ == "__main__":

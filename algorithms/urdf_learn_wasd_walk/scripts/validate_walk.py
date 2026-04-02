@@ -35,6 +35,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-foot-height-range", type=float, default=0.01)
     parser.add_argument("--min-contact-switches", type=int, default=1)
     parser.add_argument("--max-done-count", type=int, default=4)
+    parser.add_argument("--report-non-support-contacts", action="store_true", default=False)
+    parser.add_argument("--max-non-support-contact-steps", type=int, default=None)
+    parser.add_argument("--min-control-root-height", type=float, default=None)
     AppLauncher.add_app_launcher_args(parser)
     return parser
 
@@ -100,11 +103,25 @@ def _validate_metric(condition: bool, label: str, value, threshold) -> None:
         raise AssertionError(f"{label} failed: value={value} threshold={threshold}")
 
 
-def _apply_stage_defaults(args) -> None:
+def _format_top_contacts(body_names: tuple[str, ...], counts: torch.Tensor, max_forces: torch.Tensor, top_k: int = 8) -> list[str]:
+    indexed = []
+    for index, body_name in enumerate(body_names):
+        count = int(counts[index].item())
+        peak_force = float(max_forces[index].item())
+        if count <= 0 and peak_force <= 0.0:
+            continue
+        indexed.append((count, peak_force, body_name))
+    indexed.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    return [f"{name}:steps={count},peak_force={peak_force:.3f}" for count, peak_force, name in indexed[:top_k]]
+
+
+def _apply_stage_defaults(args, task_spec) -> None:
     """Override CLI defaults with stage-specific acceptance thresholds."""
     stage = args.stage
     if stage is None or args.robot != "landau":
         return
+    if not args.report_non_support_contacts:
+        args.report_non_support_contacts = True
     if stage == "fwd_only":
         # forward-only: semantic forward is still +vx; command mapping handles Landau's body-Y forward axis
         if args.command_vx == 0.5 and args.command_vy == 0.0:
@@ -114,6 +131,8 @@ def _apply_stage_defaults(args) -> None:
             args.min_planar_displacement = 0.3
         if args.steps == 256:
             args.steps = 500
+        if args.max_non_support_contact_steps is None:
+            args.max_non_support_contact_steps = 120
     elif stage == "fwd_yaw":
         if args.command_vx == 0.5 and args.command_vy == 0.0:
             args.command_vx = 0.4
@@ -123,12 +142,14 @@ def _apply_stage_defaults(args) -> None:
             args.min_planar_displacement = 0.2
         if args.steps == 256:
             args.steps = 500
+        if args.max_non_support_contact_steps is None:
+            args.max_non_support_contact_steps = 140
 
 
 def main() -> None:
-    _apply_stage_defaults(args_cli)
-    register_gym_envs()
     task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
+    _apply_stage_defaults(args_cli, task_spec)
+    register_gym_envs()
     env_cfg, agent_cfg = load_env_and_runner_cfg(task_spec.play_task_id, args_cli)
     env_cfg.scene.num_envs = 1
 
@@ -145,6 +166,7 @@ def main() -> None:
 
     robot = env.unwrapped.scene["robot"]
     contact_sensor = env.unwrapped.scene["contact_forces"]
+    control_root_name = getattr(task_spec, "control_root_link", None) or getattr(task_spec, "root_link_name", None)
     foot_names = tuple(task_spec.primary_foot_links) if hasattr(task_spec, "primary_foot_links") else ()
     if len(foot_names) != 2:
         raise AssertionError(f"Expected a biped with exactly two primary feet, found {foot_names}")
@@ -159,6 +181,18 @@ def main() -> None:
     right_support_robot_ids, _ = robot.find_bodies(list(right_support_names), preserve_order=True)
     left_support_sensor_ids, _ = contact_sensor.find_bodies(list(left_support_names), preserve_order=True)
     right_support_sensor_ids, _ = contact_sensor.find_bodies(list(right_support_names), preserve_order=True)
+    support_name_set = set(support_names)
+    non_support_names = tuple(getattr(task_spec, "gait_guard_link_names", ()) or ())
+    if not non_support_names:
+        non_support_names = tuple(name for name in robot.body_names if name not in support_name_set)
+    non_support_robot_ids: list[int] = []
+    non_support_sensor_ids: list[int] = []
+    if non_support_names:
+        non_support_robot_ids, _ = robot.find_bodies(list(non_support_names), preserve_order=True)
+        non_support_sensor_ids, _ = contact_sensor.find_bodies(list(non_support_names), preserve_order=True)
+    control_root_robot_ids: list[int] = []
+    if control_root_name and control_root_name in robot.body_names:
+        control_root_robot_ids, _ = robot.find_bodies([control_root_name], preserve_order=True)
     if tuple(robot_body_names) != foot_names or tuple(sensor_body_names) != foot_names:
         raise AssertionError(
             f"Failed to resolve expected feet in scene. robot={robot_body_names} sensor={sensor_body_names} expected={foot_names}"
@@ -202,6 +236,11 @@ def main() -> None:
     max_side_planar_travel = torch.zeros(2, dtype=torch.float32)
     sum_root_lin_vel_b = torch.zeros(3, dtype=torch.float32)
     sum_root_ang_vel_w = torch.zeros(3, dtype=torch.float32)
+    non_support_contact_counts = torch.zeros(len(non_support_names), dtype=torch.int64)
+    non_support_peak_forces = torch.zeros(len(non_support_names), dtype=torch.float32)
+    min_control_root_height = None
+    if control_root_robot_ids:
+        min_control_root_height = float(robot.data.body_pos_w[0, control_root_robot_ids[0], 2].detach().cpu())
     last_contact = torch.stack(
         (
             _contact_mask(contact_sensor, left_support_sensor_ids, args_cli.contact_threshold)[0].any(),
@@ -229,6 +268,18 @@ def main() -> None:
                 _contact_mask(contact_sensor, right_support_sensor_ids, args_cli.contact_threshold)[0].any(),
             )
         ).detach().cpu()
+        if non_support_sensor_ids:
+            non_support_forces = contact_sensor.data.net_forces_w_history[:, 0, non_support_sensor_ids].detach().cpu()[0]
+            non_support_force_norm = torch.linalg.norm(non_support_forces, dim=-1)
+            non_support_contact_mask = non_support_force_norm > args_cli.contact_threshold
+            non_support_contact_counts += non_support_contact_mask.to(dtype=torch.int64)
+            non_support_peak_forces = torch.maximum(non_support_peak_forces, non_support_force_norm)
+        if control_root_robot_ids:
+            control_root_height = float(robot.data.body_pos_w[0, control_root_robot_ids[0], 2].detach().cpu())
+            if min_control_root_height is None:
+                min_control_root_height = control_root_height
+            else:
+                min_control_root_height = min(min_control_root_height, control_root_height)
 
         planar_delta = root_pos[:2] - initial_root_pos[:2]
         forward_progress = float(torch.dot(planar_delta, initial_forward_dir_xy))
@@ -307,6 +358,16 @@ def main() -> None:
     print(f"[VALIDATE] mean_root_lin_vel_b={mean_root_lin_vel_b.tolist()}", flush=True)
     print(f"[VALIDATE] mean_root_ang_vel_w={mean_root_ang_vel_w.tolist()}", flush=True)
     print(f"[VALIDATE] mean_command_error={mean_command_error_b.tolist()}", flush=True)
+    if control_root_name is not None and min_control_root_height is not None:
+        print(f"[VALIDATE] control_root={control_root_name}", flush=True)
+        print(f"[VALIDATE] min_control_root_height={min_control_root_height:.4f}", flush=True)
+    if non_support_names and (args_cli.report_non_support_contacts or args_cli.max_non_support_contact_steps is not None):
+        total_non_support_contact_steps = int(non_support_contact_counts.sum().item())
+        print(f"[VALIDATE] non_support_contact_step_sum={total_non_support_contact_steps}", flush=True)
+        print(
+            f"[VALIDATE] non_support_contact_top={_format_top_contacts(non_support_names, non_support_contact_counts, non_support_peak_forces)}",
+            flush=True,
+        )
     print(f"[VALIDATE] done_count={done_count}", flush=True)
 
     _validate_metric(lateral_separation >= args_cli.min_lateral_separation, "two-leg lateral separation", lateral_separation, args_cli.min_lateral_separation)
@@ -314,6 +375,21 @@ def main() -> None:
     if args_cli.min_forward_displacement is not None:
         _validate_metric(forward_displacement >= args_cli.min_forward_displacement, "forward displacement", forward_displacement, args_cli.min_forward_displacement)
     _validate_metric(done_count <= args_cli.max_done_count, "done count", done_count, args_cli.max_done_count)
+    if args_cli.max_non_support_contact_steps is not None:
+        total_non_support_contact_steps = int(non_support_contact_counts.sum().item())
+        _validate_metric(
+            total_non_support_contact_steps <= args_cli.max_non_support_contact_steps,
+            "non-support contact steps",
+            total_non_support_contact_steps,
+            args_cli.max_non_support_contact_steps,
+        )
+    if args_cli.min_control_root_height is not None:
+        _validate_metric(
+            min_control_root_height is not None and min_control_root_height >= args_cli.min_control_root_height,
+            "control root height",
+            f"{0.0 if min_control_root_height is None else min_control_root_height:.4f}",
+            args_cli.min_control_root_height,
+        )
     for index, side_name in enumerate(("left_leg", "right_leg")):
         _validate_metric(
             float(max_side_planar_travel[index]) >= args_cli.min_foot_planar_travel,
