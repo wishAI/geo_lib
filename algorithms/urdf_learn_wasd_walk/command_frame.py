@@ -4,16 +4,23 @@ import math
 from collections.abc import Sequence
 
 
-def semantic_command_to_env_command(robot_key: str, command: tuple[float, float, float]) -> tuple[float, float, float]:
-    """Map user-facing `(forward, strafe, yaw)` commands into the robot's native body frame."""
+def semantic_command_to_env_command(
+    forward_body_axis: str, command: tuple[float, float, float]
+) -> tuple[float, float, float]:
+    """Map user-facing `(forward, strafe, yaw)` commands into the robot's native body frame.
 
+    *forward_body_axis* is ``"x"`` or ``"y"`` and comes from robot metadata
+    (``RobotTaskSpec.forward_body_axis``).
+    """
     forward, strafe, yaw = command
-    if robot_key.lower() == "landau":
+    if forward_body_axis == "y":
         return (strafe, forward, yaw)
     return command
 
 
-def semantic_forward_dir_xy(robot_key: str, quat_wxyz: Sequence[float]) -> tuple[float, float]:
+def semantic_forward_dir_xy(
+    forward_body_axis: str, quat_wxyz: Sequence[float]
+) -> tuple[float, float]:
     """Return the world-frame planar direction corresponding to user-facing forward motion."""
 
     w, x, y, z = (float(value) for value in quat_wxyz)
@@ -25,7 +32,7 @@ def semantic_forward_dir_xy(robot_key: str, quat_wxyz: Sequence[float]) -> tuple
         2.0 * (x * y - z * w),
         1.0 - 2.0 * (x * x + z * z),
     )
-    if robot_key.lower() == "landau":
+    if forward_body_axis == "y":
         forward = body_y
     else:
         forward = body_x

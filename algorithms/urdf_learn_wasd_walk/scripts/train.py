@@ -7,11 +7,18 @@ from datetime import datetime
 from isaaclab.app import AppLauncher
 
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
+from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train a flat-ground locomotion policy with RSL-RL.")
     parser.add_argument("--robot", choices=supported_robot_keys(), required=True)
+    parser.add_argument(
+        "--stage",
+        choices=LANDAU_CURRICULUM_STAGES,
+        default=None,
+        help="Landau curriculum stage. Ignored for non-Landau robots.",
+    )
     parser.add_argument("--video", action="store_true", default=False, help="Record training videos.")
     parser.add_argument("--video_length", type=int, default=200)
     parser.add_argument("--video_interval", type=int, default=2000)
@@ -59,7 +66,7 @@ torch.backends.cudnn.benchmark = False
 
 def main() -> None:
     register_gym_envs()
-    task_spec = resolve_robot_task_spec(args_cli.robot)
+    task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
     env_cfg, agent_cfg = load_env_and_runner_cfg(task_spec.train_task_id, args_cli)
 
     log_root_path = log_root_for_experiment(agent_cfg.experiment_name)

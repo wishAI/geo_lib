@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geo-lib-ikfast-urdf-solver"
+version = "0.1.0"
+description = "IKFast wrapper and MuJoCo benchmark utilities for URDF arms."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "mujoco>=3.1",
+]
+
+[project.optional-dependencies]
+benchmark = [
+  "pytracik>=0.0.3",
+]
+viz = [
+  "matplotlib>=3.7",
+  "pillow>=10.0",
+]
+
+[project.scripts]
+ikfast-urdf-benchmark = "algorithms.ikfast_urdf_solver.benchmark:main"
+ikfast-urdf-render-pose-cases = "algorithms.ikfast_urdf_solver.render_pose_cases:main"
+ikfast-urdf-prepare-ur5-sample = "algorithms.ikfast_urdf_solver.scripts.prepare_ur5_sample:main"
+
+[tool.setuptools]
+include-package-data = true
+package-dir = {"" = "../.."}
+packages = [
+  "algorithms",
+  "algorithms.ikfast_urdf_solver",
+  "algorithms.ikfast_urdf_solver.scripts",
+]
+
+[tool.setuptools.package-data]
+"algorithms.ikfast_urdf_solver" = [
+  "inputs/**/*.urdf",
+]

@@ -5,6 +5,7 @@ algorithms/simple_auto_slam_mapping/outputs/
 # Python bytecode and caches
 __pycache__/
 *.pyc
+*.egg-info/
 
 # Large generated / binary asset files
 *.usdc
@@ -23,3 +24,6 @@ logs/
 # Robot assets
 unitree_g1/
 google_robot/
+
+# IKFast wrapper generated outputs
+algorithms/ikfast_urdf_solver/outputs/

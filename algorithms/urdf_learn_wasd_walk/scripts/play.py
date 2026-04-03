@@ -6,11 +6,14 @@ import os
 from isaaclab.app import AppLauncher
 
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
+from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Play a trained locomotion checkpoint.")
     parser.add_argument("--robot", choices=supported_robot_keys(), required=True)
+    parser.add_argument("--stage", choices=LANDAU_CURRICULUM_STAGES, default=None,
+                        help="Landau curriculum stage (sets experiment name for checkpoint lookup).")
     parser.add_argument("--visual-mode", choices=("auto", "urdf", "usd", "both"), default="auto")
     parser.add_argument("--disable_fabric", action="store_true", default=False)
     parser.add_argument("--num_envs", type=int, default=None)
@@ -62,7 +65,7 @@ def _resolve_visual_mode(robot_key: str, requested_mode: str) -> str:
 
 def main() -> None:
     register_gym_envs()
-    task_spec = resolve_robot_task_spec(args_cli.robot)
+    task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
     env_cfg, agent_cfg = load_env_and_runner_cfg(task_spec.play_task_id, args_cli)
     visual_mode = _resolve_visual_mode(args_cli.robot, args_cli.visual_mode)
 
@@ -108,7 +111,7 @@ def main() -> None:
     if None not in (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw):
         semantic_command = (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)
         fixed_command = clamp_base_velocity_command(
-            env_cfg, semantic_command_to_env_command(task_spec.key, semantic_command)
+            env_cfg, semantic_command_to_env_command(task_spec.forward_body_axis, semantic_command)
         )
         print(f"[INFO] Forcing base command: semantic={semantic_command} env={fixed_command}")
 

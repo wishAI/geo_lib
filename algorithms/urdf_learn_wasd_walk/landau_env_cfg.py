@@ -6,12 +6,13 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
 from .asset_setup import prepare_landau_inputs
-from .custom_rewards import grouped_support_air_time_positive_biped
+from .custom_rewards import body_height_below_min, grouped_support_first_contact_biped
 from .robot_specs import load_landau_robot_spec
 from .urdf_utils import load_urdf_model
 
@@ -20,16 +21,54 @@ prepare_landau_inputs(refresh=False)
 LANDAU_SPEC = load_landau_robot_spec()
 LANDAU_MODEL = load_urdf_model(LANDAU_SPEC.urdf_path)
 LANDAU_ACTUATED_JOINTS = tuple(
-    sorted(joint_name for joint_name, joint in LANDAU_MODEL.joints.items() if joint.joint_type != "fixed")
+    joint_name for joint_name, joint in LANDAU_MODEL.joints.items() if joint.joint_type != "fixed"
 )
-LANDAU_LOCOMOTION_JOINTS = tuple(
+LANDAU_LOWER_BODY_JOINTS = tuple(
     (*LANDAU_SPEC.joint_groups.leg_joints, *LANDAU_SPEC.joint_groups.foot_joints)
 )
-LANDAU_UPPER_BODY_JOINTS = tuple(
-    sorted((*LANDAU_SPEC.joint_groups.arm_joints, *LANDAU_SPEC.joint_groups.hand_joints))
+LANDAU_CONTROLLED_JOINTS = tuple(
+    (
+        *LANDAU_LOWER_BODY_JOINTS,
+        *LANDAU_SPEC.joint_groups.torso_joints,
+        *LANDAU_SPEC.joint_groups.arm_joints,
+        *LANDAU_SPEC.joint_groups.hand_joints,
+    )
 )
-LANDAU_LEFT_SUPPORT_LINKS = tuple(name for name in LANDAU_SPEC.support_link_names if name.endswith("_l"))
-LANDAU_RIGHT_SUPPORT_LINKS = tuple(name for name in LANDAU_SPEC.support_link_names if name.endswith("_r"))
+LANDAU_UPPER_BODY_JOINTS = tuple(
+    (*LANDAU_SPEC.joint_groups.arm_joints, *LANDAU_SPEC.joint_groups.hand_joints)
+)
+LANDAU_PRIMARY_FOOT_LINKS = tuple(LANDAU_SPEC.primary_foot_links)
+LANDAU_SUPPORT_LINKS = tuple(LANDAU_SPEC.support_link_names)
+LANDAU_LEFT_SUPPORT_LINKS = tuple(name for name in LANDAU_SUPPORT_LINKS if name.endswith("_l"))
+LANDAU_RIGHT_SUPPORT_LINKS = tuple(name for name in LANDAU_SUPPORT_LINKS if name.endswith("_r"))
+LANDAU_CONTROL_ROOT_LINK = LANDAU_SPEC.control_root_link or LANDAU_SPEC.root_link_name
+LANDAU_GAIT_GUARD_LINKS = tuple(LANDAU_SPEC.gait_guard_link_names)
+LANDAU_CONTROL_ROOT_HEIGHT_FLOOR = max(0.17, float(LANDAU_SPEC.nominal_control_root_height) * 0.65)
+
+
+def build_landau_action_scale(
+    *,
+    leg_scale: float,
+    foot_scale: float,
+    toe_scale: float,
+    torso_scale: float,
+    arm_scale: float,
+    hand_scale: float,
+    head_scale: float = 0.1,
+) -> dict[str, float]:
+    return {
+        "thigh_.*": leg_scale,
+        "leg_.*": leg_scale,
+        "foot_.*": foot_scale,
+        "toes_.*": toe_scale,
+        "spine_.*": torso_scale,
+        "neck_.*": torso_scale,
+        "head_.*": head_scale,
+        "shoulder_.*": arm_scale,
+        "arm_.*": arm_scale,
+        "forearm_.*": arm_scale,
+        "hand_.*": hand_scale,
+    }
 
 
 def build_landau_articulation_cfg() -> ArticulationCfg:
@@ -126,21 +165,54 @@ class LandauRewards(RewardsCfg):
         params={"command_name": "base_velocity", "std": 0.5},
     )
     feet_air_time = RewTerm(
-        func=grouped_support_air_time_positive_biped,
+        func=mdp.feet_air_time_positive_biped,
         weight=0.75,
         params={
             "command_name": "base_velocity",
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_PRIMARY_FOOT_LINKS)),
+            "threshold": 0.4,
+        },
+    )
+    feet_step_contact = RewTerm(
+        func=grouped_support_first_contact_biped,
+        weight=0.0,
+        params={
+            "command_name": "base_velocity",
+            "threshold": 0.4,
             "left_sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_LEFT_SUPPORT_LINKS)),
             "right_sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_RIGHT_SUPPORT_LINKS)),
-            "threshold": 0.4,
         },
     )
     feet_slide = RewTerm(
         func=mdp.feet_slide,
         weight=-0.1,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_SPEC.support_link_names)),
-            "asset_cfg": SceneEntityCfg("robot", body_names=list(LANDAU_SPEC.support_link_names)),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_PRIMARY_FOOT_LINKS)),
+            "asset_cfg": SceneEntityCfg("robot", body_names=list(LANDAU_PRIMARY_FOOT_LINKS)),
+        },
+    )
+    non_support_contacts = RewTerm(
+        func=mdp.undesired_contacts,
+        weight=-0.5,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_GAIT_GUARD_LINKS)),
+            "threshold": 5.0,
+        },
+    )
+    non_support_contact_force = RewTerm(
+        func=mdp.contact_forces,
+        weight=-0.01,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_GAIT_GUARD_LINKS)),
+            "threshold": 5.0,
+        },
+    )
+    control_root_height_floor = RewTerm(
+        func=body_height_below_min,
+        weight=-2.0,
+        params={
+            "min_height": LANDAU_CONTROL_ROOT_HEIGHT_FLOOR,
+            "asset_cfg": SceneEntityCfg("robot", body_names=[LANDAU_CONTROL_ROOT_LINK]),
         },
     )
     dof_pos_limits = RewTerm(
@@ -182,14 +254,21 @@ class LandauFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.observations.policy.height_scan = None
         self.curriculum.terrain_levels = None
 
-        self.actions.joint_pos.joint_names = list(LANDAU_LOCOMOTION_JOINTS)
+        self.actions.joint_pos.joint_names = list(LANDAU_CONTROLLED_JOINTS)
         self.actions.joint_pos.preserve_order = True
-        self.actions.joint_pos.scale = 0.2
+        self.actions.joint_pos.scale = build_landau_action_scale(
+            leg_scale=0.35,
+            foot_scale=0.25,
+            toe_scale=0.2,
+            torso_scale=0.25,
+            arm_scale=0.2,
+            hand_scale=0.15,
+        )
         self.observations.policy.joint_pos.params = {
-            "asset_cfg": SceneEntityCfg("robot", joint_names=list(LANDAU_LOCOMOTION_JOINTS))
+            "asset_cfg": SceneEntityCfg("robot", joint_names=list(LANDAU_CONTROLLED_JOINTS))
         }
         self.observations.policy.joint_vel.params = {
-            "asset_cfg": SceneEntityCfg("robot", joint_names=list(LANDAU_LOCOMOTION_JOINTS))
+            "asset_cfg": SceneEntityCfg("robot", joint_names=list(LANDAU_CONTROLLED_JOINTS))
         }
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_heading_envs = 0.0
@@ -222,10 +301,10 @@ class LandauFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.flat_orientation_l2.weight = -1.0
         self.rewards.action_rate_l2.weight = -0.005
         self.rewards.dof_acc_l2.weight = -1.0e-7
-        self.rewards.dof_acc_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=list(LANDAU_LOCOMOTION_JOINTS))
+        self.rewards.dof_acc_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=list(LANDAU_LOWER_BODY_JOINTS))
         self.rewards.dof_torques_l2.weight = -5.0e-7
         self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
-            "robot", joint_names=list(LANDAU_LOCOMOTION_JOINTS)
+            "robot", joint_names=list(LANDAU_LOWER_BODY_JOINTS)
         )
         self.rewards.undesired_contacts = None
 
@@ -244,3 +323,104 @@ class LandauFlatEnvCfg_PLAY(LandauFlatEnvCfg):
         self.events.push_robot = None
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (1.0e9, 1.0e9)
+
+
+# ---------------------------------------------------------------------------
+# Staged curriculum configs
+# ---------------------------------------------------------------------------
+# Stage A: forward-only — learn to translate before anything else.
+# Landau forward = body Y, so we command lin_vel_y only.
+
+
+@configclass
+class LandauFwdOnlyEnvCfg(LandauFlatEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.actions.joint_pos.scale = build_landau_action_scale(
+            leg_scale=0.5,
+            foot_scale=0.35,
+            toe_scale=0.25,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
+        )
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        # Bias Stage A toward a faster gait instead of converging to one comfortable walk speed.
+        self.commands.base_velocity.ranges.lin_vel_y = (0.45, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        # Keep forward speed dominant, but make uncontrolled yaw and slip materially expensive.
+        self.rewards.track_lin_vel_xy_exp.weight = 3.0
+        self.rewards.track_lin_vel_xy_exp.params["std"] = 0.2
+        self.rewards.track_ang_vel_z_exp.weight = 1.0
+        self.rewards.feet_air_time.weight = 0.5
+        self.rewards.feet_step_contact.weight = 1.0
+        self.rewards.feet_slide.weight = -0.2
+        self.rewards.non_support_contacts.weight = -1.5
+        self.rewards.non_support_contact_force.weight = -0.02
+        self.rewards.control_root_height_floor.weight = -20.0
+        self.rewards.joint_deviation_upper.weight = -0.06
+        self.rewards.joint_deviation_torso.weight = -0.05
+        self.rewards.action_rate_l2.weight = -0.0025
+        self.terminations.gait_guard_contact = DoneTerm(
+            func=mdp.illegal_contact,
+            params={
+                "sensor_cfg": SceneEntityCfg("contact_forces", body_names=list(LANDAU_GAIT_GUARD_LINKS)),
+                "threshold": 10.0,
+            },
+        )
+
+
+@configclass
+class LandauFwdOnlyEnvCfg_PLAY(LandauFlatEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        self.actions.joint_pos.scale = build_landau_action_scale(
+            leg_scale=0.5,
+            foot_scale=0.35,
+            toe_scale=0.25,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
+        )
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+
+
+# Stage B: forward + yaw — add heading control once forward is proven.
+
+
+@configclass
+class LandauFwdYawEnvCfg(LandauFlatEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.actions.joint_pos.scale = build_landau_action_scale(
+            leg_scale=0.5,
+            foot_scale=0.35,
+            toe_scale=0.25,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
+        )
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.45, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)
+        self.rewards.track_lin_vel_xy_exp.weight = 2.0
+        self.rewards.track_lin_vel_xy_exp.params["std"] = 0.25
+
+
+@configclass
+class LandauFwdYawEnvCfg_PLAY(LandauFlatEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        self.actions.joint_pos.scale = build_landau_action_scale(
+            leg_scale=0.5,
+            foot_scale=0.35,
+            toe_scale=0.25,
+            torso_scale=0.3,
+            arm_scale=0.18,
+            hand_scale=0.12,
+        )
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.75, 0.75)

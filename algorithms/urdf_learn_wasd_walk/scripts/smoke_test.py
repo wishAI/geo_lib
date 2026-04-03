@@ -5,11 +5,13 @@ import argparse
 from isaaclab.app import AppLauncher
 
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
+from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Headless environment smoke test without loading a policy.")
     parser.add_argument("--robot", choices=supported_robot_keys(), required=True)
+    parser.add_argument("--stage", choices=LANDAU_CURRICULUM_STAGES, default=None)
     parser.add_argument("--visual-mode", choices=("auto", "urdf", "usd", "both"), default="auto")
     parser.add_argument("--disable_fabric", action="store_true", default=False)
     parser.add_argument("--num_envs", type=int, default=4)
@@ -44,7 +46,7 @@ def _resolve_visual_mode(robot_key: str, requested_mode: str) -> str:
 
 def main() -> None:
     register_gym_envs()
-    task_spec = resolve_robot_task_spec(args_cli.robot)
+    task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
     env_cfg, _ = load_env_and_runner_cfg(task_spec.play_task_id, args_cli)
     visual_mode = _resolve_visual_mode(args_cli.robot, args_cli.visual_mode)
 
@@ -67,7 +69,8 @@ def main() -> None:
     action_space = env.action_space
     for _ in range(args_cli.steps):
         if hasattr(action_space, "sample"):
-            action = torch.zeros((env.unwrapped.num_envs, action_space.shape[0]), device=env.unwrapped.device)
+            action_dim = int(env.unwrapped.action_manager.total_action_dim)
+            action = torch.zeros((env.unwrapped.num_envs, action_dim), device=env.unwrapped.device)
         else:
             raise RuntimeError("Expected a Box action space.")
         obs, *_ = env.step(action)
