@@ -1,0 +1,53 @@
+{
+  "units": "mm",
+  "boards": [
+    {
+      "id": "board_main",
+      "polygon": {
+        "shell": [[0, 0], [200, 0], [200, 150], [0, 150]]
+      }
+    }
+  ],
+  "widgets": [
+    {
+      "id": "frame_large",
+      "quantity": 1,
+      "polygon": {
+        "shell": [[-60, -42], [60, -42], [60, 42], [-60, 42]],
+        "holes": [[[-28, -16], [28, -16], [28, 16], [-28, 16]]]
+      }
+    },
+    {
+      "id": "hook",
+      "quantity": 2,
+      "polygon": {
+        "shell": [[-32, -32], [8, -32], [8, -10], [30, -10], [30, 10], [-10, 10], [-10, 32], [-32, 32]]
+      }
+    },
+    {
+      "id": "step_tab",
+      "quantity": 3,
+      "polygon": {
+        "shell": [[-30, -18], [8, -18], [8, -6], [28, -6], [28, 18], [-30, 18]]
+      }
+    },
+    {
+      "id": "small_square",
+      "quantity": 4,
+      "allowed_angles_degrees": [0, 45, 90, 135],
+      "polygon": {
+        "shell": [[-11, -11], [11, -11], [11, 11], [-11, 11]]
+      }
+    }
+  ],
+  "config": {
+    "rotation_step_degrees": 15,
+    "beam_width": 4,
+    "population_size": 6,
+    "generations": 3,
+    "max_candidates_per_item": 12,
+    "max_item_anchor_points": 5,
+    "max_free_space_anchor_points": 6,
+    "seed": 20260404
+  }
+}
