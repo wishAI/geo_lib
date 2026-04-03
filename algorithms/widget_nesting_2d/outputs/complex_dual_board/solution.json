@@ -1,0 +1,559 @@
+{
+  "best_order": [
+    "small_square#1",
+    "small_square#2",
+    "small_square#3",
+    "small_square#4",
+    "step_tab#1",
+    "step_tab#2",
+    "kite_panel#1",
+    "kite_panel#2",
+    "hook#1",
+    "hook#2",
+    "frame_large#1",
+    "frame_large#2"
+  ],
+  "board_metrics": [
+    {
+      "board_area": 70400.0,
+      "board_id": "board_a",
+      "corner_free_rectangles": [
+        {
+          "area": 1792.628906,
+          "bounds": [
+            255.977539,
+            192.0,
+            320.0,
+            220.0
+          ],
+          "corner": "upper_right"
+        }
+      ],
+      "max_corner_free_rectangle_area": 1792.628906,
+      "occupied_bounds": [
+        0.0,
+        0.0,
+        255.977539,
+        192.0
+      ],
+      "placement_count": 7,
+      "sum_corner_free_rectangle_area": 1792.628906,
+      "used_area": 28016.0,
+      "utilization": 0.397955
+    },
+    {
+      "board_area": 43200.0,
+      "board_id": "board_b",
+      "corner_free_rectangles": [
+        {
+          "area": 15080.0,
+          "bounds": [
+            110.0,
+            64.0,
+            240.0,
+            180.0
+          ],
+          "corner": "upper_right"
+        }
+      ],
+      "max_corner_free_rectangle_area": 15080.0,
+      "occupied_bounds": [
+        0.0,
+        0.0,
+        110.0,
+        64.0
+      ],
+      "placement_count": 5,
+      "sum_corner_free_rectangle_area": 15080.0,
+      "used_area": 4540.0,
+      "utilization": 0.105093
+    }
+  ],
+  "placements": [
+    {
+      "board_id": "board_b",
+      "centroid": [
+        11.0,
+        11.0
+      ],
+      "item_instance_id": "small_square#1",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            22.0,
+            0.0
+          ],
+          [
+            22.0,
+            22.0
+          ],
+          [
+            0.0,
+            22.0
+          ]
+        ]
+      },
+      "rotation_degrees": 0.0,
+      "widget_id": "small_square"
+    },
+    {
+      "board_id": "board_b",
+      "centroid": [
+        33.0,
+        11.0
+      ],
+      "item_instance_id": "small_square#2",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            22.0,
+            0.0
+          ],
+          [
+            44.0,
+            0.0
+          ],
+          [
+            44.0,
+            22.0
+          ],
+          [
+            22.0,
+            22.0
+          ]
+        ]
+      },
+      "rotation_degrees": 0.0,
+      "widget_id": "small_square"
+    },
+    {
+      "board_id": "board_b",
+      "centroid": [
+        55.0,
+        11.0
+      ],
+      "item_instance_id": "small_square#3",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            44.0,
+            0.0
+          ],
+          [
+            66.0,
+            0.0
+          ],
+          [
+            66.0,
+            22.0
+          ],
+          [
+            44.0,
+            22.0
+          ]
+        ]
+      },
+      "rotation_degrees": 0.0,
+      "widget_id": "small_square"
+    },
+    {
+      "board_id": "board_b",
+      "centroid": [
+        77.0,
+        11.0
+      ],
+      "item_instance_id": "small_square#4",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            66.0,
+            0.0
+          ],
+          [
+            88.0,
+            0.0
+          ],
+          [
+            88.0,
+            22.0
+          ],
+          [
+            66.0,
+            22.0
+          ]
+        ]
+      },
+      "rotation_degrees": 0.0,
+      "widget_id": "small_square"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        26.532468,
+        19.558442
+      ],
+      "item_instance_id": "step_tab#1",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            38.0,
+            0.0
+          ],
+          [
+            38.0,
+            12.0
+          ],
+          [
+            58.0,
+            12.0
+          ],
+          [
+            58.0,
+            36.0
+          ],
+          [
+            0.0,
+            36.0
+          ]
+        ]
+      },
+      "rotation_degrees": 0.0,
+      "widget_id": "step_tab"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        26.532468,
+        55.558442
+      ],
+      "item_instance_id": "step_tab#2",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            0.0,
+            36.0
+          ],
+          [
+            38.0,
+            36.0
+          ],
+          [
+            38.0,
+            48.0
+          ],
+          [
+            58.0,
+            48.0
+          ],
+          [
+            58.0,
+            72.0
+          ],
+          [
+            0.0,
+            72.0
+          ]
+        ]
+      },
+      "rotation_degrees": 0.0,
+      "widget_id": "step_tab"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        85.688469,
+        29.284814
+      ],
+      "item_instance_id": "kite_panel#1",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            56.609999,
+            45.124356
+          ],
+          [
+            62.394609,
+            7.143594
+          ],
+          [
+            106.767676,
+            0.0
+          ],
+          [
+            115.107422,
+            34.444864
+          ],
+          [
+            89.930507,
+            62.837169
+          ]
+        ]
+      },
+      "rotation_degrees": 240.0,
+      "widget_id": "kite_panel"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        142.559075,
+        29.284814
+      ],
+      "item_instance_id": "kite_panel#2",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            113.480605,
+            45.124356
+          ],
+          [
+            119.265214,
+            7.143594
+          ],
+          [
+            163.638281,
+            0.0
+          ],
+          [
+            171.978027,
+            34.444864
+          ],
+          [
+            146.801113,
+            62.837169
+          ]
+        ]
+      },
+      "rotation_degrees": 240.0,
+      "widget_id": "kite_panel"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        123.270239,
+        84.327175
+      ],
+      "item_instance_id": "hook#1",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            160.0,
+            78.322266
+          ],
+          [
+            140.0,
+            112.963282
+          ],
+          [
+            120.947441,
+            101.963282
+          ],
+          [
+            109.947441,
+            121.015841
+          ],
+          [
+            92.626933,
+            111.015841
+          ],
+          [
+            112.626933,
+            76.374825
+          ],
+          [
+            93.574374,
+            65.374825
+          ],
+          [
+            104.574374,
+            46.322266
+          ]
+        ]
+      },
+      "rotation_degrees": 120.0,
+      "widget_id": "hook"
+    },
+    {
+      "board_id": "board_b",
+      "centroid": [
+        86.434716,
+        35.193548
+      ],
+      "item_instance_id": "hook#2",
+      "polygon": {
+        "holes": [],
+        "shell": [
+          [
+            110.0,
+            64.0
+          ],
+          [
+            70.0,
+            64.0
+          ],
+          [
+            70.0,
+            42.0
+          ],
+          [
+            48.0,
+            42.0
+          ],
+          [
+            48.0,
+            22.0
+          ],
+          [
+            88.0,
+            22.0
+          ],
+          [
+            88.0,
+            0.0
+          ],
+          [
+            110.0,
+            0.0
+          ]
+        ]
+      },
+      "rotation_degrees": 180.0,
+      "widget_id": "hook"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        213.977539,
+        60.0
+      ],
+      "item_instance_id": "frame_large#1",
+      "polygon": {
+        "holes": [
+          [
+            [
+              229.977539,
+              32.0
+            ],
+            [
+              197.977539,
+              32.0
+            ],
+            [
+              197.977539,
+              88.0
+            ],
+            [
+              229.977539,
+              88.0
+            ]
+          ]
+        ],
+        "shell": [
+          [
+            255.977539,
+            0.0
+          ],
+          [
+            255.977539,
+            120.0
+          ],
+          [
+            171.977539,
+            120.0
+          ],
+          [
+            171.977539,
+            0.0
+          ]
+        ]
+      },
+      "rotation_degrees": 90.0,
+      "widget_id": "frame_large"
+    },
+    {
+      "board_id": "board_a",
+      "centroid": [
+        42.0,
+        132.0
+      ],
+      "item_instance_id": "frame_large#2",
+      "polygon": {
+        "holes": [
+          [
+            [
+              58.0,
+              104.0
+            ],
+            [
+              26.0,
+              104.0
+            ],
+            [
+              26.0,
+              160.0
+            ],
+            [
+              58.0,
+              160.0
+            ]
+          ]
+        ],
+        "shell": [
+          [
+            84.0,
+            72.0
+          ],
+          [
+            84.0,
+            192.0
+          ],
+          [
+            0.0,
+            192.0
+          ],
+          [
+            0.0,
+            72.0
+          ]
+        ]
+      },
+      "rotation_degrees": 90.0,
+      "widget_id": "frame_large"
+    }
+  ],
+  "score": {
+    "board_utilization_ratio": 0.286585,
+    "max_corner_free_rectangle_area": 15080.0,
+    "placed_area": 32556.0,
+    "placed_ratio_vs_requested": 1.0,
+    "skipped_area": 0.0,
+    "sum_corner_free_rectangle_area": 16872.628906
+  },
+  "search_stats": {
+    "beam_width": 3,
+    "candidate_checks": 3264,
+    "generations": 2,
+    "orders_evaluated": 8,
+    "population_size": 4,
+    "states_expanded": 272,
+    "unique_orders_evaluated": 3
+  },
+  "skipped_item_ids": [],
+  "units": "mm"
+}
