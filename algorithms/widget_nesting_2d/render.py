@@ -67,8 +67,8 @@ def render_solution_image(problem: ProblemSpec, solution: SolutionResult, output
                 bbox={"boxstyle": "round,pad=0.15", "facecolor": "#1f2933", "edgecolor": "none", "alpha": 0.75},
             )
 
-        if board_metric["corner_free_rectangles"]:
-            best_rectangle = max(board_metric["corner_free_rectangles"], key=lambda entry: entry["area"])
+        if board_metric["rest_rectangles"]:
+            best_rectangle = max(board_metric["rest_rectangles"], key=lambda entry: entry["area"])
             min_x, min_y, max_x, max_y = best_rectangle["bounds"]
             rect = Rectangle(
                 (min_x, min_y),
@@ -89,7 +89,7 @@ def render_solution_image(problem: ProblemSpec, solution: SolutionResult, output
         ax.set_ylim(min_y - pad_y, max_y + pad_y)
         ax.set_aspect("equal", adjustable="box")
         ax.set_title(
-            f"{board_spec.board_id}\nutil={board_metric['utilization']:.3f} | max corner rect={board_metric['max_corner_free_rectangle_area']:.1f}"
+            f"{board_spec.board_id}\nutil={board_metric['utilization']:.3f} | max rest rect={board_metric['max_rest_rectangle_area']:.1f}"
         )
         ax.set_xlabel(problem.units)
         ax.set_ylabel(problem.units)

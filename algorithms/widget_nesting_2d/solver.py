@@ -79,7 +79,15 @@ class ItemRuntime:
     area: float
     hole_area: float
     bbox_area: float
-    allowed_angles_degrees: tuple[float, ...]
+    rotation_variants: tuple["RotationVariant", ...]
+
+
+@dataclass(frozen=True)
+class RotationVariant:
+    angle_degrees: float
+    polygon: Polygon
+    bounds: tuple[float, float, float, float]
+    anchor_points: tuple[tuple[float, float], ...]
 
 
 @dataclass(frozen=True)
@@ -101,6 +109,7 @@ class Placement:
 @dataclass(frozen=True)
 class BoardState:
     occupied: Any = field(default_factory=GeometryCollection)
+    free_space: Any | None = None
     placements: tuple[Placement, ...] = ()
 
 
@@ -124,8 +133,8 @@ class SolutionResult:
     skipped_item_ids: tuple[str, ...]
     placed_area: float
     skipped_area: float
-    max_corner_free_rectangle_area: float
-    sum_corner_free_rectangle_area: float
+    max_rest_rectangle_area: float
+    sum_rest_rectangle_area: float
     board_metrics: tuple[dict[str, Any], ...]
     search_stats: dict[str, Any]
 
@@ -281,6 +290,20 @@ def _build_runtime(problem: ProblemSpec, config: SolverConfig) -> tuple[list[Boa
         bbox_area = max(0.0, max_x - min_x) * max(0.0, max_y - min_y)
         hole_area = sum(Polygon(ring).area for ring in widget.polygon.holes)
         angles = _allowed_angles(widget, config)
+        rotation_variants: list[RotationVariant] = []
+        for angle in angles:
+            rotated = orient(
+                shapely_rotate(local_polygon, angle, origin=(0.0, 0.0), use_radians=False),
+                sign=1.0,
+            )
+            rotation_variants.append(
+                RotationVariant(
+                    angle_degrees=angle,
+                    polygon=rotated,
+                    bounds=rotated.bounds,
+                    anchor_points=tuple(_item_anchor_points(rotated, limit=config.max_item_anchor_points)),
+                )
+            )
         for index in range(widget.quantity):
             item_id = f"{widget.widget_id}#{index + 1}"
             items[item_id] = ItemRuntime(
@@ -290,14 +313,14 @@ def _build_runtime(problem: ProblemSpec, config: SolverConfig) -> tuple[list[Boa
                 area=float(local_polygon.area),
                 hole_area=float(hole_area),
                 bbox_area=float(bbox_area),
-                allowed_angles_degrees=angles,
+                rotation_variants=tuple(rotation_variants),
             )
     return boards, items
 
 
-def _board_corner_free_rectangles(board: BoardRuntime, occupied: Any) -> list[dict[str, Any]]:
+def _board_rest_rectangles(board: BoardRuntime, occupied: Any) -> list[dict[str, Any]]:
     if occupied.is_empty:
-        return [{"corner": "board_free", "area": board.area, "bounds": list(board.bounds)}]
+        return [{"kind": "board_free", "area": board.area, "bounds": list(board.bounds)}]
 
     board_min_x, board_min_y, board_max_x, board_max_y = board.bounds
     occ_min_x, occ_min_y, occ_max_x, occ_max_y = occupied.bounds
@@ -307,6 +330,10 @@ def _board_corner_free_rectangles(board: BoardRuntime, occupied: Any) -> list[di
     occ_max_y = min(board_max_y, occ_max_y)
 
     raw_rectangles = [
+        ("left_strip", (board_min_x, board_min_y, occ_min_x, board_max_y)),
+        ("right_strip", (occ_max_x, board_min_y, board_max_x, board_max_y)),
+        ("bottom_strip", (board_min_x, board_min_y, board_max_x, occ_min_y)),
+        ("top_strip", (board_min_x, occ_max_y, board_max_x, board_max_y)),
         ("lower_left", (board_min_x, board_min_y, occ_min_x, occ_min_y)),
         ("lower_right", (occ_max_x, board_min_y, board_max_x, occ_min_y)),
         ("upper_left", (board_min_x, occ_max_y, occ_min_x, board_max_y)),
@@ -314,20 +341,20 @@ def _board_corner_free_rectangles(board: BoardRuntime, occupied: Any) -> list[di
     ]
 
     results: list[dict[str, Any]] = []
-    for corner, bounds in raw_rectangles:
+    for kind, bounds in raw_rectangles:
         area = _bounds_area(bounds)
         if area <= 1e-9:
             continue
         rect = box(*bounds)
         if board.polygon.covers(rect):
-            results.append({"corner": corner, "area": float(area), "bounds": list(bounds)})
+            results.append({"kind": kind, "area": float(area), "bounds": list(bounds)})
     return results
 
 
 def _board_metrics(board: BoardRuntime, board_state: BoardState) -> dict[str, Any]:
-    corner_rectangles = _board_corner_free_rectangles(board, board_state.occupied)
-    max_corner = max((entry["area"] for entry in corner_rectangles), default=0.0)
-    sum_corner = sum(entry["area"] for entry in corner_rectangles)
+    rest_rectangles = _board_rest_rectangles(board, board_state.occupied)
+    max_rest = max((entry["area"] for entry in rest_rectangles), default=0.0)
+    sum_rest = sum(entry["area"] for entry in rest_rectangles)
     occupied_area = sum(placement.area for placement in board_state.placements)
     return {
         "board_id": board.board_id,
@@ -336,22 +363,22 @@ def _board_metrics(board: BoardRuntime, board_state: BoardState) -> dict[str, An
         "utilization": 0.0 if board.area <= 1e-9 else occupied_area / board.area,
         "placement_count": len(board_state.placements),
         "occupied_bounds": [] if board_state.occupied.is_empty else list(board_state.occupied.bounds),
-        "max_corner_free_rectangle_area": max_corner,
-        "sum_corner_free_rectangle_area": sum_corner,
-        "corner_free_rectangles": corner_rectangles,
+        "max_rest_rectangle_area": max_rest,
+        "sum_rest_rectangle_area": sum_rest,
+        "rest_rectangles": rest_rectangles,
     }
 
 
 def _state_rank_key(state: LayoutState, boards: Sequence[BoardRuntime]) -> tuple[float, ...]:
     metrics = [_board_metrics(board, board_state) for board, board_state in zip(boards, state.board_states)]
-    max_corner = max((entry["max_corner_free_rectangle_area"] for entry in metrics), default=0.0)
-    sum_corner = sum(entry["sum_corner_free_rectangle_area"] for entry in metrics)
+    max_rest = max((entry["max_rest_rectangle_area"] for entry in metrics), default=0.0)
+    sum_rest = sum(entry["sum_rest_rectangle_area"] for entry in metrics)
     used_boards = sum(1 for board_state in state.board_states if board_state.placements)
     occupied_bbox_area = sum(_bounds_area(board_state.occupied.bounds) for board_state in state.board_states if not board_state.occupied.is_empty)
     return (
         round(state.placed_area, 6),
-        round(max_corner, 6),
-        round(sum_corner, 6),
+        round(max_rest, 6),
+        round(sum_rest, 6),
         -float(used_boards),
         -round(occupied_bbox_area, 6),
         -round(state.skipped_area, 6),
@@ -387,6 +414,14 @@ def _trim_beam(states: Sequence[LayoutState], boards: Sequence[BoardRuntime], li
 
 def _initial_state(board_count: int) -> LayoutState:
     return LayoutState(board_states=tuple(BoardState() for _ in range(board_count)))
+
+
+def _board_free_space(board: BoardRuntime, board_state: BoardState) -> Any:
+    if board_state.free_space is not None:
+        return board_state.free_space
+    if board_state.occupied.is_empty:
+        return board.polygon
+    return board.polygon.difference(board_state.occupied)
 
 
 def _is_valid_placement(geometry: Polygon, board: BoardRuntime, occupied: Any, tolerance: float) -> bool:
@@ -487,9 +522,9 @@ def _candidate_key(board_id: str, angle: float, geometry: Polygon) -> tuple[Any,
 
 
 def _placement_rank_key(board: BoardRuntime, occupied_after: Any, geometry: Polygon) -> tuple[float, ...]:
-    corner_rectangles = _board_corner_free_rectangles(board, occupied_after)
-    max_corner = max((entry["area"] for entry in corner_rectangles), default=0.0)
-    sum_corner = sum(entry["area"] for entry in corner_rectangles)
+    rest_rectangles = _board_rest_rectangles(board, occupied_after)
+    max_rest = max((entry["area"] for entry in rest_rectangles), default=0.0)
+    sum_rest = sum(entry["area"] for entry in rest_rectangles)
     occupied_bbox_area = _bounds_area(occupied_after.bounds)
     centroid = geometry.centroid
     best_corner_distance = min(
@@ -497,8 +532,8 @@ def _placement_rank_key(board: BoardRuntime, occupied_after: Any, geometry: Poly
         for corner in ALL_CORNERS
     )
     return (
-        round(max_corner, 6),
-        round(sum_corner, 6),
+        round(max_rest, 6),
+        round(sum_rest, 6),
         -round(occupied_bbox_area, 6),
         -round(best_corner_distance, 6),
     )
@@ -526,16 +561,15 @@ def _build_placement(
 
 def _candidate_geometries(
     rotated_item: Polygon,
+    item_anchor_points: Sequence[tuple[float, float]],
     free_component: Polygon,
     *,
-    max_item_anchor_points: int,
     max_free_space_anchor_points: int,
 ) -> list[Polygon]:
-    item_points = _item_anchor_points(rotated_item, limit=max_item_anchor_points)
     free_points = _free_space_anchor_points(free_component, limit=max_free_space_anchor_points)
     geometries: list[Polygon] = []
     for target_x, target_y in free_points:
-        for anchor_x, anchor_y in item_points:
+        for anchor_x, anchor_y in item_anchor_points:
             geometries.append(
                 shapely_translate(rotated_item, xoff=target_x - anchor_x, yoff=target_y - anchor_y)
             )
@@ -558,7 +592,7 @@ def _find_item_candidates(
 
     for board_index, board in enumerate(boards):
         board_state = state.board_states[board_index]
-        free_space = board.polygon if board_state.occupied.is_empty else board.polygon.difference(board_state.occupied)
+        free_space = _board_free_space(board, board_state)
         for free_component in _iter_polygons(free_space):
             if free_component.area + config.placement_tolerance < item.area:
                 continue
@@ -567,12 +601,10 @@ def _find_item_candidates(
             comp_width = comp_max_x - comp_min_x
             comp_height = comp_max_y - comp_min_y
 
-            for angle in item.allowed_angles_degrees:
-                rotated = orient(
-                    shapely_rotate(item.polygon_local, angle, origin=(0.0, 0.0), use_radians=False),
-                    sign=1.0,
-                )
-                rot_min_x, rot_min_y, rot_max_x, rot_max_y = rotated.bounds
+            for variant in item.rotation_variants:
+                rotated = variant.polygon
+                angle = variant.angle_degrees
+                rot_min_x, rot_min_y, rot_max_x, rot_max_y = variant.bounds
                 if (rot_max_x - rot_min_x) > comp_width + config.placement_tolerance and (
                     rot_max_y - rot_min_y
                 ) > comp_height + config.placement_tolerance:
@@ -580,8 +612,8 @@ def _find_item_candidates(
 
                 for seed_geometry in _candidate_geometries(
                     rotated,
+                    variant.anchor_points,
                     free_component,
-                    max_item_anchor_points=config.max_item_anchor_points,
                     max_free_space_anchor_points=config.max_free_space_anchor_points,
                 ):
                     for corner in config.preferred_corners:
@@ -611,8 +643,11 @@ def _apply_placement(state: LayoutState, placement: Placement) -> LayoutState:
     board_states = list(state.board_states)
     board_state = board_states[placement.board_index]
     occupied = placement.polygon if board_state.occupied.is_empty else board_state.occupied.union(placement.polygon)
+    prior_free_space = board_state.free_space
+    free_space = None if prior_free_space is None else prior_free_space.difference(placement.polygon)
     board_states[placement.board_index] = BoardState(
         occupied=occupied,
+        free_space=free_space,
         placements=board_state.placements + (placement,),
     )
     return LayoutState(
@@ -765,8 +800,8 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None) -> S
     assert best_state is not None
 
     board_metrics = tuple(_board_metrics(board, board_state) for board, board_state in zip(boards, best_state.board_states))
-    max_corner = max((entry["max_corner_free_rectangle_area"] for entry in board_metrics), default=0.0)
-    sum_corner = sum(entry["sum_corner_free_rectangle_area"] for entry in board_metrics)
+    max_rest = max((entry["max_rest_rectangle_area"] for entry in board_metrics), default=0.0)
+    sum_rest = sum(entry["sum_rest_rectangle_area"] for entry in board_metrics)
     aggregate_stats["unique_orders_evaluated"] = len(cache)
     aggregate_stats["beam_width"] = effective_config.beam_width
     aggregate_stats["population_size"] = effective_config.population_size
@@ -778,8 +813,8 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None) -> S
         skipped_item_ids=best_state.skipped_item_ids,
         placed_area=best_state.placed_area,
         skipped_area=best_state.skipped_area,
-        max_corner_free_rectangle_area=max_corner,
-        sum_corner_free_rectangle_area=sum_corner,
+        max_rest_rectangle_area=max_rest,
+        sum_rest_rectangle_area=sum_rest,
         board_metrics=board_metrics,
         search_stats=aggregate_stats,
     )
@@ -804,8 +839,8 @@ def solution_to_dict(problem: ProblemSpec, solution: SolutionResult) -> dict[str
             "skipped_area": solution.skipped_area,
             "placed_ratio_vs_requested": 0.0 if total_widget_area <= 1e-9 else solution.placed_area / total_widget_area,
             "board_utilization_ratio": 0.0 if total_board_area <= 1e-9 else solution.placed_area / total_board_area,
-            "max_corner_free_rectangle_area": solution.max_corner_free_rectangle_area,
-            "sum_corner_free_rectangle_area": solution.sum_corner_free_rectangle_area,
+            "max_rest_rectangle_area": solution.max_rest_rectangle_area,
+            "sum_rest_rectangle_area": solution.sum_rest_rectangle_area,
         },
         "placements": [
             {

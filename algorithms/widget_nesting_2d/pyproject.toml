@@ -25,6 +25,7 @@ test = [
 
 [project.scripts]
 widget-nesting-2d = "algorithms.widget_nesting_2d.solver:main"
+widget-nesting-2d-suite = "algorithms.widget_nesting_2d.run_case_suite:main"
 
 [tool.setuptools]
 include-package-data = true

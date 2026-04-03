@@ -143,4 +143,27 @@ def test_full_fit_preserves_large_corner_rectangle() -> None:
     solution = solve_problem(problem, config=_config(rotation_step_degrees=90))
     validate_solution(problem, solution)
     assert len(solution.skipped_item_ids) == 0
-    assert solution.max_corner_free_rectangle_area >= 5000.0
+    assert solution.max_rest_rectangle_area >= 8000.0
+
+
+def test_repeated_single_widget_can_fill_board() -> None:
+    problem = _problem(
+        {
+            "units": "mm",
+            "boards": [{"id": "board", "polygon": {"shell": [[0, 0], [100, 0], [100, 100], [0, 100]]}}],
+            "widgets": [
+                {
+                    "id": "tile",
+                    "quantity": 4,
+                    "allowed_angles_degrees": [0, 90],
+                    "polygon": _rectangle(50, 50),
+                }
+            ],
+        }
+    )
+
+    solution = solve_problem(problem, config=_config(rotation_step_degrees=90))
+    validate_solution(problem, solution)
+    assert solution.placed_area >= 9999.0
+    assert len(solution.skipped_item_ids) == 0
+    assert solution.max_rest_rectangle_area <= 1e-6
