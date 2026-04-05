@@ -44,8 +44,9 @@ class LandauFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 @configclass
 class LandauFwdOnlyPPORunnerCfg(LandauFlatPPORunnerCfg):
+    num_steps_per_env = 48
     experiment_name = "geo_landau_fwd_only"
-    max_iterations = 2500
+    max_iterations = 3000
 
 
 @configclass

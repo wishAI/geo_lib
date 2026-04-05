@@ -36,6 +36,18 @@ def apply_runner_overrides(agent_cfg: Any, args: Any) -> Any:
         agent_cfg.experiment_name = args.experiment_name
     if getattr(args, "max_iterations", None):
         agent_cfg.max_iterations = args.max_iterations
+    algo_cfg = getattr(agent_cfg, "algorithm", None)
+    if algo_cfg is not None:
+        if getattr(args, "learning_rate", None) is not None:
+            algo_cfg.learning_rate = args.learning_rate
+        if getattr(args, "entropy_coef", None) is not None:
+            algo_cfg.entropy_coef = args.entropy_coef
+        if getattr(args, "desired_kl", None) is not None:
+            algo_cfg.desired_kl = args.desired_kl
+        if getattr(args, "num_learning_epochs", None) is not None:
+            algo_cfg.num_learning_epochs = args.num_learning_epochs
+        if getattr(args, "num_mini_batches", None) is not None:
+            algo_cfg.num_mini_batches = args.num_mini_batches
     return agent_cfg
 
 
@@ -65,6 +77,49 @@ def resolve_checkpoint(log_root: str, agent_cfg: Any) -> str:
     return checkpoint_path
 
 
+def _load_checkpoint_env_params(checkpoint_path: str) -> dict[str, Any] | None:
+    params_path = os.path.join(os.path.dirname(checkpoint_path), "params", "env.yaml")
+    if not os.path.isfile(params_path):
+        return None
+    try:
+        import yaml
+    except ImportError:
+        return None
+    with open(params_path, "r", encoding="utf-8") as stream:
+        loaded = yaml.unsafe_load(stream)
+    return loaded if isinstance(loaded, dict) else None
+
+
+def apply_checkpoint_playback_compat(env_cfg: Any, checkpoint_path: str) -> bool:
+    """Restore checkpoint-era action scale and command ranges for inference tools.
+
+    Older Landau checkpoints become misleadingly bad when replayed against later Stage A config
+    changes. Replay/teleop/validation should prefer the saved training-time mapping if available.
+    """
+
+    env_params = _load_checkpoint_env_params(checkpoint_path)
+    if env_params is None:
+        return False
+
+    applied = False
+    action_scale = env_params.get("actions", {}).get("joint_pos", {}).get("scale")
+    if isinstance(action_scale, dict) and hasattr(getattr(env_cfg, "actions", None), "joint_pos"):
+        env_cfg.actions.joint_pos.scale = dict(action_scale)
+        applied = True
+
+    command_ranges = env_params.get("commands", {}).get("base_velocity", {}).get("ranges", {})
+    target_ranges = getattr(getattr(getattr(env_cfg, "commands", None), "base_velocity", None), "ranges", None)
+    if isinstance(command_ranges, dict) and target_ranges is not None:
+        for attr_name in ("lin_vel_x", "lin_vel_y", "ang_vel_z"):
+            range_value = command_ranges.get(attr_name)
+            if range_value is None or not hasattr(target_ranges, attr_name):
+                continue
+            setattr(target_ranges, attr_name, tuple(float(component) for component in range_value))
+            applied = True
+
+    return applied
+
+
 def force_base_velocity_command(env, command: tuple[float, float, float]) -> None:
     command_term = env.command_manager.get_term("base_velocity")
     command_tensor = torch.tensor(command, device=env.device, dtype=torch.float32).repeat(env.num_envs, 1)
@@ -72,13 +127,44 @@ def force_base_velocity_command(env, command: tuple[float, float, float]) -> Non
     if hasattr(command_term, "is_heading_env"):
         command_term.is_heading_env[:] = False
     if hasattr(command_term, "is_standing_env"):
-        command_term.is_standing_env[:] = False
+        standing_mask = torch.linalg.norm(command_tensor[:, :2], dim=1) <= 0.05
+        standing_mask &= torch.abs(command_tensor[:, 2]) <= 0.05
+        command_term.is_standing_env[:] = standing_mask
     command_term.time_left[:] = 1.0e9
 
 
-def clamp_base_velocity_command(env_cfg: Any, command: tuple[float, float, float]) -> tuple[float, float, float]:
+def _clamp_command_component(raw_value: float, lower: float, upper: float, preserve_zero_threshold: float) -> float:
+    # In staged forward-only configs, snapping near-zero or backward user commands up to the
+    # minimum forward velocity makes teleop look "automatic". Preserve an actual idle command.
+    if lower > 0.0 and raw_value <= preserve_zero_threshold:
+        return 0.0
+    if upper < 0.0 and raw_value >= -preserve_zero_threshold:
+        return 0.0
+    return min(max(raw_value, lower), upper)
+
+
+def clamp_base_velocity_command(
+    env_cfg: Any,
+    command: tuple[float, float, float],
+    preserve_zero_threshold: float = 0.05,
+) -> tuple[float, float, float]:
     ranges = env_cfg.commands.base_velocity.ranges
-    vx = min(max(float(command[0]), float(ranges.lin_vel_x[0])), float(ranges.lin_vel_x[1]))
-    vy = min(max(float(command[1]), float(ranges.lin_vel_y[0])), float(ranges.lin_vel_y[1]))
-    yaw = min(max(float(command[2]), float(ranges.ang_vel_z[0])), float(ranges.ang_vel_z[1]))
+    vx = _clamp_command_component(
+        float(command[0]),
+        float(ranges.lin_vel_x[0]),
+        float(ranges.lin_vel_x[1]),
+        preserve_zero_threshold,
+    )
+    vy = _clamp_command_component(
+        float(command[1]),
+        float(ranges.lin_vel_y[0]),
+        float(ranges.lin_vel_y[1]),
+        preserve_zero_threshold,
+    )
+    yaw = _clamp_command_component(
+        float(command[2]),
+        float(ranges.ang_vel_z[0]),
+        float(ranges.ang_vel_z[1]),
+        preserve_zero_threshold,
+    )
     return (vx, vy, yaw)

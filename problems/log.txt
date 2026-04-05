@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/scripts/teleop.py", line 172, in <module>
+    main()
+  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/scripts/teleop.py", line 119, in main
+    ppo_runner.load(resume_path)
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages/rsl_rl/runners/on_policy_runner.py", line 384, in load
+    self.alg.actor_critic.load_state_dict(loaded_dict["model_state_dict"])
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/exts/omni.isaac.ml_archive/pip_prebundle/torch/nn/modules/module.py", line 2584, in load_state_dict
+    raise RuntimeError(
+RuntimeError: Error(s) in loading state_dict for ActorCritic:
+	size mismatch for std: copying a param with shape torch.Size([12]) from checkpoint, the shape in current model is torch.Size([29]).
+	size mismatch for actor.0.weight: copying a param with shape torch.Size([512, 48]) from checkpoint, the shape in current model is torch.Size([512, 99]).
+	size mismatch for actor.6.weight: copying a param with shape torch.Size([12, 128]) from checkpoint, the shape in current model is torch.Size([29, 128]).
+	size mismatch for actor.6.bias: copying a param with shape torch.Size([12]) from checkpoint, the shape in current model is torch.Size([29]).
+	size mismatch for critic.0.weight: copying a param with shape torch.Size([512, 48]) from checkpoint, the shape in current model is torch.Size([512, 99]).

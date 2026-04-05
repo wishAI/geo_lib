@@ -1141,9 +1141,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0.000000 0.000000 0.000000" rpy="0.000000 0.000000 0.000000"/>
+      <origin xyz="0.000000 0.002000 -0.047000" rpy="0.546321 -0.550147 0.000000"/>
       <geometry>
-        <mesh filename="mesh_collision_stl/landau_v10/foot_l.stl"/>
+        <box size="0.056000 0.088000 0.018000"/>
       </geometry>
     </collision>
   </link>
@@ -1160,9 +1160,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0.000000 0.000000 0.000000" rpy="0.000000 0.000000 0.000000"/>
+      <origin xyz="0.000000 0.010000 -0.014000" rpy="-2.353952 0.685457 3.141593"/>
       <geometry>
-        <mesh filename="mesh_collision_stl/landau_v10/toes_01_l.stl"/>
+        <box size="0.044000 0.038000 0.012000"/>
       </geometry>
     </collision>
   </link>
@@ -1255,9 +1255,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0.000000 0.000000 0.000000" rpy="0.000000 0.000000 0.000000"/>
+      <origin xyz="0.000000 0.002000 -0.047000" rpy="0.546321 0.550145 0.000000"/>
       <geometry>
-        <mesh filename="mesh_collision_stl/landau_v10/foot_r.stl"/>
+        <box size="0.056000 0.088000 0.018000"/>
       </geometry>
     </collision>
   </link>
@@ -1274,9 +1274,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0.000000 0.000000 0.000000" rpy="0.000000 0.000000 0.000000"/>
+      <origin xyz="0.000000 0.010000 -0.014000" rpy="-2.353946 -0.685651 3.141593"/>
       <geometry>
-        <mesh filename="mesh_collision_stl/landau_v10/toes_01_r.stl"/>
+        <box size="0.044000 0.038000 0.012000"/>
       </geometry>
     </collision>
   </link>

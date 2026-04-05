@@ -44,6 +44,7 @@ from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapper, export_poli
 
 from algorithms.urdf_learn_wasd_walk.command_frame import semantic_command_to_env_command
 from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
+    apply_checkpoint_playback_compat,
     clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
@@ -78,6 +79,8 @@ def main() -> None:
             f"Details: {exc}"
         ) from exc
     print(f"[INFO] Loading checkpoint: {resume_path}")
+    if apply_checkpoint_playback_compat(env_cfg, resume_path):
+        print("[INFO] Applied playback compatibility overrides from checkpoint params/env.yaml")
 
     if visual_mode != "urdf" and getattr(env_cfg.scene, "num_envs", 1) != 1:
         print("[INFO] Synced USD visual mode uses one displayed environment; overriding num_envs to 1.")
@@ -108,8 +111,12 @@ def main() -> None:
     )
 
     fixed_command = None
-    if None not in (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw):
-        semantic_command = (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)
+    if any(value is not None for value in (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)):
+        semantic_command = (
+            0.0 if args_cli.command_vx is None else args_cli.command_vx,
+            0.0 if args_cli.command_vy is None else args_cli.command_vy,
+            0.0 if args_cli.command_yaw is None else args_cli.command_yaw,
+        )
         fixed_command = clamp_base_velocity_command(
             env_cfg, semantic_command_to_env_command(task_spec.forward_body_axis, semantic_command)
         )
@@ -122,6 +129,7 @@ def main() -> None:
     while simulation_app.is_running():
         if fixed_command is not None:
             force_base_velocity_command(env.unwrapped, fixed_command)
+            obs, _ = env.get_observations()
         with torch.inference_mode():
             actions = policy(obs)
             obs, _, _, _ = env.step(actions)

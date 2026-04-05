@@ -26,6 +26,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--num_envs", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max_iterations", type=int, default=None)
+    parser.add_argument("--learning_rate", type=float, default=None)
+    parser.add_argument("--entropy_coef", type=float, default=None)
+    parser.add_argument("--desired_kl", type=float, default=None)
+    parser.add_argument("--num_learning_epochs", type=int, default=None)
+    parser.add_argument("--num_mini_batches", type=int, default=None)
+    parser.add_argument("--reset_optimizer", action="store_true", default=False)
     parser.add_argument("--experiment_name", type=str, default=None)
     parser.add_argument("--run_name", type=str, default=None)
     parser.add_argument("--resume", type=bool, default=None)
@@ -64,6 +70,28 @@ torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = False
 
 
+def _apply_runtime_algorithm_overrides(runner: OnPolicyRunner, args: argparse.Namespace) -> None:
+    algorithm = getattr(runner, "alg", None)
+    if algorithm is None:
+        return
+    if args.learning_rate is not None and hasattr(algorithm, "learning_rate"):
+        algorithm.learning_rate = args.learning_rate
+    if args.entropy_coef is not None and hasattr(algorithm, "entropy_coef"):
+        algorithm.entropy_coef = args.entropy_coef
+    if args.desired_kl is not None and hasattr(algorithm, "desired_kl"):
+        algorithm.desired_kl = args.desired_kl
+    if args.num_learning_epochs is not None and hasattr(algorithm, "num_learning_epochs"):
+        algorithm.num_learning_epochs = args.num_learning_epochs
+    if args.num_mini_batches is not None and hasattr(algorithm, "num_mini_batches"):
+        algorithm.num_mini_batches = args.num_mini_batches
+    optimizer = getattr(algorithm, "optimizer", None)
+    if optimizer is not None and args.learning_rate is not None:
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = args.learning_rate
+    if optimizer is not None and args.reset_optimizer:
+        optimizer.state.clear()
+
+
 def main() -> None:
     register_gym_envs()
     task_spec = resolve_robot_task_spec(args_cli.robot, stage=args_cli.stage)
@@ -96,6 +124,7 @@ def main() -> None:
         resume_path = resolve_checkpoint(log_root_path, agent_cfg)
         print(f"[INFO] Resuming from checkpoint: {resume_path}")
         runner.load(resume_path)
+    _apply_runtime_algorithm_overrides(runner, args_cli)
 
     env.seed(agent_cfg.seed)
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)

@@ -34,10 +34,20 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-foot-planar-travel", type=float, default=0.03)
     parser.add_argument("--min-foot-height-range", type=float, default=0.01)
     parser.add_argument("--min-contact-switches", type=int, default=1)
+    parser.add_argument("--min-single-support-ratio", type=float, default=None)
+    parser.add_argument("--min-touchdown-step-length", type=float, default=None)
+    parser.add_argument("--min-touchdown-root-straddle", type=float, default=None)
+    parser.add_argument("--min-swing-clearance", type=float, default=None)
     parser.add_argument("--max-done-count", type=int, default=4)
     parser.add_argument("--report-non-support-contacts", action="store_true", default=False)
     parser.add_argument("--max-non-support-contact-steps", type=int, default=None)
     parser.add_argument("--min-control-root-height", type=float, default=None)
+    parser.add_argument("--max-mean-support-width", type=float, default=None)
+    parser.add_argument("--max-double-support-ratio", type=float, default=None)
+    parser.add_argument("--max-flight-ratio", type=float, default=None)
+    parser.add_argument("--max-forward-speed-error", type=float, default=None)
+    parser.add_argument("--max-yaw-rate-error", type=float, default=None)
+    parser.add_argument("--min-primary-force-share", type=float, default=None)
     AppLauncher.add_app_launcher_args(parser)
     return parser
 
@@ -56,6 +66,7 @@ from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapper
 
 from algorithms.urdf_learn_wasd_walk.command_frame import semantic_command_to_env_command, semantic_forward_dir_xy
 from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
+    apply_checkpoint_playback_compat,
     clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
@@ -96,6 +107,19 @@ def _body_axes_xy(quat_wxyz: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return body_x, body_y
 
 
+def _yaw_frame_lin_vel(root_lin_vel_w: torch.Tensor, quat_wxyz: torch.Tensor) -> torch.Tensor:
+    body_x_xy, body_y_xy = _body_axes_xy(quat_wxyz)
+    planar_vel_w = root_lin_vel_w[:2]
+    return torch.tensor(
+        (
+            float(torch.dot(planar_vel_w, body_x_xy)),
+            float(torch.dot(planar_vel_w, body_y_xy)),
+            float(root_lin_vel_w[2]),
+        ),
+        dtype=torch.float32,
+    )
+
+
 def _validate_metric(condition: bool, label: str, value, threshold) -> None:
     status = "PASS" if condition else "FAIL"
     print(f"[VALIDATE] {status} {label}: value={value} threshold={threshold}", flush=True)
@@ -131,8 +155,35 @@ def _apply_stage_defaults(args, task_spec) -> None:
             args.min_planar_displacement = 0.3
         if args.steps == 256:
             args.steps = 500
+        if args.min_forward_displacement is None:
+            args.min_forward_displacement = 0.4
+        if args.min_contact_switches == 1:
+            args.min_contact_switches = 4
+        if args.min_single_support_ratio is None:
+            args.min_single_support_ratio = 0.08
+        if args.min_touchdown_step_length is None:
+            args.min_touchdown_step_length = 0.04
+        if args.min_touchdown_root_straddle is None:
+            args.min_touchdown_root_straddle = 0.01
+        if args.min_swing_clearance is None:
+            args.min_swing_clearance = 0.025
         if args.max_non_support_contact_steps is None:
             args.max_non_support_contact_steps = 120
+        if args.min_control_root_height is None and hasattr(task_spec, "nominal_control_root_height"):
+            args.min_control_root_height = max(0.17, float(task_spec.nominal_control_root_height) * 0.65)
+        if args.max_mean_support_width is None and hasattr(task_spec, "nominal_stance_width"):
+            nominal_width = float(task_spec.nominal_stance_width)
+            args.max_mean_support_width = max(nominal_width * 1.4, nominal_width + 0.06)
+        if args.max_double_support_ratio is None:
+            args.max_double_support_ratio = 0.75
+        if args.max_flight_ratio is None:
+            args.max_flight_ratio = 0.05
+        if args.max_forward_speed_error is None and abs(args.command_vx) <= 0.6 and abs(args.command_vy) <= 0.1:
+            args.max_forward_speed_error = 0.15
+        if args.max_yaw_rate_error is None and abs(args.command_yaw) <= 0.1:
+            args.max_yaw_rate_error = 0.12
+        if args.min_primary_force_share is None:
+            args.min_primary_force_share = 0.65
     elif stage == "fwd_yaw":
         if args.command_vx == 0.5 and args.command_vy == 0.0:
             args.command_vx = 0.4
@@ -142,8 +193,27 @@ def _apply_stage_defaults(args, task_spec) -> None:
             args.min_planar_displacement = 0.2
         if args.steps == 256:
             args.steps = 500
+        if args.min_contact_switches == 1:
+            args.min_contact_switches = 3
+        if args.min_single_support_ratio is None:
+            args.min_single_support_ratio = 0.06
+        if args.min_touchdown_step_length is None:
+            args.min_touchdown_step_length = 0.03
+        if args.min_swing_clearance is None:
+            args.min_swing_clearance = 0.02
         if args.max_non_support_contact_steps is None:
             args.max_non_support_contact_steps = 140
+        if args.min_control_root_height is None and hasattr(task_spec, "nominal_control_root_height"):
+            args.min_control_root_height = max(0.17, float(task_spec.nominal_control_root_height) * 0.65)
+        if args.max_mean_support_width is None and hasattr(task_spec, "nominal_stance_width"):
+            nominal_width = float(task_spec.nominal_stance_width)
+            args.max_mean_support_width = max(nominal_width * 1.45, nominal_width + 0.08)
+        if args.max_flight_ratio is None:
+            args.max_flight_ratio = 0.1
+        if args.max_forward_speed_error is None and abs(args.command_vx) <= 0.5 and abs(args.command_vy) <= 0.1:
+            args.max_forward_speed_error = 0.18
+        if args.max_yaw_rate_error is None and abs(args.command_yaw) > 0.1:
+            args.max_yaw_rate_error = 0.2
 
 
 def main() -> None:
@@ -156,6 +226,8 @@ def main() -> None:
     log_root_path = log_root_for_experiment(agent_cfg.experiment_name)
     resume_path = resolve_checkpoint(log_root_path, agent_cfg)
     print(f"[VALIDATE] checkpoint={resume_path}", flush=True)
+    if apply_checkpoint_playback_compat(env_cfg, resume_path):
+        print("[VALIDATE] applied playback compatibility overrides from checkpoint params/env.yaml", flush=True)
 
     if agent_cfg.seed is not None and hasattr(env_cfg, "seed"):
         env_cfg.seed = agent_cfg.seed
@@ -174,13 +246,19 @@ def main() -> None:
     left_support_names, right_support_names = _group_support_links(support_names)
     if not left_support_names or not right_support_names:
         raise AssertionError(f"Expected left/right support links, found support={support_names}")
+    aux_support_names = tuple(name for name in support_names if name not in foot_names)
+    left_aux_names, right_aux_names = _group_support_links(aux_support_names)
 
     robot_body_ids, robot_body_names = robot.find_bodies(list(foot_names), preserve_order=True)
     sensor_body_ids, sensor_body_names = contact_sensor.find_bodies(list(foot_names), preserve_order=True)
+    left_primary_sensor_ids, _ = contact_sensor.find_bodies([foot_names[0]], preserve_order=True)
+    right_primary_sensor_ids, _ = contact_sensor.find_bodies([foot_names[1]], preserve_order=True)
     left_support_robot_ids, _ = robot.find_bodies(list(left_support_names), preserve_order=True)
     right_support_robot_ids, _ = robot.find_bodies(list(right_support_names), preserve_order=True)
     left_support_sensor_ids, _ = contact_sensor.find_bodies(list(left_support_names), preserve_order=True)
     right_support_sensor_ids, _ = contact_sensor.find_bodies(list(right_support_names), preserve_order=True)
+    left_aux_sensor_ids, _ = contact_sensor.find_bodies(list(left_aux_names), preserve_order=True) if left_aux_names else ([], [])
+    right_aux_sensor_ids, _ = contact_sensor.find_bodies(list(right_aux_names), preserve_order=True) if right_aux_names else ([], [])
     support_name_set = set(support_names)
     non_support_names = tuple(getattr(task_spec, "gait_guard_link_names", ()) or ())
     if not non_support_names:
@@ -206,6 +284,7 @@ def main() -> None:
     semantic_command = (args_cli.command_vx, args_cli.command_vy, args_cli.command_yaw)
     env_command = clamp_base_velocity_command(env_cfg, semantic_command_to_env_command(task_spec.forward_body_axis, semantic_command))
     force_base_velocity_command(env.unwrapped, env_command)
+    obs, _ = env.get_observations()
 
     initial_root_pos = robot.data.root_pos_w[0].detach().cpu()
     initial_root_quat = robot.data.root_quat_w[0].detach().cpu()
@@ -235,7 +314,21 @@ def main() -> None:
     )
     max_side_planar_travel = torch.zeros(2, dtype=torch.float32)
     sum_root_lin_vel_b = torch.zeros(3, dtype=torch.float32)
+    sum_root_lin_vel_yaw = torch.zeros(3, dtype=torch.float32)
     sum_root_ang_vel_w = torch.zeros(3, dtype=torch.float32)
+    single_support_steps = 0
+    left_only_steps = 0
+    right_only_steps = 0
+    double_support_steps = 0
+    flight_steps = 0
+    sum_support_width = 0.0
+    max_support_width = 0.0
+    min_contact_side_height = torch.tensor(
+        [float(initial_left_support_pos[:, 2].mean()), float(initial_right_support_pos[:, 2].mean())], dtype=torch.float32
+    )
+    max_swing_side_height = torch.tensor([float("-inf"), float("-inf")], dtype=torch.float32)
+    touchdown_step_lengths: tuple[list[float], list[float]] = ([], [])
+    touchdown_root_straddles: tuple[list[float], list[float]] = ([], [])
     non_support_contact_counts = torch.zeros(len(non_support_names), dtype=torch.int64)
     non_support_peak_forces = torch.zeros(len(non_support_names), dtype=torch.float32)
     min_control_root_height = None
@@ -249,25 +342,102 @@ def main() -> None:
     ).detach().cpu()
     contact_switches = torch.zeros(2, dtype=torch.int64)
     done_count = 0
+    primary_force_share_sum = 0.0
+    primary_force_share_count = 0
 
     for _ in range(args_cli.steps):
         force_base_velocity_command(env.unwrapped, env_command)
+        obs, _ = env.get_observations()
         with torch.inference_mode():
             actions = policy(obs)
             obs, _, dones, _ = env.step(actions)
         done_count += int(dones[0].item())
 
         root_pos = robot.data.root_pos_w[0].detach().cpu()
+        root_quat = robot.data.root_quat_w[0].detach().cpu()
+        root_lin_vel_w = robot.data.root_lin_vel_w[0].detach().cpu()
         root_lin_vel_b = robot.data.root_lin_vel_b[0].detach().cpu()
         root_ang_vel_w = robot.data.root_ang_vel_w[0].detach().cpu()
         left_support_pos = robot.data.body_pos_w[0, left_support_robot_ids].detach().cpu()
         right_support_pos = robot.data.body_pos_w[0, right_support_robot_ids].detach().cpu()
+        left_support_center_xy = left_support_pos[:, :2].mean(dim=0)
+        right_support_center_xy = right_support_pos[:, :2].mean(dim=0)
+        if control_root_robot_ids:
+            control_root_xy = robot.data.body_pos_w[0, control_root_robot_ids[0], :2].detach().cpu()
+        else:
+            control_root_xy = root_pos[:2]
+        body_x_xy, body_y_xy = _body_axes_xy(root_quat)
+        forward_axis_xy = body_y_xy if task_spec.forward_body_axis == "y" else body_x_xy
+        lateral_axis_xy = body_x_xy if task_spec.forward_body_axis == "y" else body_y_xy
         current_contact = torch.stack(
             (
                 _contact_mask(contact_sensor, left_support_sensor_ids, args_cli.contact_threshold)[0].any(),
                 _contact_mask(contact_sensor, right_support_sensor_ids, args_cli.contact_threshold)[0].any(),
             )
         ).detach().cpu()
+        left_primary_force = torch.linalg.norm(
+            contact_sensor.data.net_forces_w_history[:, 0, left_primary_sensor_ids].detach().cpu()[0], dim=-1
+        ).sum()
+        right_primary_force = torch.linalg.norm(
+            contact_sensor.data.net_forces_w_history[:, 0, right_primary_sensor_ids].detach().cpu()[0], dim=-1
+        ).sum()
+        left_aux_force = (
+            torch.linalg.norm(contact_sensor.data.net_forces_w_history[:, 0, left_aux_sensor_ids].detach().cpu()[0], dim=-1).sum()
+            if left_aux_sensor_ids
+            else torch.tensor(0.0)
+        )
+        right_aux_force = (
+            torch.linalg.norm(contact_sensor.data.net_forces_w_history[:, 0, right_aux_sensor_ids].detach().cpu()[0], dim=-1).sum()
+            if right_aux_sensor_ids
+            else torch.tensor(0.0)
+        )
+        left_total_force = left_primary_force + left_aux_force
+        right_total_force = right_primary_force + right_aux_force
+        if float(left_total_force) > args_cli.contact_threshold:
+            primary_force_share_sum += float(left_primary_force / torch.clamp(left_total_force, min=1.0e-6))
+            primary_force_share_count += 1
+        if float(right_total_force) > args_cli.contact_threshold:
+            primary_force_share_sum += float(right_primary_force / torch.clamp(right_total_force, min=1.0e-6))
+            primary_force_share_count += 1
+        if current_contact[0] and current_contact[1]:
+            double_support_steps += 1
+        elif current_contact[0] or current_contact[1]:
+            single_support_steps += 1
+            if current_contact[0]:
+                left_only_steps += 1
+            if current_contact[1]:
+                right_only_steps += 1
+        else:
+            flight_steps += 1
+        support_width = abs(float(torch.dot(left_support_center_xy - right_support_center_xy, lateral_axis_xy)))
+        sum_support_width += support_width
+        max_support_width = max(max_support_width, support_width)
+        left_mean_height = float(left_support_pos[:, 2].mean())
+        right_mean_height = float(right_support_pos[:, 2].mean())
+        if current_contact[0]:
+            min_contact_side_height[0] = min(float(min_contact_side_height[0]), left_mean_height)
+        elif current_contact[1]:
+            max_swing_side_height[0] = max(float(max_swing_side_height[0]), left_mean_height)
+        if current_contact[1]:
+            min_contact_side_height[1] = min(float(min_contact_side_height[1]), right_mean_height)
+        elif current_contact[0]:
+            max_swing_side_height[1] = max(float(max_swing_side_height[1]), right_mean_height)
+        if current_contact[0] and not last_contact[0]:
+            touchdown_step_lengths[0].append(float(torch.dot(left_support_center_xy - right_support_center_xy, forward_axis_xy)))
+            touchdown_root_straddles[0].append(
+                min(
+                    float(torch.dot(left_support_center_xy - control_root_xy, forward_axis_xy)),
+                    float(torch.dot(control_root_xy - right_support_center_xy, forward_axis_xy)),
+                )
+            )
+        if current_contact[1] and not last_contact[1]:
+            touchdown_step_lengths[1].append(float(torch.dot(right_support_center_xy - left_support_center_xy, forward_axis_xy)))
+            touchdown_root_straddles[1].append(
+                min(
+                    float(torch.dot(right_support_center_xy - control_root_xy, forward_axis_xy)),
+                    float(torch.dot(control_root_xy - left_support_center_xy, forward_axis_xy)),
+                )
+            )
         if non_support_sensor_ids:
             non_support_forces = contact_sensor.data.net_forces_w_history[:, 0, non_support_sensor_ids].detach().cpu()[0]
             non_support_force_norm = torch.linalg.norm(non_support_forces, dim=-1)
@@ -316,6 +486,7 @@ def main() -> None:
         contact_switches += (current_contact != last_contact).to(dtype=torch.int64)
         last_contact = current_contact
         sum_root_lin_vel_b += root_lin_vel_b
+        sum_root_lin_vel_yaw += _yaw_frame_lin_vel(root_lin_vel_w, root_quat)
         sum_root_ang_vel_w += root_ang_vel_w
 
     forward_displacement = max_forward_progress
@@ -329,11 +500,56 @@ def main() -> None:
         dtype=torch.float32,
     )
     mean_root_lin_vel_b = sum_root_lin_vel_b / float(args_cli.steps)
+    mean_root_lin_vel_yaw = sum_root_lin_vel_yaw / float(args_cli.steps)
     mean_root_ang_vel_w = sum_root_ang_vel_w / float(args_cli.steps)
-    mean_command_error_b = torch.tensor(env_command, dtype=torch.float32) - torch.tensor(
+    single_support_ratio = single_support_steps / float(args_cli.steps)
+    double_support_ratio = double_support_steps / float(args_cli.steps)
+    flight_ratio = flight_steps / float(args_cli.steps)
+    mean_support_width = sum_support_width / float(args_cli.steps)
+    mean_primary_force_share = primary_force_share_sum / float(max(primary_force_share_count, 1))
+    swing_clearance = torch.tensor(
+        [
+            max(0.0, float(max_swing_side_height[0] - min_contact_side_height[0]))
+            if torch.isfinite(max_swing_side_height[0])
+            else 0.0,
+            max(0.0, float(max_swing_side_height[1] - min_contact_side_height[1]))
+            if torch.isfinite(max_swing_side_height[1])
+            else 0.0,
+        ],
+        dtype=torch.float32,
+    )
+    mean_touchdown_step_length = torch.tensor(
+        [
+            sum(touchdown_step_lengths[0]) / len(touchdown_step_lengths[0]) if touchdown_step_lengths[0] else 0.0,
+            sum(touchdown_step_lengths[1]) / len(touchdown_step_lengths[1]) if touchdown_step_lengths[1] else 0.0,
+        ],
+        dtype=torch.float32,
+    )
+    max_touchdown_step_length = torch.tensor(
+        [
+            max(touchdown_step_lengths[0]) if touchdown_step_lengths[0] else 0.0,
+            max(touchdown_step_lengths[1]) if touchdown_step_lengths[1] else 0.0,
+        ],
+        dtype=torch.float32,
+    )
+    mean_touchdown_root_straddle = torch.tensor(
+        [
+            sum(touchdown_root_straddles[0]) / len(touchdown_root_straddles[0]) if touchdown_root_straddles[0] else 0.0,
+            sum(touchdown_root_straddles[1]) / len(touchdown_root_straddles[1]) if touchdown_root_straddles[1] else 0.0,
+        ],
+        dtype=torch.float32,
+    )
+    max_touchdown_root_straddle = torch.tensor(
+        [
+            max(touchdown_root_straddles[0]) if touchdown_root_straddles[0] else 0.0,
+            max(touchdown_root_straddles[1]) if touchdown_root_straddles[1] else 0.0,
+        ],
+        dtype=torch.float32,
+    )
+    mean_command_error_yaw = torch.tensor(env_command, dtype=torch.float32) - torch.tensor(
         (
-            float(mean_root_lin_vel_b[0]),
-            float(mean_root_lin_vel_b[1]),
+            float(mean_root_lin_vel_yaw[0]),
+            float(mean_root_lin_vel_yaw[1]),
             float(mean_root_ang_vel_w[2]),
         ),
         dtype=torch.float32,
@@ -352,12 +568,29 @@ def main() -> None:
     print(f"[VALIDATE] body_axis_displacement_abs={max_abs_body_axis_progress.tolist()}", flush=True)
     print(f"[VALIDATE] final_body_axis_displacement={final_body_axis_displacement.tolist()}", flush=True)
     print(f"[VALIDATE] lateral_separation={lateral_separation:.4f}", flush=True)
+    print(
+        f"[VALIDATE] support_mode_steps={{'left_only': {left_only_steps}, 'right_only': {right_only_steps}, "
+        f"'double': {double_support_steps}, 'flight': {flight_steps}}}",
+        flush=True,
+    )
+    print(f"[VALIDATE] single_support_ratio={single_support_ratio:.4f}", flush=True)
+    print(f"[VALIDATE] double_support_ratio={double_support_ratio:.4f}", flush=True)
+    print(f"[VALIDATE] flight_ratio={flight_ratio:.4f}", flush=True)
+    print(f"[VALIDATE] mean_support_width={mean_support_width:.4f}", flush=True)
+    print(f"[VALIDATE] max_support_width={max_support_width:.4f}", flush=True)
+    print(f"[VALIDATE] mean_primary_force_share={mean_primary_force_share:.4f}", flush=True)
     print(f"[VALIDATE] side_planar_travel={max_side_planar_travel.tolist()}", flush=True)
     print(f"[VALIDATE] side_height_range={side_height_range.tolist()}", flush=True)
+    print(f"[VALIDATE] swing_clearance={swing_clearance.tolist()}", flush=True)
     print(f"[VALIDATE] contact_switches={contact_switches.tolist()}", flush=True)
+    print(f"[VALIDATE] touchdown_step_length_mean={mean_touchdown_step_length.tolist()}", flush=True)
+    print(f"[VALIDATE] touchdown_step_length_max={max_touchdown_step_length.tolist()}", flush=True)
+    print(f"[VALIDATE] touchdown_root_straddle_mean={mean_touchdown_root_straddle.tolist()}", flush=True)
+    print(f"[VALIDATE] touchdown_root_straddle_max={max_touchdown_root_straddle.tolist()}", flush=True)
     print(f"[VALIDATE] mean_root_lin_vel_b={mean_root_lin_vel_b.tolist()}", flush=True)
+    print(f"[VALIDATE] mean_root_lin_vel_yaw={mean_root_lin_vel_yaw.tolist()}", flush=True)
     print(f"[VALIDATE] mean_root_ang_vel_w={mean_root_ang_vel_w.tolist()}", flush=True)
-    print(f"[VALIDATE] mean_command_error={mean_command_error_b.tolist()}", flush=True)
+    print(f"[VALIDATE] mean_command_error_yaw={mean_command_error_yaw.tolist()}", flush=True)
     if control_root_name is not None and min_control_root_height is not None:
         print(f"[VALIDATE] control_root={control_root_name}", flush=True)
         print(f"[VALIDATE] min_control_root_height={min_control_root_height:.4f}", flush=True)
@@ -375,6 +608,13 @@ def main() -> None:
     if args_cli.min_forward_displacement is not None:
         _validate_metric(forward_displacement >= args_cli.min_forward_displacement, "forward displacement", forward_displacement, args_cli.min_forward_displacement)
     _validate_metric(done_count <= args_cli.max_done_count, "done count", done_count, args_cli.max_done_count)
+    if args_cli.min_single_support_ratio is not None:
+        _validate_metric(
+            single_support_ratio >= args_cli.min_single_support_ratio,
+            "single-support ratio",
+            f"{single_support_ratio:.3f}",
+            args_cli.min_single_support_ratio,
+        )
     if args_cli.max_non_support_contact_steps is not None:
         total_non_support_contact_steps = int(non_support_contact_counts.sum().item())
         _validate_metric(
@@ -390,6 +630,34 @@ def main() -> None:
             f"{0.0 if min_control_root_height is None else min_control_root_height:.4f}",
             args_cli.min_control_root_height,
         )
+    if args_cli.max_mean_support_width is not None:
+        _validate_metric(
+            mean_support_width <= args_cli.max_mean_support_width,
+            "mean support width",
+            f"{mean_support_width:.4f}",
+            args_cli.max_mean_support_width,
+        )
+    if args_cli.max_double_support_ratio is not None:
+        _validate_metric(
+            double_support_ratio <= args_cli.max_double_support_ratio,
+            "double-support ratio",
+            f"{double_support_ratio:.4f}",
+            args_cli.max_double_support_ratio,
+        )
+    if args_cli.max_flight_ratio is not None:
+        _validate_metric(
+            flight_ratio <= args_cli.max_flight_ratio,
+            "flight ratio",
+            f"{flight_ratio:.4f}",
+            args_cli.max_flight_ratio,
+        )
+    if args_cli.min_primary_force_share is not None:
+        _validate_metric(
+            mean_primary_force_share >= args_cli.min_primary_force_share,
+            "primary foot force share",
+            f"{mean_primary_force_share:.4f}",
+            args_cli.min_primary_force_share,
+        )
     for index, side_name in enumerate(("left_leg", "right_leg")):
         _validate_metric(
             float(max_side_planar_travel[index]) >= args_cli.min_foot_planar_travel,
@@ -403,30 +671,66 @@ def main() -> None:
             float(side_height_range[index]),
             args_cli.min_foot_height_range,
         )
+        if args_cli.min_swing_clearance is not None:
+            _validate_metric(
+                float(swing_clearance[index]) >= args_cli.min_swing_clearance,
+                f"{side_name} swing clearance",
+                float(swing_clearance[index]),
+                args_cli.min_swing_clearance,
+            )
         _validate_metric(
             int(contact_switches[index]) >= args_cli.min_contact_switches,
             f"{side_name} contact switches",
             int(contact_switches[index]),
             args_cli.min_contact_switches,
         )
+        if args_cli.min_touchdown_step_length is not None:
+            _validate_metric(
+                float(max_touchdown_step_length[index]) >= args_cli.min_touchdown_step_length,
+                f"{side_name} touchdown step length",
+                float(max_touchdown_step_length[index]),
+                args_cli.min_touchdown_step_length,
+            )
+        if args_cli.min_touchdown_root_straddle is not None:
+            _validate_metric(
+                float(max_touchdown_root_straddle[index]) >= args_cli.min_touchdown_root_straddle,
+                f"{side_name} touchdown root straddle",
+                float(max_touchdown_root_straddle[index]),
+                args_cli.min_touchdown_root_straddle,
+            )
 
     # Stage-specific acceptance gates
+    fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
     if args_cli.stage == "fwd_only":
         # commanded axis should show at least 0.2 m/s mean speed
-        fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
-        mean_fwd_speed = abs(float(mean_root_lin_vel_b[fwd_axis_idx]))
+        mean_fwd_speed = abs(float(mean_root_lin_vel_yaw[fwd_axis_idx]))
         _validate_metric(mean_fwd_speed >= 0.15, "fwd_only mean forward speed", f"{mean_fwd_speed:.3f}", 0.15)
         # orthogonal axis should stay small
         ortho_idx = 0 if fwd_axis_idx == 1 else 1
-        mean_ortho_speed = abs(float(mean_root_lin_vel_b[ortho_idx]))
+        mean_ortho_speed = abs(float(mean_root_lin_vel_yaw[ortho_idx]))
         _validate_metric(mean_ortho_speed < 0.1, "fwd_only orthogonal drift", f"{mean_ortho_speed:.3f}", "< 0.1")
     elif args_cli.stage == "fwd_yaw":
-        fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
-        mean_fwd_speed = abs(float(mean_root_lin_vel_b[fwd_axis_idx]))
+        mean_fwd_speed = abs(float(mean_root_lin_vel_yaw[fwd_axis_idx]))
         _validate_metric(mean_fwd_speed >= 0.1, "fwd_yaw mean forward speed", f"{mean_fwd_speed:.3f}", 0.1)
         mean_yaw_rate = abs(float(mean_root_ang_vel_w[2]))
         if abs(args_cli.command_yaw) > 0.1:
             _validate_metric(mean_yaw_rate >= 0.1, "fwd_yaw mean yaw rate", f"{mean_yaw_rate:.3f}", 0.1)
+    if args_cli.max_forward_speed_error is not None:
+        mean_fwd_speed_error = abs(float(mean_command_error_yaw[fwd_axis_idx]))
+        _validate_metric(
+            mean_fwd_speed_error <= args_cli.max_forward_speed_error,
+            "forward speed tracking error",
+            f"{mean_fwd_speed_error:.3f}",
+            args_cli.max_forward_speed_error,
+        )
+    if args_cli.max_yaw_rate_error is not None:
+        mean_yaw_rate_error = abs(float(mean_command_error_yaw[2]))
+        _validate_metric(
+            mean_yaw_rate_error <= args_cli.max_yaw_rate_error,
+            "yaw-rate tracking error",
+            f"{mean_yaw_rate_error:.3f}",
+            args_cli.max_yaw_rate_error,
+        )
 
     print("[VALIDATE] walk validation passed", flush=True)
     env.close()

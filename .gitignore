@@ -1,6 +1,7 @@
 # Fake cloud generated outputs
 algorithms/fake_cloud/outputs/
 algorithms/simple_auto_slam_mapping/outputs/
+algorithms/widget_nesting_2d/outputs/
 
 # Python bytecode and caches
 __pycache__/
@@ -20,6 +21,9 @@ __pycache__/
 
 # Logs
 logs/
+
+# Helper repos
+helper_repos/
 
 # Robot assets
 unitree_g1/

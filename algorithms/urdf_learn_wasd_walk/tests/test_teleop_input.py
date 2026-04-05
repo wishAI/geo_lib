@@ -91,6 +91,26 @@ def test_keyboard_repeat_without_initial_press_still_acts_like_held_key(monkeypa
         device.__del__()
 
 
+def test_keyboard_can_enable_command_latch(monkeypatch) -> None:
+    module, _ = _load_teleop_module(monkeypatch)
+    device = module.WasdSe2Keyboard(debug_print=False, hold_last_command=True)
+
+    try:
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_PRESS"))
+        np.testing.assert_allclose(
+            device.advance(),
+            np.asarray([device.v_x_sensitivity, 0.0, 0.0], dtype=np.float32),
+        )
+
+        device._on_keyboard_event(SimpleNamespace(input="W", type="KEY_RELEASE"))
+        np.testing.assert_allclose(
+            device.advance(),
+            np.asarray([device.v_x_sensitivity, 0.0, 0.0], dtype=np.float32),
+        )
+    finally:
+        device.__del__()
+
+
 def test_keyboard_reset_clears_active_keys(monkeypatch) -> None:
     module, _ = _load_teleop_module(monkeypatch)
     device = module.WasdSe2Keyboard(debug_print=False)

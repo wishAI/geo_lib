@@ -22,6 +22,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--experiment_name", type=str, default=None)
     parser.add_argument("--steps", type=int, default=None)
+    parser.add_argument(
+        "--latch-command",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Persist keyboard commands after key release until changed or reset with L.",
+    )
+    parser.add_argument("--idle-action-mode", choices=("default_pose", "policy"), default="policy")
+    parser.add_argument("--idle-command-threshold", type=float, default=0.05)
     AppLauncher.add_app_launcher_args(parser)
     return parser
 
@@ -43,6 +51,7 @@ from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlVecEnvWrapper
 
 from algorithms.urdf_learn_wasd_walk.command_frame import semantic_command_to_env_command
 from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
+    apply_checkpoint_playback_compat,
     clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
@@ -65,7 +74,7 @@ def _resolve_visual_mode(robot_key: str, requested_mode: str) -> str:
 
 def _make_device():
     if args_cli.input_device == "keyboard":
-        device = WasdSe2Keyboard()
+        device = WasdSe2Keyboard(hold_last_command=args_cli.latch_command)
     else:
         device = Se2Gamepad()
     print(device)
@@ -99,6 +108,8 @@ def main() -> None:
             f"Details: {exc}"
         ) from exc
     print(f"[INFO] Loading checkpoint: {resume_path}")
+    if apply_checkpoint_playback_compat(env_cfg, resume_path):
+        print("[INFO] Applied playback compatibility overrides from checkpoint params/env.yaml")
 
     if visual_mode != "urdf" and getattr(env_cfg.scene, "num_envs", 1) != 1:
         print("[INFO] Synced USD visual mode uses one displayed environment; overriding num_envs to 1.")
@@ -107,6 +118,7 @@ def main() -> None:
     env = gym.make(task_spec.play_task_id, cfg=env_cfg)
     env = RslRlVecEnvWrapper(env)
     robot = env.unwrapped.scene["robot"]
+    command_ranges = env_cfg.commands.base_velocity.ranges
 
     visualizer = None
     if visual_mode != "urdf":
@@ -119,6 +131,11 @@ def main() -> None:
     ppo_runner.load(resume_path)
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
     teleop_device = _make_device()
+    idle_actions = torch.zeros(
+        (env.unwrapped.num_envs, env.unwrapped.action_manager.total_action_dim),
+        device=env.unwrapped.device,
+        dtype=torch.float32,
+    )
     if args_cli.input_device == "keyboard":
         _focus_teleop_window()
         print(
@@ -131,7 +148,24 @@ def main() -> None:
             "Yaw also works on Q/E, Z/X, or Numpad 7/9.",
             flush=True,
         )
+        print(
+            f"[TELEOP] Keyboard latch is {'on' if args_cli.latch_command else 'off'}. "
+            "Press L to zero the command.",
+            flush=True,
+        )
+        print(
+            f"[TELEOP] Idle action mode is {args_cli.idle_action_mode}; "
+            f"zero-command threshold={args_cli.idle_command_threshold:.3f}.",
+            flush=True,
+        )
         print("[TELEOP] Mapped key presses and releases will be printed below.", flush=True)
+    print(
+        "[TELEOP] base_velocity ranges "
+        f"vx={tuple(float(value) for value in command_ranges.lin_vel_x)} "
+        f"vy={tuple(float(value) for value in command_ranges.lin_vel_y)} "
+        f"yaw={tuple(float(value) for value in command_ranges.ang_vel_z)}",
+        flush=True,
+    )
 
     obs, _ = env.get_observations()
     if visualizer is not None:
@@ -145,11 +179,20 @@ def main() -> None:
             env_cfg, semantic_command_to_env_command(task_spec.forward_body_axis, semantic_command)
         )
         if env_command != last_env_command:
-            print(f"[TELEOP] env_command -> {env_command}", flush=True)
-            last_env_command = env_command
+            print(f"[TELEOP] semantic_command -> {semantic_command} env_command -> {env_command}", flush=True)
+        last_env_command = env_command
         force_base_velocity_command(env.unwrapped, env_command)
+        obs, _ = env.get_observations()
         with torch.inference_mode():
-            actions = policy(obs)
+            idle_command = (
+                (env_command[0] * env_command[0] + env_command[1] * env_command[1]) ** 0.5
+                <= args_cli.idle_command_threshold
+                and abs(env_command[2]) <= args_cli.idle_command_threshold
+            )
+            if idle_command and args_cli.idle_action_mode == "default_pose":
+                actions = idle_actions
+            else:
+                actions = policy(obs)
             obs, _, _, _ = env.step(actions)
         if visualizer is not None:
             visualizer.sync_from_robot(robot)

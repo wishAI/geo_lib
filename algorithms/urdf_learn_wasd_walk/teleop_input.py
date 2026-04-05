@@ -16,11 +16,13 @@ class WasdSe2Keyboard:
         v_x_sensitivity: float = 0.8,
         v_y_sensitivity: float = 0.5,
         omega_z_sensitivity: float = 1.0,
+        hold_last_command: bool = False,
         debug_print: bool = True,
     ):
         self.v_x_sensitivity = v_x_sensitivity
         self.v_y_sensitivity = v_y_sensitivity
         self.omega_z_sensitivity = omega_z_sensitivity
+        self.hold_last_command = hold_last_command
         self.debug_print = debug_print
         self._appwindow = omni.appwindow.get_default_app_window()
         self._input = carb.input.acquire_input_interface()
@@ -30,6 +32,7 @@ class WasdSe2Keyboard:
             lambda event, *args, obj=weakref.proxy(self): obj._on_keyboard_event(event, *args),
         )
         self._base_command = np.zeros(3, dtype=np.float32)
+        self._latched_command = np.zeros(3, dtype=np.float32)
         self._active_keys: set[str] = set()
         self._additional_callbacks: dict[str, Callable[[], None]] = {}
         self._create_key_bindings()
@@ -44,14 +47,16 @@ class WasdSe2Keyboard:
     def __str__(self) -> str:
         return (
             "WASD Keyboard Controller\n"
-            "\tW / S or Up / Down or Numpad 8 / 2: forward / backward\n"
-            "\tA / D or Left / Right or Numpad 4 / 6: left / right strafe\n"
-            "\tQ / E or Z / X or Numpad 7 / 9: yaw left / yaw right\n"
-            "\tL: zero the command"
+            "\tW / S or Up / Down or Numpad 8 / 2: forward / backward trim\n"
+            "\tA / D or Left / Right or Numpad 4 / 6: left / right strafe trim\n"
+            "\tQ / E or Z / X or Numpad 7 / 9: yaw left / yaw right trim\n"
+            "\tL: zero the command\n"
+            f"\tCommand latch: {'on' if self.hold_last_command else 'off'}"
         )
 
     def reset(self) -> None:
         self._active_keys.clear()
+        self._latched_command.fill(0.0)
         self._base_command.fill(0.0)
 
     def add_callback(self, key: str, func: Callable[[], None]) -> None:
@@ -86,14 +91,17 @@ class WasdSe2Keyboard:
                 self._additional_callbacks[key_name]()
         if event_name == "KEY_RELEASE":
             if key_name in self._INPUT_KEY_MAPPING and key_name in self._active_keys:
+                current_command = self._base_command.copy()
                 self._active_keys.remove(key_name)
+                if self.hold_last_command and not self._active_keys:
+                    self._latched_command = current_command
                 self._rebuild_base_command()
                 if self.debug_print:
                     print(f"[TELEOP] command -> {self._base_command.tolist()}", flush=True)
         return True
 
     def _rebuild_base_command(self) -> None:
-        self._base_command.fill(0.0)
+        self._base_command[:] = self._latched_command
         for key_name in self._active_keys:
             self._base_command += self._INPUT_KEY_MAPPING[key_name]
 

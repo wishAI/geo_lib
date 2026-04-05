@@ -34,6 +34,7 @@ class LandauRobotSpec(RobotTaskSpec):
     urdf_path: Path = Path()
     root_link_name: str = ""
     primary_foot_links: tuple[str, ...] = ()
+    primary_foot_contact_up_vectors: tuple[tuple[float, float, float], ...] = ()
     support_link_names: tuple[str, ...] = ()
     gait_guard_link_names: tuple[str, ...] = ()
     termination_link_names: tuple[str, ...] = ()
@@ -41,6 +42,7 @@ class LandauRobotSpec(RobotTaskSpec):
     default_joint_positions: dict[str, float] | None = None
     init_root_height: float = 0.0
     nominal_control_root_height: float = 0.0
+    nominal_stance_width: float = 0.0
     missing_meshes: tuple[Path, ...] = ()
 
 
@@ -87,6 +89,19 @@ def _build_landau_gait_guard_links(
     )
 
 
+def _local_vector_for_world_axis(
+    transform: tuple[tuple[float, float, float, float], ...],
+    world_axis: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Return a world-space direction expressed in the link-local frame."""
+
+    return (
+        transform[0][0] * world_axis[0] + transform[1][0] * world_axis[1] + transform[2][0] * world_axis[2],
+        transform[0][1] * world_axis[0] + transform[1][1] * world_axis[1] + transform[2][1] * world_axis[2],
+        transform[0][2] * world_axis[0] + transform[1][2] * world_axis[1] + transform[2][2] * world_axis[2],
+    )
+
+
 _LANDAU_STAGE_TASK_IDS: dict[str, dict[str, str]] = {
     "full": {
         "train": "Geo-Velocity-Flat-Landau-v0",
@@ -123,6 +138,7 @@ def load_landau_robot_spec(
     primary_feet = detect_primary_foot_links(model)
     support_links = detect_support_links(model)
     termination_links = detect_termination_links(model)
+    forward_body_axis = "y"
     gait_guard_links = _build_landau_gait_guard_links(
         model,
         support_links=support_links,
@@ -141,21 +157,46 @@ def load_landau_robot_spec(
         joint_positions=default_joint_positions,
         root_link=model.root_links[0] if model.root_links else root_link_name,
     )
+    primary_foot_contact_up_vectors = tuple(
+        _local_vector_for_world_axis(world[link_name], (0.0, 0.0, 1.0)) if link_name in world else (0.0, 0.0, 1.0)
+        for link_name in primary_feet
+    )
     support_points = [transform_point(world[link_name], (0.0, 0.0, 0.0))[2] for link_name in support_links if link_name in world]
     nominal_control_root_height = 0.0
     if support_points and control_root_link in world:
         nominal_control_root_height = transform_point(world[control_root_link], (0.0, 0.0, 0.0))[2] - min(support_points)
+    left_support_points = [
+        transform_point(world[link_name], (0.0, 0.0, 0.0))
+        for link_name in support_links
+        if link_name.endswith("_l") and link_name in world
+    ]
+    right_support_points = [
+        transform_point(world[link_name], (0.0, 0.0, 0.0))
+        for link_name in support_links
+        if link_name.endswith("_r") and link_name in world
+    ]
+    nominal_stance_width = 0.0
+    if left_support_points and right_support_points:
+        left_center = tuple(
+            sum(point[index] for point in left_support_points) / len(left_support_points) for index in range(3)
+        )
+        right_center = tuple(
+            sum(point[index] for point in right_support_points) / len(right_support_points) for index in range(3)
+        )
+        lateral_axis = 0 if forward_body_axis == "y" else 1
+        nominal_stance_width = abs(left_center[lateral_axis] - right_center[lateral_axis])
     return LandauRobotSpec(
         key="landau",
         display_name="Landau v10 URDF",
         train_task_id=ids["train"],
         play_task_id=ids["play"],
         experiment_name=ids["experiment"],
-        forward_body_axis="y",
+        forward_body_axis=forward_body_axis,
         control_root_link=control_root_link,
         urdf_path=resolved_urdf,
         root_link_name=root_link_name,
         primary_foot_links=primary_feet,
+        primary_foot_contact_up_vectors=primary_foot_contact_up_vectors,
         support_link_names=support_links,
         gait_guard_link_names=gait_guard_links,
         termination_link_names=termination_links,
@@ -163,6 +204,7 @@ def load_landau_robot_spec(
         default_joint_positions=default_joint_positions,
         init_root_height=init_root_height,
         nominal_control_root_height=nominal_control_root_height,
+        nominal_stance_width=nominal_stance_width,
         missing_meshes=find_missing_meshes(model),
     )
 
