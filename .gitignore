@@ -18,6 +18,7 @@ __pycache__/
 # Isaac/Kit portable runtime state
 .kit_portable/
 .kit_protable/
+.vscode/
 
 # Logs
 logs/
