@@ -1,6 +1,13 @@
 import unittest
+import sys
+from pathlib import Path
 
 import numpy as np
+
+
+MODULE_ROOT = Path(__file__).resolve().parents[1]
+if str(MODULE_ROOT) not in sys.path:
+    sys.path.insert(0, str(MODULE_ROOT))
 
 from avp_transform_utils import TransformOptions, build_xyz_transform, to_usd_world
 
@@ -20,12 +27,12 @@ class TestAvpTransformUtils(unittest.TestCase):
     def test_build_xyz_transform_preserves_rotation_with_translation(self):
         mat = build_xyz_transform((90.0, 0.0, 0.0), (1.0, 2.0, 3.0))
         self.assertTrue(np.allclose(mat[:3, :3], _rot_x_90(), atol=1e-6))
-        self.assertTrue(np.allclose(mat[:3, 3], [1.0, 2.0, 3.0], atol=1e-6))
+        self.assertTrue(np.allclose(mat[3, :3], [1.0, 2.0, 3.0], atol=1e-6))
 
     def test_build_xyz_transform_identity_rotation(self):
         mat = build_xyz_transform((0.0, 0.0, 0.0), (0.5, -0.25, 1.25))
         self.assertTrue(np.allclose(mat[:3, :3], np.eye(3), atol=1e-6))
-        self.assertTrue(np.allclose(mat[:3, 3], [0.5, -0.25, 1.25], atol=1e-6))
+        self.assertTrue(np.allclose(mat[3, :3], [0.5, -0.25, 1.25], atol=1e-6))
 
     def test_build_xyz_transform_applies_scale(self):
         mat = build_xyz_transform((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), scale_xyz=(0.5, 2.0, 3.0))

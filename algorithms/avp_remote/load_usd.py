@@ -1,13 +1,30 @@
 # 1. Start the Simulator (Must be done before other imports)
-from isaacsim import SimulationApp
-# Launch with GUI (headless=False)
-simulation_app = SimulationApp({"headless": False})
+import sys
+from pathlib import Path
+
+MODULE_ROOT = Path(__file__).resolve().parent
+MODULE_ROOT_STR = str(MODULE_ROOT)
+if MODULE_ROOT_STR in sys.path:
+    sys.path.remove(MODULE_ROOT_STR)
+sys.path.insert(0, MODULE_ROOT_STR)
+
+import omni.kit.app
+
+try:
+    from isaacsim import SimulationApp
+except ImportError:
+    SimulationApp = None
+
+# Launch with GUI (headless=False) when running standalone.
+simulation_app = SimulationApp({"headless": False}) if SimulationApp is not None else None
+APP = omni.kit.app.get_app()
 
 # 2. Import Utils (Now safe to import)
 from isaacsim.core.utils.stage import add_reference_to_stage, get_current_stage
 from omni.isaac.core import World
 
-from config import ASSET_PRIM, LOAD_USD_PATH
+from asset_setup import prepare_landau_inputs
+from avp_config import ASSET_PRIM, LOAD_USD_PATH
 from usd_utils import (
     apply_gray_override,
     apply_rest_pose,
@@ -31,6 +48,7 @@ def main():
     # Initialize the World (handles physics, timeline, etc.)
     world = World(stage_units_in_meters=1.0)
     world.scene.add_default_ground_plane()
+    prepare_landau_inputs(refresh=False)
 
     # 3. Load your USD file
     # "prim_path" is where it will appear in the stage tree (e.g., /World/MyRobot)
@@ -66,7 +84,7 @@ def main():
     # 4. Simulation Loop
     t = 0.0
     dt = world.get_physics_dt() if hasattr(world, "get_physics_dt") else 1.0 / 60.0
-    while simulation_app.is_running():
+    while (simulation_app.is_running() if simulation_app is not None else APP.is_running()):
         if skel:
             left_angle = 20.0 * math.sin(2.0 * math.pi * 0.5 * t)
             apply_rest_pose(
@@ -79,8 +97,9 @@ def main():
 
         world.step(render=True)  # Steps physics and rendering
         t += dt
-    
-    simulation_app.close()
+
+    if simulation_app is not None:
+        simulation_app.close()
 
 if __name__ == "__main__":
     main()

@@ -53,7 +53,8 @@ def build_xyz_transform(rotate_xyz_deg, translate_m, scale_xyz=(1.0, 1.0, 1.0)):
     rot = _rot_x_deg(x_deg) @ _rot_y_deg(y_deg) @ _rot_z_deg(z_deg)
     scale = np.diag([float(sx), float(sy), float(sz)])
     mat[:3, :3] = rot @ scale
-    # mat[:3, 3] = [float(tx), float(ty), float(tz)]
+    # USD/Gf.Matrix4d uses row-major transform matrices, so authored translation
+    # belongs in the last row for direct stage xform writes.
     mat[3, :3] = [float(tx), float(ty), float(tz)]
     return mat
 

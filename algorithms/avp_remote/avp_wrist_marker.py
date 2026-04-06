@@ -1,47 +1,33 @@
 import argparse
-import json
-import socket
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import numpy as np
+MODULE_ROOT = Path(__file__).resolve().parent
+MODULE_ROOT_STR = str(MODULE_ROOT)
+if MODULE_ROOT_STR in sys.path:
+    sys.path.remove(MODULE_ROOT_STR)
+sys.path.insert(0, MODULE_ROOT_STR)
 
-from avp_snapshot_io import SnapshotIOError, load_snapshot_payload
-from config import (
+import numpy as np
+import omni.kit.app
+
+from asset_setup import prepare_landau_inputs
+from avp_config import (
     ASSET_PRIM,
-    AVP_IP,
     AVP_SNAPSHOT_PATH,
     AVP_USD_PATH,
-    BRIDGE_HOST,
-    BRIDGE_PORT,
-    USE_ZMQ,
-    ZMQ_CONNECT_ENDPOINT,
-    ZMQ_SUB_TOPICS,
 )
-
-
-def _print_error(context, err):
-    print(f"[AVP] {context}: {type(err).__name__}: {err}")
-
-
-class TrackingSourceError(Exception):
-    pass
-
+from tracking_source import TrackingSourceError, TrackingStream
 
 try:
-    import zmq
+    from isaacsim import SimulationApp
+except ImportError:
+    SimulationApp = None
 
-    HAS_ZMQ = True
-except Exception as e:
-    zmq = None
-    HAS_ZMQ = False
-    _print_error("zmq import failed", e)
-
-
-from isaacsim import SimulationApp
-
-simulation_app = SimulationApp({"headless": False})
+simulation_app = SimulationApp({"headless": False}) if SimulationApp is not None else None
+APP = omni.kit.app.get_app()
 
 from omni.isaac.core import World
 from isaacsim.core.utils.stage import add_reference_to_stage, get_current_stage
@@ -49,29 +35,13 @@ from pxr import Gf, Sdf, UsdLux
 
 from avp_marker_visualizer import HandMarkerSetVisualizer, HandStyle, MarkerStyle, MarkerVisualizer
 from avp_transform_utils import TransformOptions, build_xyz_transform, to_usd_world
-from avp_tracking_schema import HAND_JOINT_NAMES, extract_tracking_frame
+from avp_tracking_schema import HAND_JOINT_NAMES
 from usd_utils import apply_gray_override
 
-try:
-    from avp_stream import VisionProStreamer
-
-    HAS_AVP_STREAM = True
-except Exception as e:
-    VisionProStreamer = None
-    HAS_AVP_STREAM = False
-    _print_error("avp_stream import failed", e)
-
-
-# Use direct Vision Pro stream only when avp_stream is available and AVP_IP is set.
-USE_AVP_STREAM = False
-PRETRANSFORM_TRANSLATE_XYZ_M = (0.0, 0.0, 10.0)
-
-# Vision Pro matrices are usually column-major (translation in last column).
-# USD expects row-major when passed into Gf.Matrix4d(list-of-lists).
+# Snapshot and bridge payloads carry AVP transforms with translation in the
+# last column. Transpose them into USD's authored row-major convention first.
 AVP_TO_USD_OPTIONS = TransformOptions(
     column_major=True,
-    # pretransform is left-multiplied, so translation here is in world-space.
-    # pretransform=build_xyz_transform((0.0, 0.0, 0.0), PRETRANSFORM_TRANSLATE_XYZ_M),
     pretransform=None,
     posttransform=build_xyz_transform(
         (0.0, 0.0, 180.0),
@@ -161,90 +131,6 @@ def _sanitize_dome_light_textures(stage):
         )
 
 
-class TrackingStream:
-    def __init__(self, tracking_source="bridge", snapshot_path=AVP_SNAPSHOT_PATH):
-        if tracking_source not in ("bridge", "snapshot"):
-            raise TrackingSourceError(f"Unsupported tracking source: {tracking_source}")
-
-        self.tracking_source = tracking_source
-        self.snapshot_path = Path(snapshot_path).expanduser()
-        self.streamer = None
-        self.bridge_sock = None
-        self.snapshot_frame = None
-        self._setup()
-
-    def _make_bridge_udp_socket(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((BRIDGE_HOST, BRIDGE_PORT))
-        sock.setblocking(False)
-        return ("udp", sock)
-
-    def _make_bridge_zmq_socket(self):
-        ctx = zmq.Context.instance()
-        sock = ctx.socket(zmq.SUB)
-        sock.connect(ZMQ_CONNECT_ENDPOINT)
-        for topic in ZMQ_SUB_TOPICS:
-            sock.setsockopt(zmq.SUBSCRIBE, topic)
-        return ("zmq", sock)
-
-    def _setup(self):
-        if self.tracking_source == "snapshot":
-            try:
-                payload = load_snapshot_payload(self.snapshot_path)
-            except SnapshotIOError as e:
-                raise TrackingSourceError(f"Snapshot mode failed: {e}") from e
-            self.snapshot_frame = extract_tracking_frame(payload)
-            print(f"[AVP] Using snapshot tracking from {self.snapshot_path}")
-            return
-
-        if HAS_AVP_STREAM and USE_AVP_STREAM and AVP_IP:
-            self.streamer = VisionProStreamer(ip=AVP_IP)
-            self.streamer.start_webrtc()
-            print(f"[AVP] Using direct avp_stream to Vision Pro at {AVP_IP}")
-            return
-
-        if USE_ZMQ and HAS_ZMQ:
-            self.bridge_sock = self._make_bridge_zmq_socket()
-            print(f"[AVP] Listening bridge via ZMQ on {ZMQ_CONNECT_ENDPOINT}")
-            return
-
-        self.bridge_sock = self._make_bridge_udp_socket()
-        print(f"[AVP] Listening bridge via UDP on {BRIDGE_HOST}:{BRIDGE_PORT}")
-
-    def _recv_bridge(self):
-        kind, sock = self.bridge_sock
-        try:
-            if kind == "zmq":
-                parts = sock.recv_multipart(flags=zmq.NOBLOCK)
-                if len(parts) < 2:
-                    return None
-                payload = parts[1]
-            else:
-                payload, _ = sock.recvfrom(65535)
-        except BlockingIOError:
-            return None
-        except Exception:
-            return None
-
-        if not payload:
-            return None
-
-        try:
-            return json.loads(payload.decode("utf-8"))
-        except Exception as e:
-            _print_error("bridge json decode failed", e)
-            return None
-
-    def get_tracking_frame(self):
-        if self.tracking_source == "snapshot":
-            return self.snapshot_frame
-
-        raw = self.streamer.get_latest() if self.streamer is not None else self._recv_bridge()
-        if raw is None:
-            return None
-        return extract_tracking_frame(raw)
-
-
 class AvpJointSession:
     def __init__(self, tracking_source="bridge", snapshot_path=AVP_SNAPSHOT_PATH):
         self.world, self.stage = self._setup_world_and_stage()
@@ -277,8 +163,11 @@ class AvpJointSession:
         self.last_status_print = 0.0
 
     def _setup_world_and_stage(self):
-        world = World(stage_units_in_meters=1.0)
-        world.scene.add_default_ground_plane()
+        world = None
+        if simulation_app is not None:
+            world = World(stage_units_in_meters=1.0)
+            world.scene.add_default_ground_plane()
+        prepare_landau_inputs(refresh=False)
         if RENDER_CONFIG.load_usd_asset:
             add_reference_to_stage(usd_path=str(AVP_USD_PATH), prim_path=ASSET_PRIM)
         stage = get_current_stage()
@@ -326,15 +215,20 @@ class AvpJointSession:
             self.head_marker.update(_to_usd_world(frame.get("head")), now)
 
     def run(self):
-        self.world.reset()
-        while simulation_app.is_running():
+        if self.world is not None:
+            self.world.reset()
+        while (simulation_app.is_running() if simulation_app is not None else APP.is_running()):
             now = time.time()
             frame = self.stream.get_tracking_frame()
             if frame is not None:
                 self._apply_frame(frame, now)
                 self._print_status(frame, now)
-            self.world.step(render=True)
-        simulation_app.close()
+            if self.world is not None:
+                self.world.step(render=True)
+            else:
+                APP.update()
+        if simulation_app is not None:
+            simulation_app.close()
 
 
 def main():

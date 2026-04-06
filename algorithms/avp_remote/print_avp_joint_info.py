@@ -1,7 +1,7 @@
 import mujoco
 from avp_stream import VisionProStreamer
 
-from config import AVP_IP, AVP_ROBOT_XML_PATH
+from avp_config import AVP_IP, AVP_ROBOT_XML_PATH
 
 avp_ip = AVP_IP
 robot_path = str(AVP_ROBOT_XML_PATH)
