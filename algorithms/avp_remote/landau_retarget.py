@@ -16,7 +16,6 @@ from landau_pose import (
     SkeletonRecord,
     apply_joint_positions_to_local_matrices,
     load_skeleton_records,
-    rigid_transform,
     world_matrices_from_local,
 )
 
@@ -79,6 +78,26 @@ class UrdfJointSpec:
 class HandCalibration:
     scale: float
     rotation_offset: np.ndarray
+
+
+def _basis_from_vectors(lateral: np.ndarray, forward: np.ndarray) -> np.ndarray:
+    x_axis = _normalize(lateral)
+    if not np.any(x_axis):
+        return np.eye(3, dtype=float)
+
+    y_seed = np.asarray(forward, dtype=float) - x_axis * float(np.dot(x_axis, forward))
+    y_axis = _normalize(y_seed)
+    if not np.any(y_axis):
+        return np.eye(3, dtype=float)
+
+    z_axis = _normalize(np.cross(x_axis, y_axis))
+    if not np.any(z_axis):
+        return np.eye(3, dtype=float)
+
+    y_axis = _normalize(np.cross(z_axis, x_axis))
+    if not np.any(y_axis):
+        return np.eye(3, dtype=float)
+    return _orthonormalize(np.column_stack([x_axis, y_axis, z_axis]))
 
 
 def _normalize(vec: np.ndarray) -> np.ndarray:
@@ -206,6 +225,14 @@ class LandauUpperBodyRetargeter:
             side: float(np.linalg.norm(self.rest_hand_base_rotation[side][:3, 3]))
             for side in ("left", "right")
         }
+        self.rest_hand_local_positions = {
+            side: self._build_hand_local_rest_positions(side)
+            for side in ("left", "right")
+        }
+        self.robot_hand_basis = {
+            side: self._build_robot_hand_basis(side)
+            for side in ("left", "right")
+        }
 
         self.joint_specs = load_urdf_joint_specs(self.urdf_path)
         self.left_chain = find_joint_chain(self.urdf_path, ARM_BASE_LINK, LEFT_ARM_TIP)
@@ -250,6 +277,29 @@ class LandauUpperBodyRetargeter:
         scale = robot_length / max(avp_length, 1.0e-6)
         return HandCalibration(scale=scale, rotation_offset=self.head_frame_alignment.copy())
 
+    def _build_hand_local_rest_positions(self, side: str) -> dict[str, np.ndarray]:
+        suffix = _side_suffix(side)
+        hand_name = f"hand_{suffix}"
+        hand_world_inv = np.linalg.inv(self.rest_world_by_name[hand_name])
+        local_positions = {hand_name: np.zeros(3, dtype=float)}
+        for record in self.records:
+            name = record.name
+            if not name.endswith(f"_{suffix}") or name == hand_name:
+                continue
+            local_positions[name] = (hand_world_inv @ self.rest_world_by_name[name])[:3, 3].copy()
+        return local_positions
+
+    def _build_robot_hand_basis(self, side: str) -> np.ndarray:
+        suffix = _side_suffix(side)
+        local_positions = self.rest_hand_local_positions[side]
+        lateral = local_positions[f"index1_base_{suffix}"] - local_positions[f"pinky1_base_{suffix}"]
+        forward = (
+            local_positions[f"index1_{suffix}"]
+            + local_positions[f"middle1_{suffix}"]
+            + local_positions[f"ring1_{suffix}"]
+        ) / 3.0
+        return _basis_from_vectors(lateral, forward)
+
     def _clamp_joint(self, joint_name: str, value: float) -> float:
         spec = self.joint_specs.get(joint_name)
         if spec is None:
@@ -267,47 +317,52 @@ class LandauUpperBodyRetargeter:
         pose_by_name["neck_x"] = self._clamp_joint("neck_x", 0.55 * pitch)
         pose_by_name["head_x"] = self._clamp_joint("head_x", 0.45 * pitch)
 
-    def _target_hand_base_transform(self, side: str, frame) -> np.ndarray | None:
-        head_world = _tracking_matrix_world(frame.get("head"))
-        wrist_world = _tracking_matrix_world(frame.get(f"{side}_wrist"))
-        if head_world is None or wrist_world is None:
-            return None
-
-        avp_hand_rel_head = np.linalg.inv(head_world) @ wrist_world
-        calibration = self.calibration[side]
-        target_rel_head = rigid_transform(
-            _orthonormalize(calibration.rotation_offset @ _orthonormalize(avp_hand_rel_head[:3, :3])),
-            calibration.scale * (calibration.rotation_offset @ avp_hand_rel_head[:3, 3]),
-        )
-        target_world = self.head_world @ target_rel_head
-        target_base = self.base_world_inv @ target_world
-
-        target_pos = target_base[:3, 3]
-        target_radius = float(np.linalg.norm(target_pos))
+    def _clamp_hand_base_position(self, side: str, target_pos: np.ndarray) -> np.ndarray:
+        clipped = np.asarray(target_pos, dtype=float).copy()
+        target_radius = float(np.linalg.norm(clipped))
         radius_cap = 1.15 * self.rest_hand_base_radius[side]
         if target_radius > radius_cap and target_radius > 1.0e-8:
-            target_base = target_base.copy()
-            target_base[:3, 3] *= radius_cap / target_radius
-        return target_base
+            clipped *= radius_cap / target_radius
+        return clipped
+
+    def _target_hand_base_position(self, side: str, frame) -> np.ndarray | None:
+        wrist_world = _tracking_matrix_world(frame.get(f"{side}_wrist"))
+        if wrist_world is None:
+            return None
+        target_base = self.base_world_inv @ wrist_world
+        return self._clamp_hand_base_position(side, target_base[:3, 3])
+
+    def _arm_tip_base_position(self, side: str, joint_values: np.ndarray) -> np.ndarray:
+        chain = self.left_chain if side == "left" else self.right_chain
+        hand_name = f"hand_{_side_suffix(side)}"
+        pose = {
+            joint_name: float(joint_value)
+            for joint_name, joint_value in zip(chain, joint_values, strict=False)
+        }
+        return self._base_relative_world_map(pose)[hand_name][:3, 3]
 
     def _solve_arm(self, side: str, frame, pose_by_name: dict[str, float]) -> None:
-        target_base = self._target_hand_base_transform(side, frame)
-        if target_base is None:
+        target_pos = self._target_hand_base_position(side, frame)
+        if target_pos is None:
             return
 
         solver = self.left_solver if side == "left" else self.right_solver
         chain = self.left_chain if side == "left" else self.right_chain
         seed = self.left_seed if side == "left" else self.right_seed
-        target_pos = target_base[:3, 3]
-        target_rot = _orthonormalize(target_base[:3, :3])
+        solution = None
 
-        solution = solver.ik(target_pos, target_rot, seed_jnt_values=seed)
-        if solution is None:
+        # The current Landau arm chain only exposes 4 DOF from torso to hand.
+        # Full-pose IK is over-constrained there, so prefer position-only CCD.
+        if solver.dof >= 6:
             solution = solver.ik(
                 target_pos,
                 self.rest_hand_base_rotation[side][:3, :3],
                 seed_jnt_values=seed,
             )
+            if solution is not None:
+                solved_pos = self._arm_tip_base_position(side, np.asarray(solution, dtype=float))
+                if float(np.linalg.norm(solved_pos - target_pos)) > 3.0e-2:
+                    solution = None
         if solution is None:
             solution = self._solve_arm_ccd(side, target_pos, seed)
 
@@ -336,7 +391,7 @@ class LandauUpperBodyRetargeter:
             for joint_name, joint_value in zip(chain, seed, strict=False)
         }
 
-        for _ in range(48):
+        for _ in range(80):
             base_relative_map = self._base_relative_world_map(pose)
             current_pos = base_relative_map[hand_name][:3, 3]
             if float(np.linalg.norm(target_pos - current_pos)) <= 1.0e-3:
@@ -382,6 +437,24 @@ class LandauUpperBodyRetargeter:
             local_mat = wrist_inv @ stack[joint_index]
             local_positions[joint_name] = local_mat[:3, 3].copy()
         return local_positions
+
+    def _aligned_hand_local_positions(self, side: str, frame) -> dict[str, np.ndarray] | None:
+        local_positions = self._wrist_local_positions(side, frame)
+        if local_positions is None:
+            return None
+
+        lateral = local_positions["littleMetacarpal"] - local_positions["indexMetacarpal"]
+        forward = (
+            local_positions["indexKnuckle"]
+            + local_positions["middleKnuckle"]
+            + local_positions["ringKnuckle"]
+        ) / 3.0
+        avp_basis = _basis_from_vectors(lateral, forward)
+        alignment = self.robot_hand_basis[side] @ avp_basis.T
+        return {
+            joint_name: alignment @ np.asarray(position, dtype=float)
+            for joint_name, position in local_positions.items()
+        }
 
     def _apply_thumb(self, suffix: str, local_positions: dict[str, np.ndarray], pose_by_name: dict[str, float]) -> None:
         points = [local_positions[name] for name in FINGER_LAYOUT["thumb"]["avp"]]
@@ -438,7 +511,7 @@ class LandauUpperBodyRetargeter:
             pose_by_name[joint_name] = self._clamp_joint(joint_name, joint_value)
 
     def _retarget_fingers(self, side: str, frame, pose_by_name: dict[str, float]) -> None:
-        local_positions = self._wrist_local_positions(side, frame)
+        local_positions = self._aligned_hand_local_positions(side, frame)
         if local_positions is None:
             return
 
