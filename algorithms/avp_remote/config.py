@@ -1,6 +1,12 @@
 import os
 from pathlib import Path
 
+from asset_paths import (
+    landau_mesh_root,
+    landau_skeleton_json_path,
+    landau_urdf_path,
+    landau_usd_path,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent
 
@@ -64,8 +70,16 @@ ZMQ_SUB_TOPICS = (ZMQ_TOPIC_TRACKING, ZMQ_TOPIC_WRIST)
 
 ASSET_PRIM = "/World/MyAsset"
 
+ISAAC_SIM_SH_PATH = _env_path(
+    "ISAAC_SIM_SH_PATH",
+    Path("/home/wishai/vscode/IsaacLab/_isaac_sim/isaac-sim.sh"),
+)
+
 # AVP_USD_PATH is intentionally shared by both visualization scripts.
-AVP_USD_PATH = _env_path("AVP_USD_PATH", REPO_ROOT / "landau_v8.usdc")
-LOAD_USD_PATH = _env_path("AVP_USD_PATH", REPO_ROOT / "landau_v10.usdc")
+AVP_USD_PATH = _env_path("AVP_USD_PATH", landau_usd_path())
+LOAD_USD_PATH = _env_path("AVP_USD_PATH", landau_usd_path())
+AVP_URDF_PATH = _env_path("AVP_URDF_PATH", landau_urdf_path())
+AVP_SKELETON_JSON_PATH = _env_path("AVP_SKELETON_JSON_PATH", landau_skeleton_json_path())
+AVP_MESH_ROOT = _env_path("AVP_MESH_ROOT", landau_mesh_root())
 AVP_ROBOT_XML_PATH = _env_path("AVP_ROBOT_XML_PATH", REPO_ROOT / "google_robot/robot.xml")
 AVP_SNAPSHOT_PATH = _env_path("AVP_SNAPSHOT_PATH", REPO_ROOT / "avp_snapshot.json")

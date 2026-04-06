@@ -1,4 +1,5 @@
 import argparse
+import importlib
 import json
 import os
 import select
@@ -8,9 +9,8 @@ import time
 from pathlib import Path
 
 from avp_snapshot_io import save_snapshot_payload
-from avp_stream import VisionProStreamer
 from avp_tracking_schema import extract_tracking_frame, frame_to_payload
-from config import (
+from avp_config import (
     AVP_IP,
     AVP_SNAPSHOT_PATH,
     BRIDGE_HOST,
@@ -29,6 +29,21 @@ try:
 except Exception:
     zmq = None
     HAS_ZMQ = False
+
+
+def _load_vision_pro_streamer():
+    try:
+        module = importlib.import_module("avp_stream")
+    except Exception as exc:
+        raise RuntimeError(
+            "Live AVP bridge requires the external 'avp_stream' module. "
+            "Run this command from the environment where that module is installed."
+        ) from exc
+
+    streamer_cls = getattr(module, "VisionProStreamer", None)
+    if streamer_cls is None:
+        raise RuntimeError("The imported 'avp_stream' module does not expose VisionProStreamer.")
+    return streamer_cls
 
 
 class SnapshotKeyListener:
@@ -134,7 +149,8 @@ def main():
     args = _parse_args()
     snapshot_path = Path(args.snapshot_path).expanduser()
 
-    streamer = VisionProStreamer(ip=AVP_IP)
+    vision_pro_streamer = _load_vision_pro_streamer()
+    streamer = vision_pro_streamer(ip=AVP_IP)
     streamer.start_webrtc()
 
     bridge = _make_bridge_sender()
