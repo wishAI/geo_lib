@@ -573,6 +573,35 @@ def records_to_jsonable(records: Sequence[dict]) -> List[dict]:
     return payload
 
 
+def load_records_json(path: Path) -> List[dict]:
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    raw_records = payload.get('records', ())
+    if not raw_records:
+        raise RuntimeError(f'Skeleton JSON has no records: {path}')
+
+    records: List[dict] = []
+    for raw in raw_records:
+        record = dict(raw)
+        record['index'] = int(record['index'])
+        record['parent_index'] = int(record['parent_index'])
+        record['children'] = list(record.get('children', ()))
+        record['child_names'] = list(record.get('child_names', ()))
+        record['incoming_length'] = float(record.get('incoming_length', 0.0))
+        record['axis'] = np.asarray(record.get('axis', (0.0, 0.0, 1.0)), dtype=float)
+        limits = record.get('limits', (-math.pi, math.pi))
+        record['limits'] = (float(limits[0]), float(limits[1]))
+        for key in ('local_xyz', 'local_rpy', 'world_xyz', 'world_rpy'):
+            if key in record:
+                record[key] = np.asarray(record[key], dtype=float)
+        for key in ('local_matrix', 'world_matrix'):
+            if key in record:
+                record[key] = np.asarray(record[key], dtype=float)
+        records.append(record)
+
+    records.sort(key=lambda record: record['index'])
+    return records
+
+
 def write_records_json(path: Path, skeleton_path: str, usd_path: Path, records: Sequence[dict]) -> None:
     payload = {
         'usd_path': str(usd_path),

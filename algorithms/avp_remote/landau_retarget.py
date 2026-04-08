@@ -201,10 +201,13 @@ class LandauUpperBodyRetargeter:
         urdf_path: Path,
         skeleton_json_path: Path,
         snapshot_path: Path,
+        hand_retargeting_client=None,
     ) -> None:
         self.urdf_path = Path(urdf_path).resolve()
         self.skeleton_json_path = Path(skeleton_json_path).resolve()
         self.snapshot_path = Path(snapshot_path).expanduser().resolve()
+        self.hand_retargeting_client = hand_retargeting_client
+        self.last_hand_targets = {"landau": {}, "h1_2": {}}
 
         self.records = load_skeleton_records(self.skeleton_json_path)
         self.records_by_name = {record.name: record for record in self.records}
@@ -527,12 +530,40 @@ class LandauUpperBodyRetargeter:
 
     def retarget_frame(self, frame) -> dict[str, float]:
         if frame is None:
+            self.last_hand_targets = {"landau": {}, "h1_2": {}}
             return {}
 
         pose_by_name: dict[str, float] = {}
         self._retarget_head(frame, pose_by_name)
         self._solve_arm("left", frame, pose_by_name)
         self._solve_arm("right", frame, pose_by_name)
-        self._retarget_fingers("left", frame, pose_by_name)
-        self._retarget_fingers("right", frame, pose_by_name)
+        if self.hand_retargeting_client is None:
+            self.last_hand_targets = {"landau": {}, "h1_2": {}}
+            self._retarget_fingers("left", frame, pose_by_name)
+            self._retarget_fingers("right", frame, pose_by_name)
+            return pose_by_name
+
+        try:
+            self.last_hand_targets = self.hand_retargeting_client.retarget_frame(frame)
+        except Exception as exc:
+            print(
+                f"[AVP] Dex hand retargeting failed, falling back to heuristic finger mapping: {exc}",
+                flush=True,
+            )
+            self.hand_retargeting_client = None
+            self.last_hand_targets = {"landau": {}, "h1_2": {}}
+            self._retarget_fingers("left", frame, pose_by_name)
+            self._retarget_fingers("right", frame, pose_by_name)
+            return pose_by_name
+
+        pose_by_name.update(self.last_hand_targets.get("landau", {}))
         return pose_by_name
+
+    def h1_2_hand_pose_overrides(self) -> dict[str, float]:
+        return {
+            joint_name: float(value)
+            for joint_name, value in self.last_hand_targets.get("h1_2", {}).items()
+        }
+
+    def g1_hand_pose_overrides(self) -> dict[str, float]:
+        return self.h1_2_hand_pose_overrides()

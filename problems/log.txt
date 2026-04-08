@@ -1,19 +1,50 @@
-Traceback (most recent call last):
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/runpy.py", line 196, in _run_module_as_main
-    return _run_code(code, main_globals, None,
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/runpy.py", line 86, in _run_code
-    exec(code, run_globals)
-  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/scripts/teleop.py", line 172, in <module>
-    main()
-  File "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/scripts/teleop.py", line 119, in main
-    ppo_runner.load(resume_path)
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages/rsl_rl/runners/on_policy_runner.py", line 384, in load
-    self.alg.actor_critic.load_state_dict(loaded_dict["model_state_dict"])
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/exts/omni.isaac.ml_archive/pip_prebundle/torch/nn/modules/module.py", line 2584, in load_state_dict
-    raise RuntimeError(
-RuntimeError: Error(s) in loading state_dict for ActorCritic:
-	size mismatch for std: copying a param with shape torch.Size([12]) from checkpoint, the shape in current model is torch.Size([29]).
-	size mismatch for actor.0.weight: copying a param with shape torch.Size([512, 48]) from checkpoint, the shape in current model is torch.Size([512, 99]).
-	size mismatch for actor.6.weight: copying a param with shape torch.Size([12, 128]) from checkpoint, the shape in current model is torch.Size([29, 128]).
-	size mismatch for actor.6.bias: copying a param with shape torch.Size([12]) from checkpoint, the shape in current model is torch.Size([29]).
-	size mismatch for critic.0.weight: copying a param with shape torch.Size([512, 48]) from checkpoint, the shape in current model is torch.Size([512, 99]).
+  
+I want to play usd_parallel_urdf animation with this command:  
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/play_parallel_animation.py --urdf-path algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf --animation-clip walk_cycle --camera-view walk_side
+
+but then I got this:
+
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.replicator_yaml-2.0.10+lx64/omni/replicator/replicator_yaml/__init__.py", line 1, in <module>
+    from .scripts.parser import ParserError, parse
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.replicator_yaml-2.0.10+lx64/omni/replicator/replicator_yaml/scripts/parser.py", line 18, in <module>
+    import omni.replicator.core as rep
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.core-1.11.35+106.5.0.lx64.r.cp310/omni/replicator/core/__init__.py", line 3, in <module>
+    from .scripts import (
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.core-1.11.35+106.5.0.lx64.r.cp310/omni/replicator/core/scripts/__init__.py", line 3, in <module>
+    from . import (
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.core-1.11.35+106.5.0.lx64.r.cp310/omni/replicator/core/scripts/annotators.py", line 27, in <module>
+    from omni.syntheticdata import SyntheticData, SyntheticDataStage
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.syntheticdata-0.6.10+d02c707b.lx64.r.cp310/omni/syntheticdata/__init__.py", line 2, in <module>
+    from .scripts.extension import *
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.syntheticdata-0.6.10+d02c707b.lx64.r.cp310/omni/syntheticdata/scripts/extension.py", line 9, in <module>
+    from . import helpers
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.syntheticdata-0.6.10+d02c707b.lx64.r.cp310/omni/syntheticdata/scripts/helpers.py", line 4, in <module>
+    import numpy.lib.recfunctions as rfn
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/lib/recfunctions.py", line 10, in <module>
+    import numpy.ma as ma
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/ma/__init__.py", line 42, in <module>
+    from . import core
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/ma/core.py", line 37, in <module>
+    from numpy.lib.function_base import angle
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/lib/function_base.py", line 25, in <module>
+    from numpy.lib.twodim_base import diag
+  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/lib/twodim_base.py", line 15, in <module>
+    from numpy.lib.stride_tricks import broadcast_to
+ImportError: cannot import name 'broadcast_to' from 'numpy.lib.stride_tricks' (/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages/numpy/lib/stride_tricks.py)
+
+2026-04-08 13:23:36 [8,616ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'omni.replicator.replicator_yaml' in '/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.replicator_yaml-2.0.10+lx64' failed to load.
+
+At:
+  /home/wishai/vscode/IsaacLab/_isaac_sim/kit/kernel/py/omni/ext/_impl/_internal.py(213): startup
+  /home/wishai/vscode/IsaacLab/_isaac_sim/kit/kernel/py/omni/ext/_impl/_internal.py(328): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /home/wishai/vscode/IsaacLab/_isaac_sim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(427): _start_app
+  /home/wishai/vscode/IsaacLab/_isaac_sim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(212): __init__
+  /home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/play_parallel_animation.py(230): main
+  /home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/play_parallel_animation.py(408): <module>
+
+2026-04-08 13:23:36 [8,616ms] [Error] [omni.ext.plugin] [ext: omni.replicator.replicator_yaml-2.0.10] Failed to startup python extension.
+[8.772s] [ext: omni.rtx.settings.core-0.6.3] startup
+[8.775s] [ext: omni.usd.metrics.assembler.ui-106.5.0] startup
+2026-04-08 13:23:37 [8,761ms] [Error] [omni.graph.core._impl.extension] OGN node registration completed with errors: cannot import name 'broadcast_to' from 'numpy.lib.stride_tricks' (/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages/numpy/lib/stride_tricks.py)
+[8.782s] [ext: isaacsim.simulation_app-2.4.2] startup

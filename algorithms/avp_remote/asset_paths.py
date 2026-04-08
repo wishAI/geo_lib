@@ -7,6 +7,10 @@ def module_root() -> Path:
     return Path(__file__).resolve().parent
 
 
+def repo_root() -> Path:
+    return module_root().parents[1]
+
+
 def inputs_dir() -> Path:
     return module_root() / "inputs"
 
@@ -36,20 +40,33 @@ def landau_texture_dir() -> Path:
 
 
 def default_landau_source_urdf() -> Path:
-    return module_root().parents[1] / "algorithms" / "usd_parallel_urdf" / "outputs" / "landau_v10_parallel_mesh.urdf"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "landau_v10_parallel_mesh.urdf"
 
 
 def default_landau_source_mesh_root() -> Path:
-    return module_root().parents[1] / "algorithms" / "usd_parallel_urdf" / "outputs" / "mesh_collision_stl"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "mesh_collision_stl"
 
 
 def default_landau_source_usd() -> Path:
-    return module_root().parents[1] / "algorithms" / "usd_parallel_urdf" / "inputs" / "landau_v10.usdc"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "inputs" / "landau_v10.usdc"
 
 
 def default_landau_source_skeleton_json() -> Path:
-    return module_root().parents[1] / "algorithms" / "usd_parallel_urdf" / "outputs" / "landau_v10_skeleton.json"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "landau_v10_skeleton.json"
 
 
 def default_landau_source_texture_dir() -> Path:
-    return module_root().parents[1] / "algorithms" / "usd_parallel_urdf" / "inputs" / "textures"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "inputs" / "textures"
+
+
+def default_h1_2_urdf_path() -> Path:
+    return repo_root() / "helper_repos" / "xr_teleoperate_shallow" / "assets" / "h1_2" / "h1_2.urdf"
+
+
+def default_g1_urdf_path() -> Path:
+    # Backward-compatible alias kept for existing launch scripts and tests.
+    return default_h1_2_urdf_path()
+
+
+def default_dex_retargeting_python_path() -> Path:
+    return repo_root() / "helper_repos" / "dex_retargeting_env" / "bin" / "python"

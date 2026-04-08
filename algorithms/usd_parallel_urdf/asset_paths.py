@@ -6,10 +6,16 @@ from pathlib import Path
 
 
 DEFAULT_INPUT_USD_BASENAME = 'landau_v10.usdc'
+DEFAULT_AVP_SNAPSHOT_BASENAME = 'avp_snapshot.json'
+DEFAULT_H1_2_URDF_BASENAME = 'h1_2.urdf'
 
 
 def module_root() -> Path:
     return Path(__file__).resolve().parent
+
+
+def repo_root() -> Path:
+    return module_root().parents[1]
 
 
 def inputs_dir() -> Path:
@@ -17,7 +23,7 @@ def inputs_dir() -> Path:
 
 
 def legacy_default_usd_path() -> Path:
-    return module_root().parents[1] / 'algorithms' / 'avp_remote' / DEFAULT_INPUT_USD_BASENAME
+    return repo_root() / 'algorithms' / 'avp_remote' / DEFAULT_INPUT_USD_BASENAME
 
 
 def default_usd_path() -> Path:
@@ -28,6 +34,21 @@ def default_usd_path() -> Path:
     if legacy.exists():
         return legacy
     return candidate
+
+
+def default_avp_snapshot_path() -> Path:
+    repo_candidate = repo_root() / DEFAULT_AVP_SNAPSHOT_BASENAME
+    if repo_candidate.exists():
+        return repo_candidate
+    return repo_root() / 'algorithms' / 'avp_remote' / DEFAULT_AVP_SNAPSHOT_BASENAME
+
+
+def default_h1_2_asset_dir() -> Path:
+    return repo_root() / 'helper_repos' / 'xr_teleoperate_shallow' / 'assets' / 'h1_2'
+
+
+def default_g1_urdf_path() -> Path:
+    return default_h1_2_asset_dir() / DEFAULT_H1_2_URDF_BASENAME
 
 
 def asset_tag(usd_path: Path) -> str:

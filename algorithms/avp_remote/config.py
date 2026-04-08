@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 
 from asset_paths import (
+    default_dex_retargeting_python_path,
+    default_g1_urdf_path,
+    default_h1_2_urdf_path,
     landau_mesh_root,
     landau_skeleton_json_path,
     landau_urdf_path,
@@ -83,3 +86,6 @@ AVP_SKELETON_JSON_PATH = _env_path("AVP_SKELETON_JSON_PATH", landau_skeleton_jso
 AVP_MESH_ROOT = _env_path("AVP_MESH_ROOT", landau_mesh_root())
 AVP_ROBOT_XML_PATH = _env_path("AVP_ROBOT_XML_PATH", REPO_ROOT / "google_robot/robot.xml")
 AVP_SNAPSHOT_PATH = _env_path("AVP_SNAPSHOT_PATH", REPO_ROOT / "avp_snapshot.json")
+AVP_H1_2_URDF_PATH = _env_path("AVP_H1_2_URDF_PATH", default_h1_2_urdf_path())
+AVP_G1_URDF_PATH = _env_path("AVP_G1_URDF_PATH", default_g1_urdf_path())
+AVP_DEX_RETARGET_PYTHON = _env_path("AVP_DEX_RETARGET_PYTHON", default_dex_retargeting_python_path())

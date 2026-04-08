@@ -23,6 +23,7 @@ ENV_KEYS = (
     "AVP_MESH_ROOT",
     "AVP_ROBOT_XML_PATH",
     "AVP_SNAPSHOT_PATH",
+    "AVP_G1_URDF_PATH",
 )
 
 
@@ -73,6 +74,10 @@ class TestConfig(unittest.TestCase):
         )
         self.assertEqual(cfg.AVP_ROBOT_XML_PATH, cfg.REPO_ROOT / "google_robot/robot.xml")
         self.assertEqual(cfg.AVP_SNAPSHOT_PATH, cfg.REPO_ROOT / "avp_snapshot.json")
+        self.assertEqual(
+            cfg.AVP_G1_URDF_PATH,
+            cfg.REPO_ROOT.parent.parent / "helper_repos" / "xr_teleoperate_shallow" / "assets" / "h1_2" / "h1_2.urdf",
+        )
 
     def test_env_overrides_for_string_int_bool_and_paths(self):
         cfg = _load_config_with_env(
@@ -89,6 +94,7 @@ class TestConfig(unittest.TestCase):
                 "AVP_MESH_ROOT": "assets/mesh_collision_stl",
                 "AVP_ROBOT_XML_PATH": "google_robot/scene.xml",
                 "AVP_SNAPSHOT_PATH": "debug/snapshot.json",
+                "AVP_G1_URDF_PATH": "debug/custom_g1.urdf",
             }
         )
         self.assertEqual(cfg.AVP_IP, "10.0.0.11")
@@ -104,6 +110,10 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(cfg.AVP_MESH_ROOT, cfg.REPO_ROOT / "assets/mesh_collision_stl")
         self.assertEqual(cfg.AVP_ROBOT_XML_PATH, cfg.REPO_ROOT / "google_robot/scene.xml")
         self.assertEqual(cfg.AVP_SNAPSHOT_PATH, cfg.REPO_ROOT / "debug/snapshot.json")
+        self.assertEqual(
+            cfg.AVP_G1_URDF_PATH,
+            cfg.REPO_ROOT / "debug/custom_g1.urdf",
+        )
 
     def test_invalid_int_or_bool_falls_back_to_defaults(self):
         cfg = _load_config_with_env({"BRIDGE_PORT": "bad", "SEND_HZ": "oops", "USE_ZMQ": "maybe"})

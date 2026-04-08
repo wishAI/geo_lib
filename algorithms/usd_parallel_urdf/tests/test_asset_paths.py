@@ -9,7 +9,12 @@ MODULE_ROOT = Path(__file__).resolve().parents[1]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from asset_paths import asset_tag, resolve_asset_paths
+from asset_paths import (
+    asset_tag,
+    default_avp_snapshot_path,
+    default_g1_urdf_path,
+    resolve_asset_paths,
+)
 from skeleton_common import build_animation_clip, interpolate_pose_dict
 
 
@@ -30,6 +35,10 @@ class AssetPathTests(unittest.TestCase):
 
     def test_asset_tag_sanitizes_spaces(self) -> None:
         self.assertEqual(asset_tag(Path('/tmp/My Model v2.usdc')), 'My_Model_v2')
+
+    def test_default_auxiliary_paths_point_inside_repo(self) -> None:
+        self.assertIn('geo_lib', str(default_avp_snapshot_path()))
+        self.assertEqual(default_g1_urdf_path().name, 'h1_2.urdf')
 
 
 class AnimationHelperTests(unittest.TestCase):
