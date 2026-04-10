@@ -330,7 +330,7 @@ class SkeletonCommonTests(unittest.TestCase):
 
         np.testing.assert_allclose(world_matrix[:3, :3] @ axis, hand_width_world, atol=5e-4)
 
-    def test_infer_joint_axis_uses_hinge_plane_normal_for_elbow(self) -> None:
+    def test_infer_joint_axis_uses_local_cardinal_axis_for_elbow(self) -> None:
         world_matrix = np.eye(4, dtype=float)
         world_matrix[:3, :3] = np.array(
             [
@@ -348,11 +348,10 @@ class SkeletonCommonTests(unittest.TestCase):
             primary_local_axis=np.array([0.0, 1.0, 0.0], dtype=float),
             body_basis=self._body_basis(),
             world_matrix=world_matrix,
-            hinge_normal_world=hinge_normal_world,
         )
 
-        expected = hinge_normal_world / np.linalg.norm(hinge_normal_world)
-        np.testing.assert_allclose(world_matrix[:3, :3] @ axis, expected, atol=1e-6)
+        np.testing.assert_allclose(axis, [-1.0, 0.0, 0.0], atol=1e-9)
+        self.assertGreater(float((world_matrix[:3, :3] @ axis)[1]), 0.95)
 
     def test_infer_joint_axis_uses_thumb_base_axis_orthogonal_to_thumb_and_width(self) -> None:
         world_matrix = np.eye(4, dtype=float)
@@ -700,8 +699,8 @@ class SkeletonCommonTests(unittest.TestCase):
         self.assertEqual(joints_by_child['hand_l'].parent_link, 'forearm_twist_l')
         self.assertEqual(links['arm_stretch_l'].render_source_names, ())
         self.assertEqual(links['arm_twist_l'].render_source_names, ('arm_stretch_l', 'arm_twist_l'))
-        self.assertEqual(links['forearm_stretch_l'].render_source_names, ())
-        self.assertEqual(links['forearm_twist_l'].render_source_names, ('forearm_stretch_l', 'forearm_twist_l'))
+        self.assertEqual(links['forearm_stretch_l'].render_source_names, ('forearm_stretch_l', 'forearm_twist_l'))
+        self.assertEqual(links['forearm_twist_l'].render_source_names, ())
 
     def test_generate_urdf_transforms_aggregated_spine_geometry_into_distal_link_frame(self) -> None:
         def mat(x: float, y: float, z: float) -> np.ndarray:

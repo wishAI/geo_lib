@@ -372,14 +372,15 @@ def infer_joint_axis(
                 preferred_local_axis=preferred_local_axis,
             )
         return np.array([0.0, 0.0, 1.0], dtype=float)
-    if semantic_name.endswith('elbow_joint') and hinge_normal_world is not None and np.linalg.norm(hinge_normal_world) > 1e-8:
-        return _choose_axis_for_world_target(
+    if semantic_name.endswith('elbow_joint'):
+        exact_local_axis = _choose_axis_for_world_target(
             reference_matrix[:3, :3],
-            hinge_normal_world,
+            body_basis.forward_world,
             primary_local_axis=primary,
             allow_primary=False,
-            fallback=body_basis.up_world,
+            fallback=body_basis.forward_world,
         )
+        return _nearest_cardinal_axis(exact_local_axis, [1.0, 0.0, 0.0])
     if semantic_name.endswith('hip_roll_joint') or semantic_name.endswith('waist_roll_joint') or semantic_name.endswith('shoulder_lift_joint'):
         return _choose_axis_for_world_target(
             reference_matrix[:3, :3],
@@ -823,8 +824,8 @@ def build_urdf_model(records: Sequence[dict]) -> tuple[dict[str, UrdfLinkSpec], 
         if arm_twist in links and forearm_stretch in links:
             parent_by_child[forearm_stretch] = arm_twist
         if forearm_stretch in links and forearm_twist in links:
-            _clear_link_geometry(forearm_stretch)
-            _set_link_geometry(forearm_twist, forearm_stretch, forearm_twist)
+            _set_link_geometry(forearm_stretch, forearm_stretch, forearm_twist)
+            _clear_link_geometry(forearm_twist)
         if forearm_twist in links and hand in links:
             parent_by_child[hand] = forearm_twist
 
