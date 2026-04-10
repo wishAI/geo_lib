@@ -240,7 +240,7 @@ def _build_demo_pose(adapter: SemanticRigAdapter) -> dict[str, float]:
     return adapter.merge(
         adapter.raw(
             {
-                'spine_02_x': 0.10,
+                'spine_03_x': 0.10,
                 'neck_x': -0.08,
                 'arm_stretch_r': -0.40,
                 'forearm_stretch_r': -0.85,
@@ -274,7 +274,7 @@ def _build_demo_pose(adapter: SemanticRigAdapter) -> dict[str, float]:
 
 def _build_open_arms_pose(adapter: SemanticRigAdapter) -> dict[str, float]:
     return adapter.merge(
-        adapter.raw({'spine_01_x': 0.02, 'spine_02_x': 0.06, 'neck_x': -0.04}),
+        adapter.raw({'spine_03_x': 0.06, 'neck_x': -0.04}),
         adapter.pairs(
             PairChannel('shoulder_l', 'shoulder_r', symmetric=0.30),
             PairChannel('arm_stretch_l', 'arm_stretch_r', symmetric=1.45),
@@ -287,7 +287,7 @@ def _build_open_arms_pose(adapter: SemanticRigAdapter) -> dict[str, float]:
 
 def _build_walk_pose(adapter: SemanticRigAdapter, phase: float) -> dict[str, float]:
     return adapter.merge(
-        adapter.raw({'spine_01_x': 0.03, 'spine_02_x': 0.08, 'neck_x': -0.05}),
+        adapter.raw({'spine_03_x': 0.08, 'neck_x': -0.05}),
         adapter.pairs(
             PairChannel('arm_stretch_l', 'arm_stretch_r', antisymmetric=0.41 * phase),
             PairChannel('forearm_stretch_l', 'forearm_stretch_r', symmetric=0.21, antisymmetric=-0.11 * phase),

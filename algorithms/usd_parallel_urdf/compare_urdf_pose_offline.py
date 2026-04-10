@@ -13,6 +13,7 @@ from skeleton_common import (
     build_pose_preset,
     matrix_to_xyz_rpy,
     pose_preset_names,
+    remap_pose_to_urdf_joint_names,
     save_json,
     world_matrices_from_local,
 )
@@ -95,6 +96,10 @@ def compare_offline_pose(
 
     tree = ET.parse(urdf_path)
     root = tree.getroot()
+    urdf_pose = remap_pose_to_urdf_joint_names(
+        pose,
+        [joint.attrib['name'] for joint in root.findall('joint')],
+    )
     child_joint = {}
     parent_links = set()
     for joint in root.findall('joint'):
@@ -113,7 +118,7 @@ def compare_offline_pose(
             'child': child,
             'origin': _matrix_from_origin(xyz, rpy),
             'axis': np.asarray(axis, dtype=float),
-            'angle': float(pose.get(name, 0.0)),
+            'angle': float(urdf_pose.get(name, 0.0)),
         }
 
     root_links = parent_links.difference(child_joint)

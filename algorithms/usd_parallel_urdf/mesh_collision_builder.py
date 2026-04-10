@@ -570,7 +570,48 @@ def _voxelized_mesh_surface(
     return best_candidate
 
 
+def _orient_faces_outward(
+    vertices: np.ndarray,
+    faces: Sequence[tuple[int, int, int]] | np.ndarray,
+) -> tuple[np.ndarray, list[tuple[int, int, int]]]:
+    face_array = np.asarray(faces, dtype=np.int64)
+    if len(vertices) == 0 or len(face_array) == 0:
+        return np.asarray(vertices, dtype=float), []
+
+    try:
+        import trimesh
+
+        mesh = trimesh.Trimesh(vertices=np.asarray(vertices, dtype=float), faces=face_array, process=False)
+        trimesh.repair.fix_normals(mesh, multibody=True)
+        mesh.remove_unreferenced_vertices()
+        if len(mesh.faces):
+            centroid = np.asarray(mesh.vertices, dtype=float).mean(axis=0)
+            face_center = np.asarray(mesh.triangles_center[0], dtype=float)
+            normal = np.asarray(mesh.face_normals[0], dtype=float)
+            if float(np.dot(normal, face_center - centroid)) < 0.0:
+                mesh.invert()
+        return (
+            np.asarray(mesh.vertices, dtype=float),
+            [tuple(int(v) for v in face) for face in np.asarray(mesh.faces, dtype=np.int64).tolist()],
+        )
+    except Exception:
+        oriented_faces: list[tuple[int, int, int]] = []
+        centroid = np.asarray(vertices, dtype=float).mean(axis=0)
+        for face in face_array:
+            a = np.asarray(vertices[face[0]], dtype=float)
+            b = np.asarray(vertices[face[1]], dtype=float)
+            c = np.asarray(vertices[face[2]], dtype=float)
+            normal = np.cross(b - a, c - a)
+            face_center = (a + b + c) / 3.0
+            if float(np.dot(normal, face_center - centroid)) < 0.0:
+                oriented_faces.append((int(face[0]), int(face[2]), int(face[1])))
+            else:
+                oriented_faces.append((int(face[0]), int(face[1]), int(face[2])))
+        return np.asarray(vertices, dtype=float), oriented_faces
+
+
 def _write_binary_stl(path: Path, vertices: np.ndarray, faces: Sequence[tuple[int, int, int]], solid_name: str) -> None:
+    vertices, faces = _orient_faces_outward(vertices, faces)
     header = solid_name.encode('ascii', errors='ignore')[:80].ljust(80, b'\0')
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('wb') as handle:

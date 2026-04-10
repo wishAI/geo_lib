@@ -13,6 +13,7 @@ from skeleton_common import (
     build_pose_preset,
     infer_lateral_axis_world,
     interpolate_pose_dict,
+    remap_pose_to_urdf_joint_names,
     world_matrices_from_local,
 )
 
@@ -107,6 +108,10 @@ def _matrix_from_origin(xyz: list[float], rpy: list[float]) -> np.ndarray:
 def urdf_root_relative_world_map(records: Sequence[dict], urdf_path: Path, pose: dict[str, float]) -> dict[str, np.ndarray]:
     tree = ET.parse(urdf_path)
     root = tree.getroot()
+    urdf_pose = remap_pose_to_urdf_joint_names(
+        pose,
+        [joint.attrib['name'] for joint in root.findall('joint')],
+    )
     child_joint = {}
     parent_links = set()
     for joint in root.findall('joint'):
@@ -123,7 +128,7 @@ def urdf_root_relative_world_map(records: Sequence[dict], urdf_path: Path, pose:
             'parent': parent,
             'origin': _matrix_from_origin(xyz, rpy),
             'axis': np.asarray(axis, dtype=float),
-            'angle': float(pose.get(name, 0.0)),
+            'angle': float(urdf_pose.get(name, 0.0)),
         }
 
     root_links = parent_links.difference(child_joint)

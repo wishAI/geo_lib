@@ -2,6 +2,7 @@
 algorithms/fake_cloud/outputs/
 algorithms/simple_auto_slam_mapping/outputs/
 algorithms/widget_nesting_2d/outputs/
+algorithms/usd_parallel_urdf/outputs/
 
 # Python bytecode and caches
 __pycache__/

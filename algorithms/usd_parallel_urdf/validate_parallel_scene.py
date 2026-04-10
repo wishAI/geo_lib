@@ -15,6 +15,7 @@ from skeleton_common import (
     build_pose_preset,
     build_demo_pose,
     extract_skeleton_records,
+    remap_pose_to_urdf_joint_names,
     root_height_offset,
     root_height_offset_from_world_matrices,
     rotation_error_radians,
@@ -293,7 +294,8 @@ def _configure_urdf_pose(stage, urdf_root: str, root_xyz: np.ndarray, pose: dict
             if not drive:
                 continue
             _set_drive_parameters(drive, 0.0, angular_stiffness, angular_damping, max_force)
-    for joint_name, angle_rad in pose.items():
+    resolved_pose = remap_pose_to_urdf_joint_names(pose, tuple(drive_prims))
+    for joint_name, angle_rad in resolved_pose.items():
         joint_prim = drive_prims.get(joint_name)
         if joint_prim is None or not joint_prim.IsValid():
             continue

@@ -12,7 +12,7 @@ if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
 from config import LowpolyMeshConfig
-from mesh_collision_builder import _cluster_mesh_vertices, _fit_vertices_to_reference_bounds
+from mesh_collision_builder import _cluster_mesh_vertices, _fit_vertices_to_reference_bounds, _orient_faces_outward
 
 
 class MeshCollisionBuilderTests(unittest.TestCase):
@@ -70,6 +70,32 @@ class MeshCollisionBuilderTests(unittest.TestCase):
 
         self.assertEqual(len(clustered_vertices), 0)
         self.assertEqual(len(clustered_faces), 0)
+
+    def test_orient_faces_outward_flips_inward_triangle(self) -> None:
+        vertices = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=float,
+        )
+        faces = [
+            (0, 2, 1),
+            (0, 1, 3),
+            (0, 3, 2),
+            (1, 2, 3),
+        ]
+
+        oriented_vertices, oriented_faces = _orient_faces_outward(vertices, faces)
+        tri = oriented_vertices[np.asarray(oriented_faces, dtype=np.int64)]
+        centroid = oriented_vertices.mean(axis=0)
+        normals = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+        centers = tri.mean(axis=1)
+        scores = np.einsum('ij,ij->i', normals, centers - centroid)
+
+        self.assertTrue(np.all(scores > 0.0))
 
 
 if __name__ == '__main__':
