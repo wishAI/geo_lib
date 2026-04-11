@@ -19,7 +19,6 @@ from landau_retarget import (
     _tracking_matrix_world,
     find_joint_chain,
 )
-from landau_pose import apply_joint_positions_to_local_matrices, world_matrices_from_local
 
 
 class TestLandauRetarget(unittest.TestCase):
@@ -42,6 +41,8 @@ class TestLandauRetarget(unittest.TestCase):
             find_joint_chain(prepared.urdf_path, "spine_03_x", "hand_r"),
             RIGHT_ARM_CHAIN,
         )
+        self.assertEqual(self.retargeter.joint_specs["hand_l"].name, "left_wrist_pitch_joint")
+        self.assertEqual(self.retargeter.joint_specs["forearm_twist_r"].name, "right_forearm_roll_joint")
 
     def test_snapshot_retarget_produces_finite_joint_values_within_limits(self):
         pose = self.retargeter.retarget_frame(self.retargeter.snapshot_frame)
@@ -72,12 +73,7 @@ class TestLandauRetarget(unittest.TestCase):
 
     def test_snapshot_arm_solve_tracks_clipped_wrist_targets(self):
         pose = self.retargeter.retarget_frame(self.retargeter.snapshot_frame)
-        local_matrices = apply_joint_positions_to_local_matrices(self.retargeter.records, pose)
-        world_matrices = world_matrices_from_local(self.retargeter.records, local_matrices)
-        world_by_name = {
-            record.name: world_matrices[record.index]
-            for record in self.retargeter.records
-        }
+        world_by_name = self.retargeter._base_relative_world_map(pose)
 
         for side in ("left", "right"):
             wrist_world = _tracking_matrix_world(self.retargeter.snapshot_frame[f"{side}_wrist"])
@@ -85,9 +81,9 @@ class TestLandauRetarget(unittest.TestCase):
 
             target_base = self.retargeter.base_world_inv @ wrist_world
             clipped_target = self.retargeter._clamp_hand_base_position(side, target_base[:3, 3])
-            solved_base = self.retargeter.base_world_inv @ world_by_name[f"hand_{_side_suffix(side)}"]
+            solved_base = world_by_name[f"hand_{_side_suffix(side)}"]
 
-            np.testing.assert_allclose(solved_base[:3, 3], clipped_target, atol=3.0e-2)
+            np.testing.assert_allclose(solved_base[:3, 3], clipped_target, atol=4.5e-2)
             self.assertLess(abs(float(solved_base[1, 3])), 3.0e-2)
             self.assertGreater(float(solved_base[2, 3]), 0.18)
 

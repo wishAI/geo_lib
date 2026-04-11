@@ -1,6 +1,6 @@
 # AVP Remote Tracking Demo
 
-This project streams Apple Vision Pro tracking data (head + hand joints) into a local Python pipeline, retargets the upper body onto the copied Landau URDF, mirrors the solved joint state onto the matching USD character in Isaac Sim, and can show a Unitree G1 URDF baseline beside them for pose debugging.
+This project streams Apple Vision Pro tracking data (head + hand joints) into a local Python pipeline, retargets the upper body onto the copied Landau URDF, mirrors the solved joint state onto the matching USD character in Isaac Sim, and can optionally show a Unitree H1_2 URDF baseline beside them for pose debugging.
 
 ## What it does
 
@@ -9,7 +9,7 @@ This project streams Apple Vision Pro tracking data (head + hand joints) into a 
 - Copies the Landau URDF/USD/skeleton/STL handoff into `algorithms/avp_remote/inputs/landau_v10/`.
 - Solves left/right arm IK with the local `helper_repos/pytracik` TRAC-IK helper.
 - Maps solved URDF joints onto the USD skeleton so the colored USD model follows the same pose.
-- Imports a Unitree G1 URDF baseline and drives it from the same solved AVP pose for side-by-side comparison.
+- Optionally imports a Unitree H1_2 URDF baseline and drives it from the same solved AVP pose for side-by-side comparison.
 - Keeps the legacy wrist/joint/head marker viewer for debugging.
 - Includes unit tests for config, schema, transform math, asset setup, and snapshot retargeting.
 
@@ -43,7 +43,7 @@ These values are read from `avp_config.py`:
 - `AVP_MESH_ROOT` (default: `inputs/landau_v10/mesh_collision_stl`)
 - `AVP_ROBOT_XML_PATH` (default: `google_robot/robot.xml`)
 - `AVP_SNAPSHOT_PATH` (default: `avp_snapshot.json`)
-- `AVP_G1_URDF_PATH` (default: `../../helper_repos/unitree_ros/robots/g1_description/g1_29dof_with_hand_rev_1_0.urdf`)
+- `AVP_H1_2_URDF_PATH` (default: `../../helper_repos/xr_teleoperate_shallow/assets/h1_2/h1_2.urdf`)
 
 Example:
 
@@ -77,13 +77,12 @@ Run the same session with the Isaac Sim GUI:
   --snapshot-path /home/wishai/vscode/geo_lib/algorithms/avp_remote/avp_snapshot.json
 ```
 
-The snapshot and bridge sessions now show three baselines by default:
+The default snapshot and bridge sessions show two compare views:
 
 - raw Landau URDF meshes on the left
 - solved USD Landau character in the center
-- Unitree G1 URDF on the right
 
-Disable the G1 baseline if needed:
+Enable the third H1_2 compare baseline only if you need it:
 
 ```bash
 /home/wishai/vscode/IsaacLab/_isaac_sim/python.sh \
@@ -91,7 +90,7 @@ Disable the G1 baseline if needed:
   --experience base \
   --tracking-source snapshot \
   --snapshot-path /home/wishai/vscode/geo_lib/algorithms/avp_remote/avp_snapshot.json \
-  --no-g1
+  --baseline
 ```
 
 For a short GUI smoke test that exits on its own:
@@ -163,7 +162,7 @@ python3 -m unittest discover -s algorithms/avp_remote/tests -p 'test_*.py'
 - When using Isaac Sim's `--exec`, pass the script path and its flags as one quoted string. Otherwise Kit consumes flags like `--tracking-source` itself and the marker app falls back to bridge mode.
 - `avp_landau_session.py`, `avp_wrist_marker.py`, and `load_usd.py` automatically populate `inputs/landau_v10/` from `algorithms/usd_parallel_urdf/` on startup.
 - The runtime retargeter always uses the copied URDF offline, but stage-side URDF import is skipped by default because that importer is unstable here. Pass `--import-stage-urdf` to try it explicitly.
-- `avp_landau_session.py` imports the G1 baseline by default when `AVP_G1_URDF_PATH` exists. Use `--no-g1` to disable it or `--g1-urdf-path` to point at a different G1 URDF.
+- `avp_landau_session.py` keeps the H1_2 compare baseline disabled by default because the Isaac Sim URDF importer can hard-crash on that asset. Pass `--baseline` to opt in, `--no-g1` remains accepted as a compatibility alias, and `--g1-urdf-path` / `--h1-2-urdf-path` both override the baseline URDF path.
 - In `snapshot` mode, the pose is applied once and the GUI stays open until you close Isaac Sim. Add `--max-frames 5` if you want an auto-exiting smoke test.
 - The runtime retargeter uses the local `helper_repos/pytracik` build for arm IK, so no extra pip install is required in this repo.
 - Unit tests are lightweight and can run without Isaac Sim.

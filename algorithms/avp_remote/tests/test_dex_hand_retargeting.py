@@ -12,7 +12,7 @@ from asset_paths import default_dex_retargeting_python_path, default_g1_urdf_pat
 from avp_g1_pose import load_joint_limits
 from avp_snapshot_io import load_snapshot_payload
 from avp_tracking_schema import extract_tracking_frame
-from dex_hand_retargeting import DexHandRetargetingClient
+from dex_hand_retargeting import DexHandRetargetingClient, _build_worker_env
 
 
 def _helper_ready() -> bool:
@@ -21,6 +21,25 @@ def _helper_ready() -> bool:
 
 
 class TestDexHandRetargetingClient(unittest.TestCase):
+    def test_worker_env_drops_parent_python_path_pollution(self):
+        helper_python = Path("/tmp/dex_retargeting_env/bin/python")
+        env = _build_worker_env(
+            helper_python,
+            base_env={
+                "PATH": "/isaac/path/bin:/usr/bin",
+                "PYTHONPATH": "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages",
+                "PYTHONHOME": "/tmp/bad-python-home",
+                "CONDA_PREFIX": "/tmp/conda",
+            },
+        )
+
+        self.assertNotIn("PYTHONPATH", env)
+        self.assertNotIn("PYTHONHOME", env)
+        self.assertNotIn("CONDA_PREFIX", env)
+        self.assertEqual(env["PYTHONNOUSERSITE"], "1")
+        self.assertEqual(env["VIRTUAL_ENV"], "/tmp/dex_retargeting_env")
+        self.assertTrue(env["PATH"].startswith("/tmp/dex_retargeting_env/bin:"))
+
     @unittest.skipUnless(_helper_ready(), "requires the dex-retargeting helper venv")
     @unittest.skipUnless(default_g1_urdf_path().exists(), "requires cloned H1_2 helper repo")
     def test_snapshot_retargeting_returns_landau_and_h1_2_hand_targets(self):

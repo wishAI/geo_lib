@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import sys
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,11 +11,11 @@ from asset_paths import module_root
 from avp_snapshot_io import load_snapshot_payload
 from avp_tracking_schema import HAND_JOINT_NAMES, extract_tracking_frame
 from avp_transform_utils import TransformOptions, build_xyz_transform, to_usd_world
-from landau_pose import (
-    SkeletonRecord,
-    apply_joint_positions_to_local_matrices,
-    load_skeleton_records,
-    world_matrices_from_local,
+from urdf_kinematics import (
+    find_joint_chain_from_specs,
+    load_urdf_joint_specs,
+    specs_by_child_link,
+    world_map_from_joint_specs,
 )
 
 
@@ -38,8 +37,8 @@ HEAD_LINK = "head_x"
 LEFT_ARM_TIP = "hand_l"
 RIGHT_ARM_TIP = "hand_r"
 
-LEFT_ARM_CHAIN = ("shoulder_l", "arm_stretch_l", "forearm_stretch_l", "hand_l")
-RIGHT_ARM_CHAIN = ("shoulder_r", "arm_stretch_r", "forearm_stretch_r", "hand_r")
+LEFT_ARM_CHAIN = ("shoulder_l", "arm_stretch_l", "arm_twist_l", "forearm_stretch_l", "forearm_twist_l", "hand_l")
+RIGHT_ARM_CHAIN = ("shoulder_r", "arm_stretch_r", "arm_twist_r", "forearm_stretch_r", "forearm_twist_r", "hand_r")
 
 FINGER_LAYOUT = {
     "thumb": {
@@ -63,16 +62,6 @@ FINGER_LAYOUT = {
         "robot": ("pinky1_base", "pinky1", "pinky2", "pinky3"),
     },
 }
-
-
-@dataclass(frozen=True)
-class UrdfJointSpec:
-    name: str
-    parent_link: str
-    child_link: str
-    lower: float
-    upper: float
-
 
 @dataclass(frozen=True)
 class HandCalibration:
@@ -157,41 +146,8 @@ def _load_trac_ik():
     return TracIK
 
 
-def load_urdf_joint_specs(urdf_path: Path) -> dict[str, UrdfJointSpec]:
-    root = ET.parse(urdf_path).getroot()
-    specs: dict[str, UrdfJointSpec] = {}
-    for joint_el in root.findall("joint"):
-        joint_name = joint_el.attrib.get("name")
-        if not joint_name:
-            continue
-        parent_el = joint_el.find("parent")
-        child_el = joint_el.find("child")
-        limit_el = joint_el.find("limit")
-        lower = float(limit_el.attrib.get("lower", str(-math.pi))) if limit_el is not None else -math.pi
-        upper = float(limit_el.attrib.get("upper", str(math.pi))) if limit_el is not None else math.pi
-        specs[joint_name] = UrdfJointSpec(
-            name=joint_name,
-            parent_link=parent_el.attrib["link"],
-            child_link=child_el.attrib["link"],
-            lower=lower,
-            upper=upper,
-        )
-    return specs
-
-
 def find_joint_chain(urdf_path: Path, base_link: str, tip_link: str) -> tuple[str, ...]:
-    specs = load_urdf_joint_specs(urdf_path)
-    by_child = {spec.child_link: spec for spec in specs.values()}
-    current_link = tip_link
-    chain: list[str] = []
-    while current_link != base_link:
-        spec = by_child.get(current_link)
-        if spec is None:
-            raise KeyError(f"Could not find joint chain from {base_link} to {tip_link}")
-        chain.append(spec.name)
-        current_link = spec.parent_link
-    chain.reverse()
-    return tuple(chain)
+    return find_joint_chain_from_specs(load_urdf_joint_specs(urdf_path), base_link, tip_link, key="child_link")
 
 
 class LandauUpperBodyRetargeter:
@@ -209,14 +165,9 @@ class LandauUpperBodyRetargeter:
         self.hand_retargeting_client = hand_retargeting_client
         self.last_hand_targets = {"landau": {}, "h1_2": {}}
 
-        self.records = load_skeleton_records(self.skeleton_json_path)
-        self.records_by_name = {record.name: record for record in self.records}
-        self.rest_local = [record.local_matrix.copy() for record in self.records]
-        self.rest_world = world_matrices_from_local(self.records, self.rest_local)
-        self.rest_world_by_name = {
-            record.name: self.rest_world[record.index]
-            for record in self.records
-        }
+        self.urdf_joint_specs = load_urdf_joint_specs(self.urdf_path)
+        self.joint_specs = specs_by_child_link(self.urdf_joint_specs)
+        self.rest_world_by_name = world_map_from_joint_specs(self.urdf_joint_specs)
         self.base_world = self.rest_world_by_name[ARM_BASE_LINK]
         self.base_world_inv = np.linalg.inv(self.base_world)
         self.head_world = self.rest_world_by_name[HEAD_LINK]
@@ -237,9 +188,8 @@ class LandauUpperBodyRetargeter:
             for side in ("left", "right")
         }
 
-        self.joint_specs = load_urdf_joint_specs(self.urdf_path)
-        self.left_chain = find_joint_chain(self.urdf_path, ARM_BASE_LINK, LEFT_ARM_TIP)
-        self.right_chain = find_joint_chain(self.urdf_path, ARM_BASE_LINK, RIGHT_ARM_TIP)
+        self.left_chain = find_joint_chain_from_specs(self.urdf_joint_specs, ARM_BASE_LINK, LEFT_ARM_TIP, key="child_link")
+        self.right_chain = find_joint_chain_from_specs(self.urdf_joint_specs, ARM_BASE_LINK, RIGHT_ARM_TIP, key="child_link")
 
         TracIK = _load_trac_ik()
         self.left_solver = TracIK(base_link_name=ARM_BASE_LINK, tip_link_name=LEFT_ARM_TIP, urdf_path=str(self.urdf_path))
@@ -260,11 +210,10 @@ class LandauUpperBodyRetargeter:
         }
 
     def _base_relative_world_map(self, pose_by_name: dict[str, float]) -> dict[str, np.ndarray]:
-        local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_name)
-        world_matrices = world_matrices_from_local(self.records, local_matrices)
+        world_map = world_map_from_joint_specs(self.urdf_joint_specs, pose_by_name, pose_key="child_link")
         return {
-            record.name: self.base_world_inv @ world_matrices[record.index]
-            for record in self.records
+            link_name: self.base_world_inv @ link_world
+            for link_name, link_world in world_map.items()
         }
 
     def _build_hand_calibration(self, side: str, frame) -> HandCalibration:
@@ -285,11 +234,10 @@ class LandauUpperBodyRetargeter:
         hand_name = f"hand_{suffix}"
         hand_world_inv = np.linalg.inv(self.rest_world_by_name[hand_name])
         local_positions = {hand_name: np.zeros(3, dtype=float)}
-        for record in self.records:
-            name = record.name
+        for name, world_transform in self.rest_world_by_name.items():
             if not name.endswith(f"_{suffix}") or name == hand_name:
                 continue
-            local_positions[name] = (hand_world_inv @ self.rest_world_by_name[name])[:3, 3].copy()
+            local_positions[name] = (hand_world_inv @ world_transform)[:3, 3].copy()
         return local_positions
 
     def _build_robot_hand_basis(self, side: str) -> np.ndarray:
@@ -354,8 +302,8 @@ class LandauUpperBodyRetargeter:
         seed = self.left_seed if side == "left" else self.right_seed
         solution = None
 
-        # The current Landau arm chain only exposes 4 DOF from torso to hand.
-        # Full-pose IK is over-constrained there, so prefer position-only CCD.
+        # The mesh URDF now exposes a full 6-DOF torso-to-hand chain.
+        # Prefer the solver when it can satisfy the wrist target, otherwise fall back to CCD.
         if solver.dof >= 6:
             solution = solver.ik(
                 target_pos,
@@ -377,15 +325,6 @@ class LandauUpperBodyRetargeter:
         for joint_name, joint_value in zip(chain, solution, strict=False):
             pose_by_name[joint_name] = self._clamp_joint(joint_name, float(joint_value))
 
-        suffix = _side_suffix(side)
-        wrist_roll = frame.get(f"{side}_wrist_roll")
-        if wrist_roll is not None:
-            pose_by_name[f"arm_twist_{suffix}"] = self._clamp_joint(f"arm_twist_{suffix}", 0.35 * float(wrist_roll))
-            pose_by_name[f"forearm_twist_{suffix}"] = self._clamp_joint(
-                f"forearm_twist_{suffix}",
-                0.65 * float(wrist_roll),
-            )
-
     def _solve_arm_ccd(self, side: str, target_pos: np.ndarray, seed: np.ndarray) -> np.ndarray:
         chain = self.left_chain if side == "left" else self.right_chain
         hand_name = f"hand_{_side_suffix(side)}"
@@ -405,7 +344,7 @@ class LandauUpperBodyRetargeter:
                 current_pos = base_relative_map[hand_name][:3, 3]
                 joint_transform = base_relative_map[joint_name]
                 joint_pos = joint_transform[:3, 3]
-                axis_world = _normalize(joint_transform[:3, :3] @ self.records_by_name[joint_name].axis)
+                axis_world = _normalize(joint_transform[:3, :3] @ self.joint_specs[joint_name].axis)
                 if not np.any(axis_world):
                     continue
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import atexit
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,32 @@ TRACKING_OPTIONS = TransformOptions(
     posttransform=None,
 )
 HAND_JOINT_INDEX = {name: index for index, name in enumerate(HAND_JOINT_NAMES)}
+_SANITIZED_ENV_KEYS = (
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "PYTHONSTARTUP",
+    "PYTHONUSERBASE",
+    "PYTHONEXECUTABLE",
+    "__PYVENV_LAUNCHER__",
+    "VIRTUAL_ENV",
+    "CONDA_PREFIX",
+    "CONDA_DEFAULT_ENV",
+    "CONDA_PROMPT_MODIFIER",
+)
+
+
+def _build_worker_env(helper_python: Path, *, base_env: dict[str, str] | None = None) -> dict[str, str]:
+    env = dict(os.environ if base_env is None else base_env)
+    for key in _SANITIZED_ENV_KEYS:
+        env.pop(key, None)
+
+    helper_root = helper_python.parent.parent
+    helper_bin = str(helper_python.parent)
+    existing_path = env.get("PATH", "")
+    env["PATH"] = helper_bin if not existing_path else f"{helper_bin}{os.pathsep}{existing_path}"
+    env["VIRTUAL_ENV"] = str(helper_root)
+    env["PYTHONNOUSERSITE"] = "1"
+    return env
 
 
 class DexHandRetargetingClient:
@@ -42,6 +69,7 @@ class DexHandRetargetingClient:
         self.worker_script = Path(__file__).resolve().with_name("dex_hand_retarget_worker.py")
         command = [
             str(self.helper_python),
+            "-I",
             str(self.worker_script),
             "--landau-urdf",
             str(Path(landau_urdf_path).expanduser().resolve()),
@@ -58,6 +86,7 @@ class DexHandRetargetingClient:
             stderr=sys.stderr,
             text=True,
             bufsize=1,
+            env=_build_worker_env(self.helper_python),
         )
         self._closed = False
         atexit.register(self.close)

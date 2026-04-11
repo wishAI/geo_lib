@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
 
@@ -16,67 +15,10 @@ def _log_import(message: str) -> None:
     print(f"[AVP-IMPORT] {message}", flush=True)
 
 
-def _parse_args(argv: list[str]):
-    parser = argparse.ArgumentParser(
-        description="Drive the copied Landau URDF from AVP tracking and mirror the solved pose onto the USD character.",
-    )
-    parser.add_argument(
-        "--tracking-source",
-        choices=("bridge", "snapshot"),
-        default="bridge",
-        help="Use live bridge tracking or a saved snapshot payload.",
-    )
-    parser.add_argument(
-        "--snapshot-path",
-        default=None,
-        help="Snapshot file used for --tracking-source snapshot and calibration scaling.",
-    )
-    parser.add_argument(
-        "--refresh-inputs",
-        action="store_true",
-        help="Re-copy URDF/USD/STL inputs from algorithms/usd_parallel_urdf before launch.",
-    )
-    parser.add_argument(
-        "--show-urdf",
-        action="store_true",
-        help="Leave the imported URDF articulation visible instead of showing only the USD character. Requires --import-stage-urdf.",
-    )
-    parser.add_argument(
-        "--import-stage-urdf",
-        action="store_true",
-        help="Attempt to import the URDF articulation into the live Isaac stage. Disabled by default because that importer is unstable here.",
-    )
-    parser.add_argument(
-        "--headless",
-        action="store_true",
-        help="Run Isaac Sim headless.",
-    )
-    parser.add_argument(
-        "--baseline-urdf-path",
-        "--h1-2-urdf-path",
-        "--g1-urdf-path",
-        dest="baseline_urdf_path",
-        default=None,
-        help="Optional third-baseline URDF. Defaults to Unitree H1_2 from the cloned xr_teleoperate helper repo.",
-    )
-    parser.add_argument(
-        "--no-baseline",
-        "--no-h1-2",
-        "--no-g1",
-        dest="no_baseline",
-        action="store_true",
-        help="Disable the third articulated baseline in the compare scene.",
-    )
-    parser.add_argument(
-        "--max-frames",
-        type=int,
-        default=0,
-        help="Optional frame limit for smoke tests. Zero means run until the app closes.",
-    )
-    return parser.parse_args(argv)
+from avp_landau_cli import parse_args
 
 
-ARGS = _parse_args(sys.argv[1:])
+ARGS = parse_args(sys.argv[1:])
 
 _log_import("parsed args")
 import numpy as np
@@ -184,7 +126,7 @@ def _tracking_stack_to_usd_row(stack) -> np.ndarray | None:
 def _solved_hand_stack(records, pose_by_name: dict[str, float], side: str) -> np.ndarray:
     world_map = world_map_from_pose(records, pose_by_name)
     names = _side_names(side, SOLVED_HAND_BASENAMES)
-    return np.stack([np.asarray(world_map[name], dtype=float).T for name in names], axis=0)
+    return np.stack([np.asarray(world_map[name], dtype=float) for name in names], axis=0)
 
 
 def _row_offset_matrix(translate_xyz) -> np.ndarray:
@@ -431,6 +373,7 @@ def main() -> None:
     )
     usd_driver = LandauUsdPoseDriver(
         stage,
+        urdf_path=prepared.urdf_path,
         usd_path=prepared.usd_path,
         skeleton_json_path=prepared.skeleton_json_path,
         visual_root_path="/World/Compare/SolvedVisual",
@@ -444,7 +387,7 @@ def main() -> None:
         if ARGS.baseline_urdf_path
         else AVP_H1_2_URDF_PATH.resolve()
     )
-    baseline_enabled = (not ARGS.no_baseline) and baseline_urdf_path.exists()
+    baseline_enabled = bool(ARGS.enable_baseline) and baseline_urdf_path.exists()
     baseline_joint_limits = load_joint_limits(baseline_urdf_path) if baseline_enabled else None
     baseline_root_xyz = np.array(
         (
@@ -461,7 +404,7 @@ def main() -> None:
                 helper_python=AVP_DEX_RETARGET_PYTHON,
                 landau_urdf_path=prepared.urdf_path,
                 snapshot_path=Path(snapshot_path),
-                baseline_urdf_path=baseline_urdf_path if baseline_urdf_path.exists() else None,
+                baseline_urdf_path=baseline_urdf_path if baseline_enabled else None,
             )
             _log(f"Dex hand retargeting helper ready via {AVP_DEX_RETARGET_PYTHON}")
         except Exception as exc:
@@ -506,22 +449,27 @@ def main() -> None:
         label="raw_right_hand",
         print_debug=False,
     )
-    solved_left_markers = HandMarkerSetVisualizer.for_hand(
-        stage,
-        "/World/Compare/Solved/LeftHand",
-        _side_names("left", SOLVED_HAND_BASENAMES),
-        style=solved_hand_style,
-        label="solved_left_hand",
-        print_debug=False,
-    )
-    solved_right_markers = HandMarkerSetVisualizer.for_hand(
-        stage,
-        "/World/Compare/Solved/RightHand",
-        _side_names("right", SOLVED_HAND_BASENAMES),
-        style=solved_hand_style,
-        label="solved_right_hand",
-        print_debug=False,
-    )
+    solved_left_markers = None
+    solved_right_markers = None
+    if ARGS.show_solved_markers:
+        solved_left_markers = HandMarkerSetVisualizer.for_hand(
+            stage,
+            "/World/Compare/Solved/LeftHand",
+            _side_names("left", SOLVED_HAND_BASENAMES),
+            style=solved_hand_style,
+            label="solved_left_hand",
+            print_debug=False,
+        )
+        solved_right_markers = HandMarkerSetVisualizer.for_hand(
+            stage,
+            "/World/Compare/Solved/RightHand",
+            _side_names("right", SOLVED_HAND_BASENAMES),
+            style=solved_hand_style,
+            label="solved_right_hand",
+            print_debug=False,
+        )
+    else:
+        _log("Skipping solved hand marker overlay by default because it can destabilize Isaac Sim in this scene")
     raw_offset = _row_offset_matrix(raw_driver.root_translate_xyz)
     solved_offset = _row_offset_matrix(usd_driver.root_translate_xyz)
 
@@ -546,8 +494,8 @@ def main() -> None:
             baseline_joint_limits = None
             baseline_prim_path = None
             _log(f"H1_2 import failed, continuing without the third baseline: {exc}")
-    elif ARGS.no_baseline:
-        _log("Skipping the third baseline because --no-baseline was requested")
+    elif not ARGS.enable_baseline:
+        _log("Skipping the third baseline by default. Pass --baseline to opt in once the URDF importer is stable for your asset.")
     else:
         _log(f"Skipping the third baseline because the URDF was not found: {baseline_urdf_path}")
 
@@ -647,8 +595,9 @@ def main() -> None:
                     _log(f"Applied first pose to imported stage URDF with {len(robot_dof_names)} dofs")
             raw_driver.apply_pose(current_pose)
             usd_driver.apply_pose(current_pose)
-            solved_left_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "left"), solved_offset))
-            solved_right_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "right"), solved_offset))
+            if solved_left_markers is not None and solved_right_markers is not None:
+                solved_left_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "left"), solved_offset))
+                solved_right_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "right"), solved_offset))
 
         if baseline_robot is not None and baseline_command_pose is not None:
             _apply_articulation_pose(baseline_robot, baseline_dof_names, baseline_command_pose)

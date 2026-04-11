@@ -8,6 +8,7 @@ import numpy as np
 
 from avp_g1_pose import world_map_from_urdf_pose
 from avp_tracking_schema import HAND_JOINT_NAMES
+from urdf_kinematics import load_urdf_joint_specs
 
 
 HAND_JOINT_INDEX = {name: index for index, name in enumerate(HAND_JOINT_NAMES)}
@@ -20,6 +21,7 @@ class DexVectorTargetSpec:
     urdf_path: Path
     hand_link_name: str
     target_joint_names: tuple[str, ...]
+    pose_joint_names: tuple[str, ...] | None
     target_origin_link_names: tuple[str, ...]
     target_task_link_names: tuple[str, ...]
     human_origin_indices: tuple[int, ...]
@@ -37,6 +39,10 @@ class DexVectorTargetSpec:
             *self.basis_forward_links,
         ]
         return tuple(dict.fromkeys(names))
+
+    @property
+    def resolved_pose_joint_names(self) -> tuple[str, ...]:
+        return self.pose_joint_names or self.target_joint_names
 
     def build_config(self, scaling_factor: float, low_pass_alpha: float = 0.0) -> dict[str, object]:
         return {
@@ -207,35 +213,41 @@ def scaling_factor(
 
 def build_landau_target_specs(urdf_path: Path) -> dict[str, DexVectorTargetSpec]:
     urdf = Path(urdf_path).expanduser().resolve()
+    child_link_specs = {spec.child_link: spec for spec in load_urdf_joint_specs(urdf).values()}
     specs = {}
     for side in ("left", "right"):
         suffix = side_suffix(side)
+        pose_joint_names = (
+            f"thumb1_{suffix}",
+            f"thumb2_{suffix}",
+            f"thumb3_{suffix}",
+            f"index1_base_{suffix}",
+            f"index1_{suffix}",
+            f"index2_{suffix}",
+            f"index3_{suffix}",
+            f"middle1_base_{suffix}",
+            f"middle1_{suffix}",
+            f"middle2_{suffix}",
+            f"middle3_{suffix}",
+            f"ring1_base_{suffix}",
+            f"ring1_{suffix}",
+            f"ring2_{suffix}",
+            f"ring3_{suffix}",
+            f"pinky1_base_{suffix}",
+            f"pinky1_{suffix}",
+            f"pinky2_{suffix}",
+            f"pinky3_{suffix}",
+        )
         specs[side] = DexVectorTargetSpec(
             group="landau",
             side=side,
             urdf_path=urdf,
             hand_link_name=f"hand_{suffix}",
-            target_joint_names=(
-                f"thumb1_{suffix}",
-                f"thumb2_{suffix}",
-                f"thumb3_{suffix}",
-                f"index1_base_{suffix}",
-                f"index1_{suffix}",
-                f"index2_{suffix}",
-                f"index3_{suffix}",
-                f"middle1_base_{suffix}",
-                f"middle1_{suffix}",
-                f"middle2_{suffix}",
-                f"middle3_{suffix}",
-                f"ring1_base_{suffix}",
-                f"ring1_{suffix}",
-                f"ring2_{suffix}",
-                f"ring3_{suffix}",
-                f"pinky1_base_{suffix}",
-                f"pinky1_{suffix}",
-                f"pinky2_{suffix}",
-                f"pinky3_{suffix}",
+            target_joint_names=tuple(
+                child_link_specs[joint_name].name
+                for joint_name in pose_joint_names
             ),
+            pose_joint_names=pose_joint_names,
             target_origin_link_names=(
                 f"thumb1_{suffix}",
                 f"index1_base_{suffix}",
@@ -290,6 +302,7 @@ def build_h1_2_target_specs(urdf_path: Path) -> dict[str, DexVectorTargetSpec]:
                 f"{robot_prefix}_ring_proximal_joint",
                 f"{robot_prefix}_pinky_proximal_joint",
             ),
+            pose_joint_names=None,
             target_origin_link_names=(
                 f"{robot_prefix}_hand_base_link",
                 f"{robot_prefix}_hand_base_link",

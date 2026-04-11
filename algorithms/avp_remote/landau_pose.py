@@ -9,6 +9,12 @@ from typing import Sequence
 
 import numpy as np
 
+from urdf_kinematics import (
+    joint_local_transform,
+    load_urdf_joint_specs,
+    world_map_from_joint_specs,
+)
+
 
 @dataclass(frozen=True)
 class SkeletonRecord:
@@ -22,6 +28,7 @@ class SkeletonRecord:
 
 @dataclass(frozen=True)
 class UrdfVisualMeshRecord:
+    mesh_name: str
     link_name: str
     mesh_path: Path
     origin_matrix: np.ndarray
@@ -106,39 +113,43 @@ def inverse_rigid_transform(transform: np.ndarray) -> np.ndarray:
     return result
 
 
-def load_urdf_visual_mesh_records(urdf_path: Path) -> dict[str, UrdfVisualMeshRecord]:
+def load_urdf_visual_mesh_records(urdf_path: Path) -> dict[str, tuple[UrdfVisualMeshRecord, ...]]:
     root = ET.parse(urdf_path).getroot()
     urdf_dir = Path(urdf_path).resolve().parent
-    records: dict[str, UrdfVisualMeshRecord] = {}
+    records: dict[str, list[UrdfVisualMeshRecord]] = {}
     for link_el in root.findall("link"):
         link_name = link_el.attrib.get("name")
         if not link_name:
             continue
-        visual_el = link_el.find("visual")
-        if visual_el is None:
-            continue
-        mesh_el = visual_el.find("./geometry/mesh")
-        if mesh_el is None:
-            continue
-        filename = mesh_el.attrib.get("filename")
-        if not filename:
-            continue
-        origin_el = visual_el.find("origin")
-        xyz = (0.0, 0.0, 0.0)
-        rpy = (0.0, 0.0, 0.0)
-        if origin_el is not None:
-            xyz_text = origin_el.attrib.get("xyz")
-            rpy_text = origin_el.attrib.get("rpy")
-            if xyz_text:
-                xyz = tuple(float(value) for value in xyz_text.split())
-            if rpy_text:
-                rpy = tuple(float(value) for value in rpy_text.split())
-        records[link_name] = UrdfVisualMeshRecord(
-            link_name=link_name,
-            mesh_path=(urdf_dir / filename).resolve(),
-            origin_matrix=rigid_transform(rpy_matrix(*rpy), xyz),
-        )
-    return records
+        for visual_index, visual_el in enumerate(link_el.findall("visual")):
+            mesh_el = visual_el.find("./geometry/mesh")
+            if mesh_el is None:
+                continue
+            filename = mesh_el.attrib.get("filename")
+            if not filename:
+                continue
+            origin_el = visual_el.find("origin")
+            xyz = (0.0, 0.0, 0.0)
+            rpy = (0.0, 0.0, 0.0)
+            if origin_el is not None:
+                xyz_text = origin_el.attrib.get("xyz")
+                rpy_text = origin_el.attrib.get("rpy")
+                if xyz_text:
+                    xyz = tuple(float(value) for value in xyz_text.split())
+                if rpy_text:
+                    rpy = tuple(float(value) for value in rpy_text.split())
+            records.setdefault(link_name, []).append(
+                UrdfVisualMeshRecord(
+                    mesh_name=f"visual_{visual_index:02d}",
+                    link_name=link_name,
+                    mesh_path=(urdf_dir / filename).resolve(),
+                    origin_matrix=rigid_transform(rpy_matrix(*rpy), xyz),
+                )
+            )
+    return {
+        link_name: tuple(link_records)
+        for link_name, link_records in records.items()
+    }
 
 
 def load_stl_mesh_arrays(mesh_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -249,6 +260,28 @@ def world_map_from_pose(records: Sequence[SkeletonRecord], pose_by_name: dict[st
         record.name: world_matrices[record.index]
         for record in records
     }
+
+
+def local_matrices_from_world_map(
+    records: Sequence[SkeletonRecord],
+    world_by_name: dict[str, np.ndarray],
+) -> list[np.ndarray]:
+    local_matrices: list[np.ndarray] = []
+    for record in records:
+        world_transform = world_by_name.get(record.name)
+        if world_transform is None:
+            local_matrices.append(record.local_matrix.copy())
+            continue
+        if record.parent_index < 0:
+            local_matrices.append(np.asarray(world_transform, dtype=float))
+            continue
+        parent_name = records[record.parent_index].name
+        parent_world = world_by_name.get(parent_name)
+        if parent_world is None:
+            local_matrices.append(record.local_matrix.copy())
+            continue
+        local_matrices.append(inverse_rigid_transform(parent_world) @ world_transform)
+    return local_matrices
 
 
 def root_height_offset(records: Sequence[SkeletonRecord], clearance: float = 0.02) -> float:
@@ -394,6 +427,7 @@ class LandauUsdPoseDriver:
         self,
         stage,
         *,
+        urdf_path: Path | None = None,
         usd_path: Path,
         skeleton_json_path: Path,
         visual_root_path: str = "/World/LandauVisual",
@@ -407,9 +441,11 @@ class LandauUsdPoseDriver:
         self.stage = stage
         self.visual_root_path = visual_root_path
         self.visual_asset_path = visual_asset_path
+        self.urdf_path = Path(urdf_path).resolve() if urdf_path is not None else None
         self.usd_path = Path(usd_path).resolve()
         self.skeleton_json_path = Path(skeleton_json_path).resolve()
         self.records = load_skeleton_records(self.skeleton_json_path)
+        self.urdf_joint_specs = load_urdf_joint_specs(self.urdf_path) if self.urdf_path is not None else None
         self.root_offset_xyz = np.asarray(root_offset_xyz, dtype=float)
         self.anim_name = anim_name
 
@@ -437,7 +473,11 @@ class LandauUsdPoseDriver:
         _set_root_translate(stage, self.visual_root_path, self.root_translate_xyz)
 
     def apply_pose(self, pose_by_name: dict[str, float]) -> None:
-        local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_name)
+        if self.urdf_joint_specs is None:
+            local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_name)
+        else:
+            world_by_name = world_map_from_joint_specs(self.urdf_joint_specs, pose_by_name, pose_key="child_link")
+            local_matrices = local_matrices_from_world_map(self.records, world_by_name)
         _set_animation_pose(
             self.translations_attr,
             self.rotations_attr,
@@ -464,37 +504,63 @@ class LandauRawMeshPoseDriver:
         self.visual_root_path = visual_root_path
         self.root_offset_xyz = np.asarray(root_offset_xyz, dtype=float)
         self.records = load_skeleton_records(self.skeleton_json_path)
-        self.records_by_name = {record.name: record for record in self.records}
+        self.urdf_joint_specs = load_urdf_joint_specs(self.urdf_path)
         self.mesh_records = load_urdf_visual_mesh_records(self.urdf_path)
         self.link_prim_paths: dict[str, str] = {}
-        self.mesh_xform_paths: dict[str, str] = {}
+        self.root_link_names = self._compute_root_link_names()
 
         self.root_z_offset = root_height_offset(self.records)
         self.root_translate_xyz = self.root_offset_xyz + np.array((0.0, 0.0, self.root_z_offset), dtype=float)
         UsdGeom.Xform.Define(stage, self.visual_root_path)
 
-        for record in self.records:
-            parent_path = self.visual_root_path
-            if record.parent_index >= 0:
-                parent_path = self.link_prim_paths[self.records[record.parent_index].name]
-            link_path = f"{parent_path}/{record.name}"
-            mesh_xform_path = f"{link_path}/MeshOffset"
-            mesh_prim_path = f"{mesh_xform_path}/Mesh"
+        for root_link in self.root_link_names:
+            link_path = f"{self.visual_root_path}/{root_link}"
             UsdGeom.Xform.Define(stage, link_path)
-            self.link_prim_paths[record.name] = link_path
+            self.link_prim_paths[root_link] = link_path
+            self._author_link_meshes(root_link)
 
-            mesh_record = self.mesh_records.get(record.name)
-            if mesh_record is None:
-                continue
-            UsdGeom.Xform.Define(stage, mesh_xform_path)
-            self.mesh_xform_paths[record.name] = mesh_xform_path
-            if not stage.GetPrimAtPath(mesh_prim_path).IsValid():
-                _author_raw_mesh(stage, mesh_prim_path, mesh_record.mesh_path)
-            _set_xform_matrix(stage, mesh_xform_path, mesh_record.origin_matrix)
+        pending_specs = dict(self.urdf_joint_specs)
+        while pending_specs:
+            progressed = False
+            for joint_name in list(pending_specs):
+                spec = pending_specs[joint_name]
+                parent_path = self.link_prim_paths.get(spec.parent_link)
+                if parent_path is None:
+                    continue
+                link_path = f"{parent_path}/{spec.child_link}"
+                UsdGeom.Xform.Define(stage, link_path)
+                self.link_prim_paths[spec.child_link] = link_path
+                self._author_link_meshes(spec.child_link)
+                pending_specs.pop(joint_name)
+                progressed = True
+            if not progressed:
+                unresolved = ", ".join(sorted(pending_specs))
+                raise RuntimeError(f"Unable to build URDF link hierarchy for {self.urdf_path}: {unresolved}")
 
         _set_root_translate(stage, self.visual_root_path, self.root_translate_xyz)
 
+    def _compute_root_link_names(self) -> tuple[str, ...]:
+        parent_links = {spec.parent_link for spec in self.urdf_joint_specs.values()}
+        child_links = {spec.child_link for spec in self.urdf_joint_specs.values()}
+        roots = sorted(parent_links - child_links)
+        return tuple(roots) if roots else ("base_link",)
+
+    def _author_link_meshes(self, link_name: str) -> None:
+        from pxr import UsdGeom
+
+        link_path = self.link_prim_paths[link_name]
+        for mesh_record in self.mesh_records.get(link_name, ()):
+            mesh_xform_path = f"{link_path}/{mesh_record.mesh_name}"
+            mesh_prim_path = f"{mesh_xform_path}/Mesh"
+            UsdGeom.Xform.Define(self.stage, mesh_xform_path)
+            if not self.stage.GetPrimAtPath(mesh_prim_path).IsValid():
+                _author_raw_mesh(self.stage, mesh_prim_path, mesh_record.mesh_path)
+            _set_xform_matrix(self.stage, mesh_xform_path, mesh_record.origin_matrix)
+
     def apply_pose(self, pose_by_name: dict[str, float]) -> None:
-        local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_name)
-        for record in self.records:
-            _set_xform_matrix(self.stage, self.link_prim_paths[record.name], local_matrices[record.index])
+        identity = np.eye(4, dtype=float)
+        for root_link in self.root_link_names:
+            _set_xform_matrix(self.stage, self.link_prim_paths[root_link], identity)
+        for spec in self.urdf_joint_specs.values():
+            angle = float(pose_by_name.get(spec.child_link, 0.0))
+            _set_xform_matrix(self.stage, self.link_prim_paths[spec.child_link], joint_local_transform(spec, angle))

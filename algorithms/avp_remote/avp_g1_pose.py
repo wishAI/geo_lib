@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import math
-import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Mapping
 
 import numpy as np
 
-from landau_pose import axis_angle_matrix, rpy_matrix
+from urdf_kinematics import load_joint_limits, world_map_from_urdf_pose
 
 TORSO_YAW_SCALE = 0.15
 WRIST_PITCH_SCALE = 0.26
@@ -29,112 +26,6 @@ THUMB_YAW_BIAS = 0.22
 THUMB_YAW_SCALE = 0.28
 THUMB_PITCH_SCALE = 0.30
 FINGER_FLEX_SCALE = 0.55
-
-
-@dataclass(frozen=True)
-class UrdfJointSpec:
-    name: str
-    joint_type: str
-    parent_link: str
-    child_link: str
-    origin: np.ndarray
-    axis: np.ndarray
-    lower: float
-    upper: float
-
-
-def _origin_matrix(joint_el) -> np.ndarray:
-    origin_el = joint_el.find("origin")
-    xyz = (0.0, 0.0, 0.0)
-    rpy = (0.0, 0.0, 0.0)
-    if origin_el is not None:
-        xyz_text = origin_el.attrib.get("xyz")
-        rpy_text = origin_el.attrib.get("rpy")
-        if xyz_text:
-            xyz = tuple(float(value) for value in xyz_text.split())
-        if rpy_text:
-            rpy = tuple(float(value) for value in rpy_text.split())
-    transform = np.eye(4, dtype=float)
-    transform[:3, :3] = rpy_matrix(*rpy)
-    transform[:3, 3] = np.asarray(xyz, dtype=float)
-    return transform
-
-
-def load_urdf_joint_specs(urdf_path: Path) -> dict[str, UrdfJointSpec]:
-    root = ET.parse(urdf_path).getroot()
-    specs: dict[str, UrdfJointSpec] = {}
-    for joint_el in root.findall("joint"):
-        joint_name = joint_el.attrib.get("name")
-        joint_type = joint_el.attrib.get("type", "fixed")
-        if not joint_name:
-            continue
-        parent_el = joint_el.find("parent")
-        child_el = joint_el.find("child")
-        if parent_el is None or child_el is None:
-            continue
-        axis_el = joint_el.find("axis")
-        axis = np.array([0.0, 0.0, 1.0], dtype=float)
-        if axis_el is not None and axis_el.attrib.get("xyz"):
-            axis = np.asarray([float(value) for value in axis_el.attrib["xyz"].split()], dtype=float)
-        limit_el = joint_el.find("limit")
-        lower = float(limit_el.attrib.get("lower", str(-math.pi))) if limit_el is not None else -math.pi
-        upper = float(limit_el.attrib.get("upper", str(math.pi))) if limit_el is not None else math.pi
-        specs[joint_name] = UrdfJointSpec(
-            name=joint_name,
-            joint_type=joint_type,
-            parent_link=parent_el.attrib["link"],
-            child_link=child_el.attrib["link"],
-            origin=_origin_matrix(joint_el),
-            axis=axis,
-            lower=lower,
-            upper=upper,
-        )
-    return specs
-
-
-def load_joint_limits(urdf_path: Path) -> dict[str, tuple[float, float]]:
-    return {
-        spec.name: (spec.lower, spec.upper)
-        for spec in load_urdf_joint_specs(urdf_path).values()
-    }
-
-
-def _root_links(specs: Sequence[UrdfJointSpec]) -> tuple[str, ...]:
-    parent_links = {spec.parent_link for spec in specs}
-    child_links = {spec.child_link for spec in specs}
-    roots = sorted(parent_links - child_links)
-    return tuple(roots) if roots else ("base_link",)
-
-
-def _joint_motion(spec: UrdfJointSpec, angle_rad: float) -> np.ndarray:
-    motion = np.eye(4, dtype=float)
-    if spec.joint_type in ("revolute", "continuous"):
-        motion[:3, :3] = axis_angle_matrix(spec.axis, angle_rad)
-    elif spec.joint_type == "prismatic":
-        motion[:3, 3] = np.asarray(spec.axis, dtype=float) * float(angle_rad)
-    return motion
-
-
-def world_map_from_urdf_pose(urdf_path: Path, pose_by_name: Mapping[str, float] | None = None) -> dict[str, np.ndarray]:
-    pose = pose_by_name or {}
-    specs = tuple(load_urdf_joint_specs(urdf_path).values())
-    roots = _root_links(specs)
-    world = {link_name: np.eye(4, dtype=float) for link_name in roots}
-    pending = {spec.name: spec for spec in specs}
-    while pending:
-        progressed = False
-        for joint_name in list(pending):
-            spec = pending[joint_name]
-            if spec.parent_link not in world:
-                continue
-            world[spec.child_link] = world[spec.parent_link] @ spec.origin @ _joint_motion(spec, float(pose.get(joint_name, 0.0)))
-            pending.pop(joint_name)
-            progressed = True
-        if not progressed:
-            unresolved = ", ".join(sorted(pending))
-            raise RuntimeError(f"Unable to resolve URDF joint world transforms for {urdf_path}: {unresolved}")
-    return world
-
 
 def estimate_urdf_root_height(
     urdf_path: Path,

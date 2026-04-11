@@ -7,14 +7,30 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from dex_retargeting.retargeting_config import RetargetingConfig
 
 
 MODULE_ROOT = Path(__file__).resolve().parent
 MODULE_ROOT_STR = str(MODULE_ROOT)
+_BLOCKED_SITE_PATH_TOKENS = (
+    "/_isaac_sim/",
+    "/isaac-sim/",
+)
+
+
+def _sanitize_sys_path() -> None:
+    sys.path[:] = [
+        path
+        for path in sys.path
+        if not any(token in path for token in _BLOCKED_SITE_PATH_TOKENS)
+    ]
+
+
+_sanitize_sys_path()
 if MODULE_ROOT_STR in sys.path:
     sys.path.remove(MODULE_ROOT_STR)
 sys.path.insert(0, MODULE_ROOT_STR)
+
+from dex_retargeting.retargeting_config import RetargetingConfig
 
 from avp_snapshot_io import load_snapshot_payload
 from avp_tracking_schema import HAND_JOINT_NAMES, extract_tracking_frame
@@ -148,14 +164,18 @@ class DexHandRetargetingWorker:
             qpos = target.retargeting.retarget(ref_value, fixed_qpos=target.fixed_qpos)
             result[target.spec.group].update(
                 {
-                    joint_name: float(
+                    pose_name: float(
                         np.clip(
-                            qpos[target.joint_name_to_index[joint_name]],
-                            target.joint_limits[joint_name][0],
-                            target.joint_limits[joint_name][1],
+                            qpos[target.joint_name_to_index[target_joint_name]],
+                            target.joint_limits[pose_name][0],
+                            target.joint_limits[pose_name][1],
                         ),
                     )
-                    for joint_name in target.spec.target_joint_names
+                    for pose_name, target_joint_name in zip(
+                        target.spec.resolved_pose_joint_names,
+                        target.spec.target_joint_names,
+                        strict=False,
+                    )
                 },
             )
         return result

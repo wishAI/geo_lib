@@ -22,6 +22,8 @@ class TestDexHandSpecs(unittest.TestCase):
         self.assertEqual(len(specs["left"].target_task_link_names), 5)
         self.assertEqual(specs["left"].hand_link_name, "hand_l")
         self.assertEqual(specs["right"].hand_link_name, "hand_r")
+        self.assertEqual(specs["left"].target_joint_names[0], "left_thumb_metacarpal_joint")
+        self.assertEqual(specs["left"].resolved_pose_joint_names[0], "thumb1_l")
 
     def test_build_h1_2_target_specs_cover_all_five_fingers(self):
         specs = build_h1_2_target_specs(
@@ -34,6 +36,7 @@ class TestDexHandSpecs(unittest.TestCase):
         self.assertEqual(len(specs["left"].target_task_link_names), 5)
         self.assertEqual(specs["left"].hand_link_name, "L_hand_base_link")
         self.assertEqual(specs["right"].hand_link_name, "R_hand_base_link")
+        self.assertEqual(specs["left"].resolved_pose_joint_names, specs["left"].target_joint_names)
 
 
 if __name__ == "__main__":

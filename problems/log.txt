@@ -1,50 +1,56 @@
-  
-I want to play usd_parallel_urdf animation with this command:  
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/play_parallel_animation.py --urdf-path algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf --animation-clip walk_cycle --camera-view walk_side
 
-but then I got this:
 
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.replicator_yaml-2.0.10+lx64/omni/replicator/replicator_yaml/__init__.py", line 1, in <module>
-    from .scripts.parser import ParserError, parse
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.replicator_yaml-2.0.10+lx64/omni/replicator/replicator_yaml/scripts/parser.py", line 18, in <module>
-    import omni.replicator.core as rep
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.core-1.11.35+106.5.0.lx64.r.cp310/omni/replicator/core/__init__.py", line 3, in <module>
-    from .scripts import (
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.core-1.11.35+106.5.0.lx64.r.cp310/omni/replicator/core/scripts/__init__.py", line 3, in <module>
-    from . import (
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.core-1.11.35+106.5.0.lx64.r.cp310/omni/replicator/core/scripts/annotators.py", line 27, in <module>
-    from omni.syntheticdata import SyntheticData, SyntheticDataStage
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.syntheticdata-0.6.10+d02c707b.lx64.r.cp310/omni/syntheticdata/__init__.py", line 2, in <module>
-    from .scripts.extension import *
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.syntheticdata-0.6.10+d02c707b.lx64.r.cp310/omni/syntheticdata/scripts/extension.py", line 9, in <module>
-    from . import helpers
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.syntheticdata-0.6.10+d02c707b.lx64.r.cp310/omni/syntheticdata/scripts/helpers.py", line 4, in <module>
-    import numpy.lib.recfunctions as rfn
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/lib/recfunctions.py", line 10, in <module>
-    import numpy.ma as ma
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/ma/__init__.py", line 42, in <module>
-    from . import core
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/ma/core.py", line 37, in <module>
-    from numpy.lib.function_base import angle
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/lib/function_base.py", line 25, in <module>
-    from numpy.lib.twodim_base import diag
-  File "/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle/numpy/lib/twodim_base.py", line 15, in <module>
-    from numpy.lib.stride_tricks import broadcast_to
-ImportError: cannot import name 'broadcast_to' from 'numpy.lib.stride_tricks' (/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages/numpy/lib/stride_tricks.py)
-
-2026-04-08 13:23:36 [8,616ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'omni.replicator.replicator_yaml' in '/home/wishai/vscode/IsaacLab/_isaac_sim/extscache/omni.replicator.replicator_yaml-2.0.10+lx64' failed to load.
-
-At:
-  /home/wishai/vscode/IsaacLab/_isaac_sim/kit/kernel/py/omni/ext/_impl/_internal.py(213): startup
-  /home/wishai/vscode/IsaacLab/_isaac_sim/kit/kernel/py/omni/ext/_impl/_internal.py(328): startup_extension
-  PythonExtension.cpp::startup()(2): <module>
-  /home/wishai/vscode/IsaacLab/_isaac_sim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(427): _start_app
-  /home/wishai/vscode/IsaacLab/_isaac_sim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(212): __init__
-  /home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/play_parallel_animation.py(230): main
-  /home/wishai/vscode/geo_lib/algorithms/usd_parallel_urdf/play_parallel_animation.py(408): <module>
-
-2026-04-08 13:23:36 [8,616ms] [Error] [omni.ext.plugin] [ext: omni.replicator.replicator_yaml-2.0.10] Failed to startup python extension.
-[8.772s] [ext: omni.rtx.settings.core-0.6.3] startup
-[8.775s] [ext: omni.usd.metrics.assembler.ui-106.5.0] startup
-2026-04-08 13:23:37 [8,761ms] [Error] [omni.graph.core._impl.extension] OGN node registration completed with errors: cannot import name 'broadcast_to' from 'numpy.lib.stride_tricks' (/home/wishai/vscode/IsaacLab/_isaac_sim/kit/python/lib/python3.10/site-packages/numpy/lib/stride_tricks.py)
-[8.782s] [ext: isaacsim.simulation_app-2.4.2] startup
+[5.867s] app ready
+2026-04-11 03:09:07 [5,877ms] [Warning] [rtx.scenedb.plugin] SceneDbContext : TLAS limit buffer size 7374781440
+2026-04-11 03:09:07 [5,877ms] [Warning] [rtx.scenedb.plugin] SceneDbContext : TLAS limit : valid false, within: false
+2026-04-11 03:09:07 [5,877ms] [Warning] [rtx.scenedb.plugin] SceneDbContext : TLAS limit : decrement: 167690, decrement size: 7301033856
+2026-04-11 03:09:07 [5,877ms] [Warning] [rtx.scenedb.plugin] SceneDbContext : New limit 9748724 (slope: 439, intercept: 13179904)
+2026-04-11 03:09:07 [5,877ms] [Warning] [rtx.scenedb.plugin] SceneDbContext : TLAS limit buffer size 4287352704
+2026-04-11 03:09:07 [5,877ms] [Warning] [rtx.scenedb.plugin] SceneDbContext : TLAS limit : valid true, within: true
+2026-04-11 03:09:07 [5,935ms] [Warning] [omni.usd-abi.plugin] No setting was found for '/rtx-defaults-transient/meshlights/forceDisable'
+2026-04-11 03:09:07 [5,997ms] [Warning] [omni.usd-abi.plugin] No setting was found for '/rtx-defaults/post/dlss/execMode'
+[6.169s] Simulation App Startup Complete
+[AVP-LAUNCH] SimulationApp initialized
+[AVP-LAUNCH] Importing avp_landau_session
+[AVP-IMPORT] parsed args
+[AVP-IMPORT] imported numpy
+[AVP-IMPORT] imported omni.kit.commands
+[AVP-IMPORT] imported omni.kit.app
+[AVP-IMPORT] imported isaacsim.core.api.World
+[AVP-IMPORT] imported isaacsim.core.prims.Articulation
+[AVP-IMPORT] imported isaacsim.core.utils.stage
+[AVP-IMPORT] imported pxr symbols
+[AVP-IMPORT] imported avp_marker_visualizer
+[AVP-IMPORT] imported avp_g1_pose
+[AVP-IMPORT] imported dex_hand_retargeting
+[AVP-IMPORT] imported asset_setup
+[AVP-IMPORT] imported avp_config
+[AVP-IMPORT] imported avp_tracking_schema
+[AVP-IMPORT] imported avp_transform_utils
+[AVP-IMPORT] imported landau_pose
+[AVP-IMPORT] imported landau_retarget
+[AVP-IMPORT] imported tracking_source
+[AVP-IMPORT] resolved omni app
+[AVP-LAUNCH] Imported avp_landau_session
+[AVP] Preparing inputs from snapshot source /home/wishai/vscode/geo_lib/algorithms/avp_remote/avp_snapshot.json
+[AVP] Creating Isaac world
+[AVP] Isaac world created
+[AVP] Stage lighting and local ground ready
+[AVP] Raw URDF and USD compare drivers ready for /home/wishai/vscode/geo_lib/algorithms/avp_remote/inputs/landau_v10/landau_v10.usdc
+[AVP-DEX] Loaded dex-retargeting targets: landau:left, landau:right
+[AVP] Dex hand retargeting helper ready via /home/wishai/vscode/geo_lib/helper_repos/dex_retargeting_env/bin/python
+The root link %s has an inertia specified in the URDF, but KDL does not support a root link with an inertia.  As a workaround, you can add an extra dummy link to your URDF.base_link
+The root link %s has an inertia specified in the URDF, but KDL does not support a root link with an inertia.  As a workaround, you can add an extra dummy link to your URDF.base_link
+[AVP] Retargeter initialized
+[AVP] Skipping stage URDF import by default and using USD-only visualization
+[AVP] Skipping the third baseline by default. Pass --baseline to opt in once the URDF importer is stable for your asset.
+[AVP] World reset complete
+[AVP] Using snapshot tracking from /home/wishai/vscode/geo_lib/algorithms/avp_remote/avp_snapshot.json
+[AVP] Tracking stream ready: snapshot
+[AVP] Pumping 3 startup app update(s)
+[AVP] Entering main update loop with app_running=True
+[AVP] Starting first main-loop iteration with app_running=True
+[AVP] Acquired first tracking frame
+[AVP] Retargeted first tracking frame onto Landau pose
+[AVP] Snapshot mode keeps the current pose applied and leaves Isaac Sim running until you close the window.
+[9.741s] Simulation App Shutting Down
