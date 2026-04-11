@@ -20,6 +20,7 @@ from skeleton_common import (
     infer_body_basis_world,
     infer_hand_width_axes_world,
     infer_joint_axis,
+    infer_joint_limits,
     infer_lateral_axis_world,
     matrix_to_xyz_rpy,
     rpy_to_matrix,
@@ -283,6 +284,11 @@ class SkeletonCommonTests(unittest.TestCase):
         )
 
         np.testing.assert_allclose(axis, [1.0, 0.0, 0.0], atol=1e-9)
+
+    def test_infer_joint_limits_use_negative_curl_for_non_thumb_fingers(self) -> None:
+        self.assertEqual(infer_joint_limits('index1_l'), (-1.6, 0.0))
+        self.assertEqual(infer_joint_limits('middle2_r'), (-1.6, 0.0))
+        self.assertEqual(infer_joint_limits('ring1_base_l'), (-0.45, 0.45))
 
     def test_infer_joint_axis_aligns_finger_curl_to_hand_width_world(self) -> None:
         world_matrix = np.eye(4, dtype=float)

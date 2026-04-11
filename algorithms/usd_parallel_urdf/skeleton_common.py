@@ -424,7 +424,7 @@ def infer_joint_limits(name: str) -> tuple[float, float]:
     if 'index' in name or 'middle' in name or 'ring' in name or 'pinky' in name:
         if name.endswith('_base_l') or name.endswith('_base_r'):
             return (-0.45, 0.45)
-        return (0.0, 1.6)
+        return (-1.6, 0.0)
     if 'twist' in name:
         return (-1.2, 1.2)
     if 'spine' in name or 'neck' in name or 'head' in name:
