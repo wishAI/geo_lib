@@ -75,6 +75,71 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="Optional frame limit for smoke tests. Zero means run until the app closes.",
     )
+    parser.add_argument(
+        "--dex-hand-rate-hz",
+        type=float,
+        default=20.0,
+        help=(
+            "Maximum live update rate for the dex hand-retarget helper. "
+            "Lower values reduce main-thread stalls from subprocess IPC; "
+            "zero or negative means retarget every frame."
+        ),
+    )
+    parser.add_argument(
+        "--arm-rate-hz",
+        type=float,
+        default=6.0,
+        help=(
+            "Maximum live update rate for arm retargeting in bridge mode. "
+            "Lower values improve GUI smoothness by reusing the last arm solve between updates; "
+            "zero or negative means solve arms every frame."
+        ),
+    )
+    parser.add_argument(
+        "--marker-rate-hz",
+        type=float,
+        default=15.0,
+        help=(
+            "Maximum live update rate for raw and solved marker visualization in bridge mode. "
+            "Lower values improve GUI smoothness by decoupling debug marker updates from the render loop; "
+            "zero or negative means update markers every frame."
+        ),
+    )
+    parser.add_argument(
+        "--arm-solver",
+        choices=("auto", "fast", "accurate"),
+        default="auto",
+        help=(
+            "Arm IK mode. 'fast' accepts the TracIK result directly; "
+            "'accurate' falls back to slower CCD refinement when the IK target error is too large; "
+            "'auto' uses fast for live bridge mode and accurate for snapshot mode."
+        ),
+    )
+    dex_hand_group = parser.add_mutually_exclusive_group()
+    dex_hand_group.add_argument(
+        "--dex-hands",
+        dest="dex_hands",
+        action="store_true",
+        help="Enable the external dex hand retarget helper.",
+    )
+    dex_hand_group.add_argument(
+        "--no-dex-hands",
+        dest="dex_hands",
+        action="store_false",
+        help="Disable the external dex hand retarget helper and use heuristic finger mapping.",
+    )
+    parser.set_defaults(dex_hands=None)
+    parser.add_argument(
+        "--profile-loop",
+        action="store_true",
+        help="Print aggregate timing for the main AVP session loop.",
+    )
+    parser.add_argument(
+        "--profile-log-interval",
+        type=int,
+        default=120,
+        help="How many frames to accumulate between loop timing logs when --profile-loop is enabled.",
+    )
     return parser
 
 

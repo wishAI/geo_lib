@@ -63,7 +63,7 @@ def axis_angle_matrix(axis: Sequence[float], angle_rad: float) -> np.ndarray:
 
 
 def rpy_matrix(roll: float, pitch: float, yaw: float) -> np.ndarray:
-    return axis_angle_matrix((1.0, 0.0, 0.0), roll) @ axis_angle_matrix((0.0, 1.0, 0.0), pitch) @ axis_angle_matrix((0.0, 0.0, 1.0), yaw)
+    return axis_angle_matrix((0.0, 0.0, 1.0), yaw) @ axis_angle_matrix((0.0, 1.0, 0.0), pitch) @ axis_angle_matrix((1.0, 0.0, 0.0), roll)
 
 
 def quat_wxyz_from_matrix(matrix: np.ndarray) -> np.ndarray:

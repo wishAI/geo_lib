@@ -32,6 +32,16 @@ def _env_int(name, default):
         return int(default)
 
 
+def _env_float(name, default):
+    value = _env_str(name, None)
+    if value is None:
+        return float(default)
+    try:
+        return float(value)
+    except ValueError:
+        return float(default)
+
+
 def _env_bool(name, default):
     value = _env_str(name, None)
     if value is None:
@@ -43,6 +53,19 @@ def _env_bool(name, default):
     if normalized in {"0", "false", "no", "n", "off"}:
         return False
     return bool(default)
+
+
+def _env_xyz(name, default):
+    value = _env_str(name, None)
+    if value is None:
+        return tuple(float(item) for item in default)
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) != 3:
+        return tuple(float(item) for item in default)
+    try:
+        return tuple(float(part) for part in parts)
+    except ValueError:
+        return tuple(float(item) for item in default)
 
 
 def _env_path(name, default):
@@ -89,3 +112,14 @@ AVP_SNAPSHOT_PATH = _env_path("AVP_SNAPSHOT_PATH", REPO_ROOT / "avp_snapshot.jso
 AVP_H1_2_URDF_PATH = _env_path("AVP_H1_2_URDF_PATH", default_h1_2_urdf_path())
 AVP_G1_URDF_PATH = _env_path("AVP_G1_URDF_PATH", default_g1_urdf_path())
 AVP_DEX_RETARGET_PYTHON = _env_path("AVP_DEX_RETARGET_PYTHON", default_dex_retargeting_python_path())
+
+AVP_TRACKING_ROTATE_XYZ = _env_xyz("AVP_TRACKING_ROTATE_XYZ", (0.0, 0.0, 180.0))
+AVP_TRACKING_TRANSLATE_XYZ = _env_xyz("AVP_TRACKING_TRANSLATE_XYZ", (0.0, -0.13, 0.13))
+AVP_TRACKING_SCALE_XYZ = _env_xyz("AVP_TRACKING_SCALE_XYZ", (0.6, 0.6, 0.6))
+
+RAW_VISUAL_OFFSET_XYZ = _env_xyz("AVP_RAW_VISUAL_OFFSET_XYZ", (-0.8, 0.0, 0.0))
+SOLVED_VISUAL_OFFSET_XYZ = _env_xyz("AVP_SOLVED_VISUAL_OFFSET_XYZ", (0.8, 0.0, 0.0))
+BASELINE_VISUAL_OFFSET_XYZ = _env_xyz("AVP_BASELINE_VISUAL_OFFSET_XYZ", (2.4, 0.0, 0.0))
+BASELINE_VISUAL_YAW_DEGREES = _env_float("AVP_BASELINE_VISUAL_YAW_DEGREES", -90.0)
+
+AVP_HAND_RADIUS_CAP_SCALE = _env_float("AVP_HAND_RADIUS_CAP_SCALE", 1.15)

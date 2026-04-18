@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 
@@ -44,7 +45,18 @@ from dex_hand_retargeting import DexHandRetargetingClient
 _log_import("imported dex_hand_retargeting")
 from asset_setup import prepare_landau_inputs
 _log_import("imported asset_setup")
-from avp_config import AVP_DEX_RETARGET_PYTHON, AVP_H1_2_URDF_PATH, AVP_SNAPSHOT_PATH
+from avp_config import (
+    AVP_DEX_RETARGET_PYTHON,
+    AVP_H1_2_URDF_PATH,
+    AVP_SNAPSHOT_PATH,
+    AVP_TRACKING_ROTATE_XYZ,
+    AVP_TRACKING_SCALE_XYZ,
+    AVP_TRACKING_TRANSLATE_XYZ,
+    BASELINE_VISUAL_OFFSET_XYZ,
+    BASELINE_VISUAL_YAW_DEGREES,
+    RAW_VISUAL_OFFSET_XYZ,
+    SOLVED_VISUAL_OFFSET_XYZ,
+)
 _log_import("imported avp_config")
 from avp_tracking_schema import HAND_JOINT_NAMES
 _log_import("imported avp_tracking_schema")
@@ -65,17 +77,11 @@ RAW_MARKER_OPTIONS = TransformOptions(
     column_major=True,
     pretransform=None,
     posttransform=build_xyz_transform(
-        (0.0, 0.0, 180.0),
-        (0.0, -0.13, 0.13),
-        scale_xyz=(0.6, 0.6, 0.6),
+        AVP_TRACKING_ROTATE_XYZ,
+        AVP_TRACKING_TRANSLATE_XYZ,
+        scale_xyz=AVP_TRACKING_SCALE_XYZ,
     ),
 )
-RAW_VISUAL_OFFSET_XYZ = (-0.8, 0.0, 0.0)
-SOLVED_VISUAL_OFFSET_XYZ = (0.8, 0.0, 0.0)
-BASELINE_VISUAL_OFFSET_XYZ = (2.4, 0.0, 0.0)
-# The H1_2 URDF faces across the compare row in importer-default orientation,
-# so rotate it to face the same way as the solved USD character.
-BASELINE_VISUAL_YAW_DEGREES = -90.0
 BASELINE_LIVE_POSE_FILTER_ALPHA = 0.20
 SOLVED_HAND_BASENAMES = (
     "hand",
@@ -101,6 +107,59 @@ SOLVED_HAND_BASENAMES = (
     "forearm_stretch",
     "arm_stretch",
 )
+
+
+def _profile_add(stats: dict[str, float], key: str, delta_sec: float) -> None:
+    stats[key] = stats.get(key, 0.0) + float(delta_sec)
+
+
+def _log_profile_window(stats: dict[str, float], frames: int) -> None:
+    if frames <= 0:
+        return
+    total = max(stats.get("frame", 0.0), 1.0e-9)
+    fps = frames / total
+    parts = [f"frame={1000.0 * total / frames:.2f}ms ({fps:.1f} fps)"]
+    for key in (
+        "tracking",
+        "raw_markers",
+        "retarget",
+        "retarget_head",
+        "retarget_left_arm",
+        "retarget_left_arm_ik",
+        "retarget_left_arm_ccd",
+        "retarget_left_arm_ik_error",
+        "retarget_right_arm",
+        "retarget_right_arm_ik",
+        "retarget_right_arm_ccd",
+        "retarget_right_arm_ik_error",
+        "retarget_hand_helper",
+        "retarget_left_hand_heuristic",
+        "retarget_right_hand_heuristic",
+        "baseline_map",
+        "apply_pose",
+        "solved_markers",
+        "step",
+    ):
+        value = stats.get(key, 0.0)
+        if key.endswith("_error"):
+            parts.append(f"{key}={value / frames:.3f}m")
+        else:
+            parts.append(f"{key}={1000.0 * value / frames:.2f}ms")
+    _log("[PROFILE] " + " ".join(parts))
+
+
+def _should_refresh_rate_limited(
+    *,
+    enabled: bool,
+    interval_sec: float,
+    last_refresh_at: float,
+) -> tuple[bool, float]:
+    if not enabled or interval_sec <= 0.0:
+        return True, last_refresh_at
+    now = time.perf_counter()
+    if last_refresh_at <= 0.0 or (now - last_refresh_at) >= interval_sec:
+        return True, now
+    return False, last_refresh_at
 
 
 def _side_names(side: str, basenames: tuple[str, ...]) -> tuple[str, ...]:
@@ -397,8 +456,29 @@ def main() -> None:
         ),
         dtype=float,
     )
+    profile_enabled = bool(ARGS.profile_loop)
+    profile_interval = max(int(ARGS.profile_log_interval), 1)
+    arm_solver_mode = ARGS.arm_solver
+    if arm_solver_mode == "auto":
+        arm_solver_mode = "fast" if ARGS.tracking_source == "bridge" else "accurate"
+    arm_retarget_interval_sec = (
+        0.0
+        if ARGS.arm_rate_hz <= 0.0 or ARGS.tracking_source != "bridge"
+        else 1.0 / ARGS.arm_rate_hz
+    )
+    marker_update_interval_sec = (
+        0.0
+        if ARGS.marker_rate_hz <= 0.0 or ARGS.tracking_source != "bridge"
+        else 1.0 / ARGS.marker_rate_hz
+    )
+    arm_ik_error_tolerance = None if arm_solver_mode == "fast" else 3.0e-2
+    arm_ccd_iterations = 4 if arm_solver_mode == "fast" else 80
+    use_dex_hands = ARGS.dex_hands
+    if use_dex_hands is None:
+        use_dex_hands = ARGS.tracking_source != "bridge"
     dex_hand_client = None
-    if AVP_DEX_RETARGET_PYTHON.exists():
+    hand_retarget_interval_sec = 0.0 if ARGS.dex_hand_rate_hz <= 0.0 else 1.0 / ARGS.dex_hand_rate_hz
+    if use_dex_hands and AVP_DEX_RETARGET_PYTHON.exists():
         try:
             dex_hand_client = DexHandRetargetingClient(
                 helper_python=AVP_DEX_RETARGET_PYTHON,
@@ -406,9 +486,17 @@ def main() -> None:
                 snapshot_path=Path(snapshot_path),
                 baseline_urdf_path=baseline_urdf_path if baseline_enabled else None,
             )
-            _log(f"Dex hand retargeting helper ready via {AVP_DEX_RETARGET_PYTHON}")
+            if hand_retarget_interval_sec > 0.0:
+                _log(
+                    "Dex hand retargeting helper ready via "
+                    f"{AVP_DEX_RETARGET_PYTHON} at up to {ARGS.dex_hand_rate_hz:.1f} Hz"
+                )
+            else:
+                _log(f"Dex hand retargeting helper ready via {AVP_DEX_RETARGET_PYTHON} every frame")
         except Exception as exc:
             _log(f"Dex hand retargeting helper unavailable, continuing with heuristic hands: {exc}")
+    elif not use_dex_hands:
+        _log("Dex hand retargeting helper disabled; using heuristic finger mapping")
     else:
         _log(f"Dex hand retargeting helper was not found: {AVP_DEX_RETARGET_PYTHON}")
     retargeter = LandauUpperBodyRetargeter(
@@ -416,8 +504,24 @@ def main() -> None:
         skeleton_json_path=prepared.skeleton_json_path,
         snapshot_path=snapshot_path,
         hand_retargeting_client=dex_hand_client,
+        hand_retarget_interval_sec=hand_retarget_interval_sec if ARGS.tracking_source == "bridge" else 0.0,
+        arm_retarget_interval_sec=arm_retarget_interval_sec,
+        arm_ik_error_tolerance=arm_ik_error_tolerance,
+        arm_ccd_iterations=arm_ccd_iterations,
+        profile_enabled=profile_enabled,
     )
     _log("Retargeter initialized")
+    if arm_retarget_interval_sec > 0.0:
+        _log(
+            f"Arm solver mode: {arm_solver_mode} (CCD iterations={arm_ccd_iterations}, "
+            f"arm rate={ARGS.arm_rate_hz:.1f} Hz)"
+        )
+    else:
+        _log(f"Arm solver mode: {arm_solver_mode} (CCD iterations={arm_ccd_iterations}, arm rate=every frame)")
+    if marker_update_interval_sec > 0.0:
+        _log(f"Marker update rate: {ARGS.marker_rate_hz:.1f} Hz")
+    else:
+        _log("Marker update rate: every frame")
     raw_hand_style = HandStyle(
         wrist=MarkerStyle(mode="sphere", color=(0.1, 0.85, 1.0), radius=0.012),
         joint=MarkerStyle(mode="sphere", color=(0.1, 0.85, 1.0), radius=0.008),
@@ -544,27 +648,68 @@ def main() -> None:
     have_landau_pose = False
     baseline_command_pose: dict[str, float] | None = None
     snapshot_pose_applied = False
+    profile_stats: dict[str, float] = {}
+    profile_frames = 0
+    last_raw_marker_update_at = 0.0
+    last_solved_marker_update_at = 0.0
     _log(f"Entering main update loop with app_running={APP.is_running()}")
     while True:
+        frame_started_at = time.perf_counter()
         first_iteration = frame_count == 0
         if first_iteration:
             _log(f"Starting first main-loop iteration with app_running={APP.is_running()}")
+        tracking_started_at = time.perf_counter()
         frame = None if (ARGS.tracking_source == "snapshot" and snapshot_pose_applied) else tracking_stream.get_tracking_frame()
+        if profile_enabled:
+            _profile_add(profile_stats, "tracking", time.perf_counter() - tracking_started_at)
         if frame is not None:
             if first_iteration:
                 _log("Acquired first tracking frame")
-            raw_left_markers.update(_row_offset_stack(_tracking_stack_to_usd_row(frame.get("left_arm")), raw_offset))
-            raw_right_markers.update(_row_offset_stack(_tracking_stack_to_usd_row(frame.get("right_arm")), raw_offset))
-            raw_head = frame.get("head")
-            if raw_head is not None:
-                raw_head_marker.update(np.asarray(to_usd_world(raw_head, options=RAW_MARKER_OPTIONS), dtype=float) @ raw_offset, now=0.0)
+            refresh_raw_markers, last_raw_marker_update_at = _should_refresh_rate_limited(
+                enabled=ARGS.tracking_source == "bridge",
+                interval_sec=marker_update_interval_sec,
+                last_refresh_at=last_raw_marker_update_at,
+            )
+            if refresh_raw_markers:
+                raw_marker_started_at = time.perf_counter()
+                raw_left_markers.update(_row_offset_stack(_tracking_stack_to_usd_row(frame.get("left_arm")), raw_offset))
+                raw_right_markers.update(_row_offset_stack(_tracking_stack_to_usd_row(frame.get("right_arm")), raw_offset))
+                raw_head = frame.get("head")
+                if raw_head is not None:
+                    raw_head_marker.update(np.asarray(to_usd_world(raw_head, options=RAW_MARKER_OPTIONS), dtype=float) @ raw_offset, now=0.0)
+                if profile_enabled:
+                    _profile_add(profile_stats, "raw_markers", time.perf_counter() - raw_marker_started_at)
+            retarget_started_at = time.perf_counter()
             pose_by_name = retargeter.retarget_frame(frame)
+            if profile_enabled:
+                _profile_add(profile_stats, "retarget", time.perf_counter() - retarget_started_at)
+                _profile_add(profile_stats, "retarget_head", retargeter.last_profile.get("head", 0.0))
+                _profile_add(profile_stats, "retarget_left_arm", retargeter.last_profile.get("left_arm", 0.0))
+                _profile_add(profile_stats, "retarget_left_arm_ik", retargeter.last_profile.get("left_arm_ik", 0.0))
+                _profile_add(profile_stats, "retarget_left_arm_ccd", retargeter.last_profile.get("left_arm_ccd", 0.0))
+                _profile_add(profile_stats, "retarget_left_arm_ik_error", retargeter.last_profile.get("left_arm_ik_error", 0.0))
+                _profile_add(profile_stats, "retarget_right_arm", retargeter.last_profile.get("right_arm", 0.0))
+                _profile_add(profile_stats, "retarget_right_arm_ik", retargeter.last_profile.get("right_arm_ik", 0.0))
+                _profile_add(profile_stats, "retarget_right_arm_ccd", retargeter.last_profile.get("right_arm_ccd", 0.0))
+                _profile_add(profile_stats, "retarget_right_arm_ik_error", retargeter.last_profile.get("right_arm_ik_error", 0.0))
+                _profile_add(profile_stats, "retarget_hand_helper", retargeter.last_profile.get("hand_helper", 0.0))
+                _profile_add(
+                    profile_stats,
+                    "retarget_left_hand_heuristic",
+                    retargeter.last_profile.get("left_hand_heuristic", 0.0),
+                )
+                _profile_add(
+                    profile_stats,
+                    "retarget_right_hand_heuristic",
+                    retargeter.last_profile.get("right_hand_heuristic", 0.0),
+                )
             if first_iteration:
                 _log("Retargeted first tracking frame onto Landau pose")
             current_pose.update(pose_by_name)
             have_landau_pose = True
             baseline_pose = None
             if baseline_robot is not None:
+                baseline_started_at = time.perf_counter()
                 baseline_pose = map_landau_pose_to_h1_2_pose(
                     current_pose,
                     hand_pose_override=retargeter.h1_2_hand_pose_overrides(),
@@ -575,6 +720,8 @@ def main() -> None:
                     baseline_pose,
                     alpha=1.0 if ARGS.tracking_source == "snapshot" else BASELINE_LIVE_POSE_FILTER_ALPHA,
                 )
+                if profile_enabled:
+                    _profile_add(profile_stats, "baseline_map", time.perf_counter() - baseline_started_at)
                 if first_iteration:
                     _log("Mapped first Landau pose onto H1_2")
             if frame_count == 0:
@@ -589,15 +736,27 @@ def main() -> None:
             _log("No tracking frame was available on the first main-loop iteration")
 
         if have_landau_pose:
+            apply_started_at = time.perf_counter()
             if robot is not None:
                 _apply_articulation_pose(robot, robot_dof_names, current_pose)
                 if first_iteration:
                     _log(f"Applied first pose to imported stage URDF with {len(robot_dof_names)} dofs")
             raw_driver.apply_pose(current_pose)
             usd_driver.apply_pose(current_pose)
+            if profile_enabled:
+                _profile_add(profile_stats, "apply_pose", time.perf_counter() - apply_started_at)
             if solved_left_markers is not None and solved_right_markers is not None:
-                solved_left_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "left"), solved_offset))
-                solved_right_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "right"), solved_offset))
+                refresh_solved_markers, last_solved_marker_update_at = _should_refresh_rate_limited(
+                    enabled=ARGS.tracking_source == "bridge",
+                    interval_sec=marker_update_interval_sec,
+                    last_refresh_at=last_solved_marker_update_at,
+                )
+                if refresh_solved_markers:
+                    solved_marker_started_at = time.perf_counter()
+                    solved_left_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "left"), solved_offset))
+                    solved_right_markers.update(_row_offset_stack(_solved_hand_stack(retargeter.records, current_pose, "right"), solved_offset))
+                    if profile_enabled:
+                        _profile_add(profile_stats, "solved_markers", time.perf_counter() - solved_marker_started_at)
 
         if baseline_robot is not None and baseline_command_pose is not None:
             _apply_articulation_pose(baseline_robot, baseline_dof_names, baseline_command_pose)
@@ -607,10 +766,19 @@ def main() -> None:
         if frame_count == 0 and have_landau_pose:
             _log("Applied first tracking frame")
 
+        step_started_at = time.perf_counter()
         if (robot is not None or baseline_robot is not None) and not (ARGS.tracking_source == "snapshot" and snapshot_pose_applied):
             world.step(render=not ARGS.headless)
         else:
             APP.update()
+        if profile_enabled:
+            _profile_add(profile_stats, "step", time.perf_counter() - step_started_at)
+            _profile_add(profile_stats, "frame", time.perf_counter() - frame_started_at)
+            profile_frames += 1
+            if profile_frames >= profile_interval:
+                _log_profile_window(profile_stats, profile_frames)
+                profile_stats = {}
+                profile_frames = 0
         if first_iteration:
             _log(f"Completed first frame update with app_running={APP.is_running()}")
         frame_count += 1
@@ -627,6 +795,8 @@ def main() -> None:
     if ARGS.max_frames > 0:
         _log("Posting app quit")
         APP.post_quit()
+    if profile_enabled and profile_frames > 0:
+        _log_profile_window(profile_stats, profile_frames)
     if dex_hand_client is not None:
         dex_hand_client.close()
     _log("Session main exiting")

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
+from avp_config import AVP_TRACKING_ROTATE_XYZ, AVP_TRACKING_SCALE_XYZ, AVP_TRACKING_TRANSLATE_XYZ
 from avp_tracking_schema import HAND_JOINT_NAMES
 from avp_transform_utils import TransformOptions, build_xyz_transform, to_usd_world
 
@@ -16,9 +17,9 @@ from avp_transform_utils import TransformOptions, build_xyz_transform, to_usd_wo
 TRACKING_OPTIONS = TransformOptions(
     column_major=False,
     pretransform=build_xyz_transform(
-        (0.0, 0.0, 180.0),
-        (0.0, -0.13, 0.13),
-        scale_xyz=(0.6, 0.6, 0.6),
+        AVP_TRACKING_ROTATE_XYZ,
+        AVP_TRACKING_TRANSLATE_XYZ,
+        scale_xyz=AVP_TRACKING_SCALE_XYZ,
     ).T,
     posttransform=None,
 )

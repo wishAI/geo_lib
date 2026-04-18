@@ -22,6 +22,7 @@ This project streams Apple Vision Pro tracking data (head + hand joints) into a 
 - `avp_landau_session.py`: Isaac Sim session that retargets AVP motion onto the Landau URDF joint space and mirrors the pose onto the USD character.
 - `avp_wrist_marker.py`: Isaac Sim app that renders markers from incoming tracking data or snapshot file.
 - `landau_retarget.py`: AVP head/hand to Landau joint retargeting logic.
+- `landau_mapping_config.py`: editable AVP-to-Landau pose mapping rules, per-joint sign/scale, and explicit defaults for untracked legs.
 - `landau_pose.py`: apply Landau joint positions onto the copied USD skeleton.
 - `avp_tracking_schema.py`: frame extraction/parsing utilities.
 - `avp_transform_utils.py`: transform composition and conversion helpers.
@@ -165,4 +166,7 @@ python3 -m unittest discover -s algorithms/avp_remote/tests -p 'test_*.py'
 - `avp_landau_session.py` keeps the H1_2 compare baseline disabled by default because the Isaac Sim URDF importer can hard-crash on that asset. Pass `--baseline` to opt in, `--no-g1` remains accepted as a compatibility alias, and `--g1-urdf-path` / `--h1-2-urdf-path` both override the baseline URDF path.
 - In `snapshot` mode, the pose is applied once and the GUI stays open until you close Isaac Sim. Add `--max-frames 5` if you want an auto-exiting smoke test.
 - The runtime retargeter uses the local `helper_repos/pytracik` build for arm IK, so no extra pip install is required in this repo.
+- AVP tracking currently retargets head, arms, and hands only. Leg pose keys are held at explicit zero defaults in `landau_mapping_config.py`.
+- The Landau asset's zero-angle URDF/skeleton pose is not a straight neutral stance, because several leg joints already carry non-identity `origin rpy` / bind transforms in the source asset.
+- If you want to flip a joint direction or reduce a joint response, edit `landau_mapping_config.py` and change that pose key's `scale`. A negative `scale` flips the sign.
 - Unit tests are lightweight and can run without Isaac Sim.

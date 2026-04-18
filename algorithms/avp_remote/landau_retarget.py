@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,8 +10,25 @@ import numpy as np
 
 from asset_paths import module_root
 from avp_snapshot_io import load_snapshot_payload
+from avp_config import (
+    AVP_HAND_RADIUS_CAP_SCALE,
+    AVP_TRACKING_ROTATE_XYZ,
+    AVP_TRACKING_SCALE_XYZ,
+    AVP_TRACKING_TRANSLATE_XYZ,
+)
 from avp_tracking_schema import HAND_JOINT_NAMES, extract_tracking_frame
 from avp_transform_utils import TransformOptions, build_xyz_transform, to_usd_world
+from landau_mapping_config import (
+    ARM_BASE_LINK,
+    FINGER_LAYOUT,
+    HEAD_LINK,
+    LEFT_ARM_CHAIN,
+    LEFT_ARM_TIP,
+    RIGHT_ARM_CHAIN,
+    RIGHT_ARM_TIP,
+    UNTRACKED_POSE_DEFAULTS,
+    apply_output_rule,
+)
 from urdf_kinematics import (
     find_joint_chain_from_specs,
     load_urdf_joint_specs,
@@ -22,46 +40,14 @@ from urdf_kinematics import (
 AVP_TO_SCENE_OPTIONS = TransformOptions(
     column_major=False,
     pretransform=build_xyz_transform(
-        (0.0, 0.0, 180.0),
-        (0.0, -0.13, 0.13),
-        scale_xyz=(0.6, 0.6, 0.6),
+        AVP_TRACKING_ROTATE_XYZ,
+        AVP_TRACKING_TRANSLATE_XYZ,
+        scale_xyz=AVP_TRACKING_SCALE_XYZ,
     ).T,
     posttransform=None,
 )
 
 HAND_JOINT_INDEX = {name: index for index, name in enumerate(HAND_JOINT_NAMES)}
-
-ARM_BASE_LINK = "spine_03_x"
-HEAD_LINK = "head_x"
-
-LEFT_ARM_TIP = "hand_l"
-RIGHT_ARM_TIP = "hand_r"
-
-LEFT_ARM_CHAIN = ("shoulder_l", "arm_stretch_l", "arm_twist_l", "forearm_stretch_l", "forearm_twist_l", "hand_l")
-RIGHT_ARM_CHAIN = ("shoulder_r", "arm_stretch_r", "arm_twist_r", "forearm_stretch_r", "forearm_twist_r", "hand_r")
-
-FINGER_LAYOUT = {
-    "thumb": {
-        "avp": ("thumbKnuckle", "thumbIntermediateBase", "thumbIntermediateTip", "thumbTip"),
-        "robot": ("thumb1", "thumb2", "thumb3"),
-    },
-    "index": {
-        "avp": ("indexMetacarpal", "indexKnuckle", "indexIntermediateBase", "indexIntermediateTip", "indexTip"),
-        "robot": ("index1_base", "index1", "index2", "index3"),
-    },
-    "middle": {
-        "avp": ("middleMetacarpal", "middleKnuckle", "middleIntermediateBase", "middleIntermediateTip", "middleTip"),
-        "robot": ("middle1_base", "middle1", "middle2", "middle3"),
-    },
-    "ring": {
-        "avp": ("ringMetacarpal", "ringKnuckle", "ringIntermediateBase", "ringIntermediateTip", "ringTip"),
-        "robot": ("ring1_base", "ring1", "ring2", "ring3"),
-    },
-    "little": {
-        "avp": ("littleMetacarpal", "littleKnuckle", "littleIntermediateBase", "littleIntermediateTip", "littleTip"),
-        "robot": ("pinky1_base", "pinky1", "pinky2", "pinky3"),
-    },
-}
 
 @dataclass(frozen=True)
 class HandCalibration:
@@ -158,12 +144,26 @@ class LandauUpperBodyRetargeter:
         skeleton_json_path: Path,
         snapshot_path: Path,
         hand_retargeting_client=None,
+        hand_retarget_interval_sec: float = 0.0,
+        arm_retarget_interval_sec: float = 0.0,
+        arm_ik_error_tolerance: float | None = 3.0e-2,
+        arm_ccd_iterations: int = 80,
+        profile_enabled: bool = False,
     ) -> None:
         self.urdf_path = Path(urdf_path).resolve()
         self.skeleton_json_path = Path(skeleton_json_path).resolve()
         self.snapshot_path = Path(snapshot_path).expanduser().resolve()
         self.hand_retargeting_client = hand_retargeting_client
+        self.hand_retarget_interval_sec = max(float(hand_retarget_interval_sec), 0.0)
+        self.arm_retarget_interval_sec = max(float(arm_retarget_interval_sec), 0.0)
+        self.arm_ik_error_tolerance = None if arm_ik_error_tolerance is None else float(arm_ik_error_tolerance)
+        self.arm_ccd_iterations = max(int(arm_ccd_iterations), 1)
+        self._last_hand_retarget_at = 0.0
+        self._last_arm_retarget_at = 0.0
+        self.profile_enabled = bool(profile_enabled)
+        self.last_profile: dict[str, float] = {}
         self.last_hand_targets = {"landau": {}, "h1_2": {}}
+        self.last_arm_pose: dict[str, float] = {}
 
         self.urdf_joint_specs = load_urdf_joint_specs(self.urdf_path)
         self.joint_specs = specs_by_child_link(self.urdf_joint_specs)
@@ -208,6 +208,32 @@ class LandauUpperBodyRetargeter:
             "left": self._build_hand_calibration("left", self.snapshot_frame),
             "right": self._build_hand_calibration("right", self.snapshot_frame),
         }
+
+    def _should_refresh_hand_targets(self) -> bool:
+        if self.hand_retargeting_client is None:
+            return False
+        if self.hand_retarget_interval_sec <= 0.0:
+            return True
+        now = time.perf_counter()
+        if not self.last_hand_targets.get("landau") and not self.last_hand_targets.get("h1_2"):
+            self._last_hand_retarget_at = now
+            return True
+        if (now - self._last_hand_retarget_at) >= self.hand_retarget_interval_sec:
+            self._last_hand_retarget_at = now
+            return True
+        return False
+
+    def _should_refresh_arm_targets(self) -> bool:
+        if self.arm_retarget_interval_sec <= 0.0:
+            return True
+        now = time.perf_counter()
+        if not self.last_arm_pose:
+            self._last_arm_retarget_at = now
+            return True
+        if (now - self._last_arm_retarget_at) >= self.arm_retarget_interval_sec:
+            self._last_arm_retarget_at = now
+            return True
+        return False
 
     def _base_relative_world_map(self, pose_by_name: dict[str, float]) -> dict[str, np.ndarray]:
         world_map = world_map_from_joint_specs(self.urdf_joint_specs, pose_by_name, pose_key="child_link")
@@ -257,6 +283,13 @@ class LandauUpperBodyRetargeter:
             return float(value)
         return float(np.clip(float(value), spec.lower, spec.upper))
 
+    def _mapped_joint_value(self, joint_name: str, raw_value: float) -> float:
+        return self._clamp_joint(joint_name, apply_output_rule(joint_name, raw_value))
+
+    def _merge_mapped_pose(self, pose_by_name: dict[str, float], updates: dict[str, float]) -> None:
+        for joint_name, raw_value in updates.items():
+            pose_by_name[joint_name] = self._mapped_joint_value(joint_name, raw_value)
+
     def _retarget_head(self, frame, pose_by_name: dict[str, float]) -> None:
         head_world = _tracking_matrix_world(frame.get("head"))
         if head_world is None:
@@ -265,16 +298,23 @@ class LandauUpperBodyRetargeter:
         forward_axis = _normalize(head_world[:3, 1])
         forward_xy = math.sqrt(float(forward_axis[0] ** 2 + forward_axis[1] ** 2))
         pitch = math.atan2(float(forward_axis[2]), max(forward_xy, 1.0e-6))
-        pose_by_name["neck_x"] = self._clamp_joint("neck_x", 0.55 * pitch)
-        pose_by_name["head_x"] = self._clamp_joint("head_x", 0.45 * pitch)
+        pose_by_name["neck_x"] = self._mapped_joint_value("neck_x", pitch)
+        pose_by_name["head_x"] = self._mapped_joint_value("head_x", pitch)
 
     def _clamp_hand_base_position(self, side: str, target_pos: np.ndarray) -> np.ndarray:
         clipped = np.asarray(target_pos, dtype=float).copy()
         target_radius = float(np.linalg.norm(clipped))
-        radius_cap = 1.15 * self.rest_hand_base_radius[side]
+        radius_cap = AVP_HAND_RADIUS_CAP_SCALE * self.rest_hand_base_radius[side]
         if target_radius > radius_cap and target_radius > 1.0e-8:
             clipped *= radius_cap / target_radius
         return clipped
+
+    def _finger_curl_amount(self, points: list[np.ndarray]) -> float:
+        chain_length = sum(float(np.linalg.norm(curr - prev)) for prev, curr in zip(points[:-1], points[1:], strict=False))
+        if chain_length <= 1.0e-8:
+            return 0.0
+        straight_length = float(np.linalg.norm(points[-1] - points[0]))
+        return float(np.clip(1.0 - (straight_length / chain_length), 0.0, 1.0))
 
     def _target_hand_base_position(self, side: str, frame) -> np.ndarray | None:
         wrist_world = _tracking_matrix_world(frame.get(f"{side}_wrist"))
@@ -305,17 +345,26 @@ class LandauUpperBodyRetargeter:
         # The mesh URDF now exposes a full 6-DOF torso-to-hand chain.
         # Prefer the solver when it can satisfy the wrist target, otherwise fall back to CCD.
         if solver.dof >= 6:
+            ik_started_at = time.perf_counter() if self.profile_enabled else 0.0
             solution = solver.ik(
                 target_pos,
                 self.rest_hand_base_rotation[side][:3, :3],
                 seed_jnt_values=seed,
             )
+            if self.profile_enabled:
+                self.last_profile[f"{side}_arm_ik"] = time.perf_counter() - ik_started_at
             if solution is not None:
                 solved_pos = self._arm_tip_base_position(side, np.asarray(solution, dtype=float))
-                if float(np.linalg.norm(solved_pos - target_pos)) > 3.0e-2:
+                error = float(np.linalg.norm(solved_pos - target_pos))
+                if self.profile_enabled:
+                    self.last_profile[f"{side}_arm_ik_error"] = error
+                if self.arm_ik_error_tolerance is not None and error > self.arm_ik_error_tolerance:
                     solution = None
         if solution is None:
+            ccd_started_at = time.perf_counter() if self.profile_enabled else 0.0
             solution = self._solve_arm_ccd(side, target_pos, seed)
+            if self.profile_enabled:
+                self.last_profile[f"{side}_arm_ccd"] = time.perf_counter() - ccd_started_at
 
         if side == "left":
             self.left_seed = np.asarray(solution, dtype=float)
@@ -323,7 +372,7 @@ class LandauUpperBodyRetargeter:
             self.right_seed = np.asarray(solution, dtype=float)
 
         for joint_name, joint_value in zip(chain, solution, strict=False):
-            pose_by_name[joint_name] = self._clamp_joint(joint_name, float(joint_value))
+            pose_by_name[joint_name] = self._mapped_joint_value(joint_name, joint_value)
 
     def _solve_arm_ccd(self, side: str, target_pos: np.ndarray, seed: np.ndarray) -> np.ndarray:
         chain = self.left_chain if side == "left" else self.right_chain
@@ -333,7 +382,7 @@ class LandauUpperBodyRetargeter:
             for joint_name, joint_value in zip(chain, seed, strict=False)
         }
 
-        for _ in range(80):
+        for _ in range(self.arm_ccd_iterations):
             base_relative_map = self._base_relative_world_map(pose)
             current_pos = base_relative_map[hand_name][:3, 3]
             if float(np.linalg.norm(target_pos - current_pos)) <= 1.0e-3:
@@ -410,12 +459,12 @@ class LandauUpperBodyRetargeter:
         thumb3_name = f"thumb3_{suffix}"
 
         oppose = math.atan2(float(base_vec[0]), max(abs(float(base_vec[1])), 1.0e-6))
-        flex_2 = 1.15 * _angle_between(seg_1, seg_2)
-        flex_3 = 1.05 * _angle_between(seg_2, seg_3)
+        flex_2 = -1.15 * _angle_between(seg_1, seg_2)
+        flex_3 = -1.05 * _angle_between(seg_2, seg_3)
 
-        pose_by_name[thumb1_name] = self._clamp_joint(thumb1_name, oppose)
-        pose_by_name[thumb2_name] = self._clamp_joint(thumb2_name, flex_2)
-        pose_by_name[thumb3_name] = self._clamp_joint(thumb3_name, flex_3)
+        pose_by_name[thumb1_name] = self._mapped_joint_value(thumb1_name, oppose)
+        pose_by_name[thumb2_name] = self._mapped_joint_value(thumb2_name, flex_2)
+        pose_by_name[thumb3_name] = self._mapped_joint_value(thumb3_name, flex_3)
 
     def _apply_finger_chain(
         self,
@@ -436,21 +485,16 @@ class LandauUpperBodyRetargeter:
         spread_name = f"{robot_roots[0]}_{suffix}"
         flex_names = tuple(f"{robot_name}_{suffix}" for robot_name in robot_roots[1:])
 
-        spread = 0.75 * math.atan2(float(base_vec[0]), max(abs(float(base_vec[1])), 1.0e-6))
-        if chain_key == "ring":
-            spread *= 0.85
-        elif chain_key == "little":
-            spread *= 0.75
-        elif chain_key == "middle":
-            spread *= 0.35
+        spread = math.atan2(float(base_vec[0]), max(abs(float(base_vec[1])), 1.0e-6))
+        curl = self._finger_curl_amount(points)
+        curl_angle = 1.9 * curl
+        flex_1 = -max(_angle_between(base_vec, seg_1), 0.55 * curl_angle)
+        flex_2 = -max(_angle_between(seg_1, seg_2), 0.75 * curl_angle)
+        flex_3 = -max(_angle_between(seg_2, seg_3), 0.65 * curl_angle)
 
-        flex_1 = 1.10 * _angle_between(base_vec, seg_1)
-        flex_2 = 1.15 * _angle_between(seg_1, seg_2)
-        flex_3 = 1.05 * _angle_between(seg_2, seg_3)
-
-        pose_by_name[spread_name] = self._clamp_joint(spread_name, spread)
+        pose_by_name[spread_name] = self._mapped_joint_value(spread_name, spread)
         for joint_name, joint_value in zip(flex_names, (flex_1, flex_2, flex_3), strict=False):
-            pose_by_name[joint_name] = self._clamp_joint(joint_name, joint_value)
+            pose_by_name[joint_name] = self._mapped_joint_value(joint_name, joint_value)
 
     def _retarget_fingers(self, side: str, frame, pose_by_name: dict[str, float]) -> None:
         local_positions = self._aligned_hand_local_positions(side, frame)
@@ -469,33 +513,73 @@ class LandauUpperBodyRetargeter:
 
     def retarget_frame(self, frame) -> dict[str, float]:
         if frame is None:
+            self._last_hand_retarget_at = 0.0
+            self._last_arm_retarget_at = 0.0
+            self.last_profile = {}
             self.last_hand_targets = {"landau": {}, "h1_2": {}}
+            self.last_arm_pose = {}
             return {}
 
-        pose_by_name: dict[str, float] = {}
+        self.last_profile = {}
+        pose_by_name: dict[str, float] = dict(UNTRACKED_POSE_DEFAULTS)
+        head_started_at = time.perf_counter() if self.profile_enabled else 0.0
         self._retarget_head(frame, pose_by_name)
-        self._solve_arm("left", frame, pose_by_name)
-        self._solve_arm("right", frame, pose_by_name)
+        if self.profile_enabled:
+            self.last_profile["head"] = time.perf_counter() - head_started_at
+        if self._should_refresh_arm_targets():
+            left_arm_started_at = time.perf_counter() if self.profile_enabled else 0.0
+            self._solve_arm("left", frame, pose_by_name)
+            if self.profile_enabled:
+                self.last_profile["left_arm"] = time.perf_counter() - left_arm_started_at
+            right_arm_started_at = time.perf_counter() if self.profile_enabled else 0.0
+            self._solve_arm("right", frame, pose_by_name)
+            if self.profile_enabled:
+                self.last_profile["right_arm"] = time.perf_counter() - right_arm_started_at
+            arm_joint_names = (*self.left_chain, *self.right_chain)
+            self.last_arm_pose = {
+                joint_name: float(pose_by_name[joint_name])
+                for joint_name in arm_joint_names
+                if joint_name in pose_by_name
+            }
+        else:
+            self._merge_mapped_pose(pose_by_name, self.last_arm_pose)
         if self.hand_retargeting_client is None:
             self.last_hand_targets = {"landau": {}, "h1_2": {}}
+            left_hand_started_at = time.perf_counter() if self.profile_enabled else 0.0
             self._retarget_fingers("left", frame, pose_by_name)
+            if self.profile_enabled:
+                self.last_profile["left_hand_heuristic"] = time.perf_counter() - left_hand_started_at
+            right_hand_started_at = time.perf_counter() if self.profile_enabled else 0.0
             self._retarget_fingers("right", frame, pose_by_name)
+            if self.profile_enabled:
+                self.last_profile["right_hand_heuristic"] = time.perf_counter() - right_hand_started_at
             return pose_by_name
 
-        try:
-            self.last_hand_targets = self.hand_retargeting_client.retarget_frame(frame)
-        except Exception as exc:
-            print(
-                f"[AVP] Dex hand retargeting failed, falling back to heuristic finger mapping: {exc}",
-                flush=True,
-            )
-            self.hand_retargeting_client = None
-            self.last_hand_targets = {"landau": {}, "h1_2": {}}
-            self._retarget_fingers("left", frame, pose_by_name)
-            self._retarget_fingers("right", frame, pose_by_name)
-            return pose_by_name
+        if self._should_refresh_hand_targets():
+            hand_helper_started_at = time.perf_counter() if self.profile_enabled else 0.0
+            try:
+                self.last_hand_targets = self.hand_retargeting_client.retarget_frame(frame)
+            except Exception as exc:
+                print(
+                    f"[AVP] Dex hand retargeting failed, falling back to heuristic finger mapping: {exc}",
+                    flush=True,
+                )
+                self.hand_retargeting_client = None
+                self._last_hand_retarget_at = 0.0
+                self.last_hand_targets = {"landau": {}, "h1_2": {}}
+                left_hand_started_at = time.perf_counter() if self.profile_enabled else 0.0
+                self._retarget_fingers("left", frame, pose_by_name)
+                if self.profile_enabled:
+                    self.last_profile["left_hand_heuristic"] = time.perf_counter() - left_hand_started_at
+                right_hand_started_at = time.perf_counter() if self.profile_enabled else 0.0
+                self._retarget_fingers("right", frame, pose_by_name)
+                if self.profile_enabled:
+                    self.last_profile["right_hand_heuristic"] = time.perf_counter() - right_hand_started_at
+                return pose_by_name
+            if self.profile_enabled:
+                self.last_profile["hand_helper"] = time.perf_counter() - hand_helper_started_at
 
-        pose_by_name.update(self.last_hand_targets.get("landau", {}))
+        self._merge_mapped_pose(pose_by_name, self.last_hand_targets.get("landau", {}))
         return pose_by_name
 
     def h1_2_hand_pose_overrides(self) -> dict[str, float]:

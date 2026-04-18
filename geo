@@ -7,6 +7,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,6 +29,7 @@ class LaunchSpec:
     runner: str
     argv: list[str]
     env: dict[str, str] | None = None
+    sidecars: tuple["LaunchSpec", ...] = ()
 
 
 def _default_usd_path() -> Path:
@@ -186,20 +188,88 @@ def _build_parser() -> argparse.ArgumentParser:
     avp_parser = subparsers.add_parser("avp", help="AVP presets.")
     avp_subparsers = avp_parser.add_subparsers(dest="avp_cmd", required=True)
 
-    avp_subparsers.add_parser("bridge", help="Run the AVP bridge in ptenv.")
+    avp_bridge = avp_subparsers.add_parser("bridge", help="Run the AVP bridge in ptenv.")
+    avp_bridge.add_argument("--avp-ip", type=str, default=None, help="Override AVP_IP for the bridge.")
+    avp_bridge.add_argument("--bridge-host", type=str, default=None, help="Override BRIDGE_HOST.")
+    avp_bridge.add_argument("--bridge-port", type=int, default=None, help="Override BRIDGE_PORT.")
+    avp_bridge.add_argument("--send-hz", type=int, default=None, help="Override SEND_HZ.")
+    avp_bridge.add_argument("--snapshot-path", type=str, default=None, help="Snapshot file path for bridge capture.")
+    avp_bridge.add_argument(
+        "--transport",
+        choices=("udp", "zmq"),
+        default="udp",
+        help="Local bridge transport. Defaults to UDP so the bridge and Isaac runtimes stay compatible even when only one env has pyzmq installed.",
+    )
 
     avp_session = avp_subparsers.add_parser("session", help="Run the AVP Landau session.")
-    _add_gui_flags(avp_session, default_headless=True)
+    _add_gui_flags(avp_session, default_headless=False)
+    tracking_group = avp_session.add_mutually_exclusive_group()
+    tracking_group.add_argument(
+        "--snapshot",
+        dest="tracking_source",
+        action="store_const",
+        const="snapshot",
+        help="Use a saved snapshot payload.",
+    )
+    tracking_group.add_argument(
+        "--bridge",
+        dest="tracking_source",
+        action="store_const",
+        const="bridge",
+        help="Use live bridge tracking.",
+    )
+    avp_session.set_defaults(tracking_source="snapshot")
+    avp_session.add_argument(
+        "--with-bridge",
+        action="store_true",
+        help="When using --bridge, auto-start the local AVP bridge sidecar too.",
+    )
+    avp_session.add_argument("--avp-ip", type=str, default=None, help="Override AVP_IP for the bridge sidecar.")
+    avp_session.add_argument("--bridge-host", type=str, default=None, help="Override BRIDGE_HOST.")
+    avp_session.add_argument("--bridge-port", type=int, default=None, help="Override BRIDGE_PORT.")
+    avp_session.add_argument("--send-hz", type=int, default=None, help="Override SEND_HZ for the bridge sidecar.")
+    avp_session.add_argument("--snapshot-path", type=str, default=None, help="Snapshot file path.")
+    avp_session.add_argument(
+        "--transport",
+        choices=("udp", "zmq"),
+        default="udp",
+        help="Local bridge transport. Defaults to UDP so the bridge and Isaac runtimes stay compatible even when only one env has pyzmq installed.",
+    )
 
     avp_marker = avp_subparsers.add_parser("marker", help="Run the AVP wrist marker viewer.")
     _add_gui_flags(avp_marker, default_headless=False)
+    marker_tracking_group = avp_marker.add_mutually_exclusive_group()
+    marker_tracking_group.add_argument(
+        "--snapshot",
+        dest="tracking_source",
+        action="store_const",
+        const="snapshot",
+        help="Use a saved snapshot payload.",
+    )
+    marker_tracking_group.add_argument(
+        "--bridge",
+        dest="tracking_source",
+        action="store_const",
+        const="bridge",
+        help="Use live bridge tracking.",
+    )
+    avp_marker.set_defaults(tracking_source="snapshot")
+    avp_marker.add_argument("--snapshot-path", type=str, default=None, help="Snapshot file path.")
+    avp_marker.add_argument("--bridge-host", type=str, default=None, help="Override BRIDGE_HOST.")
+    avp_marker.add_argument("--bridge-port", type=int, default=None, help="Override BRIDGE_PORT.")
+    avp_marker.add_argument(
+        "--transport",
+        choices=("udp", "zmq"),
+        default="udp",
+        help="Local bridge transport. Defaults to UDP so the marker viewer matches the bridge sidecar transport.",
+    )
 
     avp_subparsers.add_parser("test", help="Run AVP unit tests in ptenv.")
 
     return parser
 
 
-def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
+def _resolved_command(spec: LaunchSpec) -> tuple[list[str], dict[str, str]]:
     if spec.runner == "pt":
         _require_file(PTENV_PYTHON, "ptenv python")
         cmd = [str(PTENV_PYTHON), *spec.argv]
@@ -222,14 +292,83 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
 
     if spec.env:
         env.update(spec.env)
+    return cmd, env
+
+
+def _display_command(spec: LaunchSpec, cmd: list[str]) -> str:
+    env_prefix = ""
+    if spec.env:
+        env_prefix = " ".join(f"{key}={shlex.quote(value)}" for key, value in sorted(spec.env.items())) + " "
+    return env_prefix + shlex.join(cmd)
+
+
+def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
+    cmd, env = _resolved_command(spec)
+    sidecars: list[tuple[list[str], dict[str, str]]] = [_resolved_command(sidecar) for sidecar in spec.sidecars]
 
     if dry_run or verbose:
-        print(shlex.join(cmd), flush=True)
+        if sidecars:
+            for index, (sidecar_spec, sidecar_data) in enumerate(zip(spec.sidecars, sidecars), start=1):
+                sidecar_cmd, _ = sidecar_data
+                print(f"# sidecar {index}: {_display_command(sidecar_spec, sidecar_cmd)}", flush=True)
+            print(f"# main: {_display_command(spec, cmd)}", flush=True)
+        else:
+            print(_display_command(spec, cmd), flush=True)
     if dry_run:
         return 0
 
-    completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False)
-    return int(completed.returncode)
+    sidecar_processes: list[subprocess.Popen[str]] = []
+    try:
+        for sidecar_cmd, sidecar_env in sidecars:
+            sidecar_processes.append(
+                subprocess.Popen(
+                    sidecar_cmd,
+                    cwd=REPO_ROOT,
+                    env=sidecar_env,
+                    stdin=subprocess.DEVNULL,
+                )
+            )
+        if sidecar_processes:
+            time.sleep(1.0)
+        completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False)
+        return int(completed.returncode)
+    except KeyboardInterrupt:
+        return 130
+    finally:
+        for process in sidecar_processes:
+            if process.poll() is None:
+                process.terminate()
+        for process in sidecar_processes:
+            try:
+                process.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3.0)
+
+
+def _env_override_map(
+    *,
+    avp_ip: str | None = None,
+    bridge_host: str | None = None,
+    bridge_port: int | None = None,
+    send_hz: int | None = None,
+    snapshot_path: str | None = None,
+    use_zmq: bool | None = None,
+) -> dict[str, str]:
+    env: dict[str, str] = {}
+    if avp_ip is not None:
+        env["AVP_IP"] = avp_ip
+    if bridge_host is not None:
+        env["BRIDGE_HOST"] = bridge_host
+    if bridge_port is not None:
+        env["BRIDGE_PORT"] = str(bridge_port)
+    if send_hz is not None:
+        env["SEND_HZ"] = str(send_hz)
+    if snapshot_path is not None:
+        env["AVP_SNAPSHOT_PATH"] = snapshot_path
+    if use_zmq is not None:
+        env["USE_ZMQ"] = "1" if use_zmq else "0"
+    return env
 
 
 def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
@@ -383,26 +522,55 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             return LaunchSpec("pt", ["-m", "pytest", "algorithms/urdf_learn_wasd_walk/tests", "-q", *extra_args])
 
     if args.group == "avp":
-        snapshot_path = _repo_arg(_default_avp_snapshot_path())
+        snapshot_path = getattr(args, "snapshot_path", None) or _repo_arg(_default_avp_snapshot_path())
+        bridge_env = _env_override_map(
+            avp_ip=getattr(args, "avp_ip", None),
+            bridge_host=getattr(args, "bridge_host", None),
+            bridge_port=getattr(args, "bridge_port", None),
+            send_hz=getattr(args, "send_hz", None),
+            snapshot_path=snapshot_path,
+            use_zmq=(getattr(args, "transport", "udp") == "zmq"),
+        )
 
         if args.avp_cmd == "bridge":
-            return LaunchSpec("pt", ["algorithms/avp_remote/avp_bridge.py", *extra_args])
+            argv = ["algorithms/avp_remote/avp_bridge.py"]
+            if snapshot_path is not None:
+                argv.extend(["--snapshot-path", snapshot_path])
+            argv.extend(extra_args)
+            return LaunchSpec("pt", argv, env=bridge_env)
 
         if args.avp_cmd == "session":
+            effective_tracking_source = args.tracking_source
+            effective_with_bridge = args.with_bridge
+            if args.avp_ip:
+                effective_tracking_source = "bridge"
+                effective_with_bridge = True
+
+            if effective_with_bridge and effective_tracking_source != "bridge":
+                raise SystemExit("`--with-bridge` requires `--bridge`.")
             argv = ["algorithms/avp_remote/run_avp_landau_session.py"]
             if args.headless:
                 argv.append("--headless")
             else:
                 argv.extend(["--experience", "base"])
-            argv.extend(["--tracking-source", "snapshot", "--snapshot-path", snapshot_path])
+            argv.extend(["--tracking-source", effective_tracking_source, "--snapshot-path", snapshot_path])
             argv.extend(extra_args)
-            return LaunchSpec("simpy", argv)
+            sidecars: tuple[LaunchSpec, ...] = ()
+            if effective_with_bridge:
+                sidecars = (
+                    LaunchSpec(
+                        "pt",
+                        ["algorithms/avp_remote/avp_bridge.py", "--snapshot-path", snapshot_path],
+                        env=bridge_env,
+                    ),
+                )
+            return LaunchSpec("simpy", argv, env=bridge_env, sidecars=sidecars)
 
         if args.avp_cmd == "marker":
             exec_argv = [
                 "algorithms/avp_remote/avp_wrist_marker.py",
                 "--tracking-source",
-                "snapshot",
+                args.tracking_source,
                 "--snapshot-path",
                 snapshot_path,
                 *extra_args,
@@ -411,7 +579,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             if args.headless:
                 sim_argv.append("--headless")
             sim_argv.extend(["--exec", shlex.join(exec_argv)])
-            return LaunchSpec("sim", sim_argv)
+            return LaunchSpec("sim", sim_argv, env=bridge_env)
 
         if args.avp_cmd == "test":
             return LaunchSpec(
