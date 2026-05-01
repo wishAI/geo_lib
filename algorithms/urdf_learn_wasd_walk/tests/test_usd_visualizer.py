@@ -12,6 +12,7 @@ if str(MODULE_ROOT.parent.parent) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT.parent.parent))
 
 from algorithms.urdf_learn_wasd_walk.asset_setup import prepare_landau_inputs
+from algorithms.urdf_learn_wasd_walk.urdf_utils import load_urdf_model
 from algorithms.urdf_learn_wasd_walk.usd_visualizer import (
     apply_joint_positions_to_local_matrices,
     axis_angle_matrix,
@@ -27,6 +28,7 @@ class UsdVisualizerMathTests(unittest.TestCase):
         prepared = prepare_landau_inputs(refresh=False)
         cls.records = load_skeleton_records(prepared.skeleton_json_path)
         cls.records_by_name = {record.name: record for record in cls.records}
+        cls.urdf_model = load_urdf_model(prepared.urdf_path)
 
     def test_load_skeleton_records_finds_single_root(self) -> None:
         roots = [record for record in self.records if record.parent_index < 0]
@@ -41,6 +43,11 @@ class UsdVisualizerMathTests(unittest.TestCase):
 
         np.testing.assert_allclose(posed[record.index][:3, 3], record.local_matrix[:3, 3], atol=1.0e-9)
         self.assertGreater(np.linalg.norm(posed[record.index][:3, :3] - record.local_matrix[:3, :3]), 1.0e-6)
+
+    def test_skeleton_records_resolve_to_incoming_urdf_joints(self) -> None:
+        self.assertEqual(self.urdf_model.child_joint_by_link["spine_01_x"], "waist_yaw_joint")
+        self.assertEqual(self.urdf_model.child_joint_by_link["foot_l"], "left_ankle_pitch_joint")
+        self.assertEqual(self.urdf_model.child_joint_by_link["toes_01_l"], "left_toe_joint")
 
     def test_inverse_rigid_transform_round_trips(self) -> None:
         transform = rigid_transform(axis_angle_matrix((0.0, 0.0, 1.0), 0.4), (1.2, -0.5, 0.3))

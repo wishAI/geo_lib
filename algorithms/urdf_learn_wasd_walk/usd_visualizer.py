@@ -9,6 +9,7 @@ from typing import Sequence
 import numpy as np
 
 from .asset_setup import prepare_landau_inputs
+from .urdf_utils import load_urdf_model
 
 
 @dataclass(frozen=True)
@@ -254,6 +255,22 @@ class LandauUsdVisualizer:
         self.usd_path = Path(usd_path or prepared.usd_path).resolve()
         self.skeleton_json_path = Path(skeleton_json_path or prepared.skeleton_json_path).resolve()
         self.records = load_skeleton_records(self.skeleton_json_path)
+        self.urdf_model = load_urdf_model(prepared.urdf_path)
+        self._record_joint_name: dict[str, str] = {}
+        for record in self.records:
+            joint_name = self.urdf_model.child_joint_by_link.get(record.name)
+            if joint_name is None:
+                continue
+            joint = self.urdf_model.joints.get(joint_name)
+            if joint is None or joint.joint_type == "fixed":
+                continue
+            self._record_joint_name[record.name] = joint_name
+        self._expected_joint_names = tuple(
+            joint_name
+            for joint_name, joint in self.urdf_model.joints.items()
+            if joint.joint_type != "fixed"
+        )
+        self._mapped_joint_names = tuple(sorted(set(self._record_joint_name.values())))
 
         root_records = [record for record in self.records if record.parent_index < 0]
         if len(root_records) != 1:
@@ -272,11 +289,30 @@ class LandauUsdVisualizer:
     def set_urdf_visibility(self, visible: bool) -> None:
         _set_visibility(self.stage, self.urdf_prim_path, visible)
 
+    def mapping_summary(self) -> dict[str, object]:
+        expected = set(self._expected_joint_names)
+        mapped = set(self._mapped_joint_names)
+        missing = tuple(sorted(expected - mapped))
+        coverage = 1.0 if not expected else float(len(mapped)) / float(len(expected))
+        return {
+            "expected_joint_count": len(expected),
+            "mapped_joint_count": len(mapped),
+            "missing_joint_names": missing,
+            "coverage": coverage,
+            "complete": not missing,
+        }
+
     def sync_from_robot(self, robot, env_index: int = 0) -> None:
         joint_pos = robot.data.joint_pos[env_index].detach().cpu().numpy()
-
-        pose_by_name = {joint_name: float(angle) for joint_name, angle in zip(robot.joint_names, joint_pos, strict=False)}
-        local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_name)
+        joint_angle_by_name = {
+            joint_name: float(angle) for joint_name, angle in zip(robot.joint_names, joint_pos, strict=False)
+        }
+        pose_by_record_name = {
+            record_name: joint_angle_by_name[joint_name]
+            for record_name, joint_name in self._record_joint_name.items()
+            if joint_name in joint_angle_by_name
+        }
+        local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_record_name)
         _apply_pose_to_usd_skeleton(self.stage, self.skeleton, local_matrices)
 
         if self._skeleton_root_name in robot.body_names:

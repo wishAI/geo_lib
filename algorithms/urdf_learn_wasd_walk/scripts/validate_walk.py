@@ -4,6 +4,8 @@ import argparse
 
 from isaaclab.app import AppLauncher
 
+from algorithms.urdf_learn_wasd_walk.isaac_app_args import apply_project_kit_args
+from algorithms.urdf_learn_wasd_walk.isaac_lock import acquire_isaac_lock
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
 from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
@@ -22,7 +24,15 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--load_run", type=str, default=None)
     parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument(
+        "--latest",
+        action="store_true",
+        default=False,
+        help="Ignore the recommended checkpoint registry and load the latest checkpoint under the selected experiment.",
+    )
     parser.add_argument("--experiment_name", type=str, default=None)
+    parser.add_argument("--workflow-id", type=str, default=None, help="Stable workflow identifier for history correlation.")
+    parser.add_argument("--playback-compat-mode", choices=("strict", "control_only", "off"), default="strict")
     parser.add_argument("--steps", type=int, default=256)
     parser.add_argument("--command-vx", type=float, default=0.5)
     parser.add_argument("--command-vy", type=float, default=0.0)
@@ -54,6 +64,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 parser = _build_parser()
 args_cli = parser.parse_args()
+apply_project_kit_args(args_cli)
+
+isaac_lock_handle = acquire_isaac_lock("validate_walk", args_cli)
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -70,11 +83,16 @@ from algorithms.urdf_learn_wasd_walk.isaac_workflow import (
     clamp_base_velocity_command,
     force_base_velocity_command,
     load_env_and_runner_cfg,
+    load_runner_checkpoint,
     log_root_for_experiment,
-    resolve_checkpoint,
+    resolve_checkpoint_selection,
 )
+from algorithms.urdf_learn_wasd_walk.rsl_rl_safety import install_safe_actor_critic_distribution_patch
+from algorithms.urdf_learn_wasd_walk.run_history import write_validation_record
 from algorithms.urdf_learn_wasd_walk.runtime import resolve_robot_task_spec
 from algorithms.urdf_learn_wasd_walk.task_registry import register_gym_envs
+
+install_safe_actor_critic_distribution_patch()
 
 
 def _contact_mask(contact_sensor, body_ids: list[int], threshold: float) -> torch.Tensor:
@@ -214,6 +232,36 @@ def _apply_stage_defaults(args, task_spec) -> None:
             args.max_forward_speed_error = 0.18
         if args.max_yaw_rate_error is None and abs(args.command_yaw) > 0.1:
             args.max_yaw_rate_error = 0.2
+    elif stage == "game":
+        if args.command_vx == 0.5 and args.command_vy == 0.0:
+            args.command_vx = 0.5
+            args.command_vy = 0.0
+            args.command_yaw = 0.2
+        if args.min_planar_displacement == 0.05:
+            args.min_planar_displacement = 0.15
+        if args.steps == 256:
+            args.steps = 600
+        if args.min_contact_switches == 1:
+            args.min_contact_switches = 3
+        if args.min_single_support_ratio is None:
+            args.min_single_support_ratio = 0.04
+        if args.min_touchdown_step_length is None:
+            args.min_touchdown_step_length = 0.02
+        if args.min_swing_clearance is None:
+            args.min_swing_clearance = 0.015
+        if args.max_non_support_contact_steps is None:
+            args.max_non_support_contact_steps = 180
+        if args.min_control_root_height is None and hasattr(task_spec, "nominal_control_root_height"):
+            args.min_control_root_height = max(0.15, float(task_spec.nominal_control_root_height) * 0.55)
+        if args.max_mean_support_width is None and hasattr(task_spec, "nominal_stance_width"):
+            nominal_width = float(task_spec.nominal_stance_width)
+            args.max_mean_support_width = max(nominal_width * 1.6, nominal_width + 0.10)
+        if args.max_flight_ratio is None:
+            args.max_flight_ratio = 0.15
+        if args.max_forward_speed_error is None:
+            args.max_forward_speed_error = 0.25
+        if args.max_yaw_rate_error is None:
+            args.max_yaw_rate_error = 0.35
 
 
 def main() -> None:
@@ -224,10 +272,19 @@ def main() -> None:
     env_cfg.scene.num_envs = 1
 
     log_root_path = log_root_for_experiment(agent_cfg.experiment_name)
-    resume_path = resolve_checkpoint(log_root_path, agent_cfg)
-    print(f"[VALIDATE] checkpoint={resume_path}", flush=True)
-    if apply_checkpoint_playback_compat(env_cfg, resume_path):
-        print("[VALIDATE] applied playback compatibility overrides from checkpoint params/env.yaml", flush=True)
+    checkpoint_selection = resolve_checkpoint_selection(log_root_path, agent_cfg, prefer_latest=args_cli.latest)
+    resume_path = checkpoint_selection["path"]
+    print(f"[VALIDATE] checkpoint={resume_path} source={checkpoint_selection['source']}", flush=True)
+    if checkpoint_selection["source"] == "recommended":
+        reason = checkpoint_selection["entry"].get("reason")
+        if reason:
+            print(f"[VALIDATE] recommended note: {reason}", flush=True)
+    if apply_checkpoint_playback_compat(env_cfg, resume_path, mode=args_cli.playback_compat_mode):
+        print(
+            "[VALIDATE] applied playback compatibility overrides from checkpoint params/env.yaml "
+            f"(mode={args_cli.playback_compat_mode})",
+            flush=True,
+        )
 
     if agent_cfg.seed is not None and hasattr(env_cfg, "seed"):
         env_cfg.seed = agent_cfg.seed
@@ -277,7 +334,12 @@ def main() -> None:
         )
 
     ppo_runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    ppo_runner.load(resume_path)
+    checkpoint_load = load_runner_checkpoint(ppo_runner, resume_path, load_optimizer=False)
+    print(
+        f"[VALIDATE] loaded inference checkpoint without optimizer state "
+        f"(mode={checkpoint_load['mode']})",
+        flush=True,
+    )
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
 
     obs, _ = env.get_observations()
@@ -554,6 +616,37 @@ def main() -> None:
         ),
         dtype=torch.float32,
     )
+    total_non_support_contact_steps = int(non_support_contact_counts.sum().item()) if non_support_names else 0
+    validation_metrics = {
+        "semantic_command": semantic_command,
+        "env_command": env_command,
+        "forward_displacement": forward_displacement,
+        "planar_displacement": max_planar_displacement,
+        "raw_root_x_displacement": float(final_body_axis_displacement[0]),
+        "raw_root_y_displacement": float(final_body_axis_displacement[1]),
+        "lateral_separation": lateral_separation,
+        "single_support_ratio": single_support_ratio,
+        "double_support_ratio": double_support_ratio,
+        "flight_ratio": flight_ratio,
+        "mean_support_width": mean_support_width,
+        "max_support_width": max_support_width,
+        "mean_primary_force_share": mean_primary_force_share,
+        "side_planar_travel": max_side_planar_travel.tolist(),
+        "side_height_range": side_height_range.tolist(),
+        "swing_clearance": swing_clearance.tolist(),
+        "contact_switches": contact_switches.tolist(),
+        "touchdown_step_length_mean": mean_touchdown_step_length.tolist(),
+        "touchdown_step_length_max": max_touchdown_step_length.tolist(),
+        "touchdown_root_straddle_mean": mean_touchdown_root_straddle.tolist(),
+        "touchdown_root_straddle_max": max_touchdown_root_straddle.tolist(),
+        "mean_root_lin_vel_b": mean_root_lin_vel_b.tolist(),
+        "mean_root_lin_vel_yaw": mean_root_lin_vel_yaw.tolist(),
+        "mean_root_ang_vel_w": mean_root_ang_vel_w.tolist(),
+        "mean_command_error_yaw": mean_command_error_yaw.tolist(),
+        "done_count": done_count,
+        "non_support_contact_step_sum": total_non_support_contact_steps,
+        "min_control_root_height": min_control_root_height,
+    }
 
     print(f"[VALIDATE] feet={foot_names}", flush=True)
     print(f"[VALIDATE] support_left={left_support_names}", flush=True)
@@ -595,7 +688,6 @@ def main() -> None:
         print(f"[VALIDATE] control_root={control_root_name}", flush=True)
         print(f"[VALIDATE] min_control_root_height={min_control_root_height:.4f}", flush=True)
     if non_support_names and (args_cli.report_non_support_contacts or args_cli.max_non_support_contact_steps is not None):
-        total_non_support_contact_steps = int(non_support_contact_counts.sum().item())
         print(f"[VALIDATE] non_support_contact_step_sum={total_non_support_contact_steps}", flush=True)
         print(
             f"[VALIDATE] non_support_contact_top={_format_top_contacts(non_support_names, non_support_contact_counts, non_support_peak_forces)}",
@@ -603,139 +695,173 @@ def main() -> None:
         )
     print(f"[VALIDATE] done_count={done_count}", flush=True)
 
-    _validate_metric(lateral_separation >= args_cli.min_lateral_separation, "two-leg lateral separation", lateral_separation, args_cli.min_lateral_separation)
-    _validate_metric(max_planar_displacement >= args_cli.min_planar_displacement, "planar displacement", max_planar_displacement, args_cli.min_planar_displacement)
-    if args_cli.min_forward_displacement is not None:
-        _validate_metric(forward_displacement >= args_cli.min_forward_displacement, "forward displacement", forward_displacement, args_cli.min_forward_displacement)
-    _validate_metric(done_count <= args_cli.max_done_count, "done count", done_count, args_cli.max_done_count)
-    if args_cli.min_single_support_ratio is not None:
-        _validate_metric(
-            single_support_ratio >= args_cli.min_single_support_ratio,
-            "single-support ratio",
-            f"{single_support_ratio:.3f}",
-            args_cli.min_single_support_ratio,
-        )
-    if args_cli.max_non_support_contact_steps is not None:
-        total_non_support_contact_steps = int(non_support_contact_counts.sum().item())
-        _validate_metric(
-            total_non_support_contact_steps <= args_cli.max_non_support_contact_steps,
-            "non-support contact steps",
-            total_non_support_contact_steps,
-            args_cli.max_non_support_contact_steps,
-        )
-    if args_cli.min_control_root_height is not None:
-        _validate_metric(
-            min_control_root_height is not None and min_control_root_height >= args_cli.min_control_root_height,
-            "control root height",
-            f"{0.0 if min_control_root_height is None else min_control_root_height:.4f}",
-            args_cli.min_control_root_height,
-        )
-    if args_cli.max_mean_support_width is not None:
-        _validate_metric(
-            mean_support_width <= args_cli.max_mean_support_width,
-            "mean support width",
-            f"{mean_support_width:.4f}",
-            args_cli.max_mean_support_width,
-        )
-    if args_cli.max_double_support_ratio is not None:
-        _validate_metric(
-            double_support_ratio <= args_cli.max_double_support_ratio,
-            "double-support ratio",
-            f"{double_support_ratio:.4f}",
-            args_cli.max_double_support_ratio,
-        )
-    if args_cli.max_flight_ratio is not None:
-        _validate_metric(
-            flight_ratio <= args_cli.max_flight_ratio,
-            "flight ratio",
-            f"{flight_ratio:.4f}",
-            args_cli.max_flight_ratio,
-        )
-    if args_cli.min_primary_force_share is not None:
-        _validate_metric(
-            mean_primary_force_share >= args_cli.min_primary_force_share,
-            "primary foot force share",
-            f"{mean_primary_force_share:.4f}",
-            args_cli.min_primary_force_share,
-        )
-    for index, side_name in enumerate(("left_leg", "right_leg")):
-        _validate_metric(
-            float(max_side_planar_travel[index]) >= args_cli.min_foot_planar_travel,
-            f"{side_name} planar travel",
-            float(max_side_planar_travel[index]),
-            args_cli.min_foot_planar_travel,
-        )
-        _validate_metric(
-            float(side_height_range[index]) >= args_cli.min_foot_height_range,
-            f"{side_name} height range",
-            float(side_height_range[index]),
-            args_cli.min_foot_height_range,
-        )
-        if args_cli.min_swing_clearance is not None:
+    try:
+        _validate_metric(lateral_separation >= args_cli.min_lateral_separation, "two-leg lateral separation", lateral_separation, args_cli.min_lateral_separation)
+        _validate_metric(max_planar_displacement >= args_cli.min_planar_displacement, "planar displacement", max_planar_displacement, args_cli.min_planar_displacement)
+        if args_cli.min_forward_displacement is not None:
+            _validate_metric(forward_displacement >= args_cli.min_forward_displacement, "forward displacement", forward_displacement, args_cli.min_forward_displacement)
+        _validate_metric(done_count <= args_cli.max_done_count, "done count", done_count, args_cli.max_done_count)
+        if args_cli.min_single_support_ratio is not None:
             _validate_metric(
-                float(swing_clearance[index]) >= args_cli.min_swing_clearance,
-                f"{side_name} swing clearance",
-                float(swing_clearance[index]),
-                args_cli.min_swing_clearance,
+                single_support_ratio >= args_cli.min_single_support_ratio,
+                "single-support ratio",
+                f"{single_support_ratio:.3f}",
+                args_cli.min_single_support_ratio,
             )
-        _validate_metric(
-            int(contact_switches[index]) >= args_cli.min_contact_switches,
-            f"{side_name} contact switches",
-            int(contact_switches[index]),
-            args_cli.min_contact_switches,
-        )
-        if args_cli.min_touchdown_step_length is not None:
+        if args_cli.max_non_support_contact_steps is not None:
             _validate_metric(
-                float(max_touchdown_step_length[index]) >= args_cli.min_touchdown_step_length,
-                f"{side_name} touchdown step length",
-                float(max_touchdown_step_length[index]),
-                args_cli.min_touchdown_step_length,
+                total_non_support_contact_steps <= args_cli.max_non_support_contact_steps,
+                "non-support contact steps",
+                total_non_support_contact_steps,
+                args_cli.max_non_support_contact_steps,
             )
-        if args_cli.min_touchdown_root_straddle is not None:
+        if args_cli.min_control_root_height is not None:
             _validate_metric(
-                float(max_touchdown_root_straddle[index]) >= args_cli.min_touchdown_root_straddle,
-                f"{side_name} touchdown root straddle",
-                float(max_touchdown_root_straddle[index]),
-                args_cli.min_touchdown_root_straddle,
+                min_control_root_height is not None and min_control_root_height >= args_cli.min_control_root_height,
+                "control root height",
+                f"{0.0 if min_control_root_height is None else min_control_root_height:.4f}",
+                args_cli.min_control_root_height,
             )
+        if args_cli.max_mean_support_width is not None:
+            _validate_metric(
+                mean_support_width <= args_cli.max_mean_support_width,
+                "mean support width",
+                f"{mean_support_width:.4f}",
+                args_cli.max_mean_support_width,
+            )
+        if args_cli.max_double_support_ratio is not None:
+            _validate_metric(
+                double_support_ratio <= args_cli.max_double_support_ratio,
+                "double-support ratio",
+                f"{double_support_ratio:.4f}",
+                args_cli.max_double_support_ratio,
+            )
+        if args_cli.max_flight_ratio is not None:
+            _validate_metric(
+                flight_ratio <= args_cli.max_flight_ratio,
+                "flight ratio",
+                f"{flight_ratio:.4f}",
+                args_cli.max_flight_ratio,
+            )
+        if args_cli.min_primary_force_share is not None:
+            _validate_metric(
+                mean_primary_force_share >= args_cli.min_primary_force_share,
+                "primary foot force share",
+                f"{mean_primary_force_share:.4f}",
+                args_cli.min_primary_force_share,
+            )
+        for index, side_name in enumerate(("left_leg", "right_leg")):
+            _validate_metric(
+                float(max_side_planar_travel[index]) >= args_cli.min_foot_planar_travel,
+                f"{side_name} planar travel",
+                float(max_side_planar_travel[index]),
+                args_cli.min_foot_planar_travel,
+            )
+            _validate_metric(
+                float(side_height_range[index]) >= args_cli.min_foot_height_range,
+                f"{side_name} height range",
+                float(side_height_range[index]),
+                args_cli.min_foot_height_range,
+            )
+            if args_cli.min_swing_clearance is not None:
+                _validate_metric(
+                    float(swing_clearance[index]) >= args_cli.min_swing_clearance,
+                    f"{side_name} swing clearance",
+                    float(swing_clearance[index]),
+                    args_cli.min_swing_clearance,
+                )
+            _validate_metric(
+                int(contact_switches[index]) >= args_cli.min_contact_switches,
+                f"{side_name} contact switches",
+                int(contact_switches[index]),
+                args_cli.min_contact_switches,
+            )
+            if args_cli.min_touchdown_step_length is not None:
+                _validate_metric(
+                    float(max_touchdown_step_length[index]) >= args_cli.min_touchdown_step_length,
+                    f"{side_name} touchdown step length",
+                    float(max_touchdown_step_length[index]),
+                    args_cli.min_touchdown_step_length,
+                )
+            if args_cli.min_touchdown_root_straddle is not None:
+                _validate_metric(
+                    float(max_touchdown_root_straddle[index]) >= args_cli.min_touchdown_root_straddle,
+                    f"{side_name} touchdown root straddle",
+                    float(max_touchdown_root_straddle[index]),
+                    args_cli.min_touchdown_root_straddle,
+                )
 
-    # Stage-specific acceptance gates
-    fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
-    if args_cli.stage == "fwd_only":
-        # commanded axis should show at least 0.2 m/s mean speed
-        mean_fwd_speed = abs(float(mean_root_lin_vel_yaw[fwd_axis_idx]))
-        _validate_metric(mean_fwd_speed >= 0.15, "fwd_only mean forward speed", f"{mean_fwd_speed:.3f}", 0.15)
-        # orthogonal axis should stay small
-        ortho_idx = 0 if fwd_axis_idx == 1 else 1
-        mean_ortho_speed = abs(float(mean_root_lin_vel_yaw[ortho_idx]))
-        _validate_metric(mean_ortho_speed < 0.1, "fwd_only orthogonal drift", f"{mean_ortho_speed:.3f}", "< 0.1")
-    elif args_cli.stage == "fwd_yaw":
-        mean_fwd_speed = abs(float(mean_root_lin_vel_yaw[fwd_axis_idx]))
-        _validate_metric(mean_fwd_speed >= 0.1, "fwd_yaw mean forward speed", f"{mean_fwd_speed:.3f}", 0.1)
-        mean_yaw_rate = abs(float(mean_root_ang_vel_w[2]))
-        if abs(args_cli.command_yaw) > 0.1:
-            _validate_metric(mean_yaw_rate >= 0.1, "fwd_yaw mean yaw rate", f"{mean_yaw_rate:.3f}", 0.1)
-    if args_cli.max_forward_speed_error is not None:
-        mean_fwd_speed_error = abs(float(mean_command_error_yaw[fwd_axis_idx]))
-        _validate_metric(
-            mean_fwd_speed_error <= args_cli.max_forward_speed_error,
-            "forward speed tracking error",
-            f"{mean_fwd_speed_error:.3f}",
-            args_cli.max_forward_speed_error,
+        fwd_axis_idx = 1 if task_spec.forward_body_axis == "y" else 0
+        if args_cli.stage == "fwd_only":
+            mean_fwd_speed = abs(float(mean_root_lin_vel_yaw[fwd_axis_idx]))
+            _validate_metric(mean_fwd_speed >= 0.15, "fwd_only mean forward speed", f"{mean_fwd_speed:.3f}", 0.15)
+            ortho_idx = 0 if fwd_axis_idx == 1 else 1
+            mean_ortho_speed = abs(float(mean_root_lin_vel_yaw[ortho_idx]))
+            _validate_metric(mean_ortho_speed < 0.1, "fwd_only orthogonal drift", f"{mean_ortho_speed:.3f}", "< 0.1")
+        elif args_cli.stage in {"fwd_yaw", "game"}:
+            mean_fwd_speed = abs(float(mean_root_lin_vel_yaw[fwd_axis_idx]))
+            min_fwd_speed = 0.08 if args_cli.stage == "game" else 0.1
+            _validate_metric(mean_fwd_speed >= min_fwd_speed, f"{args_cli.stage} mean forward speed", f"{mean_fwd_speed:.3f}", min_fwd_speed)
+            mean_yaw_rate = abs(float(mean_root_ang_vel_w[2]))
+            if abs(args_cli.command_yaw) > 0.1:
+                min_yaw_rate = 0.08 if args_cli.stage == "game" else 0.1
+                _validate_metric(mean_yaw_rate >= min_yaw_rate, f"{args_cli.stage} mean yaw rate", f"{mean_yaw_rate:.3f}", min_yaw_rate)
+        if args_cli.max_forward_speed_error is not None:
+            mean_fwd_speed_error = abs(float(mean_command_error_yaw[fwd_axis_idx]))
+            _validate_metric(
+                mean_fwd_speed_error <= args_cli.max_forward_speed_error,
+                "forward speed tracking error",
+                f"{mean_fwd_speed_error:.3f}",
+                args_cli.max_forward_speed_error,
+            )
+        if args_cli.max_yaw_rate_error is not None:
+            mean_yaw_rate_error = abs(float(mean_command_error_yaw[2]))
+            _validate_metric(
+                mean_yaw_rate_error <= args_cli.max_yaw_rate_error,
+                "yaw-rate tracking error",
+                f"{mean_yaw_rate_error:.3f}",
+                args_cli.max_yaw_rate_error,
+            )
+    except AssertionError as exc:
+        write_validation_record(
+            checkpoint_path=resume_path,
+            task_spec=task_spec,
+            args=args_cli,
+            status="failed",
+            metrics=validation_metrics,
+            experiment_name=agent_cfg.experiment_name,
+            failure=str(exc),
+            gate_result={
+                "selection_source": checkpoint_selection["source"],
+                "selected_checkpoint": str(resume_path),
+                "failure_code": "validation_assertion",
+                "failed_checks": [str(exc)],
+            },
         )
-    if args_cli.max_yaw_rate_error is not None:
-        mean_yaw_rate_error = abs(float(mean_command_error_yaw[2]))
-        _validate_metric(
-            mean_yaw_rate_error <= args_cli.max_yaw_rate_error,
-            "yaw-rate tracking error",
-            f"{mean_yaw_rate_error:.3f}",
-            args_cli.max_yaw_rate_error,
-        )
+        env.close()
+        raise
 
+    write_validation_record(
+        checkpoint_path=resume_path,
+        task_spec=task_spec,
+        args=args_cli,
+        status="passed",
+        metrics=validation_metrics,
+        experiment_name=agent_cfg.experiment_name,
+        gate_result={
+            "selection_source": checkpoint_selection["source"],
+            "selected_checkpoint": str(resume_path),
+            "failure_code": None,
+            "failed_checks": [],
+        },
+    )
     print("[VALIDATE] walk validation passed", flush=True)
     env.close()
 
 
 if __name__ == "__main__":
-    main()
-    simulation_app.close()
+    try:
+        main()
+    finally:
+        simulation_app.close()
+        isaac_lock_handle.release()

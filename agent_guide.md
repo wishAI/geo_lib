@@ -106,6 +106,14 @@ Bad: "Fix the walking bug." Good: "The Landau Stage A training produces wide shu
 
 Training RL policies (especially `urdf_learn_wasd_walk`) is the most common long-running task in this repo.
 
+### Proof videos
+
+- When you believe you achieved a milestone, gate, or other user-visible goal in any project, record a short proof video before claiming completion.
+- Use a camera angle that makes the behavior obvious. Avoid top-down or overly distant views that hide balance, contacts, or collisions.
+- Keep proof videos easy to review over SFTP: use moderate resolution and duration. Prefer roughly `1280x720` or lower unless the user asks for higher fidelity.
+- Store the proof under the project's existing artifact area and report the path when you hand off the result.
+- If the goal is movement or manipulation, make sure the video shows the full task outcome, not just the initial setup.
+
 ### Before training
 
 1. **Read `train_history.md`** for the algorithm you are working on. It is the source of truth for what has been tried, what works, and what is broken.

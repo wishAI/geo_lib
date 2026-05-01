@@ -1,210 +1,150 @@
 # URDF Learn WASD Walk
 
-Train a humanoid locomotion policy in Isaac Lab that tracks `(v_x, v_y, yaw_rate)` commands and outputs joint position targets.
+Train and operate a Landau locomotion policy in Isaac Lab using the same semantic command space everywhere:
 
-This folder is self-contained within the repository rules:
+- `forward`
+- `strafe`
+- `yaw`
 
-- The custom robot handoff is copied into this folder's `inputs/`.
-- The implementation does not import Python code from other algorithm folders.
-- Long-running Isaac workflows are isolated to CLI scripts under `scripts/`.
+That is the command space behind `play`, `teleop`, path evaluation, and the goal ladder. Manual control stays joystick/WASD-first; waypoint tests now convert paths into the same joystick-style signals instead of using a separate control path.
 
-## Robots
+## Inputs
 
-- `g1`
-  - Baseline using Isaac Lab's Unitree G1 task patterns.
-  - Wrapped locally so the command interface is direct yaw-rate control instead of heading control.
-- `landau`
-  - Custom URDF loaded from `inputs/landau_v10/landau_v10_parallel_mesh.urdf`.
-  - Mesh references are copied under `inputs/landau_v10/mesh_collision_stl/`.
-  - The original colored USD asset, skeleton pose map, and textures are also copied under `inputs/landau_v10/` for GUI playback.
+- Robot asset: `inputs/landau_v10/landau_v10_parallel_mesh.urdf`
+- Support files: `inputs/landau_v10/mesh_collision_stl/`, `landau_v10_skeleton.json`, textures, and `landau_v10.usdc`
 
-## Layout
+## Main Commands
 
-- `inputs/`
-  - copied custom URDF handoff
-- `outputs/`
-  - run artifacts you choose to place here
-- `agents/`
-  - local PPO configs
-- `scripts/`
-  - train, play, teleop, validation, smoke-test entry points
-- `tests/`
-  - fast pure-Python validation
-- `train_history.md`
-  - chronological handoff log for what was tried, what regressed, and which checkpoints are still worth loading
-- `internet_walk_reward_notes.md`
-  - internet research notes for how this repo currently defines proper walking versus cheating motion
-- `README.txt`
-  - short operator summary of the current best-known checkpoints and strict-validator status
-
-## Current Landau Status
-
-- There is still no Landau Stage A checkpoint that cleanly passes the latest strict proper-walk validator.
-- The best current forward-walk reference is `2026-04-05_18-31-42_phase_clock_v6_posture_narrowing/model_400.pt`.
-- That checkpoint is strong on forward displacement, single-support ratio, non-support contact cleanliness, and stability, but it still fails the strict width gate:
-  - mean support width `0.3591`
-  - strict threshold `0.3214`
-- The later `v7` twist-clamp experiment did not fix that remaining failure mode.
-- Use [train_history.md](/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/train_history.md) as the source of truth before promoting a checkpoint.
-
-## Fast Validation
-
-Pure Python checks:
+Use the repo launcher. It keeps the Isaac environment and defaults consistent.
 
 ```bash
-python3 -m pytest algorithms/urdf_learn_wasd_walk/tests -q
-python3 -m algorithms.urdf_learn_wasd_walk.scripts.inspect_assets
-python3 -m algorithms.urdf_learn_wasd_walk.scripts.validate_rewards
+./geo walk play --stage game
+./geo walk teleop --stage game
+./geo walk train --stage stand --headless --run_name stand_trial
+./geo walk diagnose --stage stand --headless --action-mode zero
+./geo walk diagnose --stage stand --headless --action-mode policy
+./geo walk validate --stage fwd_only --headless
+./geo walk eval --stage fwd_yaw --headless --path-preset gate --gate-direction forward --path-distance 10
+./geo walk refs
 ```
 
-Headless Isaac environment smoke test:
+## Manual Control
+
+Interactive playback:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.smoke_test \
-  --robot landau --stage fwd_only --headless --steps 32
+./geo walk play --stage game
 ```
 
-Strict Stage A walk validation:
+Interactive teleop with keyboard:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.validate_walk \
-  --robot landau --stage fwd_only --headless \
-  --experiment_name geo_landau_fwd_only \
-  --load_run <RUN_NAME> \
-  --checkpoint model_<N>.pt
+./geo walk teleop --stage game
 ```
 
-`validate_walk.py` is no longer just a displacement smoke test. For Landau Stage A it now checks, by default:
+Keyboard defaults:
 
-- forward displacement in the initial forward frame
-- single-support ratio and low flight ratio
-- max double-support ratio
-- mean support width
-- mean primary-foot force share
-- touchdown step length and touchdown root straddle
-- yaw-rate error for forward-only commands
-- control-root height
-- non-support contact count
+- `W` / `S`: forward / backward
+- `A` / `D`: turn left / right in game mode
+- `Q` / `E`: strafe left / right in game mode
+- `L`: zero the command
 
-Two-iteration PPO smoke test:
+The simple operator goal is: use the same `forward, strafe, yaw` inputs to move the character around the map, then reuse that command space for automated milestone tests.
+
+## Training Workflow
+
+The active source of truth is:
+
+- `TRAINING_RULES.md`
+- `outputs/history/active_lineage.json`
+- `outputs/history/refs/index.json`
+- `outputs/history/refs/milestones.json`
+
+Normal loop:
+
+1. Refresh refs and inspect the earliest unresolved milestone.
+2. Smoke test or diagnose if the failure is reset/idle related.
+3. Train only the stage needed for that earliest milestone.
+4. Re-run the milestone suite on the exact candidate checkpoint.
+5. Record the milestone only after the checkpoint passes the current test and every earlier ladder test again.
+
+Useful commands:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
-  --robot g1 --headless --max_iterations 2
+./geo walk test
+./geo walk smoke --stage stand --headless
+./geo walk diagnose --stage stand --headless --action-mode zero --steps 600 --max-done-count 0
+./geo walk train --stage stand --headless --run_name stand_v1
+./geo walk diagnose --stage stand --headless --load_run <run> --checkpoint model_<n>.pt --action-mode policy --steps 600 --max-done-count 0
+./geo walk milestone --milestone-id stand_zero_signal_30s_no_reset --stage stand --load_run <run> --checkpoint model_<n>.pt
+./geo walk milestone --milestone-id stand_30s_no_reset --stage stand --load_run <run> --checkpoint model_<n>.pt
 ```
 
-## Train
+## Path And Gate Evaluation
 
-Baseline G1:
+`eval` now supports path presets that emit joystick-style commands from waypoints.
+
+Forward 10 m gate:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
-  --robot g1 --headless
+./geo walk eval --stage fwd_only --headless --path-preset gate --gate-direction forward --path-distance 10
 ```
 
-Custom URDF Stage A forward walk:
+10 m gate in the left direction:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
-  --robot landau --stage fwd_only --headless
+./geo walk eval --stage fwd_yaw --headless --path-preset gate --gate-direction left --path-distance 10
 ```
 
-The intended long run is hours, not minutes. Use `--max_iterations 2` first to confirm the pipeline.
-For Landau, prefer explicit `--stage` values such as `fwd_only` or `fwd_yaw` instead of relying on the full-task default.
-
-The train CLI also supports gentle fine-tune overrides that were added for checkpoint rescue runs:
+Closed triangle path:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.train \
-  --robot landau --stage fwd_only --headless \
-  --resume True \
-  --experiment_name geo_landau_fwd_only \
-  --load_run <RUN_NAME> \
-  --checkpoint model_<N>.pt \
-  --max_iterations 80 \
-  --learning_rate 0.0001 \
-  --entropy_coef 0.003 \
-  --desired_kl 0.003 \
-  --num_learning_epochs 4 \
-  --num_mini_batches 4 \
-  --reset_optimizer
+./geo walk eval --stage fwd_yaw --headless --path-preset triangle --path-edge-length 3.5 --path-arrival-radius 0.35
 ```
 
-## Playback
-
-Replay the current best Stage A reference checkpoint headless and optionally force a fixed command:
+Closed square path:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.play \
-  --robot landau --stage fwd_only --headless \
-  --load_run 2026-04-05_18-31-42_phase_clock_v6_posture_narrowing \
-  --checkpoint model_400.pt \
-  --steps 500 --command-vx 0.5 --command-vy 0.0 --command-yaw 0.0
+./geo walk eval --stage fwd_yaw --headless --path-preset square --path-edge-length 3.0 --path-arrival-radius 0.35
 ```
 
-Current caveat:
-
-- `2026-04-05_18-31-42_phase_clock_v6_posture_narrowing/model_400.pt` is the best current playback reference for the new phase-clock Stage A setup
-- it is **not** a clean strict-validator pass under the latest proper-walk criteria because the mean support width is still too large
-- the short follow-up run `2026-04-05_18-38-24_phase_clock_v7_twist_clamp/model_449.pt` also failed on the same width metric
-- `model_3348.pt` is now best treated as a legacy anti-crawl comparison checkpoint, not the main recommended Stage A playback target
-- use [train_history.md](/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/train_history.md) for the current truth before promoting a checkpoint
-
-The script exports `policy.pt` and `policy.onnx` next to the loaded checkpoint under an `exported/` folder.
-`play` requires a trained checkpoint under `logs/rsl_rl/<experiment>/...`, or explicit `--experiment_name` / `--load_run` / `--checkpoint` overrides.
-For Landau checkpoints, `play` now restores the saved `params/env.yaml` action scales and command ranges before constructing the environment so older checkpoints are not replayed through newer Stage A control mappings.
-
-For `landau`, this is the explicit GUI playback command. It mirrors the live URDF articulation onto the copied colored USD model:
+Explicit waypoint file:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.play \
-  --robot landau --stage fwd_only --visual-mode usd \
-  --load_run 2026-04-05_18-31-42_phase_clock_v6_posture_narrowing \
-  --checkpoint model_400.pt \
-  --steps 500 --command-vx 0.5 --command-vy 0.0 --command-yaw 0.0
+./geo walk eval --stage game --headless --path-file /abs/path/to/waypoints.json
 ```
 
-Use `--visual-mode both` to show the colored USD model and the URDF together. Synced USD visual mode uses a single displayed environment.
-For a pure URDF GUI view, use `--visual-mode urdf` instead of `usd`.
+## Goal Ladder
 
-## Teleop
+The milestone order is strict:
 
-Keyboard teleop uses `W/S` for forward/backward, `A/D` for left/right strafe, and `Q/E` for yaw.
+1. `stand_zero_signal_30s_no_reset`
+2. `stand_30s_no_reset`
+3. `gate_5m_no_reset`
+4. `gate_10m_no_reset`
+5. `yaw_turn_90deg_hold`
+6. `teleop_60s_forward_turn`
+7. `gate_10m_four_directions_no_reset`
+8. `triangle_path_follow_no_reset`
+9. `square_path_follow_no_reset`
+10. `terrain_5m_no_reset`
+11. `obstacle_stop_before_collision`
+12. `game_10m_no_reset`
+
+Rules:
+
+- Any hard reset, fall, or done event auto-fails the test.
+- A later milestone only counts when the same checkpoint also re-passes every earlier milestone.
+- Moving checkpoints must still look like walking. Sliding, collapsing, hopping, or frozen-joint motion does not count.
+
+## History And Promotion
+
+Keep the machine-readable history current:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.teleop \
-  --robot landau --stage fwd_only \
-  --load_run 2026-04-05_18-31-42_phase_clock_v6_posture_narrowing \
-  --checkpoint model_400.pt
+./geo walk refs
+./geo walk gate --stage game
+./geo walk milestone --milestone-id <id> --stage <stage> --load_run <run> --checkpoint model_<n>.pt
 ```
 
-For `landau`, GUI teleop defaults to the synced colored `.usdc` model. Pass `--visual-mode urdf` to see only the imported URDF visuals, or `--visual-mode both` to overlay both.
-`teleop` requires GUI mode, so do not pass `--headless`.
-`teleop` also requires a trained checkpoint for the selected robot and stage.
-`teleop` keyboard `W` maps to semantic forward `0.8`. The latest phase-clock checkpoints were strongest around semantic forward `0.5-0.7`, so fixed-command `play --command-vx 0.5` is still the better apples-to-apples inspection path for the strict Stage A benchmark.
-For `landau fwd_only`, semantic zero now stays a true zero command instead of snapping to the minimum forward stage speed. Teleop now defaults to latched trim commands plus `--idle-action-mode policy`; press `L` to zero the command, or pass `--no-latch-command` if you want hold-to-command behavior.
-
-Gamepad teleop:
-
-```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p -m algorithms.urdf_learn_wasd_walk.scripts.teleop \
-  --robot g1 --input-device gamepad
-```
-
-### Checkpoint compatibility
-
-- The current Landau staged setup uses action dim `29` and observation dim `111`.
-- Older Landau checkpoints from before the staged/full-body change used smaller policy shapes such as action dim `12` and observation dim `48`.
-- If you launch `play` or `teleop` against one of those older checkpoints, RSL-RL will fail with `size mismatch for ActorCritic`.
-- For Landau, always pass a matching `--stage`, and when in doubt also pass explicit `--load_run` and `--checkpoint`.
-
-## Notes
-
-- The custom reward weights are starting values, not tuned final values.
-- The `landau` task is flat-ground only in this first implementation.
-- `play` and `teleop` use local play-task variants with randomized command resampling disabled.
-- `play` and `validate_walk` now refresh observations after forcing commands, so fixed-command playback and validation are no longer one step behind the requested command.
-- In `play`, if any of `--command-vx/--command-vy/--command-yaw` is provided, omitted axes default to `0.0`.
-- Older fast-run checkpoints such as `model_3050.pt` and `model_3248.pt` are no longer recommended for GUI use; the stricter anti-crawl validator found they could move by dragging non-support links on the ground.
-- `model_3348.pt` is no longer the main GUI recommendation in this README. Keep it only as a legacy anti-crawl comparison point.
-- The repo now defines "proper walking" more strictly than earlier runs did. A checkpoint can move forward and still fail if it does so with excessive flight, excessive double-support shuffling, wide stance, low root height, or bad touchdown geometry.
+Only promote a checkpoint after the relevant gate suite passes on that exact file.

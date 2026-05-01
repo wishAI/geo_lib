@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+import struct
 
 
 def _parse_floats(raw_value: str | None, expected_count: int, default: float = 0.0) -> tuple[float, ...]:
@@ -107,6 +109,8 @@ class UrdfLink:
     name: str
     visual_meshes: tuple[Path, ...]
     collision_meshes: tuple[Path, ...]
+    mass: float
+    inertia: tuple[float, float, float, float, float, float] | None
 
 
 @dataclass(frozen=True)
@@ -152,6 +156,19 @@ def load_urdf_model(urdf_path: Path) -> UrdfModel:
         link_name = link_el.attrib["name"]
         visual_meshes = []
         collision_meshes = []
+        inertial_el = link_el.find("inertial")
+        mass = 0.0
+        inertia = None
+        if inertial_el is not None:
+            mass_el = inertial_el.find("mass")
+            inertia_el = inertial_el.find("inertia")
+            if mass_el is not None:
+                mass = float(mass_el.attrib.get("value", "0.0"))
+            if inertia_el is not None:
+                inertia = tuple(
+                    float(inertia_el.attrib.get(attribute, "0.0"))
+                    for attribute in ("ixx", "ixy", "ixz", "iyy", "iyz", "izz")
+                )
         for visual_el in link_el.findall("visual"):
             mesh_el = visual_el.find("./geometry/mesh")
             if mesh_el is not None and mesh_el.attrib.get("filename"):
@@ -164,6 +181,8 @@ def load_urdf_model(urdf_path: Path) -> UrdfModel:
             name=link_name,
             visual_meshes=tuple(visual_meshes),
             collision_meshes=tuple(collision_meshes),
+            mass=mass,
+            inertia=inertia,
         )
 
     children_by_link: dict[str, list[str]] = {name: [] for name in links}
@@ -218,6 +237,57 @@ def find_missing_meshes(model: UrdfModel) -> tuple[Path, ...]:
     return tuple(sorted(set(missing)))
 
 
+@lru_cache(maxsize=512)
+def _load_mesh_vertices(mesh_path: str) -> tuple[tuple[float, float, float], ...]:
+    path = Path(mesh_path)
+    data = path.read_bytes()
+    preview = data[:512].lower()
+    if preview.startswith(b"solid") and b"facet" in preview:
+        vertices: list[tuple[float, float, float]] = []
+        for raw_line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = raw_line.strip()
+            if not line.startswith("vertex "):
+                continue
+            _, xs, ys, zs = line.split()
+            vertices.append((float(xs), float(ys), float(zs)))
+        return tuple(vertices)
+
+    triangle_count = struct.unpack_from("<I", data, 80)[0]
+    offset = 84
+    vertices = []
+    for _ in range(triangle_count):
+        offset += 12  # normal
+        for _ in range(3):
+            vertices.append(struct.unpack_from("<fff", data, offset))
+            offset += 12
+        offset += 2  # attribute byte count
+    return tuple(vertices)
+
+
+def _link_collision_vertices(link: UrdfLink) -> tuple[tuple[float, float, float], ...]:
+    vertices: list[tuple[float, float, float]] = []
+    mesh_paths = link.collision_meshes or link.visual_meshes
+    for mesh_path in mesh_paths:
+        if not mesh_path.exists():
+            continue
+        vertices.extend(_load_mesh_vertices(str(mesh_path)))
+    return tuple(vertices)
+
+
+def support_surface_world_z(
+    model: UrdfModel,
+    world: dict[str, tuple[tuple[float, float, float, float], ...]],
+    link_name: str,
+) -> float:
+    if link_name not in world:
+        raise KeyError(f"Unknown link '{link_name}'.")
+    link = model.links[link_name]
+    vertices = _link_collision_vertices(link)
+    if not vertices:
+        return transform_point(world[link_name], (0.0, 0.0, 0.0))[2]
+    return min(transform_point(world[link_name], vertex)[2] for vertex in vertices)
+
+
 def classify_joint_groups(model: UrdfModel) -> JointGroups:
     leg_joints = []
     foot_joints = []
@@ -226,25 +296,45 @@ def classify_joint_groups(model: UrdfModel) -> JointGroups:
     finger_joints = []
     torso_joints = []
 
-    for joint_name in model.joints:
+    for joint_name, joint in model.joints.items():
         if joint_name.endswith("_base_fixed"):
             continue
-        if joint_name.startswith(("thumb", "index", "middle", "ring", "pinky")):
+        joint_name_lower = joint_name.lower()
+        child_link_lower = joint.child_link.lower()
+        if joint_name_lower.startswith(("thumb", "index", "middle", "ring", "pinky")) or child_link_lower.startswith(
+            ("thumb", "index", "middle", "ring", "pinky")
+        ):
             finger_joints.append(joint_name)
             continue
-        if joint_name.startswith(("hand_",)):
+        if joint_name_lower.startswith(("hand_",)) or child_link_lower.startswith(("hand_",)) or "wrist" in joint_name_lower:
             hand_joints.append(joint_name)
             continue
-        if joint_name.startswith(("shoulder_", "arm_", "forearm_")):
+        if (
+            joint_name_lower.startswith(("shoulder_", "arm_", "forearm_"))
+            or child_link_lower.startswith(("shoulder_", "arm_", "forearm_"))
+            or any(token in joint_name_lower for token in ("shoulder", "upper_arm", "elbow", "forearm"))
+        ):
             arm_joints.append(joint_name)
             continue
-        if joint_name.startswith(("thigh_", "leg_")):
+        if (
+            joint_name_lower.startswith(("thigh_", "leg_"))
+            or child_link_lower.startswith(("thigh_", "leg_"))
+            or any(token in joint_name_lower for token in ("hip", "knee", "shin"))
+        ):
             leg_joints.append(joint_name)
             continue
-        if joint_name.startswith(("foot_", "toes_")):
+        if (
+            joint_name_lower.startswith(("foot_", "toes_"))
+            or child_link_lower.startswith(("foot_", "toes_"))
+            or any(token in joint_name_lower for token in ("ankle", "toe"))
+        ):
             foot_joints.append(joint_name)
             continue
-        if joint_name.startswith(("spine_", "neck_", "head_")):
+        if (
+            joint_name_lower.startswith(("spine_", "neck_", "head_"))
+            or child_link_lower.startswith(("spine_", "neck_", "head_"))
+            or any(token in joint_name_lower for token in ("waist", "torso", "neck", "head"))
+        ):
             torso_joints.append(joint_name)
 
     return JointGroups(
@@ -276,15 +366,20 @@ def detect_support_links(model: UrdfModel) -> tuple[str, ...]:
 
 
 def detect_termination_links(model: UrdfModel) -> tuple[str, ...]:
-    preferred = [
-        name
-        for name in model.links
-        if name in {"base_link", "root_x", "spine_01_x", "spine_02_x", "spine_03_x", "neck_x", "head_x"}
-    ]
+    preferred_order = ("base_link", "root_x", "spine_01_x", "spine_02_x", "spine_03_x", "neck_x", "head_x")
+    preferred = [name for name in preferred_order if name in model.links]
     if preferred:
         return tuple(preferred)
     torso_like = [name for name in model.links if name.startswith(("root", "spine", "neck", "head", "torso", "pelvis"))]
     return tuple(sorted(torso_like))
+
+
+def total_mass(model: UrdfModel) -> float:
+    return sum(link.mass for link in model.links.values() if link.mass > 0.0)
+
+
+def mass_bearing_links(model: UrdfModel) -> tuple[str, ...]:
+    return tuple(sorted(link.name for link in model.links.values() if link.mass > 0.0))
 
 
 def _joint_motion_transform(joint: UrdfJoint, angle_or_offset: float) -> tuple[tuple[float, float, float, float], ...]:
@@ -331,8 +426,8 @@ def estimate_root_height(
     world = compute_link_world_transforms(model, joint_positions=joint_positions, root_link=model.root_links[0])
     if root_link_name not in world:
         raise KeyError(f"Unknown root link '{root_link_name}'.")
-    support_points = [transform_point(world[link_name], (0.0, 0.0, 0.0))[2] for link_name in support_link_names if link_name in world]
+    support_points = [support_surface_world_z(model, world, link_name) for link_name in support_link_names if link_name in world]
     if not support_points:
         raise ValueError("Unable to estimate root height without support links.")
     root_z = transform_point(world[root_link_name], (0.0, 0.0, 0.0))[2]
-    return max(root_z - min(support_points) + clearance, clearance)
+    return root_z - min(support_points) + clearance

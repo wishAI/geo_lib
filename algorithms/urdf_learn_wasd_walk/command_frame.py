@@ -14,7 +14,9 @@ def semantic_command_to_env_command(
     """
     forward, strafe, yaw = command
     if forward_body_axis == "y":
-        return (strafe, forward, yaw)
+        # Landau uses a +Y forward body axis with +X pointing to the robot's right.
+        # In that frame, a semantic "turn left" command must negate the env yaw-rate.
+        return (strafe, forward, -yaw)
     return command
 
 

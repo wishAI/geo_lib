@@ -138,3 +138,17 @@ def test_keyboard_events_accept_named_inputs(monkeypatch) -> None:
         )
     finally:
         device.__del__()
+
+
+def test_game_keyboard_maps_a_to_positive_yaw(monkeypatch) -> None:
+    module, _ = _load_teleop_module(monkeypatch)
+    device = module.GameWasdKeyboard(debug_print=False)
+
+    try:
+        device._on_keyboard_event(SimpleNamespace(input="A", type="KEY_PRESS"))
+        np.testing.assert_allclose(
+            device.advance(),
+            np.asarray([0.0, 0.0, device.omega_z_sensitivity], dtype=np.float32),
+        )
+    finally:
+        device.__del__()

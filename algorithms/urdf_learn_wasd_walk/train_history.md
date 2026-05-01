@@ -1,6 +1,102 @@
 ## Landau Training History
 
-Last updated: 2026-04-05
+Last updated: 2026-04-19
+
+### 2026-04-19 Mass-Fix Restart
+
+The stand/game config rewrite from `RESTART_PLAN.md` is now landed:
+
+- the active Landau env split is `landau_common.py`, `landau_stand_cfg.py`, `landau_walk_cfg.py`, `landau_game_cfg.py`
+- `custom_rewards.py` has been replaced by the minimal `landau_rewards.py` set
+- `asset_setup.py` now prepares `inputs/landau_v10/landau_v10_parallel_mesh.fixed.urdf`
+- `scripts/check_pose_stability.py` now writes failed zero-action diagnostics correctly, and passive milestone recording now accepts `--checkpoint none`
+- `./geo walk validate-stand` was added as a dedicated stand-validation wrapper
+
+Current blocker:
+
+- the first unresolved milestone is still `stand_zero_signal_30s_no_reset`
+- best passive zero-action stand result so far on the mass-fixed restart is:
+  - `done_count_total = 15`
+  - `first_done_step = 56`
+  - `min_control_root_height = 0.1564`
+  - run: `./geo walk diagnose --stage stand --headless --action-mode zero --steps 900 --max-done-count 0 --min-control-root-height 0.17`
+- later passive retunes around toe sign, rigid-body damping, friction, and articulation solver settings improved the logging and slightly improved reset timing, but still did not satisfy the `0 done / 0.17 m` gate
+
+Post-rewrite training smoke:
+
+- `./geo walk train --stage stand --headless --run_name stand_restart_smoke_v1 --max_iterations 2 --num_envs 64`
+- log dir:
+  - `logs/rsl_rl/geo_landau_restart_20260419_mass_fix_stand/2026-04-19_17-34-03_stand_restart_smoke_v1`
+- the run completed cleanly, so the rewritten stand stack trains end to end, but this does not unblock the passive milestone
+
+### 2026-04-18 Asset Refresh / Game Stage Note
+
+This file still captures the older Stage A chronology, but it is no longer the only reproducibility record.
+
+New facts that matter before running anything:
+
+- the Landau URDF and STL set in `inputs/landau_v10/` were refreshed from `algorithms/usd_parallel_urdf`
+- the Isaac runtime had a broken duplicate `numpy 1.26` inside `_isaac_sim/extscache/omni.kit.pip_archive/.../pip_prebundle/`; that duplicate was moved aside so Isaac now consistently uses Kit's `numpy 2.2.6`
+- Landau now has a `game` stage with:
+  - rough terrain and obstacle sub-terrains
+  - height-scan observation
+  - game-style keyboard/gamepad command mapping
+  - obstacle-brake support
+  - path-follow support in `scripts/play.py`
+- machine-readable run history now lives in:
+  - `algorithms/urdf_learn_wasd_walk/outputs/history/refs/index.json`
+  - `algorithms/urdf_learn_wasd_walk/outputs/history/refs/experiments/*.json`
+  - `algorithms/urdf_learn_wasd_walk/outputs/history/training_runs.jsonl`
+  - `algorithms/urdf_learn_wasd_walk/outputs/history/validation_runs.jsonl`
+
+Fresh 2026-04-18 checkpoints and validations should be read from those JSONL ledgers first.
+
+Newest reset / teleop diagnosis:
+
+- the straighter reset pose improved the flat `game` zero-action diagnostic from about `25` steps to about `78` steps before the first fall
+- the preload is still toe-biased under the refreshed URDF, so the robot is not starting from a real whole-foot stand
+- splitting ankles and toes into stronger dedicated actuators improves `min_control_root_height` from about `0.074` to about `0.099`, but still leaves one fall inside `120` zero-action steps
+- the latest preload update adds a slightly deeper ankle/toe preload (`ankle=-0.12`, `toe=-0.06`), which extends the same zero-action first-fall point to about `101` steps on the flat `game` playback scene
+- `2026-04-18_13-32-47_game_v15_reset_pose_40/model_189.pt` is still not a usable teleop default; it remains asymmetric at idle and still fails long-horizon stand-walk-hold
+
+### 2026-04-18 Game Stage Summary
+
+Current best practical `game` checkpoint:
+
+- `logs/rsl_rl/geo_landau_game/2026-04-18_10-41-48_game_v11_zero_init_200/model_150.pt`
+  - validator result: failed only on `control root height`
+  - `min_control_root_height=0.1325` against the stage threshold `0.15`
+  - `done_count=3`
+  - `non_support_contact_step_sum=8`
+  - `single_support_ratio=0.2033`
+  - `double_support_ratio=0.7650`
+
+Important follow-up runs:
+
+- `2026-04-18_10-52-37_game_v12_height_rescue_from150`
+  - `model_150.pt` stayed finite but did not improve the validator
+  - `model_200.pt` and `model_209.pt` contained non-finite actor/critic weights
+- `2026-04-18_10-59-37_game_v13_height_target_safe_24`
+  - added a guarded fine-tune path with lower LR / lower action noise / stronger height target
+  - `model_173.pt` stayed finite end-to-end
+  - validator still failed only on root height, and was slightly worse than the baseline: `0.1313`
+
+Current code facts that matter before running more game-stage training:
+
+- `algorithms/urdf_learn_wasd_walk/rsl_rl_safety.py` now patches both:
+  - actor distribution construction, to clamp invalid std tensors
+  - PPO update, to roll back a whole update if it would leave non-finite weights
+- `algorithms/urdf_learn_wasd_walk/scripts/train.py` now supports `--action_noise_std` for rescue fine-tunes
+- `LandauGameEnvCfg` now uses a non-zero `control_root_height_target` penalty (`-4.0`) in addition to the hard floor penalty
+- `isaac_lock.py` enforces a single Isaac process, so do not launch train / play / teleop / validate in parallel
+
+Recommended handoff order for another agent:
+
+1. Read the tail of `outputs/history/training_runs.jsonl` and `outputs/history/validation_runs.jsonl`.
+2. Read `outputs/history/refs/index.json` if you need a quick current-state summary instead of reconstructing it from the ledgers.
+3. If you need a staged end-to-end repro, read `outputs/history/workflows/*.json` and use `scripts/run_landau_curriculum.py`.
+4. For game-stage playback or teleop, start from `2026-04-18_10-41-48_game_v11_zero_init_200/model_150.pt`.
+5. Treat `v12` and `v13` as logged rescue attempts, not promoted checkpoints.
 
 ### Executive Summary
 
@@ -93,8 +189,8 @@ These notes describe the current code state in `LandauFwdOnlyEnvCfg`, not the ea
 
 Policy / interface:
 
-- action dim: `29`
-- observation dim: `111`
+- the current `game` stage runtime uses action dim `31` and observation dim `304`
+- older `fwd_only` notes below describe a smaller Stage A snapshot and should not be read as the current game-stage policy shape
 - observation additions relative to the old staged setup:
   - gait clock `sin/cos`
   - foot positions in the control-root frame

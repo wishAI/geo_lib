@@ -19,7 +19,7 @@ def landau_input_dir() -> Path:
     return inputs_dir() / "landau_v10"
 
 
-def landau_urdf_path() -> Path:
+def landau_source_urdf_path() -> Path:
     return landau_input_dir() / "landau_v10_parallel_mesh.urdf"
 
 
@@ -37,6 +37,17 @@ def landau_skeleton_json_path() -> Path:
 
 def landau_texture_dir() -> Path:
     return landau_input_dir() / "textures"
+
+
+def landau_fixed_urdf_path() -> Path:
+    return landau_input_dir() / "landau_v10_parallel_mesh.fixed.urdf"
+
+
+def landau_urdf_path() -> Path:
+    fixed_path = landau_fixed_urdf_path()
+    if fixed_path.is_file():
+        return fixed_path
+    return landau_source_urdf_path()
 
 
 def default_landau_source_urdf() -> Path:

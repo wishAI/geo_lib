@@ -127,3 +127,40 @@ class WasdSe2Keyboard:
             "NUMPAD_9": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
         }
         self._DEBUG_KEYS = set(self._INPUT_KEY_MAPPING) | {"L"}
+
+
+class GameWasdKeyboard(WasdSe2Keyboard):
+    """Keyboard controller for game-style `(forward, strafe, yaw)` commands."""
+
+    def __str__(self) -> str:
+        return (
+            "Game WASD Keyboard Controller\n"
+            "\tW / S or Up / Down or Numpad 8 / 2: forward / backward trim\n"
+            "\tA / D or Left / Right or Numpad 4 / 6: turn left / turn right trim\n"
+            "\tQ / E or Z / X or Numpad 7 / 9: strafe left / strafe right trim\n"
+            "\tL: zero the command\n"
+            f"\tCommand latch: {'on' if self.hold_last_command else 'off'}"
+        )
+
+    def _create_key_bindings(self) -> None:
+        self._INPUT_KEY_MAPPING = {
+            "W": np.asarray([1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "S": np.asarray([-1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "A": np.asarray([0.0, 0.0, 1.0]) * self.omega_z_sensitivity,
+            "D": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
+            "UP": np.asarray([1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "DOWN": np.asarray([-1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "LEFT": np.asarray([0.0, 0.0, 1.0]) * self.omega_z_sensitivity,
+            "RIGHT": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
+            "NUMPAD_8": np.asarray([1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "NUMPAD_2": np.asarray([-1.0, 0.0, 0.0]) * self.v_x_sensitivity,
+            "NUMPAD_4": np.asarray([0.0, 0.0, 1.0]) * self.omega_z_sensitivity,
+            "NUMPAD_6": np.asarray([0.0, 0.0, -1.0]) * self.omega_z_sensitivity,
+            "Q": np.asarray([0.0, 1.0, 0.0]) * self.v_y_sensitivity,
+            "E": np.asarray([0.0, -1.0, 0.0]) * self.v_y_sensitivity,
+            "Z": np.asarray([0.0, 1.0, 0.0]) * self.v_y_sensitivity,
+            "X": np.asarray([0.0, -1.0, 0.0]) * self.v_y_sensitivity,
+            "NUMPAD_7": np.asarray([0.0, 1.0, 0.0]) * self.v_y_sensitivity,
+            "NUMPAD_9": np.asarray([0.0, -1.0, 0.0]) * self.v_y_sensitivity,
+        }
+        self._DEBUG_KEYS = set(self._INPUT_KEY_MAPPING) | {"L"}

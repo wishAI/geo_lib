@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import traceback
 
 from isaaclab.app import AppLauncher
 
+from algorithms.urdf_learn_wasd_walk.isaac_app_args import apply_project_kit_args
+from algorithms.urdf_learn_wasd_walk.isaac_lock import acquire_isaac_lock
 from algorithms.urdf_learn_wasd_walk.runtime import supported_robot_keys
 from algorithms.urdf_learn_wasd_walk.task_registry import LANDAU_CURRICULUM_STAGES
 
@@ -22,6 +25,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 parser = _build_parser()
 args_cli = parser.parse_args()
+apply_project_kit_args(args_cli)
+
+isaac_lock_handle = acquire_isaac_lock("smoke_test", args_cli)
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -81,5 +87,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
-    simulation_app.close()
+    try:
+        main()
+    except BaseException as exc:
+        print(f"[SMOKE][ERROR] {type(exc).__name__}: {exc}", flush=True)
+        traceback.print_exc()
+        raise
+    finally:
+        simulation_app.close()
+        isaac_lock_handle.release()

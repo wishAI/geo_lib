@@ -10,7 +10,7 @@ class CommandFrameTests(unittest.TestCase):
         self.assertEqual(semantic_command_to_env_command("x", (0.5, -0.25, 0.1)), (0.5, -0.25, 0.1))
 
     def test_y_axis_forward_remaps_to_env_frame(self) -> None:
-        self.assertEqual(semantic_command_to_env_command("y", (0.5, -0.25, 0.1)), (-0.25, 0.5, 0.1))
+        self.assertEqual(semantic_command_to_env_command("y", (0.5, -0.25, 0.1)), (-0.25, 0.5, -0.1))
 
     def test_y_axis_forward_dir_uses_body_y(self) -> None:
         self.assertEqual(semantic_forward_dir_xy("y", (1.0, 0.0, 0.0, 0.0)), (0.0, 1.0))

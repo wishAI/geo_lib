@@ -28,10 +28,21 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(spec.experiment_name, "geo_landau_fwd_only")
         self.assertEqual(spec.forward_body_axis, "y")
         self.assertEqual(spec.control_root_link, "root_x")
+        self.assertEqual(spec.root_link_name, "base_link")
         self.assertGreater(spec.nominal_control_root_height, 0.2)
-        self.assertGreater(spec.nominal_stance_width, 0.2)
+        self.assertAlmostEqual(spec.nominal_stance_width, 0.12611192044307679, places=3)
         self.assertIn("leg_stretch_l", spec.gait_guard_link_names)
         self.assertNotIn("middle3_r", spec.gait_guard_link_names)
+
+    def test_landau_stand_stage_exposes_stage_specific_ids(self) -> None:
+        spec = resolve_robot_task_spec("landau", stage="stand")
+
+        self.assertEqual(spec.train_task_id, "Geo-Velocity-Flat-Landau-Stand-v0")
+        self.assertEqual(spec.play_task_id, "Geo-Velocity-Flat-Landau-Stand-Play-v0")
+        self.assertEqual(spec.experiment_name, "geo_landau_stand")
+        self.assertEqual(spec.primary_foot_links, ("foot_l", "foot_r"))
+        self.assertEqual(spec.root_link_name, "base_link")
+        self.assertGreater(spec.init_root_height, 0.0)
 
     def test_landau_unknown_stage_raises(self) -> None:
         with self.assertRaises(ValueError):

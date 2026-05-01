@@ -14,6 +14,7 @@ from .urdf_utils import (
     estimate_root_height,
     find_missing_meshes,
     load_urdf_model,
+    support_surface_world_z,
     transform_point,
 )
 
@@ -55,21 +56,32 @@ G1_TASK_SPEC = RobotTaskSpec(
 )
 
 
-def _build_landau_default_joint_positions() -> dict[str, float]:
-    return {
+def _build_landau_default_joint_positions(model) -> dict[str, float]:
+    # The refreshed Landau URDF is noticeably more stable with a straighter lower-body
+    # preload than with the original bent-knee handoff pose. Zero-action diagnostics
+    # showed the old pose collapsing through the ankles within ~25 steps.
+    child_link_targets = {
         "spine_01_x": 0.03,
         "spine_02_x": 0.08,
         "neck_x": -0.05,
-        "thigh_stretch_l": 0.20,
-        "thigh_stretch_r": 0.20,
-        "leg_stretch_l": 0.54,
-        "leg_stretch_r": 0.54,
-        "foot_l": -0.07,
-        "foot_r": -0.07,
-        "toes_01_l": 0.05,
-        "toes_01_r": 0.05,
+        "thigh_stretch_l": 0.08,
+        "thigh_stretch_r": 0.08,
+        "leg_stretch_l": 0.24,
+        "leg_stretch_r": 0.24,
+        # The slightly plantar-flexed preload still trains better than the flatter
+        # whole-foot stance, even though the flatter stance survives a little longer
+        # under raw PD holding. Keep the training pose on the better learning track.
+        "foot_l": -0.12,
+        "foot_r": -0.12,
+        "toes_01_l": -0.11,
+        "toes_01_r": -0.11,
         "forearm_stretch_l": 0.21,
         "forearm_stretch_r": 0.21,
+    }
+    return {
+        model.child_joint_by_link[child_link]: value
+        for child_link, value in child_link_targets.items()
+        if child_link in model.child_joint_by_link
     }
 
 
@@ -79,13 +91,23 @@ def _build_landau_gait_guard_links(
     support_links: tuple[str, ...],
     termination_links: tuple[str, ...],
 ) -> tuple[str, ...]:
-    finger_prefixes = ("thumb", "index", "middle", "ring", "pinky")
+    excluded_prefixes = (
+        "thumb",
+        "index",
+        "middle",
+        "ring",
+        "pinky",
+        "shoulder",
+        "arm",
+        "forearm",
+        "hand",
+    )
     return tuple(
         name
         for name in model.links
         if name not in support_links
         and name not in termination_links
-        and not name.startswith(finger_prefixes)
+        and not name.startswith(excluded_prefixes)
     )
 
 
@@ -102,7 +124,43 @@ def _local_vector_for_world_axis(
     )
 
 
+def _select_primary_support_links(
+    *,
+    model,
+    world: dict[str, tuple[tuple[float, float, float, float], ...]],
+    support_links: tuple[str, ...],
+) -> tuple[str, ...]:
+    selected: list[str] = []
+    for suffix in ("_l", "_r"):
+        candidates = [name for name in support_links if name.endswith(suffix) and name in world]
+        if not candidates:
+            continue
+        selected.append(min(candidates, key=lambda name: support_surface_world_z(model, world, name)))
+    return tuple(selected)
+
+
+def _select_landau_primary_feet(
+    *,
+    model,
+    world: dict[str, tuple[tuple[float, float, float, float], ...]],
+    support_links: tuple[str, ...],
+) -> tuple[str, str]:
+    preferred = detect_primary_foot_links(model)
+    if len(preferred) == 2 and all(link_name in support_links for link_name in preferred):
+        return preferred  # type: ignore[return-value]
+
+    selected = _select_primary_support_links(model=model, world=world, support_links=support_links)
+    if len(selected) != 2:
+        raise RuntimeError(f"Unable to resolve a biped primary-foot pair from support links: {support_links}")
+    return tuple(selected)  # type: ignore[return-value]
+
+
 _LANDAU_STAGE_TASK_IDS: dict[str, dict[str, str]] = {
+    "stand": {
+        "train": "Geo-Velocity-Flat-Landau-Stand-v0",
+        "play": "Geo-Velocity-Flat-Landau-Stand-Play-v0",
+        "experiment": "geo_landau_stand",
+    },
     "full": {
         "train": "Geo-Velocity-Flat-Landau-v0",
         "play": "Geo-Velocity-Flat-Landau-Play-v0",
@@ -118,6 +176,11 @@ _LANDAU_STAGE_TASK_IDS: dict[str, dict[str, str]] = {
         "play": "Geo-Velocity-Flat-Landau-FwdYaw-Play-v0",
         "experiment": "geo_landau_fwd_yaw",
     },
+    "game": {
+        "train": "Geo-Velocity-Rough-Landau-Game-v0",
+        "play": "Geo-Velocity-Rough-Landau-Game-Play-v0",
+        "experiment": "geo_landau_game",
+    },
 }
 
 
@@ -131,14 +194,23 @@ def load_landau_robot_spec(
         )
     ids = _LANDAU_STAGE_TASK_IDS[stage]
     resolved_urdf = Path(urdf_path or landau_urdf_path()).resolve()
+    if not resolved_urdf.is_file():
+        raise FileNotFoundError(
+            f"Missing prepared Landau URDF: {resolved_urdf}. "
+            "Keep inputs/landau_v10/ in place before running the Landau workflow."
+        )
     model = load_urdf_model(resolved_urdf)
-    root_link_name = model.root_links[0] if model.root_links else "base_link"
+    discovered_root_link = model.root_links[0] if model.root_links else "base_link"
     joint_groups = classify_joint_groups(model)
-    default_joint_positions = _build_landau_default_joint_positions()
-    primary_feet = detect_primary_foot_links(model)
+    default_joint_positions = _build_landau_default_joint_positions(model)
     support_links = detect_support_links(model)
-    termination_links = detect_termination_links(model)
     forward_body_axis = "y"
+    # Keep the imported articulation rooted at the URDF root. Landau exposes `root_x`
+    # as the semantic control body through a fixed joint under `base_link`, and forcing
+    # the importer root onto that child body regressed stand stability immediately.
+    control_root_link = "root_x" if "root_x" in model.links else discovered_root_link
+    root_link_name = discovered_root_link
+    termination_links = detect_termination_links(model)
     gait_guard_links = _build_landau_gait_guard_links(
         model,
         support_links=support_links,
@@ -151,17 +223,17 @@ def load_landau_robot_spec(
         joint_positions=default_joint_positions,
         clearance=0.01,
     )
-    control_root_link = "root_x"
     world = compute_link_world_transforms(
         model,
         joint_positions=default_joint_positions,
-        root_link=model.root_links[0] if model.root_links else root_link_name,
+        root_link=discovered_root_link,
     )
+    primary_feet = _select_landau_primary_feet(model=model, world=world, support_links=support_links)
     primary_foot_contact_up_vectors = tuple(
         _local_vector_for_world_axis(world[link_name], (0.0, 0.0, 1.0)) if link_name in world else (0.0, 0.0, 1.0)
         for link_name in primary_feet
     )
-    support_points = [transform_point(world[link_name], (0.0, 0.0, 0.0))[2] for link_name in support_links if link_name in world]
+    support_points = [support_surface_world_z(model, world, link_name) for link_name in support_links if link_name in world]
     nominal_control_root_height = 0.0
     if support_points and control_root_link in world:
         nominal_control_root_height = transform_point(world[control_root_link], (0.0, 0.0, 0.0))[2] - min(support_points)
