@@ -22,6 +22,9 @@ This folder builds two URDF variants from an articulated `.usd`/`.usdc` characte
 - `outputs/mesh_collision_stl/<asset>/*.stl`
   - one closed simplified STL per link
   - generated from USD surface vertices/faces assigned to the dominant skinning joint
+- `outputs/urdf_packages/<asset>_parallel_mesh/`
+  - self-contained URDF package for drag-and-drop robot viewers
+  - contains `<asset>_parallel_mesh.urdf` plus the referenced `mesh_collision_stl/<asset>/` folder
 - `outputs/<asset>_mesh_collision_summary.json`
   - per-link mesh build metadata
   - includes the resolved low-poly config used for each link
@@ -76,6 +79,13 @@ Generate only the STL-backed URDF:
 ```
 
 Tune the STL build by editing `algorithms/usd_parallel_urdf/config.py`, then rebuild with the same command.
+
+Build a self-contained marching-cubes STL package from the current mesh URDF/STL outputs in `ptenv`:
+
+```bash
+pyenv activate ptenv
+python3 algorithms/usd_parallel_urdf/package_marching_cube_stls.py
+```
 
 Switch the mesh simplifier to convex hulls instead of the default low-poly surface reconstruction:
 

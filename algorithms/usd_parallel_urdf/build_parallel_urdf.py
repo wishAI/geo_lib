@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 from pathlib import Path
 
 from asset_paths import default_usd_path, resolve_asset_paths
@@ -44,6 +45,12 @@ def _parse_args() -> argparse.Namespace:
         help='Directory where the per-link STL collision meshes will be written. Defaults to outputs/mesh_collision_stl/<input-stem>/',
     )
     parser.add_argument(
+        '--mesh-package-dir',
+        type=Path,
+        default=None,
+        help='Self-contained URDF package directory. Defaults to outputs/urdf_packages/<mesh-robot-name>/',
+    )
+    parser.add_argument(
         '--mesh-simplify-mode',
         choices=('lowpoly_surface', 'obb', 'convex_hull'),
         default=DEFAULT_MESH_BUILD_CONFIG.mesh_simplify_mode,
@@ -79,6 +86,7 @@ def main() -> None:
         robot_name=args.robot_name,
         mesh_robot_name=args.mesh_robot_name,
         mesh_output_dir=args.mesh_output_dir,
+        mesh_package_dir=args.mesh_package_dir,
     )
     portable_root = args.portable_root.resolve()
     home_root = portable_root / 'home'
@@ -163,21 +171,20 @@ def main() -> None:
             )
             print('[GEN] mesh collision assets ready', flush=True)
             mesh_summary_path = asset_paths.mesh_summary
-            mesh_urdf_path.write_text(
-                generate_urdf_text(
-                    mesh_robot_name,
-                    records,
-                    geoms_by_name=mesh_assets['geoms_by_name'],
-                    inertial_geoms_by_name=primitive_geoms_by_name,
-                ),
-                encoding='utf-8',
+            mesh_urdf_text = generate_urdf_text(
+                mesh_robot_name,
+                records,
+                geoms_by_name=mesh_assets['geoms_by_name'],
+                inertial_geoms_by_name=primitive_geoms_by_name,
             )
+            mesh_urdf_path.write_text(mesh_urdf_text, encoding='utf-8')
             save_json(
                 mesh_summary_path,
                 {
                     'usd_path': str(args.usd_path),
                     'skeleton_path': extracted['skeleton_path'],
                     'mesh_output_dir': str(asset_paths.mesh_output_dir),
+                    'mesh_package_dir': str(asset_paths.mesh_package_dir),
                     'mesh_simplify_mode': args.mesh_simplify_mode,
                     'max_hull_faces': int(args.max_hull_faces),
                     'target_hull_points': int(args.target_hull_points),
@@ -191,9 +198,17 @@ def main() -> None:
                     'links': mesh_assets['summary'],
                 },
             )
+            asset_paths.mesh_package_dir.mkdir(parents=True, exist_ok=True)
+            if asset_paths.mesh_package_output_dir.exists():
+                shutil.rmtree(asset_paths.mesh_package_output_dir)
+            asset_paths.mesh_package_output_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(asset_paths.mesh_output_dir, asset_paths.mesh_package_output_dir)
+            asset_paths.mesh_package_urdf.write_text(mesh_urdf_text, encoding='utf-8')
+            shutil.copy2(mesh_summary_path, asset_paths.mesh_package_summary)
             print(f'[GEN] wrote mesh URDF: {mesh_urdf_path}')
             print(f'[GEN] wrote mesh summary: {mesh_summary_path}')
             print(f'[GEN] wrote mesh STL directory: {asset_paths.mesh_output_dir}')
+            print(f'[GEN] wrote URDF package: {asset_paths.mesh_package_dir}')
     finally:
         app.close()
 

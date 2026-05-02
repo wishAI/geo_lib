@@ -25,6 +25,13 @@ class MeshConfigTests(unittest.TestCase):
         resolved = resolve_lowpoly_link_config(DEFAULT_MESH_BUILD_CONFIG, 'not_a_real_link')
         self.assertEqual(resolved, DEFAULT_MESH_BUILD_CONFIG.lowpoly_default)
 
+    def test_finger_links_use_finer_marching_cube_config(self) -> None:
+        default_cfg = DEFAULT_MESH_BUILD_CONFIG.lowpoly_default
+        finger_cfg = resolve_lowpoly_link_config(DEFAULT_MESH_BUILD_CONFIG, 'index2_l')
+
+        self.assertLess(finger_cfg.min_pitch, default_cfg.min_pitch)
+        self.assertGreater(finger_cfg.target_cells[0], default_cfg.target_cells[0])
+
 
 if __name__ == '__main__':
     unittest.main()

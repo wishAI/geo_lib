@@ -50,6 +50,68 @@ def _transform_triangles(triangles: np.ndarray, transform: np.ndarray) -> np.nda
     return transformed.reshape(-1, 3, 3)
 
 
+def _rotation_basis_from_x_axis(axis: np.ndarray) -> np.ndarray | None:
+    axis = np.asarray(axis, dtype=float)
+    norm = float(np.linalg.norm(axis))
+    if norm < 1e-8:
+        return None
+    x_axis = axis / norm
+    helper = np.array([0.0, 0.0, 1.0], dtype=float)
+    if abs(float(np.dot(x_axis, helper))) > 0.92:
+        helper = np.array([0.0, 1.0, 0.0], dtype=float)
+    y_axis = np.cross(helper, x_axis)
+    y_axis /= max(float(np.linalg.norm(y_axis)), 1e-8)
+    z_axis = np.cross(x_axis, y_axis)
+    z_axis /= max(float(np.linalg.norm(z_axis)), 1e-8)
+    return np.column_stack((x_axis, y_axis, z_axis))
+
+
+def _is_finger_link(link_name: str) -> bool:
+    return link_name.startswith(('thumb', 'index', 'middle', 'ring', 'pinky'))
+
+
+def _is_arm_or_finger_link(link_name: str) -> bool:
+    if _is_finger_link(link_name):
+        return True
+    base_name = link_name[:-2] if link_name.endswith(('_l', '_r')) else link_name
+    return base_name in {'shoulder', 'arm_stretch', 'arm_twist', 'forearm_stretch', 'forearm_twist', 'hand'}
+
+
+def _link_root_axis_local(record: dict, record_by_name: dict[str, dict]) -> np.ndarray | None:
+    child_vectors = [
+        np.asarray(record_by_name[child_name]['local_xyz'], dtype=float)
+        for child_name in record.get('child_names', ())
+        if child_name in record_by_name and np.linalg.norm(record_by_name[child_name]['local_xyz']) > 1e-8
+    ]
+    if child_vectors:
+        return max(child_vectors, key=lambda vec: float(np.linalg.norm(vec)))
+
+    if record.get('parent_name') in record_by_name:
+        parent = record_by_name[record['parent_name']]
+        incoming_world = np.asarray(record['world_xyz'], dtype=float) - np.asarray(parent['world_xyz'], dtype=float)
+        local_rotation = np.asarray(record['world_matrix'], dtype=float)[:3, :3]
+        return local_rotation.T @ incoming_world
+    return None
+
+
+def _aligned_points(points: np.ndarray, basis: np.ndarray | None) -> np.ndarray:
+    if basis is None or len(points) == 0:
+        return points
+    return np.asarray(points, dtype=float) @ basis
+
+
+def _unaligned_points(points: np.ndarray, basis: np.ndarray | None) -> np.ndarray:
+    if basis is None or len(points) == 0:
+        return points
+    return np.asarray(points, dtype=float) @ basis.T
+
+
+def _aligned_triangles(triangles: np.ndarray, basis: np.ndarray | None) -> np.ndarray:
+    if basis is None or triangles.size == 0:
+        return triangles
+    return _aligned_points(np.asarray(triangles, dtype=float).reshape(-1, 3), basis).reshape(-1, 3, 3)
+
+
 def _unique_points(points: np.ndarray, tolerance: float = 1e-5) -> np.ndarray:
     if len(points) <= 1:
         return points
@@ -316,11 +378,17 @@ def _surface_sample_points(
     return points
 
 
-def _reconstruction_pitch(points: np.ndarray, min_thickness: float, target_cells: int, max_cells: int = 30) -> float:
+def _reconstruction_pitch(
+    points: np.ndarray,
+    min_thickness: float,
+    target_cells: int,
+    max_cells: int = 30,
+    min_pitch: float = 0.0025,
+) -> float:
     extent = points.max(axis=0) - points.min(axis=0)
     longest = float(max(extent.max(), min_thickness * 6.0))
     pitch = longest / max(target_cells, 1)
-    min_pitch = max(min_thickness * 0.5, 0.0025)
+    min_pitch = max(min_thickness * 0.5, float(min_pitch))
     max_pitch = max(min_thickness * 4.0, 0.03)
     pitch = float(np.clip(pitch, min_pitch, max_pitch))
     if longest / pitch > max_cells:
@@ -333,8 +401,11 @@ def _marching_surface_mesh(
     pitch: float,
     link_config: LowpolyMeshConfig,
 ) -> tuple[np.ndarray, np.ndarray, dict] | None:
-    from scipy import ndimage
-    from skimage import measure
+    try:
+        from scipy import ndimage
+        from skimage import measure
+    except Exception:
+        return None
 
     if len(points) < 4:
         return None
@@ -462,6 +533,7 @@ def _lowpoly_surface_mesh(
             min_thickness=min_thickness,
             target_cells=int(target_cells),
             max_cells=int(link_config.max_grid_cells),
+            min_pitch=float(link_config.min_pitch),
         )
         reconstructed = _marching_surface_mesh(points, pitch=pitch, link_config=link_config)
         if reconstructed is None:
@@ -518,6 +590,7 @@ def _voxelized_mesh_surface(
             min_thickness=min_thickness,
             target_cells=int(target_cells),
             max_cells=int(link_config.max_grid_cells),
+            min_pitch=float(link_config.min_pitch),
         )
         try:
             voxel = mesh.voxelized(pitch=pitch)
@@ -531,6 +604,30 @@ def _voxelized_mesh_surface(
         )
         if len(cleaned_faces) == 0:
             continue
+        fitted_vertices, fit_details = _fit_vertices_to_reference_bounds(
+            cleaned_vertices,
+            reference_points if len(reference_points) else source_points,
+            link_config,
+        )
+        unclustered_candidate = (
+            fitted_vertices,
+            [tuple(int(v) for v in face) for face in cleaned_faces.tolist()],
+            {
+                'method': 'voxelized_closed_surface',
+                'vertex_count': int(len(fitted_vertices)),
+                'face_count': int(len(cleaned_faces)),
+                'target_cells': int(target_cells),
+                'cluster_scale': 0.0,
+                'pitch': float(pitch),
+                **mesh_details,
+                **fit_details,
+            },
+        )
+        if bool(unclustered_candidate[2].get('watertight', False)):
+            if best_candidate is None or unclustered_candidate[2]['face_count'] < best_candidate[2]['face_count']:
+                best_candidate = unclustered_candidate
+            if len(cleaned_faces) <= link_config.max_faces:
+                return unclustered_candidate
 
         for cluster_scale in link_config.cluster_scales:
             clustered_vertices, clustered_faces = _cluster_mesh_vertices(
@@ -792,6 +889,7 @@ def _build_link_mesh(
     strategy: str,
     build_config: MeshBuildConfig,
     original_context=None,
+    marching_basis: np.ndarray | None = None,
 ) -> tuple[np.ndarray, list[tuple[int, int, int]], dict]:
     if len(local_points) >= 4:
         unique_points = _unique_points(local_points)
@@ -803,6 +901,7 @@ def _build_link_mesh(
                 if original_context is not None and len(fragment_faces) >= 4:
                     from mesh_repair_pipeline import RepairConfig, repair_fragment_arrays
 
+                    print(f'[MESH] repairing {link_name}', flush=True)
                     repaired = repair_fragment_arrays(
                         fragment_vertices_world,
                         fragment_faces,
@@ -820,6 +919,7 @@ def _build_link_mesh(
                         ),
                     )
                     if repaired is not None:
+                        print(f'[MESH] repair done {link_name}', flush=True)
                         repaired_vertices_world, repaired_faces, repaired_stats = repaired
                         repaired_result = (
                             repaired_vertices_world,
@@ -837,61 +937,55 @@ def _build_link_mesh(
                             'repair_method': repaired_stats.method,
                             'repair_warnings': repaired_stats.warnings,
                         }
-                        if bool(repaired_stats.watertight):
-                            return repaired_vertices_world, [
-                                tuple(int(v) for v in face) for face in repaired_faces.tolist()
-                            ], repaired_details
                 if repaired_result is not None:
                     repaired_vertices_world, repaired_faces_list = repaired_result
                     repaired_vertices_local = _transform_points(repaired_vertices_world, inverse_world)
-                    repaired_local_triangles = repaired_vertices_local[np.asarray(repaired_faces_list, dtype=np.int64)]
-                    remeshed_surface = _lowpoly_surface_mesh(
-                        repaired_local_triangles,
-                        min_thickness=min_thickness,
-                        link_config=link_cfg,
-                    )
-                    if remeshed_surface is not None:
-                        vertices, faces, details = remeshed_surface
-                        if bool(details.get('watertight', False)):
-                            return vertices, faces, {
-                                'method': 'skinned_lowpoly_surface_from_repaired',
-                                'repair_fallback': 'lowpoly_surface_from_repaired',
-                                'repair_input_watertight': bool(repaired_details.get('repair_watertight', False)),
-                                **details,
-                            }
+                    print(f'[MESH] voxel marching {link_name}', flush=True)
                     voxelized_surface = _voxelized_mesh_surface(
-                        repaired_vertices_local,
+                        _aligned_points(repaired_vertices_local, marching_basis),
                         np.asarray(repaired_faces_list, dtype=np.int64),
-                        reference_points=local_points,
+                        reference_points=_aligned_points(local_points, marching_basis),
                         min_thickness=min_thickness,
                         link_config=link_cfg,
                     )
                     if voxelized_surface is not None:
+                        print(f'[MESH] voxel marching done {link_name}', flush=True)
                         vertices, faces, details = voxelized_surface
+                        vertices = _unaligned_points(vertices, marching_basis)
                         return vertices, faces, {
+                            **details,
                             'method': 'skinned_voxelized_surface_from_repaired',
                             'repair_fallback': 'voxelized_surface_from_repaired',
                             'repair_input_watertight': bool(repaired_details.get('repair_watertight', False)),
-                            **details,
+                            'marching_axis_aligned': marching_basis is not None,
                         }
                 surface = _lowpoly_surface_mesh(
-                    local_triangles,
+                    _aligned_triangles(local_triangles, marching_basis),
                     min_thickness=min_thickness,
                     link_config=link_cfg,
                 )
                 if surface is not None:
                     vertices, faces, details = surface
                     if repaired_result is None or bool(details.get('watertight', False)):
+                        vertices = _unaligned_points(vertices, marching_basis)
                         extra = {}
                         if repaired_result is not None:
                             extra = {
                                 'repair_input_watertight': bool(repaired_details.get('repair_watertight', False)),
                                 'repair_fallback': 'lowpoly_surface',
                             }
-                        return vertices, faces, {'method': 'skinned_lowpoly_surface_fallback', **details, **extra}
+                        return vertices, faces, {
+                            **details,
+                            'method': 'skinned_lowpoly_surface_fallback',
+                            'marching_axis_aligned': marching_basis is not None,
+                            **extra,
+                        }
                 if repaired_result is not None:
                     repaired_vertices_world, repaired_faces_list = repaired_result
-                    return repaired_vertices_world, repaired_faces_list, repaired_details
+                    return repaired_vertices_world, repaired_faces_list, {
+                        **repaired_details,
+                        'marching_axis_aligned': marching_basis is not None,
+                    }
             if strategy == 'convex_hull':
                 for limit in (max(target_hull_points * 2, target_hull_points), target_hull_points, 40, 24):
                     sampled = _downsample_points(unique_points, limit)
@@ -925,6 +1019,7 @@ def build_mesh_collision_assets(
     build_config = build_config or DEFAULT_MESH_BUILD_CONFIG
     mesh_dir.mkdir(parents=True, exist_ok=True)
     primitive_geoms_by_name = build_link_geometries(records)
+    print('[MESH] extracting skinned surface fragments...', flush=True)
     (
         seed_points_by_name,
         seed_triangles_by_name,
@@ -937,17 +1032,22 @@ def build_mesh_collision_assets(
         skel,
         records,
     )
+    print(f'[MESH] extracted source triangles: {len(original_triangles)}', flush=True)
     original_context = None
     if strategy == 'lowpoly_surface' and len(original_triangles) >= 4:
         from mesh_repair_pipeline import prepare_original_mesh_context_from_triangles
 
+        print('[MESH] preparing original mesh context...', flush=True)
         original_context = prepare_original_mesh_context_from_triangles(original_triangles)
+        print('[MESH] original mesh context ready', flush=True)
 
     geoms_by_name: Dict[str, List[dict]] = {}
     summary: Dict[str, dict] = {}
+    record_by_name = {record['name']: record for record in records}
 
     for record in records:
         link_name = record['name']
+        print(f'[MESH] building {link_name}', flush=True)
         inverse_world = np.linalg.inv(np.asarray(record['world_matrix'], dtype=float))
         local_points = _transform_points(seed_points_by_name[link_name], inverse_world)
         local_triangles = _transform_triangles(seed_triangles_by_name[link_name], inverse_world)
@@ -956,6 +1056,11 @@ def build_mesh_collision_assets(
         fragment_faces = fragment_faces_by_name[link_name]
         fallback_geoms = primitive_geoms_by_name[link_name]
         min_thickness = float(build_config.min_thickness)
+        marching_axis_local = None
+        marching_basis = None
+        if _is_arm_or_finger_link(link_name):
+            marching_axis_local = _link_root_axis_local(record, record_by_name)
+            marching_basis = _rotation_basis_from_x_axis(marching_axis_local) if marching_axis_local is not None else None
         vertices, faces, details = _build_link_mesh(
             link_name,
             inverse_world,
@@ -971,6 +1076,7 @@ def build_mesh_collision_assets(
             strategy=strategy,
             build_config=build_config,
             original_context=original_context,
+            marching_basis=marching_basis,
         )
         if details.get('method') == 'skinned_repaired_surface':
             vertices = _transform_points(vertices, inverse_world)
@@ -996,6 +1102,11 @@ def build_mesh_collision_assets(
             'bounds_min': vertices.min(axis=0).tolist(),
             'bounds_max': vertices.max(axis=0).tolist(),
             'resolved_lowpoly_config': resolve_lowpoly_link_config(build_config, link_name).__dict__,
+            'marching_axis_local': (
+                (marching_axis_local / max(float(np.linalg.norm(marching_axis_local)), 1e-8)).tolist()
+                if marching_axis_local is not None and marching_basis is not None
+                else None
+            ),
             **details,
         }
 

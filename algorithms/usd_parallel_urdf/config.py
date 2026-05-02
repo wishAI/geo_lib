@@ -19,6 +19,7 @@ class LowpolyMeshConfig:
     dilation_iterations: int = 0
     padding_cells: int = 1
     max_grid_cells: int = 44
+    min_pitch: float = 0.0025
     max_sample_points: int = 45000
     sample_tolerance: float = 3e-4
     fit_margin_ratio: float = 0.03
@@ -56,9 +57,29 @@ DEFAULT_MESH_BUILD_CONFIG = MeshBuildConfig(
             fit_margin_min=5e-4,
             max_extent_ratio_xyz=(1.04, 1.04, 1.04),
         ),
+        # Fingers are thin enough that the default voxel pitch can erase joint
+        # shape. Keep a finer marching-cubes grid and postpone clustering.
+        'finger_default': replace(
+            DEFAULT_LOWPOLY_CONFIG,
+            max_faces=900,
+            target_face_ratio=0.45,
+            target_cells=(42, 38, 34, 30, 26, 22),
+            cluster_scales=(0.28, 0.36, 0.46, 0.58, 0.72, 0.9, 1.1),
+            smooth_sigma=0.22,
+            max_grid_cells=58,
+            min_pitch=0.0012,
+            fit_margin_ratio=0.012,
+            fit_margin_min=2e-4,
+            max_extent_ratio_xyz=(1.035, 1.035, 1.035),
+        ),
     }
 )
 
 
 def resolve_lowpoly_link_config(build_config: MeshBuildConfig, link_name: str) -> LowpolyMeshConfig:
+    finger_prefixes = ('thumb', 'index', 'middle', 'ring', 'pinky')
+    if link_name.startswith(finger_prefixes):
+        finger_config = build_config.lowpoly_link_overrides.get('finger_default')
+        if finger_config is not None:
+            return finger_config
     return build_config.lowpoly_link_overrides.get(link_name, build_config.lowpoly_default)
