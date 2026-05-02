@@ -32,6 +32,18 @@ class AssetPathTests(unittest.TestCase):
         self.assertEqual(paths.primitive_urdf, output_dir / 'example-bunny_parallel.urdf')
         self.assertEqual(paths.mesh_urdf, output_dir / 'example-bunny_parallel_mesh.urdf')
         self.assertEqual(paths.mesh_output_dir, output_dir / 'mesh_collision_stl' / 'example-bunny')
+        self.assertEqual(
+            paths.mesh_package_dir,
+            output_dir / 'urdf_packages' / 'example-bunny_parallel_mesh',
+        )
+        self.assertEqual(
+            paths.mesh_package_urdf,
+            output_dir / 'urdf_packages' / 'example-bunny_parallel_mesh' / 'example-bunny_parallel_mesh.urdf',
+        )
+        self.assertEqual(
+            paths.mesh_package_output_dir,
+            output_dir / 'urdf_packages' / 'example-bunny_parallel_mesh' / 'mesh_collision_stl' / 'example-bunny',
+        )
 
     def test_asset_tag_sanitizes_spaces(self) -> None:
         self.assertEqual(asset_tag(Path('/tmp/My Model v2.usdc')), 'My_Model_v2')
