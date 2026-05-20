@@ -7,8 +7,8 @@ from pathlib import Path
 import numpy as np
 
 from asset_paths import default_usd_path
-from mesh_collision_builder import _seed_surface_clouds
-from mesh_repair_pipeline import (
+from simplify_stl.mesh_collision_builder import _seed_surface_clouds
+from simplify_stl.mesh_repair_pipeline import (
     RepairConfig,
     _fix_normals,
     _remove_small_components,

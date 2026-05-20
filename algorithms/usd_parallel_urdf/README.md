@@ -30,7 +30,12 @@ This folder builds two URDF variants from an articulated `.usd`/`.usdc` characte
   - includes the resolved low-poly config used for each link
 - `config.py`
   - user-editable mesh generation defaults
-  - includes per-link overrides such as the higher-detail `head_x` profile
+  - includes per-link and per-body-part precision/method/axis overrides
+  - includes `body_default`, `head_x`, `foot_default`, `toe_default`, `hand_default`, and `finger_default`
+- `simplify_stl/`
+  - STL simplification, repair, postprocess packaging code, and `BACKBONE.md`
+- `pose_mapping.md`
+  - architecture notes for how USD skeleton pose mapping is preserved in URDF
 - `tests/*.py`
   - fast unit tests for config resolution, mesh-fit helpers, and skeleton/URDF utilities
 - `outputs/validation_<asset>/offline_transform_comparison.json`
@@ -52,7 +57,7 @@ This folder builds two URDF variants from an articulated `.usd`/`.usdc` characte
     - if simplification breaks watertightness, fall back to the repaired closed mesh or a voxel/lowpoly remesh of it
   - current default simplification is `lowpoly_surface`
   - it reconstructs a closed low-poly shell from the extracted per-link surface samples, then fits the shell back toward the source bounds so links do not balloon outward
-  - `obb` and `convex_hull` remain available as fallback/debug modes
+  - `alpha_shape`, `obb`, and `convex_hull` remain available as fallback/debug modes
 - `both`
   - writes both URDF variants in one build pass
 
@@ -80,11 +85,38 @@ Generate only the STL-backed URDF:
 
 Tune the STL build by editing `algorithms/usd_parallel_urdf/config.py`, then rebuild with the same command.
 
+The current supported knobs are:
+
+- Head precision: edit the exact `head_x` entry in `DEFAULT_MESH_BUILD_CONFIG.lowpoly_link_overrides`.
+- Body precision: edit the `body_default` entry; it applies to `root_x`, `spine_*`, and `neck_x` unless an exact link override exists.
+- Finger method: edit `finger_default` in `mesh_policy_overrides`; it currently uses `mesh_method="rounded_cylinder"`.
+- Alpha-shape tightness: edit `alpha_radius_ratios` and `alpha_max_points` in the resolved `LowpolyMeshConfig`.
+- Foot, toe, hand, and finger marching-axis alignment: edit `foot_default`, `toe_default`, `hand_default`, or `finger_default` in `mesh_policy_overrides`.
+- Custom marching axis: use `LinkMeshPolicy(marching_axis_mode="custom_local", marching_axis=(...))` or `custom_world` on an exact link such as `foot_l`.
+
+Generate/update the default URDF outputs through the repo launcher:
+
+```bash
+./geo usd build
+```
+
+Generate/update only the STL-backed mesh URDF:
+
+```bash
+./geo usd build-mesh
+```
+
 Build a self-contained marching-cubes STL package from the current mesh URDF/STL outputs in `ptenv`:
 
 ```bash
 pyenv activate ptenv
 python3 algorithms/usd_parallel_urdf/package_marching_cube_stls.py
+```
+
+Switch the mesh simplifier to alpha shapes:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --geometry-mode mesh --mesh-simplify-mode alpha_shape
 ```
 
 Switch the mesh simplifier to convex hulls instead of the default low-poly surface reconstruction:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from asset_paths import default_usd_path, resolve_asset_paths
 from config import DEFAULT_MESH_BUILD_CONFIG
-from mesh_collision_builder import build_mesh_collision_assets
+from simplify_stl.mesh_collision_builder import build_mesh_collision_assets
 from skeleton_common import build_link_geometries, extract_skeleton_records, generate_urdf_text, save_json, write_records_json
 
 
@@ -52,7 +52,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         '--mesh-simplify-mode',
-        choices=('lowpoly_surface', 'obb', 'convex_hull'),
+        choices=('lowpoly_surface', 'alpha_shape', 'obb', 'convex_hull'),
         default=DEFAULT_MESH_BUILD_CONFIG.mesh_simplify_mode,
         help='How to close and simplify the extracted per-link surface data into STL collision meshes.',
     )
@@ -193,6 +193,11 @@ def main() -> None:
                         'lowpoly_default': DEFAULT_MESH_BUILD_CONFIG.lowpoly_default.__dict__,
                         'lowpoly_link_overrides': {
                             name: cfg.__dict__ for name, cfg in DEFAULT_MESH_BUILD_CONFIG.lowpoly_link_overrides.items()
+                        },
+                        'mesh_policy_default': DEFAULT_MESH_BUILD_CONFIG.mesh_policy_default.__dict__,
+                        'mesh_policy_overrides': {
+                            name: policy.__dict__
+                            for name, policy in DEFAULT_MESH_BUILD_CONFIG.mesh_policy_overrides.items()
                         },
                     },
                     'links': mesh_assets['summary'],

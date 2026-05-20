@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from importlib.util import find_spec
 from pathlib import Path
 
 import numpy as np
@@ -11,8 +12,14 @@ MODULE_ROOT = Path(__file__).resolve().parents[1]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from config import LowpolyMeshConfig
-from mesh_collision_builder import _cluster_mesh_vertices, _fit_vertices_to_reference_bounds, _orient_faces_outward
+from config import LinkMeshPolicy, LowpolyMeshConfig
+from simplify_stl.mesh_collision_builder import (
+    _alpha_shape_mesh,
+    _cluster_mesh_vertices,
+    _fit_vertices_to_reference_bounds,
+    _orient_faces_outward,
+    _rounded_cylinder_from_points,
+)
 
 
 class MeshCollisionBuilderTests(unittest.TestCase):
@@ -96,6 +103,55 @@ class MeshCollisionBuilderTests(unittest.TestCase):
         scores = np.einsum('ij,ij->i', normals, centers - centroid)
 
         self.assertTrue(np.all(scores > 0.0))
+
+    def test_rounded_cylinder_mesh_spans_point_cloud_axis(self) -> None:
+        points = np.array(
+            [
+                [-0.05, -0.004, -0.004],
+                [-0.05, 0.004, 0.004],
+                [0.05, -0.004, 0.004],
+                [0.05, 0.004, -0.004],
+            ],
+            dtype=float,
+        )
+
+        result = _rounded_cylinder_from_points(
+            points,
+            min_thickness=0.002,
+            mesh_policy=LinkMeshPolicy(capsule_segments=8, capsule_rings=3, capsule_radius_scale=1.0),
+        )
+
+        self.assertIsNotNone(result)
+        vertices, faces, details = result
+        self.assertGreater(len(vertices), 8)
+        self.assertGreater(len(faces), 8)
+        self.assertEqual(details['method'], 'rounded_cylinder')
+        self.assertLessEqual(vertices[:, 0].min(), points[:, 0].min() + 1e-9)
+        self.assertGreaterEqual(vertices[:, 0].max(), points[:, 0].max() - 1e-9)
+
+    @unittest.skipIf(find_spec('scipy') is None, 'scipy is required for alpha-shape Delaunay tests')
+    def test_alpha_shape_mesh_builds_closed_boundary_from_points(self) -> None:
+        points = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 1.0, 0.0],
+            ],
+            dtype=float,
+        )
+
+        result = _alpha_shape_mesh(
+            points,
+            min_thickness=0.001,
+            link_config=LowpolyMeshConfig(alpha_radius_ratios=(0.6,), alpha_max_points=16),
+        )
+
+        self.assertIsNotNone(result)
+        vertices, faces, details = result
+        self.assertGreaterEqual(len(vertices), 4)
+        self.assertGreaterEqual(len(faces), 4)
+        self.assertEqual(details['method'], 'skinned_alpha_shape')
 
 
 if __name__ == '__main__':
