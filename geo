@@ -216,10 +216,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help=f"Remote geo_lib root. Defaults to {DEFAULT_REMOTE_ROOT}.",
     )
     pull_output.add_argument(
-        "--delete",
-        action="store_true",
-        help="Delete local output files that no longer exist on the remote.",
+        "--no-delete",
+        dest="delete",
+        action="store_false",
+        help="Keep local output files that no longer exist on the remote.",
     )
+    pull_output.set_defaults(delete=True)
 
     usd_parser = subparsers.add_parser("usd", help="USD Parallel URDF presets.")
     usd_subparsers = usd_parser.add_subparsers(dest="usd_cmd", required=True)
