@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import shlex
 import subprocess
 import sys
@@ -22,6 +23,8 @@ PTENV_PYTHON = Path.home() / ".pyenv" / "versions" / "ptenv" / "bin" / "python"
 ISAACLAB_SH = Path("/home/wishai/vscode/IsaacLab/isaaclab.sh")
 ISAACSIM_PYTHON = Path("/home/wishai/vscode/IsaacLab/_isaac_sim/python.sh")
 ISAACSIM_SH = Path("/home/wishai/vscode/IsaacLab/_isaac_sim/isaac-sim.sh")
+DEFAULT_REMOTE_HOST = "wishai@tk2.tail2a8d22.ts.net"
+DEFAULT_REMOTE_ROOT = "/home/wishai/vscode/geo_lib"
 
 
 @dataclass(frozen=True)
@@ -113,6 +116,37 @@ def _require_file(path: Path, label: str) -> None:
         raise SystemExit(f"{label} not found: {path}")
 
 
+def _require_executable(name: str) -> None:
+    if shutil.which(name) is None:
+        raise SystemExit(f"Required executable not found on PATH: {name}")
+
+
+def _quote_remote_path(path: str) -> str:
+    return shlex.quote(path)
+
+
+def _resolve_algorithm_output_paths(project: str, remote_root: str) -> tuple[Path, str]:
+    raw_project = project.strip()
+    if Path(raw_project).is_absolute():
+        raise SystemExit(f"Project must be relative to algorithms/: {project}")
+    normalized = raw_project.strip("/")
+    if normalized.startswith("algorithms/"):
+        normalized = normalized.removeprefix("algorithms/")
+    if normalized.endswith("/outputs"):
+        normalized = normalized.removesuffix("/outputs")
+    if not normalized or normalized in {".", ".."}:
+        raise SystemExit("Project must be an algorithm name such as `usd_parallel_urdf`.")
+    if normalized.startswith("../") or "/../" in normalized or normalized.endswith("/.."):
+        raise SystemExit(f"Unsafe project path: {project}")
+    local_output = REPO_ROOT / "algorithms" / normalized / "outputs"
+    algorithm_root = local_output.parent
+    if not algorithm_root.exists():
+        raise SystemExit(f"Unknown local algorithm: algorithms/{normalized}")
+
+    remote_output = f"{remote_root.rstrip('/')}/algorithms/{normalized}/outputs/"
+    return local_output, remote_output
+
+
 def _extract_global_flags(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     dry_run = False
     verbose = False
@@ -151,6 +185,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "  ./geo walk train --max_iterations 2\n"
             "  ./geo walk play --stage game\n"
             "  ./geo walk milestone --milestone-id stand_30s_no_reset --stage stand --load_run <run> --checkpoint model_<n>.pt\n"
+            "  ./geo pull-output usd_parallel_urdf\n"
             "  ./geo avp session --gui --baseline\n"
             "  ./geo pt -m pytest algorithms/usd_parallel_urdf/tests -q\n"
             "  ./geo isaac -m algorithms.urdf_learn_wasd_walk.scripts.train --robot landau --stage fwd_only --headless\n"
@@ -164,6 +199,27 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("isaac", help="Pass through to Isaac Lab's `isaaclab.sh -p`.")
     subparsers.add_parser("simpy", help="Pass through to Isaac Sim's `python.sh`.")
     subparsers.add_parser("sim", help="Pass through to Isaac Sim's `isaac-sim.sh`.")
+
+    pull_output = subparsers.add_parser(
+        "pull-output",
+        help="Pull an algorithm's ignored outputs/ folder from TK2 via rsync.",
+    )
+    pull_output.add_argument("project", help="Algorithm name, for example `usd_parallel_urdf`.")
+    pull_output.add_argument(
+        "--remote",
+        default=DEFAULT_REMOTE_HOST,
+        help=f"SSH host to pull from. Defaults to {DEFAULT_REMOTE_HOST}.",
+    )
+    pull_output.add_argument(
+        "--remote-root",
+        default=DEFAULT_REMOTE_ROOT,
+        help=f"Remote geo_lib root. Defaults to {DEFAULT_REMOTE_ROOT}.",
+    )
+    pull_output.add_argument(
+        "--delete",
+        action="store_true",
+        help="Delete local output files that no longer exist on the remote.",
+    )
 
     usd_parser = subparsers.add_parser("usd", help="USD Parallel URDF presets.")
     usd_subparsers = usd_parser.add_subparsers(dest="usd_cmd", required=True)
@@ -327,6 +383,9 @@ def _resolved_command(spec: LaunchSpec) -> tuple[list[str], dict[str, str]]:
         _require_file(ISAACSIM_SH, "Isaac Sim shell")
         cmd = [str(ISAACSIM_SH), *spec.argv]
         env = os.environ.copy()
+    elif spec.runner == "direct":
+        cmd = list(spec.argv)
+        env = os.environ.copy()
     else:
         raise SystemExit(f"Unsupported runner: {spec.runner}")
 
@@ -412,6 +471,17 @@ def _env_override_map(
 
 
 def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
+    if args.group == "pull-output":
+        if extra_args:
+            raise SystemExit(f"Unexpected pull-output arguments: {shlex.join(extra_args)}")
+        _require_executable("rsync")
+        local_output, remote_output = _resolve_algorithm_output_paths(args.project, args.remote_root)
+        rsync_args = ["rsync", "-azP"]
+        if args.delete:
+            rsync_args.append("--delete")
+        rsync_args.extend([f"{args.remote}:{_quote_remote_path(remote_output)}", f"{local_output}/"])
+        return LaunchSpec("direct", rsync_args)
+
     if args.group == "pt":
         if not extra_args:
             raise SystemExit("`geo pt` expects Python arguments, for example: ./geo pt -m pytest ...")
