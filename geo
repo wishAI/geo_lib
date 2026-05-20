@@ -23,8 +23,9 @@ PTENV_PYTHON = Path.home() / ".pyenv" / "versions" / "ptenv" / "bin" / "python"
 ISAACLAB_SH = Path("/home/wishai/vscode/IsaacLab/isaaclab.sh")
 ISAACSIM_PYTHON = Path("/home/wishai/vscode/IsaacLab/_isaac_sim/python.sh")
 ISAACSIM_SH = Path("/home/wishai/vscode/IsaacLab/_isaac_sim/isaac-sim.sh")
-DEFAULT_REMOTE_HOST = "wishai@tk2.tail2a8d22.ts.net"
+DEFAULT_REMOTE_HOST = "tk2"
 DEFAULT_REMOTE_ROOT = "/home/wishai/vscode/geo_lib"
+DEFAULT_RSYNC_SSH = "ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
 
 
 @dataclass(frozen=True)
@@ -478,7 +479,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             raise SystemExit(f"Unexpected pull-output arguments: {shlex.join(extra_args)}")
         _require_executable("rsync")
         local_output, remote_output = _resolve_algorithm_output_paths(args.project, args.remote_root)
-        rsync_args = ["rsync", "-azP"]
+        rsync_args = ["rsync", "-azP", "--timeout=60", "-e", DEFAULT_RSYNC_SSH]
         if args.delete:
             rsync_args.append("--delete")
         rsync_args.extend([f"{args.remote}:{_quote_remote_path(remote_output)}", f"{local_output}/"])
