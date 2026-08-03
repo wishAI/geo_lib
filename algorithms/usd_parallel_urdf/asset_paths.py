@@ -89,7 +89,9 @@ def resolve_asset_paths(
     tag = asset_tag(usd_path)
     primitive_robot_name = robot_name or f'{tag}_parallel'
     resolved_mesh_robot_name = mesh_robot_name or f'{primitive_robot_name}_mesh'
-    resolved_mesh_package_dir = mesh_package_dir or (output_dir / 'urdf_packages' / resolved_mesh_robot_name)
+    resolved_mesh_package_dir = mesh_package_dir or (output_dir / 'urdf_packages' / tag)
+    resolved_mesh_package_output_dir = resolved_mesh_package_dir / 'mesh_collision_stl' / tag
+    resolved_mesh_output_dir = mesh_output_dir or resolved_mesh_package_output_dir
     return AssetPaths(
         usd_path=usd_path,
         output_dir=output_dir,
@@ -99,10 +101,10 @@ def resolve_asset_paths(
         skeleton_json=output_dir / f'{tag}_skeleton.json',
         primitive_urdf=output_dir / f'{primitive_robot_name}.urdf',
         mesh_urdf=output_dir / f'{resolved_mesh_robot_name}.urdf',
-        mesh_output_dir=mesh_output_dir or (output_dir / 'mesh_collision_stl' / tag),
+        mesh_output_dir=resolved_mesh_output_dir,
         mesh_package_dir=resolved_mesh_package_dir,
         mesh_package_urdf=resolved_mesh_package_dir / f'{resolved_mesh_robot_name}.urdf',
-        mesh_package_output_dir=resolved_mesh_package_dir / 'mesh_collision_stl' / tag,
+        mesh_package_output_dir=resolved_mesh_package_output_dir,
         mesh_package_summary=resolved_mesh_package_dir / f'{tag}_mesh_collision_summary.json',
         mesh_summary=output_dir / f'{tag}_mesh_collision_summary.json',
         primitive_validation_dir=output_dir / f'validation_{tag}',

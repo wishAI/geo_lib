@@ -42,13 +42,13 @@ def _parse_args() -> argparse.Namespace:
         '--mesh-output-dir',
         type=Path,
         default=None,
-        help='Directory where the per-link STL collision meshes will be written. Defaults to outputs/mesh_collision_stl/<input-stem>/',
+        help='Directory where the per-link STL collision meshes will be written. Defaults to outputs/urdf_packages/<input-stem>/mesh_collision_stl/<input-stem>/',
     )
     parser.add_argument(
         '--mesh-package-dir',
         type=Path,
         default=None,
-        help='Self-contained URDF package directory. Defaults to outputs/urdf_packages/<mesh-robot-name>/',
+        help='Self-contained URDF package directory. Defaults to outputs/urdf_packages/<input-stem>/',
     )
     parser.add_argument(
         '--mesh-simplify-mode',
@@ -156,13 +156,16 @@ def main() -> None:
 
         if args.geometry_mode in ('mesh', 'both'):
             mesh_robot_name = asset_paths.mesh_robot_name
-            mesh_urdf_path = asset_paths.mesh_urdf
+            mesh_urdf_path = asset_paths.mesh_package_urdf
+            asset_paths.mesh_package_dir.mkdir(parents=True, exist_ok=True)
+            if asset_paths.mesh_output_dir.exists():
+                shutil.rmtree(asset_paths.mesh_output_dir)
             print('[GEN] building mesh collision assets...', flush=True)
             mesh_assets = build_mesh_collision_assets(
                 stage=stage,
                 skel=skel,
                 records=records,
-                urdf_dir=args.output_dir,
+                urdf_dir=asset_paths.mesh_package_dir,
                 mesh_dir=asset_paths.mesh_output_dir,
                 strategy=args.mesh_simplify_mode,
                 max_hull_faces=args.max_hull_faces,
@@ -170,7 +173,7 @@ def main() -> None:
                 build_config=DEFAULT_MESH_BUILD_CONFIG,
             )
             print('[GEN] mesh collision assets ready', flush=True)
-            mesh_summary_path = asset_paths.mesh_summary
+            mesh_summary_path = asset_paths.mesh_package_summary
             mesh_urdf_text = generate_urdf_text(
                 mesh_robot_name,
                 records,
@@ -203,13 +206,6 @@ def main() -> None:
                     'links': mesh_assets['summary'],
                 },
             )
-            asset_paths.mesh_package_dir.mkdir(parents=True, exist_ok=True)
-            if asset_paths.mesh_package_output_dir.exists():
-                shutil.rmtree(asset_paths.mesh_package_output_dir)
-            asset_paths.mesh_package_output_dir.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(asset_paths.mesh_output_dir, asset_paths.mesh_package_output_dir)
-            asset_paths.mesh_package_urdf.write_text(mesh_urdf_text, encoding='utf-8')
-            shutil.copy2(mesh_summary_path, asset_paths.mesh_package_summary)
             print(f'[GEN] wrote mesh URDF: {mesh_urdf_path}')
             print(f'[GEN] wrote mesh summary: {mesh_summary_path}')
             print(f'[GEN] wrote mesh STL directory: {asset_paths.mesh_output_dir}')

@@ -96,6 +96,7 @@ def _resolve_usd_asset_paths(extra_args: list[str]) -> dict[str, Path]:
         "output_dir": output_dir,
         "primitive_urdf": output_dir / f"{primitive_name}.urdf",
         "mesh_urdf": output_dir / f"{mesh_name}.urdf",
+        "mesh_package_urdf": output_dir / "urdf_packages" / tag / f"{mesh_name}.urdf",
         "primitive_validation_dir": output_dir / f"validation_{tag}",
         "mesh_validation_dir": output_dir / f"validation_mesh_{tag}",
     }
@@ -464,7 +465,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 argv.extend(
                     [
                         "--urdf-path",
-                        _repo_arg(asset_paths["mesh_urdf"]),
+                        _repo_arg(asset_paths["mesh_package_urdf"]),
                         "--output-dir",
                         _repo_arg(asset_paths["mesh_validation_dir"]),
                     ]
@@ -476,7 +477,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             argv = [
                 "algorithms/usd_parallel_urdf/play_parallel_animation.py",
                 "--urdf-path",
-                _repo_arg(asset_paths["mesh_urdf"]),
+                _repo_arg(asset_paths["mesh_package_urdf"]),
                 "--animation-clip",
                 "walk_cycle",
                 "--camera-view",
@@ -502,7 +503,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 _repo_arg(default_output),
             ]
             if args.mesh:
-                argv.extend(["--urdf-path", _repo_arg(asset_paths["mesh_urdf"])])
+                argv.extend(["--urdf-path", _repo_arg(asset_paths["mesh_package_urdf"])])
             if args.headless:
                 argv.append("--headless")
             argv.extend(extra_args)

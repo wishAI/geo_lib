@@ -153,6 +153,34 @@ class MeshCollisionBuilderTests(unittest.TestCase):
         self.assertGreaterEqual(len(faces), 4)
         self.assertEqual(details['method'], 'skinned_alpha_shape')
 
+    @unittest.skipIf(find_spec('scipy') is None or find_spec('trimesh') is None, 'scipy and trimesh are required')
+    def test_alpha_shape_rejects_disconnected_partial_shells(self) -> None:
+        left = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [0.3, 0.0, 0.0],
+                [0.0, 0.3, 0.0],
+                [0.0, 0.0, 0.3],
+            ],
+            dtype=float,
+        )
+        right = left + np.array([3.0, 0.0, 0.0], dtype=float)
+        points = np.vstack((left, right))
+
+        result = _alpha_shape_mesh(
+            points,
+            min_thickness=0.001,
+            link_config=LowpolyMeshConfig(alpha_radius_ratios=(0.12,), alpha_max_points=16),
+        )
+
+        self.assertIsNotNone(result)
+        vertices, faces, details = result
+        self.assertEqual(details['method'], 'skinned_alpha_shape_convex_fallback')
+        self.assertTrue(details['watertight'])
+        self.assertEqual(details['component_count'], 1)
+        self.assertGreaterEqual(len(vertices), 4)
+        self.assertGreaterEqual(len(faces), 4)
+
 
 if __name__ == '__main__':
     unittest.main()

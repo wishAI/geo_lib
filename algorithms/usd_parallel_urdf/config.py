@@ -27,7 +27,7 @@ class LowpolyMeshConfig:
     max_extent_ratio_xyz: Tuple[float, float, float] = (1.08, 1.08, 1.08)
     smoothing_iterations: int = 0
     smoothing_lambda: float = 0.35
-    alpha_radius_ratios: Tuple[float, ...] = (0.12, 0.16, 0.22, 0.3, 0.45, 0.7, 1.05)
+    alpha_radius_ratios: Tuple[float, ...] = (0.12, 0.16, 0.22, 0.3, 0.45, 0.7, 1.05, 1.6, 2.4, 4.0)
     alpha_max_points: int = 600
 
 
@@ -57,7 +57,7 @@ class LinkMeshPolicy:
 
 @dataclass(frozen=True)
 class MeshBuildConfig:
-    mesh_simplify_mode: str = 'lowpoly_surface'
+    mesh_simplify_mode: str = 'alpha_shape'
     max_hull_faces: int = 48
     target_hull_points: int = 24
     min_thickness: float = 0.004
@@ -96,11 +96,12 @@ DEFAULT_MESH_BUILD_CONFIG = MeshBuildConfig(
             fit_margin_min=5e-4,
             max_extent_ratio_xyz=(1.04, 1.04, 1.04),
         ),
-        # Fingers are thin enough that the default voxel pitch can erase joint
-        # shape. Keep a finer marching-cubes grid and postpone clustering.
+        # Fingers are thin and visually sensitive. Keep more alpha-shape input
+        # points so knuckle and taper silhouettes are preserved where the USD
+        # skinning data has enough samples.
         'finger_default': replace(
             DEFAULT_LOWPOLY_CONFIG,
-            max_faces=900,
+            max_faces=1200,
             target_face_ratio=0.45,
             target_cells=(42, 38, 34, 30, 26, 22),
             cluster_scales=(0.28, 0.36, 0.46, 0.58, 0.72, 0.9, 1.1),
@@ -110,6 +111,8 @@ DEFAULT_MESH_BUILD_CONFIG = MeshBuildConfig(
             fit_margin_ratio=0.012,
             fit_margin_min=2e-4,
             max_extent_ratio_xyz=(1.035, 1.035, 1.035),
+            alpha_radius_ratios=(0.1, 0.14, 0.18, 0.24, 0.32, 0.45, 0.7, 1.05, 1.6, 2.4, 4.0),
+            alpha_max_points=900,
         ),
     },
     mesh_policy_overrides={
@@ -121,12 +124,8 @@ DEFAULT_MESH_BUILD_CONFIG = MeshBuildConfig(
         'foot_default': LinkMeshPolicy(marching_axis_mode='local'),
         'toe_default': LinkMeshPolicy(marching_axis_mode='local'),
         'finger_default': LinkMeshPolicy(
-            mesh_method='rounded_cylinder',
+            mesh_method='alpha_shape',
             marching_axis_mode='local',
-            capsule_segments=12,
-            capsule_rings=4,
-            capsule_radius_scale=0.58,
-            capsule_min_radius=0.0012,
         ),
     },
 )

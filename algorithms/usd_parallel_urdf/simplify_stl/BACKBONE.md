@@ -40,7 +40,7 @@ MeshBuildConfig(
     mesh_policy_overrides={
         "foot_default": LinkMeshPolicy(marching_axis_mode="local"),
         "toe_default": LinkMeshPolicy(marching_axis_mode="local"),
-        "finger_default": LinkMeshPolicy(mesh_method="rounded_cylinder", marching_axis_mode="local"),
+        "finger_default": LinkMeshPolicy(mesh_method="alpha_shape", marching_axis_mode="local"),
         "thumb2_l": LinkMeshPolicy(marching_axis_mode="custom_local", marching_axis=(1.0, 0.0, 0.0)),
     },
 )
@@ -56,7 +56,7 @@ All methods follow the same output rules:
 - Respect the resolved `LinkMeshPolicy`; exact link policy wins over body-part policy, and body-part policy wins over global defaults.
 - Keep STL vertices local to the URDF link. Do not bake the link world transform into the STL.
 - Fit generated surfaces back toward the source link bounds unless the method is a deliberate primitive fallback.
-- Record the resolved method, policy, face counts, fit details, and axis policy in `<asset>_mesh_collision_summary.json`.
+- Record the resolved method, policy, face counts, fit details, and axis policy in `outputs/urdf_packages/<asset>/<asset>_mesh_collision_summary.json`.
 - Fall back to simpler geometry instead of emitting empty or invalid STL data.
 
 ## Low-Poly Surface Method
@@ -69,7 +69,7 @@ The default `lowpoly_surface` method is surface-driven. It samples source triang
 - A Gaussian-smoothed scalar field is extracted with marching cubes.
 - The resulting mesh is cleaned, vertex-clustered at several `cluster_scales`, and fit back toward the original source bounds.
 
-The method selects the first candidate that satisfies `max_faces`, or the best lower-face candidate found. The output metadata records pitch, grid shape, face count, cluster scale, watertightness, and fit scale. These values are emitted in `<asset>_mesh_collision_summary.json`.
+The method selects the first candidate that satisfies `max_faces`, or the best lower-face candidate found. The output metadata records pitch, grid shape, face count, cluster scale, watertightness, and fit scale. These values are emitted in the package mesh summary.
 
 ## Repair And Voxel Fallback
 
@@ -89,13 +89,13 @@ This ordering matters. Sparse marching cubes are good for lightweight collision 
 
 Small radius ratios preserve tighter concavities but can fragment or drop sparse regions. Large ratios approach a convex hull. Configure exact links first when a body part needs different tightness; avoid using alpha shapes for very sparse or mostly planar point sets because Delaunay may fail or produce a box fallback.
 
-## Rounded Cylinder Finger Method
+## Rounded Cylinder Method
 
-`rounded_cylinder` is a synthetic method for finger-like links. It does not preserve source surface detail. It fits a capsule around the link's resolved axis: a cylinder in the center and hemispherical caps on both ends.
+`rounded_cylinder` is a synthetic method for thin links. It does not preserve source surface detail. It fits a capsule around the link's resolved axis: a cylinder in the center and hemispherical caps on both ends.
 
 The point cloud is first transformed into the configured marching basis, so the resolved axis becomes local `+X`. The capsule radius comes from the maximum transverse extent, scaled by `capsule_radius_scale` and clamped by `capsule_min_radius` and `min_thickness`. The capsule length spans the original axial bounds. The mesh is then transformed back into the link-local frame before STL export.
 
-This method is intentionally stable for fingers because finger collision usually benefits more from smooth, predictable volumes than from preserving knuckle mesh detail. If a specific finger segment needs source-driven detail, override that link back to `mesh_method="lowpoly_surface"`.
+Use this method when a link needs a smooth conservative capsule instead of source-driven geometry.
 
 ## Convex Hull And OBB Methods
 

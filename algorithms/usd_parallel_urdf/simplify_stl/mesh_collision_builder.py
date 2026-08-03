@@ -508,6 +508,54 @@ def _alpha_shape_boundary_faces(points: np.ndarray, radius: float) -> list[tuple
     return [face for face, count in face_counts.items() if count == 1]
 
 
+def _alpha_candidate_is_complete(details: dict) -> bool:
+    if not bool(details.get('watertight', False)):
+        return False
+    if int(details.get('component_count', 0)) != 1:
+        return False
+    source_extent = np.asarray(details.get('source_extent', ()), dtype=float)
+    output_extent = np.asarray(details.get('mesh_extent_after_fit', ()), dtype=float)
+    if source_extent.shape != (3,) or output_extent.shape != (3,):
+        return True
+    coverage = output_extent / np.maximum(source_extent, 1e-8)
+    return bool(np.all(coverage >= 0.80))
+
+
+def _alpha_shape_convex_fallback(
+    alpha_points: np.ndarray,
+    source_points: np.ndarray,
+    link_config: LowpolyMeshConfig,
+) -> tuple[np.ndarray, list[tuple[int, int, int]], dict] | None:
+    hull = _convex_hull_mesh(alpha_points, max_hull_faces=100000)
+    if hull is None:
+        return None
+
+    vertices, faces, hull_details = hull
+    cleaned_vertices, cleaned_faces, mesh_details = _clean_mesh(
+        vertices,
+        np.asarray(faces, dtype=np.int64),
+        include_components=True,
+    )
+    if len(cleaned_faces) == 0:
+        return None
+    fitted_vertices, fit_details = _fit_vertices_to_reference_bounds(cleaned_vertices, source_points, link_config)
+    fitted_vertices, oriented_faces = _orient_faces_outward(
+        fitted_vertices,
+        [tuple(int(v) for v in face) for face in cleaned_faces.tolist()],
+    )
+    return fitted_vertices, oriented_faces, {
+        'method': 'skinned_alpha_shape_convex_fallback',
+        'vertex_count': int(len(fitted_vertices)),
+        'face_count': int(len(oriented_faces)),
+        'alpha_fallback_reason': 'no_single_component_watertight_alpha_shape',
+        'alpha_input_points': int(len(source_points)),
+        'alpha_sample_points': int(len(alpha_points)),
+        **hull_details,
+        **mesh_details,
+        **fit_details,
+    }
+
+
 def _alpha_shape_mesh(
     points: np.ndarray,
     min_thickness: float,
@@ -537,7 +585,11 @@ def _alpha_shape_mesh(
         if len(faces) == 0:
             continue
 
-        cleaned_vertices, cleaned_faces, mesh_details = _clean_mesh(alpha_points, np.asarray(faces, dtype=np.int64))
+        cleaned_vertices, cleaned_faces, mesh_details = _clean_mesh(
+            alpha_points,
+            np.asarray(faces, dtype=np.int64),
+            include_components=True,
+        )
         if len(cleaned_faces) == 0:
             continue
         fitted_vertices, fit_details = _fit_vertices_to_reference_bounds(cleaned_vertices, source_points, link_config)
@@ -560,10 +612,20 @@ def _alpha_shape_mesh(
                 **fit_details,
             },
         )
-        if best_candidate is None or candidate[2]['face_count'] < best_candidate[2]['face_count']:
+        if not _alpha_candidate_is_complete(candidate[2]):
+            if best_candidate is None:
+                best_candidate = candidate
+            continue
+        if best_candidate is None or not _alpha_candidate_is_complete(best_candidate[2]):
+            best_candidate = candidate
+        elif candidate[2]['face_count'] < best_candidate[2]['face_count']:
             best_candidate = candidate
         if candidate[2]['face_count'] <= int(link_config.max_faces):
             return candidate
+    if best_candidate is None or not _alpha_candidate_is_complete(best_candidate[2]):
+        convex_fallback = _alpha_shape_convex_fallback(alpha_points, source_points, link_config)
+        if convex_fallback is not None:
+            return convex_fallback
     return best_candidate
 
 
@@ -599,22 +661,39 @@ def _cluster_mesh_vertices(
     return clustered_vertices, unique_faces
 
 
-def _clean_mesh(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, dict]:
+def _clean_mesh(vertices: np.ndarray, faces: np.ndarray, include_components: bool = False) -> tuple[np.ndarray, np.ndarray, dict]:
     if len(vertices) == 0 or len(faces) == 0:
-        return vertices[:0], faces[:0], {'watertight': False, 'volume': 0.0}
+        details = {'watertight': False, 'volume': 0.0}
+        if include_components:
+            details.update({'component_count': 0, 'largest_component_area_ratio': 0.0})
+        return vertices[:0], faces[:0], details
 
     try:
         import trimesh
 
         mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=True)
         mesh.remove_unreferenced_vertices()
+        details = {'watertight': bool(mesh.is_watertight), 'volume': float(abs(mesh.volume))}
+        if include_components:
+            parts = mesh.split(only_watertight=False)
+            areas = [float(part.area) for part in parts]
+            total_area = sum(areas)
+            details.update(
+                {
+                    'component_count': int(len(parts)),
+                    'largest_component_area_ratio': float(max(areas) / total_area) if total_area > 1e-12 else 0.0,
+                }
+            )
         return (
             np.asarray(mesh.vertices, dtype=float),
             np.asarray(mesh.faces, dtype=np.int64),
-            {'watertight': bool(mesh.is_watertight), 'volume': float(abs(mesh.volume))},
+            details,
         )
     except Exception:
-        return vertices, faces, {'watertight': False, 'volume': 0.0}
+        details = {'watertight': False, 'volume': 0.0}
+        if include_components:
+            details.update({'component_count': 0, 'largest_component_area_ratio': 0.0})
+        return vertices, faces, details
 
 
 def _surface_sample_points(

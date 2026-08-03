@@ -165,7 +165,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     paths = resolve_asset_paths(args.usd_path, args.output_dir, mesh_package_dir=args.package_dir)
-    source_urdf = args.source_urdf or paths.mesh_urdf
+    source_urdf = args.source_urdf or paths.mesh_package_urdf
     source_mesh_dir = args.source_mesh_dir or paths.mesh_output_dir
     package_dir = paths.mesh_package_dir
     package_mesh_dir = paths.mesh_package_output_dir
@@ -173,12 +173,16 @@ def main() -> None:
 
     records = load_records_json(paths.skeleton_json)
     record_by_name = {record['name']: record for record in records}
+    source_urdf_text = source_urdf.read_text(encoding='utf-8')
+    source_meshes = [(stl_path.name, _load_trimesh(stl_path)) for stl_path in sorted(source_mesh_dir.glob('*.stl'))]
+    if not source_meshes:
+        raise RuntimeError(f'No STL files found in {source_mesh_dir}')
 
     package_dir.mkdir(parents=True, exist_ok=True)
     if package_mesh_dir.exists():
         shutil.rmtree(package_mesh_dir)
     package_mesh_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_urdf, package_urdf)
+    package_urdf.write_text(source_urdf_text, encoding='utf-8')
 
     summary = {
         'source_urdf': str(source_urdf),
@@ -189,13 +193,8 @@ def main() -> None:
         'links': {},
     }
 
-    stl_paths = sorted(source_mesh_dir.glob('*.stl'))
-    if not stl_paths:
-        raise RuntimeError(f'No STL files found in {source_mesh_dir}')
-
-    for stl_path in stl_paths:
-        link_name = stl_path.stem
-        mesh = _load_trimesh(stl_path)
+    for stl_name, mesh in source_meshes:
+        link_name = Path(stl_name).stem
         link_cfg = resolve_lowpoly_link_config(DEFAULT_MESH_BUILD_CONFIG, link_name)
         mesh_policy = resolve_link_mesh_policy(DEFAULT_MESH_BUILD_CONFIG, link_name)
         basis = None
@@ -209,7 +208,7 @@ def main() -> None:
             )
             basis = _rotation_basis_from_x_axis(axis_local) if axis_local is not None else None
         remeshed, stats = _remesh_link(link_name, mesh, link_cfg, basis)
-        output_path = package_mesh_dir / stl_path.name
+        output_path = package_mesh_dir / stl_name
         _write_binary_stl(
             output_path,
             np.asarray(remeshed.vertices, dtype=float),
