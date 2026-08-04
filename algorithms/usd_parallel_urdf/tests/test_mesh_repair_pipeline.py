@@ -11,7 +11,7 @@ MODULE_ROOT = Path(__file__).resolve().parents[1]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from mesh_repair_pipeline import solid_angle_winding_number, triangles_to_mesh_arrays
+from simplify_stl.mesh_repair_pipeline import solid_angle_winding_number, triangles_to_mesh_arrays
 
 
 class MeshRepairPipelineTests(unittest.TestCase):

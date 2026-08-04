@@ -10,11 +10,12 @@ If the repository is heavily restructured, or most code files are deleted and re
 2. `agent_guide.md`
 3. `CONTEXT.md`
 4. `skills/geo-walk-training/SKILL.md`
-5. `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
-6. `algorithms/urdf_learn_wasd_walk/outputs/history/active_lineage.json`
-7. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/index.json`
-8. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/milestones.json`
-9. `algorithms/urdf_learn_wasd_walk/outputs/history/checkpoint_registry.json`
+5. `skills/training-agent/SKILL.md`
+6. `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
+7. `algorithms/urdf_learn_wasd_walk/outputs/history/active_lineage.json`
+8. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/index.json`
+9. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/milestones.json`
+10. `algorithms/urdf_learn_wasd_walk/outputs/history/checkpoint_registry.json`
 
 ## What To Preserve If You Wipe And Rebuild
 
@@ -24,6 +25,7 @@ Keep these files and folders even if most code is deleted:
 - `agent_guide.md`
 - `CONTEXT.md`
 - `skills/geo-walk-training/SKILL.md`
+- `skills/training-agent/SKILL.md`
 - `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
 - `algorithms/urdf_learn_wasd_walk/outputs/history/`
 - `algorithms/urdf_learn_wasd_walk/inputs/landau_v10/`

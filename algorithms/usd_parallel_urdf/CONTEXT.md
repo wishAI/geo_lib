@@ -45,11 +45,13 @@ This folder now supports two geometry variants over the same joint tree:
   - if repair still cannot produce a watertight result, fall back to low-poly or voxelized remeshing of the repaired surface
 - Simplification:
   - collect the assigned points in link-local space
-  - default mode `lowpoly_surface` reconstructs a low-poly shell from extracted link surface samples or repaired closed surfaces
-  - the shell is vertex-clustered to keep the face budget low enough for collision use
+  - default mode `alpha_shape` builds a Delaunay alpha complex from link-local points, keeps tetrahedra below configured circumsphere radii, and exports the boundary triangles
+  - alpha candidates must be watertight, single-component, and broadly cover the source link extents; otherwise the builder searches larger radii and finally uses a convex alpha-limit fallback
+  - optional `lowpoly_surface` reconstructs a low-poly shell from extracted link surface samples or repaired closed surfaces
+  - the low-poly shell is vertex-clustered to keep the face budget low enough for collision use
   - after reconstruction, the mesh is fit back toward the source link bounds so it does not inflate beyond the USD surface envelope
 - Optional alternate mode:
-  - `obb` and `convex_hull` are still available for fallback/debugging, but they are not the default
+  - `lowpoly_surface`, `obb`, and `convex_hull` are still available for fallback/debugging, but they are not the default
 
 The important distinction from the primitive URDF is that the STL mode is still surface-driven: the collision mesh comes from the extracted USD faces/vertices for that link, not from the skeleton edge alone.
 
@@ -60,17 +62,20 @@ The important distinction from the primitive URDF is that the STL mode is still 
 - `build_parallel_urdf.py`
   - builds the skeleton JSON
   - writes the primitive URDF and/or the mesh URDF
-  - writes `<asset>_mesh_collision_summary.json`
+  - writes the mesh URDF package under `outputs/urdf_packages/<asset>/`
+  - writes `<asset>_mesh_collision_summary.json` inside that package
 - `config.py`
   - holds the supported mesh-generation tuning knobs
   - default low-poly settings live here, including the `head_x` override
-- `mesh_collision_builder.py`
+- `simplify_stl/mesh_collision_builder.py`
   - extracts per-link surface ownership from the skinned USD mesh
   - closes and simplifies the result into STL collision meshes
   - owns the repair/remesh fallback cascade for stubborn links
-- `mesh_repair_pipeline.py`
+- `simplify_stl/mesh_repair_pipeline.py`
   - repair-first mesh closing tool derived from `mesh_pipeline_agent_prompt.md`
   - pure-Python fallback for winding-number checks, hole closing, and simplified mesh reporting
+- `simplify_stl/BACKBONE.md`
+  - method-level design notes, major steps, and rules for STL simplification
 - `validate_parallel_scene.py`
   - loads the source USD and a generated URDF together in Isaac
   - useful for headless scene and import validation

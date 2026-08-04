@@ -46,7 +46,7 @@ def main() -> None:
     folder = Path(__file__).resolve().parent
     asset_paths = resolve_asset_paths(args.usd_path, folder / 'outputs')
     skeleton_json_path = args.skeleton_json or asset_paths.skeleton_json
-    urdf_path = None if args.skip_urdf else (args.urdf_path or asset_paths.mesh_urdf)
+    urdf_path = None if args.skip_urdf else (args.urdf_path or asset_paths.mesh_package_urdf)
     output_path = args.output_path or (asset_paths.output_dir / f'{asset_paths.asset_tag}_{args.pose_preset}_arm_pose_diagnostics.json')
 
     _, records = load_records_from_json(skeleton_json_path)

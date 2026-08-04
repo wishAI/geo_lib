@@ -15,19 +15,21 @@ This folder builds two URDF variants from an articulated `.usd`/`.usdc` characte
   - primitive collision URDF
   - one link per USD skeleton joint
   - simple box/sphere colliders derived from skeleton edges
-- `outputs/<asset>_parallel_mesh.urdf`
-  - mesh-backed collision URDF
-  - same joints and transforms as the primitive URDF
-  - each link points at its own STL under `outputs/mesh_collision_stl/<asset>/`
-- `outputs/mesh_collision_stl/<asset>/*.stl`
-  - one closed simplified STL per link
-  - generated from USD surface vertices/faces assigned to the dominant skinning joint
-- `outputs/<asset>_mesh_collision_summary.json`
+- `outputs/urdf_packages/<asset>/`
+  - self-contained URDF package for drag-and-drop robot viewers
+  - contains `<asset>_parallel_mesh.urdf` plus the referenced `mesh_collision_stl/<asset>/` folder
+  - this is the default mesh URDF path used by the repo launcher
+- `outputs/urdf_packages/<asset>/<asset>_mesh_collision_summary.json`
   - per-link mesh build metadata
   - includes the resolved low-poly config used for each link
 - `config.py`
   - user-editable mesh generation defaults
-  - includes per-link overrides such as the higher-detail `head_x` profile
+  - includes per-link and per-body-part precision/method/axis overrides
+  - includes `body_default`, `head_x`, `foot_default`, `toe_default`, `hand_default`, and `finger_default`
+- `simplify_stl/`
+  - STL simplification, repair, postprocess packaging code, and `BACKBONE.md`
+- `pose_mapping.md`
+  - architecture notes for how USD skeleton pose mapping is preserved in URDF
 - `tests/*.py`
   - fast unit tests for config resolution, mesh-fit helpers, and skeleton/URDF utilities
 - `outputs/validation_<asset>/offline_transform_comparison.json`
@@ -42,14 +44,11 @@ This folder builds two URDF variants from an articulated `.usd`/`.usdc` characte
   - fastest and most conservative collision setup
 - `mesh`
   - extracts skinned surface points per link from the USD mesh
-  - closes the otherwise open surface data into a low-poly STL per link
-  - current pipeline is repair-first:
-    - preserve the source per-face topology for each joint fragment
-    - close boundary loops against the original watertight character mesh
-    - if simplification breaks watertightness, fall back to the repaired closed mesh or a voxel/lowpoly remesh of it
-  - current default simplification is `lowpoly_surface`
-  - it reconstructs a closed low-poly shell from the extracted per-link surface samples, then fits the shell back toward the source bounds so links do not balloon outward
-  - `obb` and `convex_hull` remain available as fallback/debug modes
+  - closes the otherwise open surface data into an STL per link
+  - current default simplification is `alpha_shape`
+  - it builds a Delaunay alpha complex from the extracted per-link surface samples, exports the boundary triangles, then fits the shell back toward the source bounds so links do not balloon outward
+  - fragmented or non-watertight alpha candidates are rejected; the builder keeps searching larger alpha radii and falls back to the alpha-limit convex hull when needed
+  - `lowpoly_surface`, `obb`, and `convex_hull` remain available as fallback/debug modes
 - `both`
   - writes both URDF variants in one build pass
 
@@ -77,7 +76,34 @@ Generate only the STL-backed URDF:
 
 Tune the STL build by editing `algorithms/usd_parallel_urdf/config.py`, then rebuild with the same command.
 
-Switch the mesh simplifier to convex hulls instead of the default low-poly surface reconstruction:
+The current supported knobs are:
+
+- Head precision: edit the exact `head_x` entry in `DEFAULT_MESH_BUILD_CONFIG.lowpoly_link_overrides`.
+- Body precision: edit the `body_default` entry; it applies to `root_x`, `spine_*`, and `neck_x` unless an exact link override exists.
+- Finger method: edit `finger_default` in `mesh_policy_overrides`; it currently uses `mesh_method="alpha_shape"`.
+- Alpha-shape tightness: edit `alpha_radius_ratios` and `alpha_max_points` in the resolved `LowpolyMeshConfig`.
+- Foot, toe, hand, and finger alpha-shape axis alignment: edit `foot_default`, `toe_default`, `hand_default`, or `finger_default` in `mesh_policy_overrides`.
+- Custom alpha-shape axis: use `LinkMeshPolicy(marching_axis_mode="custom_local", marching_axis=(...))` or `custom_world` on an exact link such as `foot_l`.
+
+Generate/update the default URDF outputs through the repo launcher:
+
+```bash
+./geo usd build
+```
+
+Generate/update only the STL-backed mesh URDF:
+
+```bash
+./geo usd build-mesh
+```
+
+Build explicitly with alpha shapes:
+
+```bash
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --geometry-mode mesh --mesh-simplify-mode alpha_shape
+```
+
+Switch the mesh simplifier to convex hulls instead of the default alpha-shape reconstruction:
 
 ```bash
 /home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/build_parallel_urdf.py --geometry-mode mesh --mesh-simplify-mode convex_hull --max-hull-faces 48 --target-hull-points 24
@@ -92,7 +118,7 @@ Validate the primitive URDF in Isaac:
 Validate the STL-backed URDF in Isaac:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --headless --urdf-path algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf --output-dir algorithms/usd_parallel_urdf/outputs/validation_mesh_landau_v10
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/validate_parallel_scene.py --headless --urdf-path algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_parallel_mesh.urdf --output-dir algorithms/usd_parallel_urdf/outputs/validation_mesh_landau_v10
 ```
 
 Open the GUI and keep the scene open until you close Isaac yourself:
@@ -104,7 +130,7 @@ Open the GUI and keep the scene open until you close Isaac yourself:
 Play a looping synchronized animation in Isaac GUI so you can inspect the USD and URDF side by side:
 
 ```bash
-/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/play_parallel_animation.py --urdf-path algorithms/usd_parallel_urdf/outputs/landau_v10_parallel_mesh.urdf --animation-clip walk_cycle --camera-view walk_side
+/home/wishai/vscode/IsaacLab/isaaclab.sh -p algorithms/usd_parallel_urdf/play_parallel_animation.py --urdf-path algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_parallel_mesh.urdf --animation-clip walk_cycle --camera-view walk_side
 ```
 
 Run the deterministic FK comparison without Isaac rendering:
