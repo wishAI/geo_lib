@@ -1,0 +1,50 @@
+{
+  "id": "ikfast_urdf_solver",
+  "icon": "arm",
+  "name": "IKFast URDF Solver",
+  "eyebrow": "ANALYTICAL INVERSE KINEMATICS",
+  "summary": "Benchmark URDF-driven analytical IK, inspect reachable pose cases, and manipulate the source arm directly in the browser.",
+  "accent": "#8b4e82",
+  "runtime": "tk2",
+  "runtimeLabel": "TK2 compute",
+  "capabilities": ["IKFast", "MuJoCo", "URDF"],
+  "examples": [
+    {
+      "id": "benchmark",
+      "name": "Benchmark the UR5 sample",
+      "description": "Solve deterministic target poses and save timing, residual, and success statistics.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "command": ["./geo", "pt", "-m", "algorithms.ikfast_urdf_solver.benchmark", "--config", "ur5_helper_sample", "--samples", "{samples}", "--seed", "{seed}", "--skip-pytracik", "--output", "algorithms/ikfast_urdf_solver/outputs/gui_example/benchmark.json"],
+      "parameters": [
+        {"id": "samples", "label": "Target samples", "type": "integer", "default": 30, "min": 5, "max": 250, "step": 5},
+        {"id": "seed", "label": "Random seed", "type": "integer", "default": 7, "min": 0, "max": 99999, "step": 1}
+      ],
+      "artifacts": [
+        {"label": "Benchmark report", "path": "algorithms/ikfast_urdf_solver/outputs/gui_example/benchmark.json", "kind": "json"}
+      ]
+    },
+    {
+      "id": "pose_cases",
+      "name": "Render solved pose cases",
+      "description": "Render a contact sheet of target and solved arm poses for visual checking.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "command": ["./geo", "pt", "-m", "algorithms.ikfast_urdf_solver.render_pose_cases", "--config", "ur5_helper_sample", "--cases", "{cases}", "--seed", "{seed}", "--output-dir", "algorithms/ikfast_urdf_solver/outputs/gui_example/poses"],
+      "parameters": [
+        {"id": "cases", "label": "Rendered cases", "type": "integer", "default": 4, "min": 1, "max": 12, "step": 1},
+        {"id": "seed", "label": "Random seed", "type": "integer", "default": 7, "min": 0, "max": 99999, "step": 1}
+      ],
+      "artifacts": [
+        {"label": "Pose contact sheet", "path": "algorithms/ikfast_urdf_solver/outputs/gui_example/poses/contact_sheet.png", "kind": "image"},
+        {"label": "Pose summary", "path": "algorithms/ikfast_urdf_solver/outputs/gui_example/poses/pose_cases_summary.json", "kind": "json"}
+      ]
+    }
+  ],
+  "viewer": {
+    "type": "urdf",
+    "urdfCandidates": [
+      {"label": "UR5 kinematics", "path": "algorithms/ikfast_urdf_solver/inputs/ur5/ur5_kinematics.urdf"}
+    ]
+  }
+}

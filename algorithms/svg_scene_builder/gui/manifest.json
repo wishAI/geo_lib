@@ -1,0 +1,30 @@
+{
+  "id": "svg_scene_builder",
+  "icon": "vector",
+  "name": "SVG Scene Builder",
+  "eyebrow": "FLOOR PLAN TO MUJOCO",
+  "summary": "Turn an SVG room plan into a self-contained MuJoCo scene package, then inspect the layout, start pose, geometry counts, and handoff files.",
+  "accent": "#b9613f",
+  "runtime": "local-or-tk2",
+  "runtimeLabel": "TK2 default · Mac optional",
+  "capabilities": ["SVG", "MuJoCo", "scene package"],
+  "examples": [
+    {
+      "id": "sample_room",
+      "name": "Build the sample room",
+      "description": "Parse the included SVG at an adjustable map resolution and generate a complete scene package.",
+      "target": "tk2",
+      "targets": ["tk2", "local"],
+      "command": ["./geo", "pt", "-m", "algorithms.svg_scene_builder.builder", "--svg", "algorithms/svg_scene_builder/svg_room_map.svg", "--output", "algorithms/svg_scene_builder/outputs/gui_example", "--map-resolution", "{resolution}"],
+      "parameters": [
+        {"id": "resolution", "label": "Map resolution (m)", "type": "number", "default": 0.02, "min": 0.005, "max": 0.1, "step": 0.005}
+      ],
+      "artifacts": [
+        {"label": "Layout preview", "path": "algorithms/svg_scene_builder/outputs/gui_example/layout_preview.png", "kind": "image"},
+        {"label": "Scene summary", "path": "algorithms/svg_scene_builder/outputs/gui_example/scene_summary.json", "kind": "json"},
+        {"label": "Start pose", "path": "algorithms/svg_scene_builder/outputs/gui_example/start_pose.json", "kind": "json"},
+        {"label": "MuJoCo scene", "path": "algorithms/svg_scene_builder/outputs/gui_example/scene.xml", "kind": "text"}
+      ]
+    }
+  ]
+}

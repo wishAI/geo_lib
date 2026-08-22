@@ -1,0 +1,32 @@
+{
+  "id": "urdf_learn_wasd_walk",
+  "icon": "walk",
+  "name": "Learn WASD Walk",
+  "eyebrow": "CLEAN TRAINING RESTART",
+  "summary": "A deliberately empty locomotion workspace. Previous training logic and experimental history are removed; only the strict cumulative milestone ladder and robot input remain for the next coding agent.",
+  "accent": "#cb6b42",
+  "runtime": "tk2-clean",
+  "runtimeLabel": "TK2 · rebuild required",
+  "capabilities": ["milestones only", "Isaac Lab", "clean room"],
+  "examples": [],
+  "milestones": [
+    {"id": "stand_zero_signal_30s_no_reset", "name": "Passive stand · 30 s", "stage": "stand", "passWhen": "Zero actions, zero command, zero resets or done events.", "status": "not started"},
+    {"id": "stand_30s_no_reset", "name": "Policy stand · 30 s", "stage": "stand", "passWhen": "Policy control with zero falls, resets, or done events.", "status": "not started"},
+    {"id": "gate_5m_no_reset", "name": "Forward gate · 5 m", "stage": "fwd_only", "passWhen": "Walking pose preserved with no reset.", "status": "not started"},
+    {"id": "gate_10m_no_reset", "name": "Forward gate · 10 m", "stage": "fwd_only", "passWhen": "Same checkpoint re-passes all earlier gates.", "status": "not started"},
+    {"id": "yaw_turn_90deg_hold", "name": "Turn 90° and hold", "stage": "fwd_yaw", "passWhen": "Turn, settle, and hold without reset.", "status": "not started"},
+    {"id": "teleop_60s_forward_turn", "name": "Teleop · 60 s", "stage": "fwd_yaw", "passWhen": "Forward and turn commands without reset or frozen joints.", "status": "not started"},
+    {"id": "gate_10m_four_directions_no_reset", "name": "Four directions · 10 m", "stage": "fwd_yaw", "passWhen": "One checkpoint clears forward, left, right, and backward.", "status": "not started"},
+    {"id": "triangle_path_follow_no_reset", "name": "Triangle path", "stage": "fwd_yaw", "passWhen": "Joystick-style waypoint commands with no reset.", "status": "not started"},
+    {"id": "square_path_follow_no_reset", "name": "Square path", "stage": "fwd_yaw", "passWhen": "Closed square within waypoint tolerance.", "status": "not started"},
+    {"id": "terrain_5m_no_reset", "name": "Rough terrain · 5 m", "stage": "game", "passWhen": "Cross the small map without reset.", "status": "not started"},
+    {"id": "obstacle_stop_before_collision", "name": "Obstacle braking", "stage": "game", "passWhen": "Stop before collision without reset.", "status": "not started"},
+    {"id": "game_10m_no_reset", "name": "Mixed game gate · 10 m", "stage": "game", "passWhen": "Terrain and obstacles with a preserved walking pose.", "status": "not started"}
+  ],
+  "viewer": {
+    "type": "urdf",
+    "urdfCandidates": [
+      {"label": "Landau v10 · clean training input", "path": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/landau_v10_parallel_mesh.urdf"}
+    ]
+  }
+}

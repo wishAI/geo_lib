@@ -11,10 +11,8 @@ If the repository is heavily restructured, or most code files are deleted and re
 3. `CONTEXT.md`
 4. `skills/geo-walk-training/SKILL.md`
 5. `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
-6. `algorithms/urdf_learn_wasd_walk/outputs/history/active_lineage.json`
-7. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/index.json`
-8. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/milestones.json`
-9. `algorithms/urdf_learn_wasd_walk/outputs/history/checkpoint_registry.json`
+6. `algorithms/urdf_learn_wasd_walk/milestones.json`
+7. `algorithms/urdf_learn_wasd_walk/gui/manifest.json`
 
 ## What To Preserve If You Wipe And Rebuild
 
@@ -25,11 +23,10 @@ Keep these files and folders even if most code is deleted:
 - `CONTEXT.md`
 - `skills/geo-walk-training/SKILL.md`
 - `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
-- `algorithms/urdf_learn_wasd_walk/outputs/history/`
+- `algorithms/urdf_learn_wasd_walk/milestones.json`
 - `algorithms/urdf_learn_wasd_walk/inputs/landau_v10/`
-- any promoted or milestone checkpoints you still care about under `logs/rsl_rl/`
 
-If those are preserved, another coding agent can reconstruct the project state and continue training without the old chat.
+The previous implementation, run history, and checkpoint lineage were intentionally removed. If these clean-room files are preserved, another coding agent can rebuild from the acceptance contract without inheriting stale experiments.
 
 ## Landau Continuation Rule
 
@@ -42,19 +39,18 @@ If those are preserved, another coding agent can reconstruct the project state a
 
 ## Commands
 
-- Refresh machine-readable state:
-  - `./geo walk refs`
-- Record a milestone:
-  - `./geo walk milestone --milestone-id <id> --stage <stage> --load_run <run> --checkpoint model_<n>.pt`
-- Reset into a clean lineage:
-  - `./geo walk reset --lineage-name <name>`
+- Open the local sandbox GUI: `./geo gui`
+- Inspect clean milestones: `./geo walk milestones`
+- Check shared assets: `./geo storage status`
+- Audit the 5 MiB repository limit: `./geo storage audit`
 
 ## If The Codebase Is Rebuilt From Scratch
 
 Create the new code around the preserved rules and history, not around memory.
 
+- Do not recover the deleted implementation from Git history unless the user explicitly asks.
 - Recreate the minimal launcher commands first.
 - Recreate the stand diagnostic first.
 - Recreate the 5 m evaluation next.
-- Recreate milestone recording before long training.
+- Recreate machine-readable milestone recording before long training.
 - Only then rebuild play, teleop, terrain, obstacle, and path-follow flows.

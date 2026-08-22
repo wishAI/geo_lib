@@ -1,0 +1,97 @@
+{
+  "id": "usd_parallel_urdf",
+  "icon": "robot",
+  "name": "USD → Parallel URDF",
+  "eyebrow": "ARTICULATED ASSET CONVERSION",
+  "summary": "Build and validate a parallel URDF from the source USD skeleton, inspect rendered evidence, and tune every generated joint in a browser-native 3D workbench.",
+  "accent": "#b65e82",
+  "runtime": "tk2",
+  "runtimeLabel": "TK2 · Isaac Lab",
+  "capabilities": ["USD", "URDF", "joint viewer"],
+  "examples": [
+    {
+      "id": "apply_mesh_settings",
+      "name": "Apply mesh → STL settings",
+      "description": "Rebuild the generated mesh URDF and its per-link watertight STL package using the settings selected in the mesh lab.",
+      "surface": "meshWorkbench",
+      "target": "local",
+      "targets": ["local", "tk2"],
+      "resource": "mesh-build",
+      "command": [
+        "blender", "--background", "--python", "algorithms/usd_parallel_urdf/local_mesh_workbench_blender.py", "--",
+        "--output-dir", "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10",
+        "--method", "{method}",
+        "--target-face-ratio", "{target_face_ratio}",
+        "--max-faces", "{max_faces}",
+        "--max-hull-faces", "{max_hull_faces}",
+        "--target-hull-points", "{target_hull_points}",
+        "--min-thickness", "{min_thickness}"
+      ],
+      "commands": {
+        "tk2": [
+          "./geo", "usd", "build-mesh",
+          "--output-dir", "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10",
+          "--mesh-simplify-mode", "{method}",
+          "--target-face-ratio", "{target_face_ratio}",
+          "--max-faces", "{max_faces}",
+          "--max-hull-faces", "{max_hull_faces}",
+          "--target-hull-points", "{target_hull_points}",
+          "--min-thickness", "{min_thickness}"
+        ]
+      },
+      "parameters": [
+        {"id": "method", "label": "Method", "type": "select", "choices": ["lowpoly_surface", "convex_hull", "obb"], "choiceLabels": {"lowpoly_surface": "watertight voxel surface", "convex_hull": "convex hull", "obb": "closed bounds box"}, "default": "lowpoly_surface"},
+        {"id": "target_face_ratio", "label": "Target face ratio", "type": "number", "min": 0.01, "max": 1.0, "step": 0.01, "default": 0.25},
+        {"id": "max_faces", "label": "Max faces / part", "type": "integer", "min": 12, "max": 5000, "step": 12, "default": 1200},
+        {"id": "max_hull_faces", "label": "Max hull faces", "type": "integer", "min": 12, "max": 512, "step": 4, "default": 48},
+        {"id": "target_hull_points", "label": "Hull sample points", "type": "integer", "min": 12, "max": 1000, "step": 4, "default": 24},
+        {"id": "min_thickness", "label": "Min thickness (m)", "type": "number", "min": 0.0005, "max": 0.05, "step": 0.0005, "default": 0.004}
+      ],
+      "artifacts": [
+        {"label": "Generated mesh URDF", "path": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_parallel_mesh.urdf", "kind": "urdf"},
+        {"label": "Mesh build summary", "path": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_mesh_collision_summary.json", "kind": "json"},
+        {"path": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/mesh_collision_stl/landau_v10", "kind": "directory", "syncOnly": true},
+        {"path": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/source_mesh_stl/landau_v10", "kind": "directory", "syncOnly": true}
+      ]
+    },
+    {
+      "id": "offline_compare",
+      "name": "Compare USD and URDF transforms",
+      "description": "Run the deterministic FK comparison before spending time on an Isaac render.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "command": [
+        "./geo", "usd", "compare",
+        "--urdf-path", "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_parallel_mesh.urdf",
+        "--output-path", "algorithms/usd_parallel_urdf/outputs/validation_landau_v10/offline_transform_comparison.json"
+      ],
+      "artifacts": [
+        {"label": "Transform comparison", "path": "algorithms/usd_parallel_urdf/outputs/validation_landau_v10/offline_transform_comparison.json", "kind": "json"}
+      ]
+    },
+    {
+      "id": "posed_render",
+      "name": "Render a posed mesh URDF",
+      "description": "Launch one headless Isaac job on TK2 and pull the resulting overview into Nextcloud for this Mac.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "usd", "render", "--mesh", "--headless"],
+      "artifacts": [
+        {"label": "Posed overview", "path": "algorithms/usd_parallel_urdf/outputs/validation_mesh_landau_v10/scene_pose.png", "kind": "image"}
+      ]
+    }
+  ],
+  "viewer": {
+    "type": "urdf",
+    "urdfCandidates": [
+      {"label": "Landau v10 · generated mesh package", "path": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_parallel_mesh.urdf"}
+    ]
+  },
+  "meshWorkbench": {
+    "applyExample": "apply_mesh_settings",
+    "summaryPath": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/landau_v10_mesh_collision_summary.json",
+    "sourceMeshDir": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/source_mesh_stl/landau_v10",
+    "stlDir": "algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10/mesh_collision_stl/landau_v10"
+  }
+}

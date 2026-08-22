@@ -1,0 +1,30 @@
+{
+  "id": "fake_cloud",
+  "icon": "point-cloud",
+  "name": "Synthetic Point Cloud",
+  "eyebrow": "MUJOCO SENSOR DATASET",
+  "summary": "Generate multi-view depth data for a randomized ship-part scene, then compare clean and pose-noisy merged clouds with the exact camera configuration.",
+  "accent": "#656b78",
+  "runtime": "local-or-tk2",
+  "runtimeLabel": "TK2 default · Mac optional",
+  "capabilities": ["point cloud", "MuJoCo", "noise"],
+  "examples": [
+    {
+      "id": "sample_cloud",
+      "name": "Generate a synthetic cloud",
+      "description": "Create a deterministic scene from a chosen seed and export each view plus merged clouds.",
+      "target": "tk2",
+      "targets": ["tk2", "local"],
+      "command": ["./geo", "pt", "-m", "algorithms.fake_cloud.generate_dataset", "--output", "algorithms/fake_cloud/outputs/gui_example", "--seed", "{seed}"],
+      "parameters": [
+        {"id": "seed", "label": "Scene seed", "type": "integer", "default": 11, "min": 0, "max": 99999, "step": 1}
+      ],
+      "artifacts": [
+        {"label": "Structure preview", "path": "algorithms/fake_cloud/outputs/gui_example/structure_preview.png", "kind": "image"},
+        {"label": "Camera information", "path": "algorithms/fake_cloud/outputs/gui_example/cam_info.json", "kind": "json"},
+        {"label": "Resolved configuration", "path": "algorithms/fake_cloud/outputs/gui_example/resolved_config.json", "kind": "json"},
+        {"label": "Merged noisy cloud", "path": "algorithms/fake_cloud/outputs/gui_example/merged_with_pose_error.ply", "kind": "text"}
+      ]
+    }
+  ]
+}

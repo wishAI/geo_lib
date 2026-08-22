@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from dataclasses import replace
 from pathlib import Path
 
 from asset_paths import default_usd_path, resolve_asset_paths
@@ -62,6 +63,24 @@ def _parse_args() -> argparse.Namespace:
         help='Point budget used when downsampling link-local point clouds before hull generation.',
     )
     parser.add_argument(
+        '--target-face-ratio',
+        type=float,
+        default=DEFAULT_MESH_BUILD_CONFIG.lowpoly_default.target_face_ratio,
+        help='Target retained face ratio for low-poly surface generation.',
+    )
+    parser.add_argument(
+        '--max-faces',
+        type=int,
+        default=DEFAULT_MESH_BUILD_CONFIG.lowpoly_default.max_faces,
+        help='Maximum face budget per generated low-poly STL.',
+    )
+    parser.add_argument(
+        '--min-thickness',
+        type=float,
+        default=DEFAULT_MESH_BUILD_CONFIG.min_thickness,
+        help='Minimum generated mesh thickness in metres.',
+    )
+    parser.add_argument(
         '--portable-root',
         type=Path,
         default=folder / '.kit_portable' / 'build_parallel_urdf',
@@ -73,6 +92,26 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
+    if not 0.01 <= args.target_face_ratio <= 1.0:
+        raise ValueError('--target-face-ratio must be between 0.01 and 1.0')
+    if args.max_faces < 12:
+        raise ValueError('--max-faces must be at least 12')
+    if args.min_thickness <= 0:
+        raise ValueError('--min-thickness must be positive')
+    lowpoly_default = replace(
+        DEFAULT_MESH_BUILD_CONFIG.lowpoly_default,
+        target_face_ratio=float(args.target_face_ratio),
+        max_faces=int(args.max_faces),
+    )
+    mesh_build_config = replace(
+        DEFAULT_MESH_BUILD_CONFIG,
+        min_thickness=float(args.min_thickness),
+        lowpoly_default=lowpoly_default,
+        # Preserve profiles for difficult links such as the head.  The generic
+        # GUI controls tune the rest of the robot without pushing those links
+        # into native reconstruction paths that are known to be unstable.
+        lowpoly_link_overrides=DEFAULT_MESH_BUILD_CONFIG.lowpoly_link_overrides,
+    )
     asset_paths = resolve_asset_paths(
         usd_path=args.usd_path,
         output_dir=args.output_dir,
@@ -159,7 +198,7 @@ def main() -> None:
                 strategy=args.mesh_simplify_mode,
                 max_hull_faces=args.max_hull_faces,
                 target_hull_points=args.target_hull_points,
-                build_config=DEFAULT_MESH_BUILD_CONFIG,
+                build_config=mesh_build_config,
             )
             print('[GEN] mesh collision assets ready', flush=True)
             mesh_summary_path = asset_paths.mesh_summary
@@ -182,10 +221,10 @@ def main() -> None:
                     'max_hull_faces': int(args.max_hull_faces),
                     'target_hull_points': int(args.target_hull_points),
                     'config': {
-                        'min_thickness': float(DEFAULT_MESH_BUILD_CONFIG.min_thickness),
-                        'lowpoly_default': DEFAULT_MESH_BUILD_CONFIG.lowpoly_default.__dict__,
+                        'min_thickness': float(mesh_build_config.min_thickness),
+                        'lowpoly_default': mesh_build_config.lowpoly_default.__dict__,
                         'lowpoly_link_overrides': {
-                            name: cfg.__dict__ for name, cfg in DEFAULT_MESH_BUILD_CONFIG.lowpoly_link_overrides.items()
+                            name: cfg.__dict__ for name, cfg in mesh_build_config.lowpoly_link_overrides.items()
                         },
                     },
                     'links': mesh_assets['summary'],

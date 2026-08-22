@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "lineage": "clean_restart_2026_08_22",
+  "implementationStatus": "empty",
+  "historyCarriedForward": false,
+  "milestones": [
+    {"order": 1, "id": "stand_zero_signal_30s_no_reset", "stage": "stand", "status": "not_started"},
+    {"order": 2, "id": "stand_30s_no_reset", "stage": "stand", "status": "not_started"},
+    {"order": 3, "id": "gate_5m_no_reset", "stage": "fwd_only", "status": "not_started"},
+    {"order": 4, "id": "gate_10m_no_reset", "stage": "fwd_only", "status": "not_started"},
+    {"order": 5, "id": "yaw_turn_90deg_hold", "stage": "fwd_yaw", "status": "not_started"},
+    {"order": 6, "id": "teleop_60s_forward_turn", "stage": "fwd_yaw", "status": "not_started"},
+    {"order": 7, "id": "gate_10m_four_directions_no_reset", "stage": "fwd_yaw", "status": "not_started"},
+    {"order": 8, "id": "triangle_path_follow_no_reset", "stage": "fwd_yaw", "status": "not_started"},
+    {"order": 9, "id": "square_path_follow_no_reset", "stage": "fwd_yaw", "status": "not_started"},
+    {"order": 10, "id": "terrain_5m_no_reset", "stage": "game", "status": "not_started"},
+    {"order": 11, "id": "obstacle_stop_before_collision", "stage": "game", "status": "not_started"},
+    {"order": 12, "id": "game_10m_no_reset", "stage": "game", "status": "not_started"}
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "id": "path_order_orientation_ortools",
+  "icon": "route",
+  "name": "Path Order & Orientation",
+  "eyebrow": "CP-SAT ROUTE OPTIMIZATION",
+  "summary": "Choose both path order and traversal direction, compare the connection cost, and inspect the selected route as a rendered plan.",
+  "accent": "#445f9b",
+  "runtime": "local-or-tk2",
+  "runtimeLabel": "TK2 default · Mac optional",
+  "capabilities": ["OR-Tools", "routing", "render"],
+  "examples": [
+    {
+      "id": "solve_paths",
+      "name": "Optimize the 20-path example",
+      "description": "Run CP-SAT with an adjustable time limit and render every selected transition.",
+      "target": "tk2",
+      "targets": ["tk2", "local"],
+      "command": ["./geo", "pt", "-m", "algorithms.path_order_orientation_ortools.gui.run_example", "--input", "algorithms/path_order_orientation_ortools/example_paths.json", "--output", "algorithms/path_order_orientation_ortools/outputs/gui_example", "--time-limit", "{time_limit}"],
+      "parameters": [
+        {"id": "time_limit", "label": "Solver time limit (s)", "type": "number", "default": 12, "min": 1, "max": 60, "step": 1}
+      ],
+      "artifacts": [
+        {"label": "Optimized route", "path": "algorithms/path_order_orientation_ortools/outputs/gui_example/solution.png", "kind": "image"},
+        {"label": "Solution details", "path": "algorithms/path_order_orientation_ortools/outputs/gui_example/solution.json", "kind": "json"}
+      ]
+    }
+  ]
+}

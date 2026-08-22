@@ -28,6 +28,9 @@ __pycache__/
 *.blend1
 *.glb
 *.stl
+**/textures/texture_pbr_20250901.png
+**/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png
+**/textures/texture_pbr_20250901_normal.png
 
 # Isaac/Kit portable runtime state
 .kit_portable/

@@ -58,6 +58,24 @@ Expected outputs:
 - MuJoCo is used in headless mode with `MUJOCO_GL=egl`
 - ROS2 is installed on this machine under `/opt/ros/humble`, but the CLI may not be on `PATH` unless the ROS2 setup script is sourced
 
+## Web GUI And Remote Runtime
+
+- Start the local control plane with `./geo gui`; it binds only to `127.0.0.1:8767`.
+- Every algorithm owns its GUI contract in `algorithms/<name>/gui/manifest.json`.
+- The root web host may discover manifests, start allowlisted commands, and copy declared result files, but it must not import algorithm code.
+- TK2 commands run through the existing `tk2` SSH profile in the GUI-owned `/home/wishai/.cache/geo-lib-webgui/current` workspace. The Mac source is refreshed there before every remote run; the developer checkout is never rewritten.
+- Isaac examples declare the shared `isaac` resource; the GUI refuses to run two Isaac jobs simultaneously.
+
+## Large File And Nextcloud Contract
+
+- The repository threshold is 5 MiB (`5242880` bytes).
+- Source and input files at or below the threshold belong in Git unless another ignore rule already classifies them as generated output.
+- Files above the threshold live under `~/Nextcloud/Projects/geo_lib` and are declared in root `large_files.json` with repository path, cloud path, size, and SHA-256.
+- `./geo storage hydrate` restores repo-path symlinks from the manifest. Do not hard-code the macOS File Provider folder name.
+- TK2 has a separate `/home/wishai/Nextcloud` folder without an always-running sync client. Use the GUI's explicit code refresh and cloud push/pull actions (or `./geo storage sync-code-tk2`, `push-tk2`, and `pull-tk2`) and never assume automatic two-way sync.
+- Remote GUI results are copied to `~/Nextcloud/Projects/geo_lib/remote_outputs/<repo-relative-path>` so the Mac can preview them without adding generated artifacts to Git.
+- Run `./geo storage audit` before handing off changes; tracked files over 5 MiB are a failure.
+
 ## Validation Expectations
 
 - MuJoCo scene should load headless without GUI

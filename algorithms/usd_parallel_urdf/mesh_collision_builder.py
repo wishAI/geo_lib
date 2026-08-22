@@ -494,6 +494,41 @@ def _lowpoly_surface_mesh(
     return best_candidate
 
 
+def _budgeted_closed_surface(
+    triangles: np.ndarray,
+    link_config: LowpolyMeshConfig,
+) -> tuple[np.ndarray, list[tuple[int, int, int]], dict] | None:
+    """Build a stable, watertight surface within the requested face budget."""
+    if len(triangles) == 0:
+        return None
+    target_faces = min(
+        int(link_config.max_faces),
+        max(4, int(round(len(triangles) * float(link_config.target_face_ratio)))),
+    )
+    points = _unique_points(np.asarray(triangles, dtype=float).reshape((-1, 3)))
+    if len(points) < 4:
+        return None
+    point_budget = min(len(points), max(4, target_faces // 2 + 2))
+    budgets = []
+    for budget in (point_budget, 600, 320, 180, 96, 48, 24, 12, 4):
+        budget = min(len(points), budget)
+        if budget >= 4 and budget not in budgets:
+            budgets.append(budget)
+    for budget in budgets:
+        hull = _convex_hull_mesh(_downsample_points(points, budget), target_faces)
+        if hull is None:
+            continue
+        vertices, faces, details = hull
+        return vertices, faces, {
+            'method': 'skinned_budgeted_closed_surface',
+            'source_face_count': int(len(triangles)),
+            'target_face_ratio': float(link_config.target_face_ratio),
+            'watertight': True,
+            **details,
+        }
+    return None
+
+
 def _voxelized_mesh_surface(
     vertices: np.ndarray,
     faces: np.ndarray,
@@ -798,6 +833,9 @@ def _build_link_mesh(
         if len(unique_points) >= 4:
             if strategy == 'lowpoly_surface':
                 link_cfg = resolve_lowpoly_link_config(build_config, link_name)
+                closed_surface = _budgeted_closed_surface(local_triangles, link_cfg)
+                if closed_surface is not None:
+                    return closed_surface
                 repaired_result = None
                 repaired_details = None
                 if original_context is not None and len(fragment_faces) >= 4:
@@ -924,6 +962,8 @@ def build_mesh_collision_assets(
 ) -> dict:
     build_config = build_config or DEFAULT_MESH_BUILD_CONFIG
     mesh_dir.mkdir(parents=True, exist_ok=True)
+    source_mesh_dir = mesh_dir.parent.parent / 'source_mesh_stl' / mesh_dir.name
+    source_mesh_dir.mkdir(parents=True, exist_ok=True)
     primitive_geoms_by_name = build_link_geometries(records)
     (
         seed_points_by_name,
@@ -937,11 +977,11 @@ def build_mesh_collision_assets(
         skel,
         records,
     )
+    # Keep interactive builds on the per-link reconstruction path.  The legacy
+    # whole-body repair context can terminate the Isaac process inside native
+    # geometry code for dense parts (the Landau head is a reproducible case),
+    # and it duplicates work that the per-link surface builder already does.
     original_context = None
-    if strategy == 'lowpoly_surface' and len(original_triangles) >= 4:
-        from mesh_repair_pipeline import prepare_original_mesh_context_from_triangles
-
-        original_context = prepare_original_mesh_context_from_triangles(original_triangles)
 
     geoms_by_name: Dict[str, List[dict]] = {}
     summary: Dict[str, dict] = {}
@@ -956,6 +996,14 @@ def build_mesh_collision_assets(
         fragment_faces = fragment_faces_by_name[link_name]
         fallback_geoms = primitive_geoms_by_name[link_name]
         min_thickness = float(build_config.min_thickness)
+        source_vertices = local_triangles.reshape((-1, 3))
+        source_faces = [
+            (index, index + 1, index + 2)
+            for index in range(0, len(source_vertices), 3)
+        ]
+        source_mesh_path = source_mesh_dir / f'{link_name}.stl'
+        if source_faces:
+            _write_binary_stl(source_mesh_path, source_vertices, source_faces, f'{link_name}_source')
         vertices, faces, details = _build_link_mesh(
             link_name,
             inverse_world,
@@ -988,6 +1036,7 @@ def build_mesh_collision_assets(
         ]
         summary[link_name] = {
             'stl_path': str(mesh_path),
+            'source_stl_path': str(source_mesh_path) if source_faces else None,
             'seed_point_count': int(seed_info_by_name[link_name]['seed_point_count']),
             'seed_triangle_count': int(seed_info_by_name[link_name]['seed_triangle_count']),
             'source_meshes': seed_info_by_name[link_name]['source_meshes'],

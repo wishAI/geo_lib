@@ -1,60 +1,30 @@
 ---
 name: geo-walk-training
-description: Use when working on Isaac Lab locomotion training, playback, teleop, validation, reproducibility, or restart planning for /home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk. Prefer ./geo commands, read TRAINING_RULES.md and outputs/history refs first, keep Isaac single-process, and record milestone checkpoints before promoting later stages.
+description: Use when rebuilding Isaac Lab locomotion training, validation, playback, or teleop in the intentionally empty urdf_learn_wasd_walk sandbox. Read the clean milestone ladder first, implement only the earliest unresolved milestone, keep Isaac single-process, and do not revive old history or code.
 ---
 
-# Geo Walk Training
+# Geo Walk Training — Clean-Room Rebuild
 
-Use this local repo skill for `algorithms/urdf_learn_wasd_walk`.
+The old Landau training implementation and its experimental history were intentionally removed on 2026-08-22. Do not search Git history, old branches, or remote checkpoints to reconstruct it unless the user explicitly asks. The clean reset is a product decision, not missing context.
 
 ## First Reads
 
 1. `AGENTS.md`
-2. `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
-3. `algorithms/urdf_learn_wasd_walk/README.md`
-4. `algorithms/urdf_learn_wasd_walk/outputs/history/active_lineage.json`
-5. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/index.json`
-6. `algorithms/urdf_learn_wasd_walk/outputs/history/refs/milestones.json`
-7. `algorithms/urdf_learn_wasd_walk/outputs/history/checkpoint_registry.json`
-8. Tail the JSONL ledgers under `algorithms/urdf_learn_wasd_walk/outputs/history/`
+2. `algorithms/urdf_learn_wasd_walk/README.md`
+3. `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
+4. `algorithms/urdf_learn_wasd_walk/milestones.json`
+5. `algorithms/urdf_learn_wasd_walk/gui/manifest.json`
 
-## Non-Negotiables
+## Rebuild Rules
 
-- Never run two Isaac processes at the same time.
-- Prefer `./geo` over raw Isaac commands.
-- Train only for the earliest unresolved milestone in `TRAINING_RULES.md`.
-- Record the first checkpoint that passes each milestone with `./geo walk milestone`.
-- Do not call a moving policy "walking" unless the pose still looks like walking and the arms help balance.
-- Do not treat backward or strafe polish as a blocker before the forward gates are stable.
-- Start game-stage terrain work on the small map first.
+- Work on the first `not_started` milestone only.
+- Recreate the smallest launcher, environment, validator, and tests needed for that milestone.
+- Never run two Isaac processes simultaneously.
+- Use TK2 for Isaac work and keep commands compatible with the root Geo Web GUI.
+- Keep generated runs and checkpoints out of Git. Files over 5 MiB follow root `large_files.json` and the Nextcloud storage contract.
+- A passing implementation needs machine-readable validation plus a short proof video before the milestone status changes.
+- Later motion, teleop, terrain, obstacle, and path logic must not be added while an earlier gate is unresolved.
 
-## Commands
+## Current State
 
-- Smoke:
-  - `./geo walk smoke --stage game --headless`
-- Train:
-  - `./geo walk train --stage <stage> --headless --num_envs 64 --run_name <run_name>`
-- Diagnose stand stability:
-  - `./geo walk diagnose --stage stand --headless --action-mode policy`
-- Evaluate forward gate:
-  - `./geo walk eval --stage fwd_only --headless`
-- Playback gate:
-  - `./geo walk gate --stage game`
-- Record milestone:
-  - `./geo walk milestone --milestone-id <id> --stage <stage> --load_run <run> --checkpoint model_<n>.pt`
-- Refresh refs:
-  - `./geo walk refs`
-- Clean restart:
-  - `./geo walk reset --lineage-name <name>`
-
-## Handoff Rule
-
-If the code is restructured or mostly deleted, preserve these first:
-
-1. `AGENTS.md`
-2. `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
-3. `algorithms/urdf_learn_wasd_walk/outputs/history/`
-4. `algorithms/urdf_learn_wasd_walk/inputs/landau_v10/`
-5. `skills/geo-walk-training/SKILL.md`
-
-Another agent can restart from those files without needing the old conversation.
+There is no train/play/validation implementation. `./geo walk milestones` is the only supported walk command and every milestone is `not_started`.

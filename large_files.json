@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "thresholdBytes": 5242880,
+  "cloudRoot": "~/Nextcloud/Projects/geo_lib",
+  "remoteCloudRoot": "/home/wishai/Nextcloud/Projects/geo_lib",
+  "files": [
+    {
+      "repoPath": "algorithms/usd_parallel_urdf/inputs/textures/texture_pbr_20250901.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901.png",
+      "size": 11900899,
+      "sha256": "89830690792ed61809fb6e7b2a6231554dc5c21897041c42be90fe762ddd1a4e"
+    },
+    {
+      "repoPath": "algorithms/usd_parallel_urdf/inputs/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "size": 8310944,
+      "sha256": "4a10b43e322f7f3028596403480da1c6f69375befacd944147746a6ed62fb183"
+    },
+    {
+      "repoPath": "algorithms/usd_parallel_urdf/inputs/textures/texture_pbr_20250901_normal.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "size": 5369223,
+      "sha256": "307af4b0d43a6e66254ef171290d53bf0de51cd015475a9090473cccd7df2479"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/textures/texture_pbr_20250901.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901.png",
+      "size": 11900899,
+      "sha256": "89830690792ed61809fb6e7b2a6231554dc5c21897041c42be90fe762ddd1a4e"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "size": 8310944,
+      "sha256": "4a10b43e322f7f3028596403480da1c6f69375befacd944147746a6ed62fb183"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/textures/texture_pbr_20250901_normal.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "size": 5369223,
+      "sha256": "307af4b0d43a6e66254ef171290d53bf0de51cd015475a9090473cccd7df2479"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/inputs/landau_v10/textures/texture_pbr_20250901.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901.png",
+      "size": 11900899,
+      "sha256": "89830690792ed61809fb6e7b2a6231554dc5c21897041c42be90fe762ddd1a4e"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/inputs/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "size": 8310944,
+      "sha256": "4a10b43e322f7f3028596403480da1c6f69375befacd944147746a6ed62fb183"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/inputs/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "size": 5369223,
+      "sha256": "307af4b0d43a6e66254ef171290d53bf0de51cd015475a9090473cccd7df2479"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/textures/texture_pbr_20250901.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901.png",
+      "size": 11900899,
+      "sha256": "89830690792ed61809fb6e7b2a6231554dc5c21897041c42be90fe762ddd1a4e"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "size": 8310944,
+      "sha256": "4a10b43e322f7f3028596403480da1c6f69375befacd944147746a6ed62fb183"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "size": 5369223,
+      "sha256": "307af4b0d43a6e66254ef171290d53bf0de51cd015475a9090473cccd7df2479"
+    }
+  ]
+}

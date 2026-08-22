@@ -1,148 +1,32 @@
-# Landau Training Rules
+# Landau Milestones — Clean Restart Contract
 
-Train and validate the earliest unresolved milestone first.
+This file is the only retained behavioral contract from the old locomotion implementation. No milestone is currently passed and no earlier checkpoint or prose claim carries forward.
 
-The ladder is cumulative:
+## Cumulative Rules
 
-1. A checkpoint only reaches milestone `N` after that same checkpoint re-passes milestones `1..N-1`.
-2. Any hard reset, fall, or `done` event during the test auto-fails the run.
-3. Do not hand off or promote a later-stage checkpoint while an earlier ladder test is broken.
+1. Work on the earliest unresolved milestone only.
+2. A checkpoint reaches milestone `N` only after that exact checkpoint re-passes `1..N-1`.
+3. Any fall, hard reset, or `done` event fails the run.
+4. Motion passes only when it still looks like walking; sliding, collapsing, hopping, and frozen-joint motion fail.
+5. Upper-body balance must remain natural enough for visual review.
+6. Use one semantic command space everywhere: `forward`, `strafe`, `yaw`.
+7. Path following must generate joystick-style commands rather than bypassing the policy interface.
+8. Never run two Isaac processes at once.
+9. Record evidence only after the implementation provides a repeatable validator and a short proof video.
 
-## Hard Rules
+## Milestone Ladder
 
-- `stand_zero_signal_30s_no_reset` is the first hard gate.
-- `stand_zero_signal_30s_no_reset` is a passive URDF + PD gate, not a policy milestone. Record it with `--load_run passive --checkpoint none` after the diagnostic ledger shows a passing zero-action run.
-- Every passed milestone must store the exact checkpoint path, stage, run name, evidence kind, and a short note.
-- Moving checkpoints only count when the pose still looks like walking. Sliding, collapsing, hopping, or frozen-joint motion do not pass.
-- Upper-body balance matters. Do not mark a moving milestone as passed if the arms are unnaturally frozen.
-- Use the same semantic command space everywhere: `forward`, `strafe`, `yaw`.
-- Path tests must use joystick-style commands derived from the waypoint path. Do not bypass the command interface with a separate direct controller.
-- Never run two Isaac processes at the same time.
+1. `stand_zero_signal_30s_no_reset` (`stand`): passive URDF + PD control; zero action, zero command, zero fall, zero reset, zero `done` for 30 seconds.
+2. `stand_30s_no_reset` (`stand`): policy-controlled stand for 30 seconds with zero fall, reset, or `done`.
+3. `gate_5m_no_reset` (`fwd_only`): reach a 5 m flat forward gate with a walking pose and no reset.
+4. `gate_10m_no_reset` (`fwd_only`): reach a 10 m flat forward gate and re-pass milestones 1–3.
+5. `yaw_turn_90deg_hold` (`fwd_yaw`): turn 90 degrees, settle, and hold without reset.
+6. `teleop_60s_forward_turn` (`fwd_yaw`): respond to forward and turn input for 60 seconds without reset or frozen joints.
+7. `gate_10m_four_directions_no_reset` (`fwd_yaw`): the same checkpoint clears forward, left, right, and backward 10 m gates.
+8. `triangle_path_follow_no_reset` (`fwd_yaw`): follow a closed triangle with joystick-style waypoint commands and no reset.
+9. `square_path_follow_no_reset` (`fwd_yaw`): follow a closed square within tolerance and with no reset.
+10. `terrain_5m_no_reset` (`game`): cross 5 m of the small rough-terrain map with no reset.
+11. `obstacle_stop_before_collision` (`game`): brake before collision without reset.
+12. `game_10m_no_reset` (`game`): clear 10 m of mixed terrain and obstacles while preserving a walking pose.
 
-## Goal Ladder
-
-1. `stand_zero_signal_30s_no_reset`
-   Stage: `stand`
-   Pass when: the robot stays upright for 30 seconds with zero actions, zero commanded motion, zero falls, zero hard resets, and zero `done` events.
-   Record with: `diagnostic`
-
-2. `stand_30s_no_reset`
-   Stage: `stand`
-   Pass when: the robot stays upright for 30 seconds under the stand policy with zero falls, zero hard resets, and zero `done` events.
-   Record with: `diagnostic`
-
-3. `gate_5m_no_reset`
-   Stage: `fwd_only`
-   Pass when: the robot reaches the 5 m flat forward gate with zero falls, zero hard resets, zero `done` events, and the pose still looks like walking.
-   Record with: `evaluation`
-
-4. `gate_10m_no_reset`
-   Stage: `fwd_only`
-   Pass when: the robot reaches the 10 m flat forward gate with zero falls, zero hard resets, zero `done` events, and the pose still looks like walking.
-   Record with: `evaluation`
-
-5. `yaw_turn_90deg_hold`
-   Stage: `fwd_yaw`
-   Pass when: the robot responds to a yaw command, turns, settles, and holds without a fall or hard reset.
-   Record with: `validation`
-
-6. `teleop_60s_forward_turn`
-   Stage: `fwd_yaw`
-   Pass when: the robot responds to teleop forward and turn input for 60 seconds without reset and without frozen joints.
-   Record with: `manual` plus GUI review
-
-7. `gate_10m_four_directions_no_reset`
-   Stage: `fwd_yaw`
-   Pass when: the same checkpoint clears 10 m gates in `forward`, `left`, `right`, and `backward` directions with zero falls, zero hard resets, and zero `done` events.
-   Record with: `evaluation`
-
-8. `triangle_path_follow_no_reset`
-   Stage: `fwd_yaw`
-   Pass when: the robot follows a closed triangle path using joystick-style forward/yaw commands generated from the path, staying within the waypoint tolerance and avoiding all hard resets.
-   Record with: `evaluation`
-
-9. `square_path_follow_no_reset`
-   Stage: `fwd_yaw`
-   Pass when: the robot follows a closed square path using joystick-style forward/yaw commands generated from the path, staying within the waypoint tolerance and avoiding all hard resets.
-   Record with: `evaluation`
-
-10. `terrain_5m_no_reset`
-   Stage: `game`
-   Pass when: the robot crosses 5 m of the small rough-terrain map with zero falls, zero hard resets, and zero `done` events.
-   Record with: `evaluation`
-
-11. `obstacle_stop_before_collision`
-    Stage: `game`
-    Pass when: the robot brakes and stops before collision on the game map without a hard reset.
-    Record with: `evaluation`
-
-12. `game_10m_no_reset`
-    Stage: `game`
-    Pass when: the robot clears the mixed 10 m game gate with terrain and obstacles enabled, without a hard reset and while preserving a walking pose.
-    Record with: `evaluation`
-
-## Evaluation Commands
-
-Stand gate:
-
-```bash
-./geo walk diagnose --stage stand --headless --action-mode zero --steps 600 --max-done-count 0 --min-control-root-height 0.17
-./geo walk diagnose --stage stand --headless --action-mode policy --steps 600 --max-done-count 0 --min-control-root-height 0.17
-```
-
-Forward gates:
-
-```bash
-./geo walk eval --stage fwd_only --headless --path-preset gate --gate-direction forward --path-distance 5
-./geo walk eval --stage fwd_only --headless --path-preset gate --gate-direction forward --path-distance 10
-```
-
-Four-direction gate suite:
-
-```bash
-./geo walk eval --stage fwd_yaw --headless --path-preset gate --gate-direction left --path-distance 10
-./geo walk eval --stage fwd_yaw --headless --path-preset gate --gate-direction right --path-distance 10
-./geo walk eval --stage fwd_yaw --headless --path-preset gate --gate-direction backward --path-distance 10
-```
-
-Polygon path tests:
-
-```bash
-./geo walk eval --stage fwd_yaw --headless --path-preset triangle --path-edge-length 3.5 --path-arrival-radius 0.35
-./geo walk eval --stage fwd_yaw --headless --path-preset square --path-edge-length 3.0 --path-arrival-radius 0.35
-```
-
-## Recording Rules
-
-- The source of truth is the active lineage plus the refs under `outputs/history/`.
-- Record the first checkpoint that passes each milestone.
-- Do not replace a milestone entry with prose only.
-- When recording a later milestone, note that the same checkpoint re-passed every earlier test in the ladder.
-- Add a GUI note for moving milestones describing whether the pose still looked like walking and whether the arms were helping balance.
-- If no ledger record exists yet, do not pretend the milestone passed. Run the relevant diagnose, validate, or eval command first.
-
-## Common Commands
-
-- Refresh refs:
-  `./geo walk refs`
-- Record a zero-signal standing checkpoint:
-  `./geo walk milestone --milestone-id stand_zero_signal_30s_no_reset --stage stand --load_run <run> --checkpoint model_<n>.pt --manual-review "upright for 30 s with zero signal"`
-- Record a standing checkpoint:
-  `./geo walk milestone --milestone-id stand_30s_no_reset --stage stand --load_run <run> --checkpoint model_<n>.pt --manual-review "upright for 30 s"`
-- Record a forward gate checkpoint:
-  `./geo walk milestone --milestone-id gate_10m_no_reset --stage fwd_only --load_run <run> --checkpoint model_<n>.pt --manual-review "walking pose preserved; arms swing visible"`
-- Reset to a clean lineage:
-  `./geo walk reset --lineage-name <name>`
-
-## Restart Workflow
-
-1. Read this file.
-2. Read `outputs/history/active_lineage.json`.
-3. Read `outputs/history/refs/index.json`.
-4. Read `outputs/history/refs/milestones.json`.
-5. Read `outputs/history/checkpoint_registry.json`.
-6. Tail the JSONL ledgers under `outputs/history/`.
-7. Identify the earliest unresolved milestone.
-8. Train only for that milestone first.
-9. Re-run every earlier ladder test on the candidate checkpoint.
-10. Record the milestone only after the checkpoint passes the full cumulative suite.
+`milestones.json` is the machine-readable source for status. It starts with every milestone set to `not_started`.

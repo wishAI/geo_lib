@@ -1,0 +1,31 @@
+{
+  "id": "simple_auto_slam_mapping",
+  "icon": "map",
+  "name": "Auto SLAM Mapping",
+  "eyebrow": "SCENE PACKAGE TO OCCUPANCY MAP",
+  "summary": "Copy a sealed scene package into this sandbox, simulate routing and lidar, then explore the trajectory, periodic snapshots, and ROS2-compatible map.",
+  "accent": "#277f79",
+  "runtime": "local-or-tk2",
+  "runtimeLabel": "TK2 default · Mac optional",
+  "capabilities": ["SLAM", "lidar", "ROS2 map"],
+  "examples": [
+    {
+      "id": "sample_mapping",
+      "name": "Map the sample scene",
+      "description": "Copy the tracked sample package through the input boundary, run the mapper, and save route and occupancy evidence.",
+      "target": "tk2",
+      "targets": ["tk2", "local"],
+      "command": ["./geo", "pt", "-m", "algorithms.simple_auto_slam_mapping.mapping", "--copy-from", "algorithms/svg_scene_builder/outputs/sample_scene", "--input", "algorithms/simple_auto_slam_mapping/inputs/gui_example", "--output", "algorithms/simple_auto_slam_mapping/outputs/gui_example", "--timeout", "{timeout}", "--snapshot-period", "{snapshot_period}"],
+      "parameters": [
+        {"id": "timeout", "label": "Simulated seconds", "type": "number", "default": 30, "min": 5, "max": 120, "step": 5},
+        {"id": "snapshot_period", "label": "Snapshot period", "type": "number", "default": 5, "min": 1, "max": 30, "step": 1}
+      ],
+      "artifacts": [
+        {"label": "Occupancy map", "path": "algorithms/simple_auto_slam_mapping/outputs/gui_example/map.pgm", "kind": "image"},
+        {"label": "Mapping summary", "path": "algorithms/simple_auto_slam_mapping/outputs/gui_example/mapping_summary.json", "kind": "json"},
+        {"label": "Trajectory", "path": "algorithms/simple_auto_slam_mapping/outputs/gui_example/trajectory.json", "kind": "json"},
+        {"label": "Route", "path": "algorithms/simple_auto_slam_mapping/outputs/gui_example/route.json", "kind": "json"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "widget_nesting_2d",
+  "icon": "nest",
+  "name": "2D Widget Nesting",
+  "eyebrow": "IRREGULAR STOCK LAYOUT",
+  "summary": "Pack hole-aware polygon widgets across boards, tune the search budget, and inspect placement quality and remaining usable stock.",
+  "accent": "#a17b24",
+  "runtime": "local-or-tk2",
+  "runtimeLabel": "TK2 default · Mac optional",
+  "capabilities": ["Shapely", "nesting", "layout"],
+  "examples": [
+    {
+      "id": "complex_board",
+      "name": "Nest the complex dual-board case",
+      "description": "Run the evolutionary beam solver with adjustable generations and rotation resolution.",
+      "target": "tk2",
+      "targets": ["tk2", "local"],
+      "command": ["./geo", "pt", "-m", "algorithms.widget_nesting_2d.solver", "--input", "algorithms/widget_nesting_2d/inputs/complex_dual_board.json", "--output", "algorithms/widget_nesting_2d/outputs/gui_example", "--generations", "{generations}", "--rotation-step-degrees", "{rotation_step}", "--seed", "{seed}"],
+      "parameters": [
+        {"id": "generations", "label": "Generations", "type": "integer", "default": 4, "min": 1, "max": 20, "step": 1},
+        {"id": "rotation_step", "label": "Rotation step (°)", "type": "number", "default": 15, "min": 5, "max": 90, "step": 5},
+        {"id": "seed", "label": "Random seed", "type": "integer", "default": 7, "min": 0, "max": 99999, "step": 1}
+      ],
+      "artifacts": [
+        {"label": "Nesting layout", "path": "algorithms/widget_nesting_2d/outputs/gui_example/nesting_layout.png", "kind": "image"},
+        {"label": "Solution", "path": "algorithms/widget_nesting_2d/outputs/gui_example/solution.json", "kind": "json"}
+      ]
+    }
+  ]
+}

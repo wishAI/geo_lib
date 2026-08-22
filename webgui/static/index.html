@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102a24">
+    <title>Geo Lab · Sandbox Console</title>
+    <meta name="description" content="Local Geo Library sandbox runner, result explorer, remote TK2 console, and URDF workbench.">
+    <link rel="stylesheet" href="/styles.css?v=3">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#/" aria-label="Geo Lab home">
+          <span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="/icons.svg?v=2#icon-logo"></use></svg></span>
+          <span><b>Geo Lab</b><small>Sandbox Console</small></span>
+        </a>
+        <nav class="top-actions" aria-label="Global controls">
+          <div class="status-rack" id="status-rack" aria-live="polite"></div>
+          <button class="button button-ghost button-with-icon" id="storage-button" type="button"><svg class="icon"><use href="/icons.svg?v=2#icon-cloud"></use></svg><span class="button-label">Shared files</span></button>
+          <button class="button button-icon" id="refresh-button" type="button" aria-label="Refresh all data" title="Refresh all data"><svg class="icon"><use href="/icons.svg?v=2#icon-refresh"></use></svg></button>
+        </nav>
+      </header>
+
+      <main id="app" tabindex="-1">
+        <section class="loading-view">
+          <span class="loading-orbit" aria-hidden="true"><svg class="icon"><use href="/icons.svg?v=2#icon-logo"></use></svg></span>
+          <p class="eyebrow">INITIALIZING LOCAL CONTROL PLANE</p>
+          <h1>Connecting the sandboxes.</h1>
+          <p>Reading manifests, result folders, TK2, and shared storage…</p>
+        </section>
+      </main>
+    </div>
+
+    <aside class="drawer" id="storage-drawer" aria-hidden="true" aria-labelledby="storage-title">
+      <div class="drawer-backdrop" data-close-drawer></div>
+      <section class="drawer-panel">
+        <header class="drawer-header">
+          <div class="drawer-title"><span class="section-icon"><svg class="icon"><use href="/icons.svg?v=2#icon-cloud"></use></svg></span><div><p class="eyebrow">NEXTCLOUD · TK2</p><h2 id="storage-title">Shared files</h2></div></div>
+          <button class="button button-icon" type="button" data-close-drawer aria-label="Close shared files"><svg class="icon"><use href="/icons.svg?v=2#icon-close"></use></svg></button>
+        </header>
+        <div id="storage-content" class="drawer-content"></div>
+      </section>
+    </aside>
+
+    <dialog id="artifact-dialog" class="artifact-dialog">
+      <button class="dialog-close" type="button" aria-label="Close preview"><svg class="icon"><use href="/icons.svg?v=2#icon-close"></use></svg></button>
+      <div id="artifact-preview"></div>
+    </dialog>
+
+    <dialog id="urdf-dialog" class="workbench-dialog" aria-labelledby="urdf-dialog-title">
+      <header class="workbench-dialog-head">
+        <div><p class="eyebrow">FLOATING 3D TOOL</p><h2 id="urdf-dialog-title">URDF workbench</h2></div>
+        <button class="button button-icon" type="button" data-close-workbench="urdf" aria-label="Close URDF workbench"><svg class="icon"><use href="/icons.svg?v=3#icon-close"></use></svg></button>
+      </header>
+      <div id="urdf-dialog-content" class="workbench-dialog-content"></div>
+    </dialog>
+
+    <dialog id="mesh-dialog" class="workbench-dialog mesh-dialog" aria-labelledby="mesh-dialog-title">
+      <header class="workbench-dialog-head">
+        <div><p class="eyebrow">SOURCE MESH → SIMPLE STL</p><h2 id="mesh-dialog-title">Mesh simplification lab</h2></div>
+        <button class="button button-icon" type="button" data-close-workbench="mesh" aria-label="Close mesh lab"><svg class="icon"><use href="/icons.svg?v=3#icon-close"></use></svg></button>
+      </header>
+      <div id="mesh-dialog-content" class="workbench-dialog-content"></div>
+    </dialog>
+
+    <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+    <script src="/motion_urdf_viewer.js?v=6"></script>
+    <script src="/app.js?v=8"></script>
+  </body>
+</html>

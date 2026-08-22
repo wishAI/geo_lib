@@ -62,26 +62,6 @@ def _extract_option_value(args: list[str], flag: str) -> str | None:
     return None
 
 
-def _has_option(args: list[str], flag: str) -> bool:
-    return any(item == flag or item.startswith(f"{flag}=") for item in args)
-
-
-def _walk_defaults(extra_args: list[str], *, default_stage: str) -> list[str]:
-    defaults: list[str] = []
-    if not _has_option(extra_args, "--robot"):
-        defaults.extend(["--robot", "landau"])
-    if not _has_option(extra_args, "--stage"):
-        defaults.extend(["--stage", default_stage])
-    return defaults
-
-
-def _walk_interactive_defaults(extra_args: list[str]) -> list[str]:
-    # Let the underlying play/teleop scripts own their interactive defaults.
-    # Hard-coding them here drifted out of sync and caused `./geo walk ...`
-    # to override safer script-level defaults.
-    return []
-
-
 def _asset_tag(usd_path: Path) -> str:
     stem = usd_path.stem.strip() or "asset"
     return re.sub(r"[^A-Za-z0-9._-]+", "_", stem)
@@ -180,21 +160,35 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
         epilog=(
             "Examples:\n"
+            "  ./geo gui\n"
+            "  ./geo storage status\n"
             "  ./geo --dry-run usd animate\n"
             "  ./geo usd animate\n"
             "  ./geo usd animate --camera-view hands --cycle-count 1\n"
-            "  ./geo walk train --max_iterations 2\n"
-            "  ./geo walk play --stage game\n"
-            "  ./geo walk milestone --milestone-id stand_30s_no_reset --stage stand --load_run <run> --checkpoint model_<n>.pt\n"
+            "  ./geo walk milestones\n"
             "  ./geo pull-output usd_parallel_urdf\n"
             "  ./geo avp session --gui --baseline\n"
             "  ./geo pt -m pytest algorithms/usd_parallel_urdf/tests -q\n"
-            "  ./geo isaac -m algorithms.urdf_learn_wasd_walk.scripts.train --robot landau --stage fwd_only --headless\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     subparsers = parser.add_subparsers(dest="group", required=True)
+
+    gui_parser = subparsers.add_parser("gui", help="Open the local-only Geo Web GUI.")
+    gui_parser.add_argument("--host", default="127.0.0.1")
+    gui_parser.add_argument("--port", type=int, default=8767)
+    gui_parser.add_argument("--no-browser", action="store_true")
+
+    storage_parser = subparsers.add_parser("storage", help="Manage Nextcloud-backed large files and TK2 sync.")
+    storage_subparsers = storage_parser.add_subparsers(dest="storage_cmd", required=True)
+    storage_subparsers.add_parser("status", help="Show cloud asset and hydration status.")
+    storage_subparsers.add_parser("audit", help="Fail when a tracked file exceeds 5 MiB.")
+    storage_hydrate = storage_subparsers.add_parser("hydrate", help="Restore declared repo-path links from Nextcloud.")
+    storage_hydrate.add_argument("--copy", action="store_true", help="Copy files instead of making symlinks.")
+    storage_subparsers.add_parser("push-tk2", help="Push Mac shared files to TK2 without deleting remote files.")
+    storage_subparsers.add_parser("pull-tk2", help="Pull TK2 shared files to the Mac without deleting local files.")
+    storage_subparsers.add_parser("sync-code-tk2", help="Refresh the GUI-owned TK2 source workspace.")
 
     subparsers.add_parser("pt", help="Run ptenv Python directly.")
     subparsers.add_parser("isaac", help="Pass through to Isaac Lab's `isaaclab.sh -p`.")
@@ -247,42 +241,9 @@ def _build_parser() -> argparse.ArgumentParser:
     usd_subparsers.add_parser("compare", help="Run offline FK comparison in ptenv.")
     usd_subparsers.add_parser("test", help="Run usd_parallel_urdf unit tests in ptenv.")
 
-    walk_parser = subparsers.add_parser("walk", help="URDF locomotion presets.")
+    walk_parser = subparsers.add_parser("walk", help="Inspect the intentionally clean locomotion milestone ladder.")
     walk_subparsers = walk_parser.add_subparsers(dest="walk_cmd", required=True)
-
-    walk_smoke = walk_subparsers.add_parser("smoke", help="Run the headless walk smoke test.")
-    _add_gui_flags(walk_smoke, default_headless=True)
-
-    walk_train = walk_subparsers.add_parser("train", help="Train the default Landau Stage A task.")
-    _add_gui_flags(walk_train, default_headless=True)
-
-    walk_validate = walk_subparsers.add_parser("validate", help="Validate a walk checkpoint.")
-    _add_gui_flags(walk_validate, default_headless=True)
-
-    walk_eval = walk_subparsers.add_parser("eval", help="Run a long-horizon stand-walk-hold evaluation.")
-    _add_gui_flags(walk_eval, default_headless=True)
-
-    walk_diag = walk_subparsers.add_parser("diagnose", help="Run a reset / idle pose stability diagnostic.")
-    _add_gui_flags(walk_diag, default_headless=True)
-
-    walk_validate_stand = walk_subparsers.add_parser(
-        "validate-stand",
-        help="Run the dedicated stand validation workflow and print the diagnostic JSON record.",
-    )
-    _add_gui_flags(walk_validate_stand, default_headless=True)
-
-    walk_subparsers.add_parser("gate", help="Run the long-horizon playback gate and write a workflow manifest.")
-    walk_subparsers.add_parser("milestone", help="Record a staged milestone checkpoint for the active lineage.")
-    walk_subparsers.add_parser("reset", help="Archive the current Landau lineage and initialize a fresh one.")
-    walk_subparsers.add_parser("curriculum", help="Run the staged Landau curriculum workflow.")
-
-    walk_play = walk_subparsers.add_parser("play", help="Play back a walk checkpoint.")
-    _add_gui_flags(walk_play, default_headless=False)
-
-    walk_teleop = walk_subparsers.add_parser("teleop", help="Teleoperate the default Landau Stage A checkpoint.")
-    _add_gui_flags(walk_teleop, default_headless=False)
-    walk_subparsers.add_parser("refs", help="Refresh machine-readable walk history refs.")
-    walk_subparsers.add_parser("test", help="Run pure-Python walk tests in ptenv.")
+    walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
 
     avp_parser = subparsers.add_parser("avp", help="AVP presets.")
     avp_subparsers = avp_parser.add_subparsers(dest="avp_cmd", required=True)
@@ -474,6 +435,22 @@ def _env_override_map(
 
 
 def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
+    if args.group == "gui":
+        if extra_args:
+            raise SystemExit(f"Unexpected GUI arguments: {shlex.join(extra_args)}")
+        argv = [sys.executable, "-m", "webgui.server", "--host", args.host, "--port", str(args.port)]
+        if args.no_browser:
+            argv.append("--no-browser")
+        return LaunchSpec("direct", argv)
+
+    if args.group == "storage":
+        if extra_args:
+            raise SystemExit(f"Unexpected storage arguments: {shlex.join(extra_args)}")
+        argv = [sys.executable, "-m", "webgui.storage", args.storage_cmd]
+        if args.storage_cmd == "hydrate" and args.copy:
+            argv.append("--copy")
+        return LaunchSpec("direct", argv)
+
     if args.group == "pull-output":
         if extra_args:
             raise SystemExit(f"Unexpected pull-output arguments: {shlex.join(extra_args)}")
@@ -591,104 +568,12 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             )
 
     if args.group == "walk":
-        if args.walk_cmd == "smoke":
-            base_defaults = _walk_defaults(extra_args, default_stage="fwd_only")
-            argv = [
-                "-m",
-                "algorithms.urdf_learn_wasd_walk.scripts.smoke_test",
-                *base_defaults,
-                "--steps",
-                "32",
-            ]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "train":
-            base_defaults = _walk_defaults(extra_args, default_stage="stand")
-            argv = ["-m", "algorithms.urdf_learn_wasd_walk.scripts.train", *base_defaults]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "validate":
-            base_defaults = _walk_defaults(extra_args, default_stage="fwd_only")
-            argv = ["-m", "algorithms.urdf_learn_wasd_walk.scripts.validate_walk", *base_defaults]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "eval":
-            base_defaults = _walk_defaults(extra_args, default_stage="fwd_only")
-            argv = ["-m", "algorithms.urdf_learn_wasd_walk.scripts.evaluate_policy", *base_defaults]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "diagnose":
-            base_defaults = _walk_defaults(extra_args, default_stage="stand")
-            argv = ["-m", "algorithms.urdf_learn_wasd_walk.scripts.check_pose_stability", *base_defaults]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "validate-stand":
-            argv = ["-m", "algorithms.urdf_learn_wasd_walk.scripts.validate_stand"]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("pt", argv)
-
-        if args.walk_cmd == "gate":
-            return LaunchSpec("pt", ["-m", "algorithms.urdf_learn_wasd_walk.scripts.run_playback_gate", *extra_args])
-
-        if args.walk_cmd == "milestone":
-            return LaunchSpec("pt", ["-m", "algorithms.urdf_learn_wasd_walk.scripts.record_training_milestone", *extra_args])
-
-        if args.walk_cmd == "reset":
-            return LaunchSpec("pt", ["-m", "algorithms.urdf_learn_wasd_walk.scripts.reset_training_state", *extra_args])
-
-        if args.walk_cmd == "curriculum":
-            return LaunchSpec("pt", ["-m", "algorithms.urdf_learn_wasd_walk.scripts.run_landau_curriculum", *extra_args])
-
-        if args.walk_cmd == "play":
-            base_defaults = _walk_defaults(extra_args, default_stage="game")
-            interactive_defaults = _walk_interactive_defaults(extra_args)
-            argv = [
-                "-m",
-                "algorithms.urdf_learn_wasd_walk.scripts.play",
-                *base_defaults,
-                *interactive_defaults,
-            ]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "teleop":
-            base_defaults = _walk_defaults(extra_args, default_stage="game")
-            interactive_defaults = _walk_interactive_defaults(extra_args)
-            argv = [
-                "-m",
-                "algorithms.urdf_learn_wasd_walk.scripts.teleop",
-                *base_defaults,
-                *interactive_defaults,
-            ]
-            if args.headless:
-                argv.append("--headless")
-            argv.extend(extra_args)
-            return LaunchSpec("isaac", argv)
-
-        if args.walk_cmd == "refs":
-            return LaunchSpec("pt", ["-m", "algorithms.urdf_learn_wasd_walk.scripts.refresh_history_refs", *extra_args])
-
-        if args.walk_cmd == "test":
-            return LaunchSpec("pt", ["-m", "pytest", "algorithms/urdf_learn_wasd_walk/tests", "-q", *extra_args])
+        if args.walk_cmd != "milestones" or extra_args:
+            raise SystemExit("The clean walk sandbox currently supports only: ./geo walk milestones")
+        return LaunchSpec(
+            "direct",
+            [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
+        )
 
     if args.group == "avp":
         snapshot_path = getattr(args, "snapshot_path", None) or _repo_arg(_default_avp_snapshot_path())
