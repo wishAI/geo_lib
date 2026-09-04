@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,6 +23,10 @@ def _metrics() -> dict:
         "max_reference_tilt_rad": 0.01,
         "root_height_drop_m": 0.005,
         "horizontal_drift_m": 0.002,
+        "first_support_exit_time_s": None,
+        "minimum_support_polygon_margin_m": 0.04,
+        "peak_support_force_body_weight_ratio": 1.2,
+        "mean_support_force_body_weight_ratio": 1.0,
     }
 
 
@@ -34,7 +40,7 @@ class PassivePipelineTests(unittest.TestCase):
             video_path.write_bytes(b"test video artifact")
             sheet_path.write_bytes(b"test contact sheet artifact")
             shared = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "milestone": passive_stand.MILESTONE_ID,
                 "scope": "component_only",
                 "status": "passed",
@@ -76,6 +82,18 @@ class PassivePipelineTests(unittest.TestCase):
             self.assertEqual(final["status"], "passed")
             self.assertTrue((output_dir / "validation.json").is_file())
             self.assertFalse(final["simulator"]["dynamics_rendering_enabled"])
+
+    def test_direct_script_entry_point_bootstraps_repository_package(self) -> None:
+        script = model_spec.ALGORITHM_ROOT / "passive_pipeline.py"
+        completed = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            cwd="/tmp",
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("--finalize-only", completed.stdout)
 
 
 if __name__ == "__main__":

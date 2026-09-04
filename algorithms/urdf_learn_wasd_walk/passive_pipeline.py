@@ -12,6 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+# ``geo walk finalize-passive`` intentionally executes this file by path.  In
+# that mode Python adds this file's directory, not the repository root, to
+# sys.path.  Bootstrap only the repository root before importing the package.
+REPO_BOOTSTRAP_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_BOOTSTRAP_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_BOOTSTRAP_ROOT))
+
 from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand
 
 
@@ -24,7 +31,7 @@ def _load_component(path: Path, phase: str, smoke: bool) -> dict:
     if not path.is_file():
         raise ValueError(f"missing {phase} component evidence: {path}")
     evidence = json.loads(path.read_text(encoding="utf-8"))
-    if evidence.get("schema_version") != 2 or evidence.get("milestone") != passive_stand.MILESTONE_ID:
+    if evidence.get("schema_version") != 3 or evidence.get("milestone") != passive_stand.MILESTONE_ID:
         raise ValueError(f"invalid {phase} component evidence schema or milestone")
     if evidence.get("component") != phase or evidence.get("scope") != "component_only":
         raise ValueError(f"evidence is not the {phase} component")
@@ -67,6 +74,9 @@ def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
         passed, failures = passive_stand.evaluate_gate(component["metrics"], required_duration_s=required)
         if not passed:
             raise ValueError(f"{label} metrics failed revalidation: {failures}")
+        support_failures = passive_stand.evaluate_free_root_support(component["metrics"])
+        if support_failures:
+            raise ValueError(f"{label} support metrics failed revalidation: {support_failures}")
     imported = dynamics["joint_contract"].get("runtime_importer_axis_evidence")
     if not imported or not imported.get("passed") or imported.get("joint_count") != 69:
         raise ValueError("dynamics evidence lacks a passing 69-joint importer-axis audit")
@@ -88,7 +98,7 @@ def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
 
     status = "smoke_passed_not_promotable" if smoke else "passed"
     final = {
-        "schema_version": 2,
+        "schema_version": 3,
         "milestone": passive_stand.MILESTONE_ID,
         "status": status,
         "lineage": dynamics["lineage"],

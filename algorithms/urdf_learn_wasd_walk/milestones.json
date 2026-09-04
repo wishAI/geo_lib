@@ -1,11 +1,37 @@
 {
   "version": 1,
   "lineage": "clean_restart_2026_08_22",
-  "implementationStatus": "milestone_1_validator_ready_unvalidated",
+  "implementationStatus": "milestone_1_passed_milestone_2_in_progress",
   "historyCarriedForward": false,
   "milestones": [
-    {"order": 1, "id": "stand_zero_signal_30s_no_reset", "stage": "stand", "status": "not_started"},
-    {"order": 2, "id": "stand_30s_no_reset", "stage": "stand", "status": "not_started"},
+    {
+      "order": 1,
+      "id": "stand_zero_signal_30s_no_reset",
+      "stage": "stand",
+      "status": "passed",
+      "passedAt": "20260904T080239.461579Z",
+      "checkpoint": "robot_spec_sha256:2d74554aa133d7d07b8d85dfaeac97d7425001fcd9ef45b8add6f1361801c64c",
+      "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
+      "seed": 42,
+      "metrics": {
+        "duration_s": 30.0,
+        "reset_count": 0,
+        "done_count": 0,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.05205439,
+        "root_height_drop_m": 0.00456337,
+        "horizontal_drift_m": 0.01400711,
+        "minimum_support_polygon_margin_m": 0.02672317
+      },
+      "evidence": [
+        {"kind": "validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json", "sha256": "d55c59c9df452a91f4f3a2cf23b9753f6b5dffad212c3a9823ae53d2270f7f70"},
+        {"kind": "dynamics_validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json", "sha256": "e0f038ae116314581db9b034d024557b5b3d8c96832af333f9147e2eb4d9fecd"},
+        {"kind": "proof_validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json", "sha256": "5d32cae6183ef33346a61b62fd68f26719a34e1c142601fd3913c764036246ff"},
+        {"kind": "video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4", "sha256": "da3ea9060f4cdc0955303e92a34d5c1b57ce9e0847d67ff833eeac8f137b81e9"},
+        {"kind": "contact_sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png", "sha256": "1cccd732baafa44c25701ead9239a0cb6dc81770cc3fac939d7712b04c476e16"}
+      ]
+    },
+    {"order": 2, "id": "stand_30s_no_reset", "stage": "stand", "status": "in_progress"},
     {"order": 3, "id": "gate_5m_no_reset", "stage": "fwd_only", "status": "not_started"},
     {"order": 4, "id": "gate_10m_no_reset", "stage": "fwd_only", "status": "not_started"},
     {"order": 5, "id": "yaw_turn_90deg_hold", "stage": "fwd_yaw", "status": "not_started"},
