@@ -363,6 +363,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(28px, 4vw, 58px)
 .dialog-close .icon { width: 18px; height: 18px; }
 #artifact-preview { padding: 28px; }
 #artifact-preview img { display: block; max-width: 100%; max-height: calc(100vh - 100px); margin: auto; object-fit: contain; }
+#artifact-preview video { display: block; width: 100%; max-height: calc(100vh - 100px); margin: auto; background: #071b15; border-radius: 12px; object-fit: contain; }
 #artifact-preview pre { max-height: calc(100vh - 100px); overflow: auto; padding: 18px; color: #e3eee8; background: #10251f; border-radius: 12px; font: 11px/1.55 var(--mono); white-space: pre-wrap; }
 .toast-stack { position: fixed; z-index: 60; right: 18px; bottom: 18px; width: min(380px,calc(100% - 36px)); display: grid; gap: 8px; }
 .toast { padding: 13px 15px; color: white; background: var(--forest); border-radius: 11px; box-shadow: var(--shadow); font-size: 12px; animation: toast-in .2s ease; }

@@ -22,7 +22,7 @@
     return `<svg class="icon ${escapeHtml(className)}" aria-hidden="true"><use href="/icons.svg?v=2#icon-${resolved}"></use></svg>`;
   };
   const targetIcon = target => String(target || '').startsWith('tk2') ? 'tk2' : 'mac';
-  const artifactIcon = kind => kind === 'image' ? 'result' : kind === 'json' ? 'file' : 'layers';
+  const artifactIcon = kind => kind === 'image' ? 'result' : kind === 'video' ? 'play' : kind === 'json' ? 'file' : 'layers';
   const visibleExamples = sandbox => (sandbox.examples || []).filter(example => example.surface !== 'meshWorkbench');
   const declaredArtifactCount = sandbox => new Set((sandbox.examples || []).flatMap(example => (example.artifacts || []).filter(item => !item.syncOnly).map(item => item.path))).size;
   const JOINT_GROUPS = [
@@ -214,6 +214,8 @@
     try {
       if (kind === 'image' || /\.(png|jpg|jpeg|gif|pgm)$/i.test(path)) {
         artifactPreview.innerHTML = `<img src="${url}" alt="${escapeHtml(path)}">`;
+      } else if (kind === 'video' || /\.(mp4|webm|mov)$/i.test(path)) {
+        artifactPreview.innerHTML = `<video controls autoplay muted playsinline preload="metadata" src="${url}" aria-label="${escapeHtml(path)}"></video>`;
       } else {
         const response = await fetch(url, { cache: 'no-store' });
         const text = await response.text();
