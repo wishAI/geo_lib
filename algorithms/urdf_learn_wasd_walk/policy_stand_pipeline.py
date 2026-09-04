@@ -22,6 +22,102 @@ from algorithms.urdf_learn_wasd_walk import policy_stand_contract as contract
 
 ISAACLAB_SH = Path("/home/wishai/vscode/IsaacLab/isaaclab.sh")
 ISAAC_SCRIPT = model_spec.ALGORITHM_ROOT / "policy_stand.py"
+MILESTONES_PATH = model_spec.ALGORITHM_ROOT / "milestones.json"
+GUI_MANIFEST_PATH = model_spec.ALGORITHM_ROOT / "gui" / "manifest.json"
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=False, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
+
+
+def _record_canonical_pass(
+    final: dict,
+    final_path: Path,
+    dynamics_path: Path,
+    proof_path: Path,
+    video_path: Path,
+    sheet_path: Path,
+    training_path: Path,
+    *,
+    milestones_path: Path = MILESTONES_PATH,
+    manifest_path: Path = GUI_MANIFEST_PATH,
+) -> None:
+    """Idempotently reconcile exact gate evidence into both canonical status files."""
+
+    milestones = json.loads(milestones_path.read_text(encoding="utf-8"))
+    if milestones.get("lineage") != contract.LINEAGE:
+        raise ValueError("canonical milestone ledger belongs to another lineage")
+    records = {item["id"]: item for item in milestones.get("milestones", [])}
+    prior = records.get(contract.PRIOR_MILESTONE_ID)
+    current = records.get(contract.MILESTONE_ID)
+    following = records.get("gate_5m_no_reset")
+    if prior is None or prior.get("status") != "passed":
+        raise ValueError("canonical ledger no longer records the passive gate as passed")
+    if current is None or current.get("status") not in {"in_progress", "passed"}:
+        raise ValueError("policy stand is not the canonical active or passed milestone")
+    if following is None or following.get("status") not in {"not_started", "in_progress"}:
+        raise ValueError("5 m gate has an incompatible canonical status")
+
+    def declared(kind: str, path: Path) -> dict:
+        return {
+            "kind": kind,
+            "path": str(path.resolve().relative_to(REPO_BOOTSTRAP_ROOT)),
+            "sha256": contract.sha256(path),
+        }
+
+    metrics = final["metrics"]
+    current.clear()
+    current.update({
+        "order": 2,
+        "id": contract.MILESTONE_ID,
+        "stage": "stand",
+        "status": "passed",
+        "passedAt": final["assembled_at"],
+        "checkpoint": final["checkpoint"],
+        "urdfSha256": final["input"]["urdf_sha256"],
+        "seed": final["seed"],
+        "metrics": {
+            name: metrics[name] for name in (
+                "duration_s", "reset_count", "done_count", "fall_count",
+                "max_reference_tilt_rad", "root_height_drop_m", "horizontal_drift_m",
+                "minimum_support_polygon_margin_m",
+            )
+        },
+        "evidence": [
+            declared("validation", final_path),
+            declared("training", training_path),
+            declared("dynamics_validation", dynamics_path),
+            declared("proof_validation", proof_path),
+            declared("checkpoint", REPO_BOOTSTRAP_ROOT / final["checkpoint"]["path"]),
+            declared("video", video_path),
+            declared("contact_sheet", sheet_path),
+        ],
+    })
+    following["status"] = "in_progress"
+    milestones["implementationStatus"] = "milestone_2_passed_milestone_3_in_progress"
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_records = {item["id"]: item for item in manifest.get("milestones", [])}
+    if set((contract.MILESTONE_ID, "gate_5m_no_reset")) - set(manifest_records):
+        raise ValueError("GUI manifest lacks the policy or 5 m milestone")
+    manifest_records[contract.MILESTONE_ID]["status"] = "passed"
+    manifest_records["gate_5m_no_reset"]["status"] = "in progress"
+    manifest["summary"] = (
+        "Clean-lineage Landau locomotion rebuilt one hard gate at a time. Passive and "
+        "policy standing are proven; the 5 m flat forward gate is active."
+    )
+    manifest["runtimeLabel"] = "TK2 · 5 m forward gate"
+    manifest["capabilities"] = [
+        "passive stand", "policy stand", "forward walk", "Isaac Lab", "clean room"
+    ]
+
+    _write_json(milestones_path, milestones)
+    _write_json(manifest_path, manifest)
 
 
 def _load_component(path: Path, phase: str, smoke: bool) -> dict:
@@ -99,6 +195,7 @@ def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
 
     status = "smoke_passed_not_promotable" if smoke else "passed"
     final_path = output_dir / ("smoke_validation.json" if smoke else "validation.json")
+    canonical = not smoke and output_dir == contract.DEFAULT_OUTPUT_DIR.resolve()
     final = {
         "schema_version": 1,
         "milestone": contract.MILESTONE_ID,
@@ -140,10 +237,15 @@ def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
                 "run_identity": proof["run_identity"],
             },
         },
+        "milestone_status_changed": canonical,
         "failures": [],
         "cumulative_gates": [prior, {"order": 2, "id": contract.MILESTONE_ID, "status": status}],
     }
-    final_path.write_text(json.dumps(final, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_json(final_path, final)
+    if canonical:
+        _record_canonical_pass(
+            final, final_path, dynamics_path, proof_path, video_path, sheet_path, training_path
+        )
     print(json.dumps({
         "status": status, "milestone": contract.MILESTONE_ID,
         "validation": os.fspath(final_path), "checkpoint": final["checkpoint"],

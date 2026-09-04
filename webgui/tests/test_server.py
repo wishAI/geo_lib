@@ -56,8 +56,9 @@ class ManifestTests(unittest.TestCase):
         payload = json.loads((root / "milestones.json").read_text(encoding="utf-8"))
         self.assertEqual(len(payload["milestones"]), 12)
         self.assertEqual(payload["milestones"][0]["status"], "passed")
-        self.assertEqual(payload["milestones"][1]["status"], "in_progress")
-        self.assertEqual({item["status"] for item in payload["milestones"][2:]}, {"not_started"})
+        self.assertEqual(payload["milestones"][1]["status"], "passed")
+        self.assertEqual(payload["milestones"][2]["status"], "in_progress")
+        self.assertEqual({item["status"] for item in payload["milestones"][3:]}, {"not_started"})
         self.assertFalse(payload["historyCarriedForward"])
         manifest = server.manifest_map()["urdf_learn_wasd_walk"]
         self.assertEqual(

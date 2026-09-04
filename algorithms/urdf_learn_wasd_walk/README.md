@@ -21,7 +21,8 @@ Current clean implementation:
 - `robot_spec.json` records the 17 action joints, every explicitly locked joint, nominal pose, PD gains, and Landau's body-`+Y` semantic command mapping.
 - `passive_stand.py` implements only milestone 1 as two independent Isaac components: camera-free passive dynamics and a viewport-rendered proof replay.
 - `passive_pipeline.py` runs those components sequentially and creates final milestone evidence only when both pass.
-- Milestone 1 passed from the canonical derived pose; `milestones.json` pins every evidence hash.
+- Milestones 1 and 2 passed from the canonical derived pose and PPO checkpoint;
+  `milestones.json` pins every evidence hash. The 5 m flat forward gate is active.
 - `policy_stand_env.py` is the milestone-2 flat manager-based environment, with the audited 17-joint residual action and a 60-value proprioceptive actor observation.
 - `policy_stand.py` trains RSL-RL PPO or evaluates one checkpoint, and `policy_stand_pipeline.py` keeps camera-free dynamics separate from viewport proof.
 
@@ -43,4 +44,4 @@ Commands:
 
 Each exact all-in-one validator runs its two Isaac components sequentially; it never overlaps Isaac processes. Camera-free results remain available when proof rendering fails. A final `validation.json` appears only after both exact components pass. Policy training writes a durable `checkpoint.pt`, its originating run checkpoint, and `training.json` below `outputs/stand_30s_no_reset/`; training completion alone cannot promote the milestone. Short smokes are never promotable.
 
-Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. Walking remains out of scope until the policy-controlled 30-second stand passes.
+Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. The next implementation extends the proven stand policy to the 5 m flat forward gate.

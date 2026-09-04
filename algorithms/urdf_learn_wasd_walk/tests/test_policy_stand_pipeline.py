@@ -113,6 +113,62 @@ class PolicyStandPipelineTests(unittest.TestCase):
             self.assertEqual([item["status"] for item in final["cumulative_gates"]], ["passed", "passed"])
             self.assertEqual(final["checkpoint"]["sha256"], contract.sha256(checkpoint))
 
+    def test_canonical_recorder_hash_pins_gate_and_advances_status_only(self) -> None:
+        with tempfile.TemporaryDirectory(dir=contract.OUTPUT_ROOT) as temporary:
+            root = Path(temporary)
+            milestones_path = root / "milestones.json"
+            manifest_path = root / "manifest.json"
+            milestones = json.loads(
+                (model_spec.ALGORITHM_ROOT / "milestones.json").read_text(encoding="utf-8")
+            )
+            manifest = json.loads(
+                (model_spec.ALGORITHM_ROOT / "gui" / "manifest.json").read_text(encoding="utf-8")
+            )
+            milestones_path.write_text(json.dumps(milestones), encoding="utf-8")
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            artifacts = {}
+            for name in (
+                "validation.json", "dynamics_validation.json", "proof_validation.json",
+                "proof.mp4", "contact_sheet.png", "training.json", "checkpoint.pt",
+            ):
+                artifacts[name] = root / name
+                artifacts[name].write_bytes(name.encode())
+            final = {
+                "assembled_at": "20260904T091735.000000Z",
+                "seed": 42,
+                "input": {"urdf_sha256": model_spec.EXPECTED_URDF_SHA256},
+                "checkpoint": {
+                    "path": str(artifacts["checkpoint.pt"].relative_to(pipeline.REPO_BOOTSTRAP_ROOT)),
+                    "sha256": contract.sha256(artifacts["checkpoint.pt"]),
+                },
+                "metrics": {
+                    "duration_s": 30.0, "reset_count": 0, "done_count": 0, "fall_count": 0,
+                    "max_reference_tilt_rad": 0.1, "root_height_drop_m": 0.004,
+                    "horizontal_drift_m": 0.02, "minimum_support_polygon_margin_m": 0.006,
+                },
+            }
+            pipeline._record_canonical_pass(
+                final,
+                artifacts["validation.json"],
+                artifacts["dynamics_validation.json"],
+                artifacts["proof_validation.json"],
+                artifacts["proof.mp4"],
+                artifacts["contact_sheet.png"],
+                artifacts["training.json"],
+                milestones_path=milestones_path,
+                manifest_path=manifest_path,
+            )
+            recorded = json.loads(milestones_path.read_text(encoding="utf-8"))
+            by_id = {item["id"]: item for item in recorded["milestones"]}
+            self.assertEqual(by_id[contract.MILESTONE_ID]["status"], "passed")
+            self.assertEqual(by_id["gate_5m_no_reset"]["status"], "in_progress")
+            self.assertEqual(len(by_id[contract.MILESTONE_ID]["evidence"]), 7)
+            self.assertTrue(all(len(item["sha256"]) == 64 for item in by_id[contract.MILESTONE_ID]["evidence"]))
+            gui = json.loads(manifest_path.read_text(encoding="utf-8"))
+            gui_by_id = {item["id"]: item for item in gui["milestones"]}
+            self.assertEqual(gui_by_id[contract.MILESTONE_ID]["status"], "passed")
+            self.assertEqual(gui_by_id["gate_5m_no_reset"]["status"], "in progress")
+
 
 if __name__ == "__main__":
     unittest.main()
