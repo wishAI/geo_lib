@@ -42,11 +42,14 @@ Commands:
 - `./geo walk validate-policy-stand --headless`
 - `./geo walk finalize-policy-stand`
 - `./geo walk train-forward-walk --headless --num-envs 512 --iterations 600`
+- `./geo walk train-forward-walk --resume-gate-checkpoint --headless --num-envs 512 --iterations 300` resumes a failed 5 m candidate into the bounded phase-gait/L2 method; the prior canonical checkpoint remains intact until completion.
 - `./geo walk validate-forward-walk-stand --steps 32 --smoke --reuse-usd-cache --headless`
 - `./geo walk validate-forward-walk-dynamics --steps 32 --smoke --reuse-usd-cache --headless`
 - `./geo walk validate-forward-walk --headless`
 - `./geo walk finalize-forward-walk`
 
 Each exact all-in-one validator runs its independent Isaac components sequentially; it never overlaps Isaac processes. Camera-free results remain available when proof rendering fails. A final `validation.json` appears only after every exact component passes. Policy training writes a durable `checkpoint.pt`, its originating run checkpoint, and `training.json` below the active milestone output; training completion alone cannot promote a milestone. Short smokes are never promotable.
+
+The active 5 m retraining method is `phase_gait_l2_v2`. It replaces the failed bounded instantaneous exponential velocity score with squared body-`+Y` tracking and signed progress, and exposes a deterministic sine/cosine gait phase used by an alternating single-support reward. Zero-command environments remain in every batch to retain the passed stand behavior. Resume transfer preserves all 63 learned inputs from the failed candidate and zero-initializes only the two phase columns; it does not load optimizer state.
 
 Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. The active implementation transfers the proven stand actor into the 5 m flat forward gate while requiring the candidate checkpoint to re-pass standing.

@@ -21,6 +21,8 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
+TRAINING_METHOD_ID = "phase_gait_l2_v2"
+GAIT_PERIOD_S = 0.8
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
 TARGET_DISTANCE_M = 5.0
@@ -42,15 +44,18 @@ ACTOR_OBSERVATION_TERMS = (
     ("action_joint_velocity", len(model_spec.ACTION_JOINTS)),
     ("previous_action", len(model_spec.ACTION_JOINTS)),
     ("semantic_velocity_command", 3),
+    ("gait_phase", 2),
 )
 ACTOR_OBSERVATION_DIM = sum(width for _, width in ACTOR_OBSERVATION_TERMS)
 
 REWARD_CONTRACT = (
     {"name": "termination", "weight": -100.0},
-    {"name": "track_linear_velocity", "weight": 2.0},
-    {"name": "track_yaw_velocity", "weight": 0.5},
+    {"name": "forward_velocity_tracking_l2", "weight": -2.0},
+    {"name": "signed_forward_progress", "weight": 1.0},
+    {"name": "yaw_velocity_l2", "weight": -0.5},
     {"name": "upright_posture", "weight": -2.0},
     {"name": "base_height", "weight": -1.0},
+    {"name": "alternating_single_support", "weight": 1.0},
     {"name": "feet_air_time", "weight": 0.5},
     {"name": "foot_slip", "weight": -0.15},
     {"name": "natural_posture", "weight": -0.1},
@@ -112,6 +117,58 @@ def summarize_forward_velocity_samples(
     }
 
 
+def analyze_failed_forward_evidence(evidence: dict) -> dict:
+    """Extract the failure signature that justifies a changed training method."""
+
+    if (
+        evidence.get("status") != "failed"
+        or evidence.get("milestone") != MILESTONE_ID
+        or evidence.get("component") != "forward"
+    ):
+        raise ValueError("resume diagnosis requires failed exact forward evidence")
+    action_traces = evidence.get("action_traces", [])
+    if len(action_traces) < 2:
+        raise ValueError("resume diagnosis requires action traces")
+    joint_order = action_traces[0].get("joint_order", [])
+    if joint_order != list(model_spec.ACTION_JOINTS):
+        raise ValueError("resume diagnosis action order differs from the robot contract")
+    flips = {}
+    for index, name in enumerate(joint_order):
+        values = [float(item["raw_policy_action"][index]) for item in action_traces]
+        flips[name] = round(
+            sum(left * right < 0.0 for left, right in zip(values, values[1:]))
+            / (len(values) - 1),
+            8,
+        )
+    sagittal_names = [
+        name for name in joint_order
+        if name.endswith(("hip_pitch_joint", "knee_joint", "ankle_pitch_joint"))
+    ]
+    metrics = evidence.get("metrics", {})
+    peak_sagittal_flip_fraction = max(flips[name] for name in sagittal_names)
+    no_liftoff = (
+        int(metrics.get("left_foot_liftoff_count", -1)) == 0
+        and int(metrics.get("right_foot_liftoff_count", -1)) == 0
+    )
+    period_two = peak_sagittal_flip_fraction >= 0.9
+    return {
+        "classification": "period_two_no_liftoff" if period_two and no_liftoff else "other",
+        "period_two_sagittal_action_oscillation": period_two,
+        "both_feet_without_liftoff": no_liftoff,
+        "peak_sagittal_action_sign_flip_fraction": peak_sagittal_flip_fraction,
+        "action_sign_flip_fraction_by_joint": flips,
+        "semantic_forward_displacement_m": metrics.get("semantic_forward_displacement_m"),
+        "mean_semantic_forward_velocity_mps": metrics.get("mean_semantic_forward_velocity_mps"),
+        "reverse_motion_step_fraction": metrics.get("reverse_motion_step_fraction"),
+        "actor_output_clipped_value_count": metrics.get("actor_output_clipped_value_count"),
+        "hypothesis": (
+            "the bounded instantaneous exponential tracking reward admits a profitable alternating "
+            "velocity exploit and supplies no direct alternating swing schedule"
+        ),
+        "next_method": TRAINING_METHOD_ID,
+    }
+
+
 def load_cumulative_prior() -> tuple[list[dict], dict]:
     """Hash-check gates 1–2 and return the exact stand checkpoint for initialization."""
 
@@ -156,26 +213,38 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
     return prior, {**parent, "resolved_path": str(parent_path)}
 
 
-def training_contract(*, seed: int, num_envs: int, iterations: int) -> dict:
+def training_contract(
+    *, seed: int, num_envs: int, iterations: int, initialization_source: dict | None = None
+) -> dict:
     if seed < 0 or num_envs <= 0 or iterations <= 0:
         raise ValueError("seed must be non-negative and sizes positive")
     prior, parent = load_cumulative_prior()
+    if initialization_source is None:
+        initialization_source = {
+            "kind": "expanded_observation_transfer",
+            "path": parent["path"],
+            "sha256": parent["sha256"],
+            "actor_observation_dim": 60,
+            "source_milestone": PARENT_MILESTONE_ID,
+        }
+    source_width = int(initialization_source["actor_observation_dim"])
+    if source_width not in {60, 63, ACTOR_OBSERVATION_DIM}:
+        raise ValueError(f"unsupported initialization observation width: {source_width}")
     return {
         "schema_version": 1,
         "lineage": LINEAGE,
         "milestone": MILESTONE_ID,
         "algorithm": "RSL-RL PPO",
+        "training_method": TRAINING_METHOD_ID,
         "seed": seed,
         "num_envs": num_envs,
         "iterations": iterations,
         "num_steps_per_env": 24,
         "sample_count": num_envs * iterations * 24,
         "initialization": {
-            "kind": "expanded_observation_transfer",
-            "parent_checkpoint_path": parent["path"],
-            "parent_checkpoint_sha256": parent["sha256"],
-            "preserved_observation_prefix_width": 60,
-            "new_command_columns_zero_initialized": 3,
+            **initialization_source,
+            "preserved_observation_prefix_width": source_width,
+            "new_input_columns_zero_initialized": ACTOR_OBSERVATION_DIM - source_width,
             "optimizer_state_loaded": False,
         },
         "environment": {
@@ -194,6 +263,8 @@ def training_contract(*, seed: int, num_envs: int, iterations: int) -> dict:
                 {"name": name, "width": width} for name, width in ACTOR_OBSERVATION_TERMS
             ],
             "actor_observation_dim": ACTOR_OBSERVATION_DIM,
+            "gait_phase_period_s": GAIT_PERIOD_S,
+            "gait_phase_observation": ["sin_phase", "cos_phase"],
             "privileged_critic_observations": False,
             "reward_terms": list(REWARD_CONTRACT),
             "rough_terrain": False,

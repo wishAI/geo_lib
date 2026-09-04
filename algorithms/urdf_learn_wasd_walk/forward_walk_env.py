@@ -12,6 +12,7 @@ from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import ContactSensor
 from isaaclab.utils import configclass
 from isaaclab_tasks.manager_based.locomotion.velocity import mdp as locomotion_mdp
 
@@ -35,6 +36,52 @@ def semantic_velocity_command(env) -> torch.Tensor:
 
     command = env.command_manager.get_command("base_velocity")
     return command[:, [1, 0, 2]]
+
+
+def gait_phase(env) -> torch.Tensor:
+    """Deployable periodic phase reset with each episode."""
+
+    phase = 2.0 * torch.pi * env.episode_length_buf * env.step_dt / contract.GAIT_PERIOD_S
+    return torch.stack((torch.sin(phase), torch.cos(phase)), dim=-1)
+
+
+def forward_velocity_tracking_l2(env) -> torch.Tensor:
+    """Unbounded quadratic tracking makes opposite velocity errors costly."""
+
+    robot = env.scene["robot"]
+    command = env.command_manager.get_command("base_velocity")
+    return torch.square(command[:, 1] - robot.data.root_lin_vel_b[:, 1])
+
+
+def signed_forward_progress(env) -> torch.Tensor:
+    robot = env.scene["robot"]
+    command = env.command_manager.get_command("base_velocity")[:, 1]
+    moving = torch.abs(command) > 0.1
+    return torch.clamp(torch.sign(command) * robot.data.root_lin_vel_b[:, 1], -1.0, 1.0) * moving
+
+
+def yaw_velocity_l2(env) -> torch.Tensor:
+    robot = env.scene["robot"]
+    command = env.command_manager.get_command("base_velocity")
+    return torch.square(command[:, 2] - robot.data.root_ang_vel_b[:, 2])
+
+
+def alternating_single_support(
+    env, left_cfg: SceneEntityCfg, right_cfg: SceneEntityCfg
+) -> torch.Tensor:
+    """Reward the scheduled stance contact and scheduled swing clearance."""
+
+    sensor: ContactSensor = env.scene.sensors[left_cfg.name]
+    force_history = sensor.data.net_forces_w_history
+    left_force = torch.linalg.vector_norm(force_history[:, :, left_cfg.body_ids], dim=-1)
+    right_force = torch.linalg.vector_norm(force_history[:, :, right_cfg.body_ids], dim=-1)
+    left_contact = torch.any(torch.any(left_force > 1.0, dim=1), dim=1)
+    right_contact = torch.any(torch.any(right_force > 1.0, dim=1), dim=1)
+    left_stance = gait_phase(env)[:, 0] >= 0.0
+    stance_contact = torch.where(left_stance, left_contact, right_contact)
+    swing_clear = torch.where(left_stance, ~right_contact, ~left_contact)
+    moving = torch.abs(env.command_manager.get_command("base_velocity")[:, 1]) > 0.1
+    return 0.5 * (stance_contact.float() + swing_clear.float()) * moving
 
 
 @configclass
@@ -70,6 +117,7 @@ class ObservationsCfg:
         )
         previous_action = ObsTerm(func=mdp.last_action)
         semantic_velocity_command = ObsTerm(func=semantic_velocity_command)
+        gait_phase = ObsTerm(func=gait_phase)
 
         def __post_init__(self):
             self.enable_corruption = False
@@ -81,21 +129,26 @@ class ObservationsCfg:
 @configclass
 class RewardsCfg:
     termination = RewTerm(func=mdp.is_terminated, weight=-100.0)
-    track_linear_velocity = RewTerm(
-        func=locomotion_mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=2.0,
-        params={"command_name": "base_velocity", "std": 0.25},
-    )
-    track_yaw_velocity = RewTerm(
-        func=locomotion_mdp.track_ang_vel_z_world_exp,
-        weight=0.5,
-        params={"command_name": "base_velocity", "std": 0.25},
-    )
+    forward_velocity_tracking_l2 = RewTerm(func=forward_velocity_tracking_l2, weight=-2.0)
+    signed_forward_progress = RewTerm(func=signed_forward_progress, weight=1.0)
+    yaw_velocity_l2 = RewTerm(func=yaw_velocity_l2, weight=-0.5)
     upright_posture = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0)
     base_height = RewTerm(
         func=mdp.base_height_l2,
         weight=-1.0,
         params={"target_height": model_spec.build_robot_spec()["nominal_pose"]["base_position_m"][2]},
+    )
+    alternating_single_support = RewTerm(
+        func=alternating_single_support,
+        weight=1.0,
+        params={
+            "left_cfg": SceneEntityCfg(
+                "contact_forces", body_names=["foot_l", "toes_01_l"]
+            ),
+            "right_cfg": SceneEntityCfg(
+                "contact_forces", body_names=["foot_r", "toes_01_r"]
+            ),
+        },
     )
     feet_air_time = RewTerm(
         func=locomotion_mdp.feet_air_time_positive_biped,

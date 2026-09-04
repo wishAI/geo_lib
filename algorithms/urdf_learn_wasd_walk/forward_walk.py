@@ -48,8 +48,8 @@ def _write_failure(args, error: Exception) -> None:
     )
 
 
-def _transfer_stand_checkpoint(runner, checkpoint_path: Path) -> dict:
-    """Preserve the 60-input stand network and zero-init three command columns."""
+def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
+    """Preserve a compatible actor/critic prefix and zero-init new inputs."""
 
     import torch
 
@@ -69,28 +69,38 @@ def _transfer_stand_checkpoint(runner, checkpoint_path: Path) -> dict:
             name in {"actor.0.weight", "critic.0.weight"}
             and source_value.ndim == 2
             and source_value.shape[0] == target_value.shape[0]
-            and source_value.shape[1] == 60
+            and source_value.shape[1] in {60, 63}
             and target_value.shape[1] == contract.ACTOR_OBSERVATION_DIM
         ):
             target_value.zero_()
-            target_value[:, :60] = source_value
+            target_value[:, : source_value.shape[1]] = source_value
             target[name] = target_value
-            expanded.append(name)
+            expanded.append({"name": name, "source_width": source_value.shape[1]})
         else:
             raise RuntimeError(
-                f"stand transfer shape mismatch for {name}: {tuple(source_value.shape)} -> "
+                f"checkpoint transfer shape mismatch for {name}: {tuple(source_value.shape)} -> "
                 f"{tuple(target_value.shape)}"
             )
     runner.alg.actor_critic.load_state_dict(target, strict=True)
-    if sorted(expanded) != ["actor.0.weight", "critic.0.weight"]:
+    source_width = int(source["actor.0.weight"].shape[1])
+    expected_expanded = (
+        ["actor.0.weight", "critic.0.weight"]
+        if source_width < contract.ACTOR_OBSERVATION_DIM else []
+    )
+    if sorted(item["name"] for item in expanded) != expected_expanded:
         raise RuntimeError(f"unexpected expanded transfer tensors: {expanded}")
+    if int(source["critic.0.weight"].shape[1]) != source_width:
+        raise RuntimeError("actor/critic source widths differ")
     return {
-        "parent_checkpoint_path": str(checkpoint_path.relative_to(REPO_ROOT)),
-        "parent_checkpoint_sha256": contract.sha256(checkpoint_path),
+        "source_checkpoint_path": str(checkpoint_path.relative_to(REPO_ROOT)),
+        "source_checkpoint_sha256": contract.sha256(checkpoint_path),
         "exact_tensor_count": len(exact),
-        "expanded_tensors": sorted(expanded),
-        "preserved_input_columns": [0, 59],
-        "zero_initialized_command_columns": [60, 61, 62],
+        "expanded_tensors": sorted(expanded, key=lambda item: item["name"]),
+        "preserved_input_columns": [0, source_width - 1],
+        "zero_initialized_input_columns": (
+            [source_width, contract.ACTOR_OBSERVATION_DIM - 1]
+            if source_width < contract.ACTOR_OBSERVATION_DIM else []
+        ),
         "optimizer_state_loaded": False,
     }
 
@@ -105,14 +115,55 @@ def _train(args) -> dict:
     output = contract.safe_output_dir(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     training_path = output / contract.TRAINING_EVIDENCE
-    training_path.unlink(missing_ok=True)
     prior, parent = contract.load_cumulative_prior()
+    predecessor = None
+    if args.resume_gate_checkpoint:
+        resume_output = contract.DEFAULT_OUTPUT_DIR
+        resume_training = contract.load_training_evidence(resume_output)
+        resume_validation_path = resume_output / contract.component_artifact_name("forward")
+        resume_validation = json.loads(resume_validation_path.read_text(encoding="utf-8"))
+        if resume_validation.get("checkpoint", {}).get("sha256") != resume_training["checkpoint"]["sha256"]:
+            raise ValueError("failed forward evidence does not match the resumable checkpoint")
+        diagnosis = contract.analyze_failed_forward_evidence(resume_validation)
+        source_checkpoint = Path(resume_training["checkpoint"]["resolved_path"])
+        source_width = int(resume_training["requested_contract"]["environment"]["actor_observation_dim"])
+        initialization_source = {
+            "kind": "failed_gate_method_change_transfer",
+            "path": resume_training["checkpoint"]["path"],
+            "sha256": resume_training["checkpoint"]["sha256"],
+            "actor_observation_dim": source_width,
+            "source_milestone": contract.MILESTONE_ID,
+        }
+        predecessor = {
+            "training_path": str((resume_output / contract.TRAINING_EVIDENCE).relative_to(REPO_ROOT)),
+            "training_sha256": contract.sha256(resume_output / contract.TRAINING_EVIDENCE),
+            "validation_path": str(resume_validation_path.relative_to(REPO_ROOT)),
+            "validation_sha256": contract.sha256(resume_validation_path),
+            "checkpoint": {key: value for key, value in resume_training["checkpoint"].items() if key != "resolved_path"},
+            "diagnosis": diagnosis,
+        }
+    else:
+        source_checkpoint = Path(parent["resolved_path"])
+        initialization_source = None
     requested = contract.training_contract(
-        seed=args.seed, num_envs=args.num_envs, iterations=args.iterations
+        seed=args.seed,
+        num_envs=args.num_envs,
+        iterations=args.iterations,
+        initialization_source=initialization_source,
     )
     run_identity = policy_stand._timestamp()
     run_dir = output / "runs" / run_identity
     run_dir.mkdir(parents=True, exist_ok=False)
+    if predecessor is not None:
+        predecessor_training_copy = run_dir / "predecessor_training.json"
+        predecessor_validation_copy = run_dir / "predecessor_forward_validation.json"
+        shutil.copy2(contract.DEFAULT_OUTPUT_DIR / contract.TRAINING_EVIDENCE, predecessor_training_copy)
+        shutil.copy2(
+            contract.DEFAULT_OUTPUT_DIR / contract.component_artifact_name("forward"),
+            predecessor_validation_copy,
+        )
+        predecessor["archived_training_path"] = str(predecessor_training_copy.relative_to(REPO_ROOT))
+        predecessor["archived_validation_path"] = str(predecessor_validation_copy.relative_to(REPO_ROOT))
     _stage(args, "manager_environment_construction")
     cfg = build_env_cfg(
         num_envs=args.num_envs,
@@ -139,8 +190,8 @@ def _train(args) -> dict:
         runner = OnPolicyRunner(
             wrapped, runner_cfg.to_dict(), log_dir=os.fspath(run_dir), device=args.device
         )
-        _stage(args, "stand_checkpoint_transfer")
-        transfer = _transfer_stand_checkpoint(runner, Path(parent["resolved_path"]))
+        _stage(args, "checkpoint_method_change_transfer")
+        transfer = _transfer_checkpoint(runner, source_checkpoint)
         _stage(args, "ppo_learning")
         runner.learn(num_learning_iterations=args.iterations, init_at_random_ep_len=True)
         checkpoints = list(run_dir.glob("model_*.pt"))
@@ -148,8 +199,10 @@ def _train(args) -> dict:
             raise RuntimeError("RSL-RL completed without a checkpoint")
         run_checkpoint = max(checkpoints, key=lambda path: int(path.stem.split("_")[-1]))
         checkpoint = output / "checkpoint.pt"
-        checkpoint.unlink(missing_ok=True)
-        shutil.copy2(run_checkpoint, checkpoint)
+        pending_checkpoint = output / "checkpoint.pt.pending"
+        pending_checkpoint.unlink(missing_ok=True)
+        shutil.copy2(run_checkpoint, pending_checkpoint)
+        os.replace(pending_checkpoint, checkpoint)
         payload = {
             "schema_version": 1,
             "milestone": contract.MILESTONE_ID,
@@ -173,6 +226,7 @@ def _train(args) -> dict:
                 "termination_terms": list(env.termination_manager.active_terms),
             },
             "initialization": transfer,
+            "predecessor_failed_gate": predecessor,
             "input": model_spec.build_robot_spec()["source"],
             "robot_spec_sha256": contract.sha256(model_spec.ROBOT_SPEC_PATH),
             "checkpoint": {
@@ -192,7 +246,11 @@ def _train(args) -> dict:
                 {"order": 3, "id": contract.MILESTONE_ID, "status": "awaiting_validation"},
             ],
         }
-        training_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        pending_training = output / "training.json.pending"
+        pending_training.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        os.replace(pending_training, training_path)
         print(json.dumps({
             "status": payload["status"], "training": str(training_path),
             "checkpoint": payload["checkpoint"], "initialization": transfer,
@@ -673,6 +731,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-envs", type=int, default=512)
     parser.add_argument("--iterations", type=int, default=600)
+    parser.add_argument("--resume-gate-checkpoint", action="store_true")
     parser.add_argument("--steps", type=int)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--reuse-usd-cache", action="store_true")
@@ -695,6 +754,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("steps must be positive")
     if args.mode == "train" and args.smoke:
         raise SystemExit("bound training with --iterations and --num-envs, not --smoke")
+    if args.mode != "train" and args.resume_gate_checkpoint:
+        raise SystemExit("--resume-gate-checkpoint is training-only")
     prior = training = None
     try:
         if args.mode != "train":
