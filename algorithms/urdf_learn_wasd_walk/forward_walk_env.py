@@ -39,9 +39,16 @@ def semantic_velocity_command(env) -> torch.Tensor:
 
 
 def gait_phase(env) -> torch.Tensor:
-    """Deployable periodic phase reset with each episode."""
+    """Deployable periodic phase that is shape-safe while managers initialize."""
 
-    phase = 2.0 * torch.pi * env.episode_length_buf * env.step_dt / contract.GAIT_PERIOD_S
+    episode_steps = contract.episode_phase_step_buffer(env)
+    if episode_steps is None:
+        # ManagerBasedRLEnv creates this buffer only after ManagerBasedEnv has
+        # constructed and shape-probed its observation terms.
+        episode_steps = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
+    else:
+        episode_steps = episode_steps.to(dtype=torch.float32)
+    phase = 2.0 * torch.pi * episode_steps * env.step_dt / contract.GAIT_PERIOD_S
     return torch.stack((torch.sin(phase), torch.cos(phase)), dim=-1)
 
 

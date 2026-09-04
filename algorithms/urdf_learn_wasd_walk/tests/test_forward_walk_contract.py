@@ -33,6 +33,15 @@ def passing_forward() -> dict:
 
 
 class ForwardWalkContractTests(unittest.TestCase):
+    def test_gait_phase_clock_tolerates_manager_shape_probe_before_rl_buffer_exists(self) -> None:
+        class ConstructionPhaseEnv:
+            num_envs = 64
+
+        env = ConstructionPhaseEnv()
+        self.assertIsNone(contract.episode_phase_step_buffer(env))
+        env.episode_length_buf = [0, 7]
+        self.assertEqual(contract.episode_phase_step_buffer(env), [0, 7])
+
     def test_command_mapping_keeps_landau_body_plus_y_forward(self) -> None:
         self.assertEqual(contract.semantic_command_to_sim(0.4, -0.1, 0.2), (-0.1, 0.4, 0.2))
         self.assertEqual(model_spec.SEMANTIC_COMMAND_ORDER, ("forward", "strafe", "yaw"))

@@ -85,6 +85,12 @@ def semantic_command_to_sim(forward: float, strafe: float = 0.0, yaw: float = 0.
     return model_spec.semantic_to_sim_command(forward, strafe, yaw)
 
 
+def episode_phase_step_buffer(env):
+    """Return the per-env episode clock only after Isaac Lab has created it."""
+
+    return getattr(env, "episode_length_buf", None)
+
+
 def summarize_forward_velocity_samples(
     samples_mps: list[float], command_samples_mps: list[float], *, control_dt_s: float
 ) -> dict:
