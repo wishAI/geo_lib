@@ -11,7 +11,7 @@ Kept:
 
 Still intentionally absent:
 
-- prior environment, policy, reward, teleop, play, validation, and curriculum logic
+- all removed pre-restart environment, policy, reward, teleop, play, validation, and curriculum logic
 - old tests and agent configurations tied to that implementation
 - run history, checkpoint lineage, restart notes, and problem investigations
 
@@ -21,6 +21,9 @@ Current clean implementation:
 - `robot_spec.json` records the 17 action joints, every explicitly locked joint, nominal pose, PD gains, and Landau's body-`+Y` semantic command mapping.
 - `passive_stand.py` implements only milestone 1 as two independent Isaac components: camera-free passive dynamics and a viewport-rendered proof replay.
 - `passive_pipeline.py` runs those components sequentially and creates final milestone evidence only when both pass.
+- Milestone 1 passed from the canonical derived pose; `milestones.json` pins every evidence hash.
+- `policy_stand_env.py` is the milestone-2 flat manager-based environment, with the audited 17-joint residual action and a 60-value proprioceptive actor observation.
+- `policy_stand.py` trains RSL-RL PPO or evaluates one checkpoint, and `policy_stand_pipeline.py` keeps camera-free dynamics separate from viewport proof.
 
 Commands:
 
@@ -33,7 +36,11 @@ Commands:
 - `./geo walk render-passive-proof --headless`
 - `./geo walk finalize-passive`
 - `./geo walk validate-passive --headless`
+- `./geo walk train-policy-stand --headless --num-envs 512 --iterations 200`
+- `./geo walk validate-policy-stand-dynamics --steps 500 --smoke --reuse-usd-cache --headless`
+- `./geo walk validate-policy-stand --headless`
+- `./geo walk finalize-policy-stand`
 
-The exact all-in-one command runs the same two Isaac components sequentially; it never overlaps Isaac processes. Camera-free results are retained as `dynamics_validation.json` if proof rendering fails. The final `validation.json` is fail-closed and appears only after both exact components pass. All evidence is ignored below `outputs/stand_zero_signal_30s_no_reset/`. The milestone remains `not_started` until that exact 30-second run and its proof video pass; a short smoke never changes milestone state.
+Each exact all-in-one validator runs its two Isaac components sequentially; it never overlaps Isaac processes. Camera-free results remain available when proof rendering fails. A final `validation.json` appears only after both exact components pass. Policy training writes a durable `checkpoint.pt`, its originating run checkpoint, and `training.json` below `outputs/stand_30s_no_reset/`; training completion alone cannot promote the milestone. Short smokes are never promotable.
 
-Use the Geo Web GUI to launch the TK2 validator and preview its declared JSON, MP4, and contact-sheet artifacts. Later policy, walking, teleop, and terrain code must not be added while milestone 1 is unresolved.
+Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. Walking remains out of scope until the policy-controlled 30-second stand passes.

@@ -263,6 +263,21 @@ def _build_parser() -> argparse.ArgumentParser:
     walk_subparsers.add_parser(
         "finalize-passive", help="Assemble final passive evidence from two already-passed components."
     )
+    walk_subparsers.add_parser(
+        "train-policy-stand", help="Train the milestone-2 manager-based RSL-RL PPO standing policy."
+    )
+    walk_subparsers.add_parser(
+        "validate-policy-stand", help="Run policy dynamics, viewport proof, and final assembly sequentially."
+    )
+    walk_subparsers.add_parser(
+        "validate-policy-stand-dynamics", help="Run camera-free checkpoint inference for policy standing."
+    )
+    walk_subparsers.add_parser(
+        "render-policy-stand-proof", help="Render the passed policy checkpoint through the active viewport."
+    )
+    walk_subparsers.add_parser(
+        "finalize-policy-stand", help="Assemble policy stand evidence from already-passed components."
+    )
     walk_subparsers.add_parser("test", help="Run pure-Python walk contract tests.")
 
     avp_parser = subparsers.add_parser("avp", help="AVP presets.")
@@ -741,6 +756,63 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                     "algorithms/urdf_learn_wasd_walk/passive_pipeline.py",
                     "--finalize-only",
                     *extra_args,
+                ],
+                success_artifact=output_dir.resolve() / evidence_name,
+            )
+        if args.walk_cmd in {
+            "train-policy-stand", "validate-policy-stand", "validate-policy-stand-dynamics",
+            "render-policy-stand-proof", "finalize-policy-stand",
+        }:
+            output_value = _extract_option_value(extra_args, "--output-dir")
+            output_dir = (
+                Path(output_value).expanduser()
+                if output_value
+                else REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "stand_30s_no_reset"
+            )
+            if not output_dir.is_absolute():
+                output_dir = REPO_ROOT / output_dir
+            smoke = "--smoke" in extra_args
+            if args.walk_cmd == "train-policy-stand":
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/policy_stand.py", "--mode", "train", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / "training.json",
+                    failure_artifact=output_dir.resolve() / "train_failure.json",
+                    console_log=output_dir.resolve() / "train_console.log",
+                )
+            if args.walk_cmd == "validate-policy-stand":
+                evidence_name = "smoke_validation.json" if smoke else "validation.json"
+                return LaunchSpec(
+                    "direct",
+                    [sys.executable, "algorithms/urdf_learn_wasd_walk/policy_stand_pipeline.py", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            if args.walk_cmd == "validate-policy-stand-dynamics":
+                stem = "dynamics_smoke" if smoke else "dynamics"
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/policy_stand.py", "--mode", "dynamics", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / f"{stem}_validation.json",
+                    failure_artifact=output_dir.resolve() / f"{stem}_failure.json",
+                    console_log=output_dir.resolve() / f"{stem}_console.log",
+                )
+            if args.walk_cmd == "render-policy-stand-proof":
+                evidence_name = "proof_smoke_validation.json" if smoke else "proof_validation.json"
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/policy_stand.py", "--mode", "proof", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            evidence_name = "smoke_validation.json" if smoke else "validation.json"
+            return LaunchSpec(
+                "direct",
+                [
+                    sys.executable, "algorithms/urdf_learn_wasd_walk/policy_stand_pipeline.py",
+                    "--finalize-only", *extra_args,
                 ],
                 success_artifact=output_dir.resolve() / evidence_name,
             )

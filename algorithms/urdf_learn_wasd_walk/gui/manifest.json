@@ -24,6 +24,35 @@
         {"label": "Passive stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4", "kind": "video"},
         {"label": "Start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png", "kind": "image"}
       ]
+    },
+    {
+      "id": "train_policy_stand",
+      "name": "Train policy stand · PPO",
+      "description": "Train the compact manager-based proprioceptive policy. Training writes a checkpoint but never marks the gate passed.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "train-policy-stand", "--headless", "--num-envs", "512", "--iterations", "200"],
+      "artifacts": [
+        {"label": "Policy training evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json", "kind": "json"},
+        {"label": "Durable PPO checkpoint", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt", "kind": "file"}
+      ]
+    },
+    {
+      "id": "validate_policy_stand",
+      "name": "Validate policy stand · 30 s",
+      "description": "Evaluate the same checkpoint camera-free, then record a separate deterministic viewport proof and finalize cumulatively.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "validate-policy-stand", "--headless"],
+      "artifacts": [
+        {"label": "Policy stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json", "kind": "json"},
+        {"label": "Policy camera-free dynamics", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json", "kind": "json"},
+        {"label": "Policy viewport proof evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json", "kind": "json"},
+        {"label": "Policy stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4", "kind": "video"},
+        {"label": "Policy start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png", "kind": "image"}
+      ]
     }
   ],
   "milestones": [
