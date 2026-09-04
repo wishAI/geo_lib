@@ -124,6 +124,28 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(initialization["new_input_columns_zero_initialized"], 2)
         self.assertFalse(initialization["optimizer_state_loaded"])
 
+    def test_training_smoke_decision_requires_progress_and_bilateral_liftoff(self) -> None:
+        passing = {
+            "semantic_forward_displacement_m": 0.2,
+            "mean_semantic_forward_velocity_mps": 0.02,
+            "left_foot_liftoff_count": 1,
+            "right_foot_liftoff_count": 1,
+            "reset_count": 0,
+            "done_count": 0,
+            "fall_count": 0,
+        }
+        self.assertEqual(contract.evaluate_training_smoke_diagnostic(passing), [])
+        stalled = {**passing, "semantic_forward_displacement_m": 0.004}
+        stalled["mean_semantic_forward_velocity_mps"] = -0.003
+        stalled["left_foot_liftoff_count"] = 0
+        stalled["right_foot_liftoff_count"] = 0
+        failures = contract.evaluate_training_smoke_diagnostic(stalled)
+        self.assertEqual(len(failures), 4)
+        self.assertEqual(
+            contract.NEXT_TRAINING_HYPOTHESIS["id"],
+            "command_gated_phase_reference_residual_v3",
+        )
+
     def test_forward_velocity_diagnostics_distinguish_progress_and_reverse_motion(self) -> None:
         summary = contract.summarize_forward_velocity_samples(
             [-0.2, 0.0, 0.2, 0.4], [0.4, 0.4, 0.4, 0.4], control_dt_s=0.02

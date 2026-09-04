@@ -35,6 +35,21 @@ MIN_LEG_JOINT_EXCURSION_RAD = 0.05
 MAX_MEAN_CONTACT_SLIP_MPS = 0.3
 MAX_SIMULTANEOUS_AIR_FRACTION = 0.05
 FORWARD_PROGRESS_VELOCITY_EPS_MPS = 0.01
+MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
+
+NEXT_TRAINING_HYPOTHESIS = {
+    "id": "command_gated_phase_reference_residual_v3",
+    "hypothesis": (
+        "phase observations and sparse contact rewards do not provide enough exploration from the "
+        "stable stand policy; a small command-gated, phase-conditioned leg reference can seed "
+        "alternating weight transfer while PPO learns bounded residuals"
+    ),
+    "first_experiment": (
+        "camera-free short open-loop reference probe before any PPO run, requiring bilateral "
+        "liftoff, positive +Y progress, no reset/fall, and bounded target error"
+    ),
+    "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
+}
 
 ACTOR_OBSERVATION_TERMS = (
     ("base_linear_velocity", 3),
@@ -173,6 +188,24 @@ def analyze_failed_forward_evidence(evidence: dict) -> dict:
         ),
         "next_method": TRAINING_METHOD_ID,
     }
+
+
+def evaluate_training_smoke_diagnostic(metrics: dict) -> list[str]:
+    """Judge gait emergence separately from a relaxed smoke harness status."""
+
+    failures = []
+    if float(metrics.get("semantic_forward_displacement_m", -math.inf)) < MIN_TRAINING_DIAGNOSTIC_PROGRESS_M:
+        failures.append("training smoke produced less than 0.1 m semantic +Y progress")
+    if float(metrics.get("mean_semantic_forward_velocity_mps", -math.inf)) <= 0.0:
+        failures.append("training smoke mean semantic +Y velocity was not positive")
+    if int(metrics.get("left_foot_liftoff_count", 0)) < 1:
+        failures.append("training smoke had no left-side liftoff")
+    if int(metrics.get("right_foot_liftoff_count", 0)) < 1:
+        failures.append("training smoke had no right-side liftoff")
+    for name in ("reset_count", "done_count", "fall_count"):
+        if int(metrics.get(name, -1)) != 0:
+            failures.append(f"training smoke {name}={metrics.get(name)}")
+    return failures
 
 
 def load_cumulative_prior() -> tuple[list[dict], dict]:
