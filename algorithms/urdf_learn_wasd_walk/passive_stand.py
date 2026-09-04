@@ -15,7 +15,9 @@ import math
 import os
 import platform
 import subprocess
+import sys
 import tempfile
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
@@ -46,6 +48,66 @@ def safe_output_dir(path: Path) -> Path:
 
 def component_artifact_name(phase: str, smoke: bool) -> str:
     return f"{phase}{'_smoke' if smoke else ''}_validation.json"
+
+
+def failure_artifact_name(phase: str, smoke: bool) -> str:
+    return f"{phase}{'_smoke' if smoke else ''}_failure.json"
+
+
+def traceback_artifact_name(phase: str, smoke: bool) -> str:
+    return f"{phase}{'_smoke' if smoke else ''}_traceback.log"
+
+
+def _set_runtime_stage(args, stage: str) -> None:
+    args.runtime_stage = stage
+    print(f"[landau-passive] stage={stage}", file=sys.stderr, flush=True)
+
+
+def build_failure_evidence(args, error: Exception, traceback_text: str) -> dict:
+    return {
+        "schema_version": 1,
+        "milestone": MILESTONE_ID,
+        "component": getattr(args, "phase", "unknown"),
+        "status": "failed_to_execute",
+        "gate_eligible": False,
+        "milestone_status_changed": False,
+        "run_identity": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ"),
+        "runtime_stage": getattr(args, "runtime_stage", "unknown"),
+        "exception": {
+            "type": type(error).__name__,
+            "message": str(error),
+            "traceback": traceback_text,
+        },
+        "input": {
+            "urdf_path": str(model_spec.URDF_PATH.relative_to(model_spec.ALGORITHM_ROOT.parent.parent)),
+            "urdf_sha256": model_spec.EXPECTED_URDF_SHA256,
+            "robot_spec_sha256": _sha256(model_spec.ROBOT_SPEC_PATH),
+        },
+        "simulator_request": {
+            "device": getattr(args, "device", None),
+            "steps": getattr(args, "steps", None),
+            "duration_s": getattr(args, "duration", None),
+            "headless": getattr(args, "headless", None),
+            "rendering_enabled": getattr(args, "phase", None) == "proof",
+            "single_process": True,
+        },
+        "argv": list(sys.argv),
+    }
+
+
+def write_failure_evidence(args, error: Exception, traceback_text: str) -> tuple[Path, Path]:
+    output_dir = safe_output_dir(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = output_dir / failure_artifact_name(args.phase, args.smoke)
+    traceback_path = output_dir / traceback_artifact_name(args.phase, args.smoke)
+    traceback_path.write_text(traceback_text, encoding="utf-8")
+    evidence = build_failure_evidence(args, error, traceback_text)
+    evidence["traceback_path"] = str(
+        traceback_path.relative_to(model_spec.ALGORITHM_ROOT.parent.parent)
+    )
+    evidence["traceback_sha256"] = _sha256(traceback_path)
+    evidence_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return evidence_path, traceback_path
 
 
 def quaternion_distance_wxyz(left: Sequence[float], right: Sequence[float]) -> float:
@@ -440,6 +502,7 @@ def _run(args, simulation_app) -> dict:
     import isaaclab.sim as sim_utils
     from isaaclab.scene import InteractiveScene
 
+    _set_runtime_stage(args, "simulation_configuration")
     output_dir = safe_output_dir(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     sim_cfg = sim_utils.SimulationCfg(
@@ -447,8 +510,11 @@ def _run(args, simulation_app) -> dict:
     )
     sim_cfg.physx.gpu_max_rigid_patch_count = 2**18
     sim = sim_utils.SimulationContext(sim_cfg)
+    _set_runtime_stage(args, "scene_construction")
     scene = InteractiveScene(_build_scene_cfg(args))
+    _set_runtime_stage(args, "simulation_reset")
     sim.reset()
+    _set_runtime_stage(args, "post_reset_contract")
     robot = scene["robot"]
     contacts = scene["contact_forces"]
     contract = model_spec.build_robot_spec()
@@ -468,11 +534,16 @@ def _run(args, simulation_app) -> dict:
     robot.write_joint_state_to_sim(targets, torch.zeros_like(targets))
     robot.set_joint_position_target(targets)
     scene.write_data_to_sim()
-    body_masses = robot.data.default_mass[0]
+    _set_runtime_stage(args, "mass_diagnostic_setup")
+    # Isaac Lab 0.36.1 does not normalize `default_mass` onto the asset
+    # device when it clones the PhysX mass view. Make the transfer explicit
+    # before combining masses with CUDA-backed body COM positions.
+    body_masses = robot.data.default_mass[0].to(device=robot.device, dtype=targets.dtype)
     total_mass = torch.sum(body_masses)
     robot_weight_n = float(total_mass.detach().cpu()) * 9.81
     support_aabb = contract["nominal_pose"]["zero_pose_ground_support"]["support_aabb_xy_m"]
 
+    _set_runtime_stage(args, "runtime_actuator_audit")
     target_values = targets[0].detach().cpu().tolist()
     stiffness_values = robot.data.joint_stiffness[0].detach().cpu().tolist()
     damping_values = robot.data.joint_damping[0].detach().cpu().tolist()
@@ -521,6 +592,7 @@ def _run(args, simulation_app) -> dict:
 
     imported = None
     if args.phase == "dynamics":
+        _set_runtime_stage(args, "importer_axis_audit")
         imported = _inspect_imported_joint_contract(sim.stage, "/World/envs/env_0/Robot", contract)
 
     viewport = None
@@ -541,6 +613,7 @@ def _run(args, simulation_app) -> dict:
         frame_context = tempfile.TemporaryDirectory(prefix="landau_viewport_frames_", dir=output_dir)
         frame_dir = Path(frame_context.name)
 
+    _set_runtime_stage(args, "diagnostic_buffer_setup")
     steps = args.steps if args.steps is not None else math.ceil(args.duration / SIM_DT)
     trace_stride = max(1, round(CONTROL_DT / SIM_DT))
     video_stride = max(1, round((1 / args.video_fps) / SIM_DT))
@@ -570,11 +643,15 @@ def _run(args, simulation_app) -> dict:
     }
     try:
         for step in range(steps):
+            if step == 0:
+                _set_runtime_stage(args, "first_physics_step")
             robot.set_joint_position_target(targets)
             scene.write_data_to_sim()
             capture = viewport is not None and (step + 1) % video_stride == 0
             sim.step(render=capture)
             scene.update(SIM_DT)
+            if step == 0:
+                _set_runtime_stage(args, "first_root_state_sample")
             position = robot.data.body_pos_w[0, reference_ids[0]].detach().cpu()
             quaternion = robot.data.body_quat_w[0, reference_ids[0]].detach().cpu()
             if initial_position is None:
@@ -608,6 +685,8 @@ def _run(args, simulation_app) -> dict:
                 contacts.data.net_forces_w[0, foot_ids].detach().cpu(), dim=-1
             )
             time_s = (step + 1) * SIM_DT
+            if step == 0:
+                _set_runtime_stage(args, "first_system_com_sample")
             system_com_tensor = torch.sum(
                 robot.data.body_com_pos_w[0] * body_masses.unsqueeze(-1), dim=0
             ) / total_mass
@@ -629,6 +708,8 @@ def _run(args, simulation_app) -> dict:
                 math.hypot(float(projected_gravity[0]), float(projected_gravity[1])),
             )
             total_support_force = sum(float(force) for force in force_norms_tensor.tolist())
+            if step == 0:
+                _set_runtime_stage(args, "physics_loop")
             if total_support_force > peak_total_support_force_n:
                 peak_total_support_force_n = total_support_force
                 peak_total_support_force_time_s = time_s
@@ -858,6 +939,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     output_dir = safe_output_dir(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / component_artifact_name(args.phase, args.smoke)).unlink(missing_ok=True)
+    (output_dir / failure_artifact_name(args.phase, args.smoke)).unlink(missing_ok=True)
+    (output_dir / traceback_artifact_name(args.phase, args.smoke)).unlink(missing_ok=True)
     if args.phase == "proof":
         (output_dir / ("proof_smoke.mp4" if args.smoke else "proof.mp4")).unlink(missing_ok=True)
         (output_dir / ("contact_sheet_smoke.png" if args.smoke else "contact_sheet.png")).unlink(missing_ok=True)
@@ -867,14 +950,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     # `video` keeps the viewport active headlessly; no CameraCfg/annotator exists.
     args.enable_cameras = args.phase == "proof"
     args.video = args.phase == "proof"
-    launcher = AppLauncher(args)
+    launcher = None
     try:
+        _set_runtime_stage(args, "app_launcher")
+        launcher = AppLauncher(args)
         import torch
         torch.manual_seed(args.seed)
+        _set_runtime_stage(args, "validator_entry")
         evidence = _run(args, launcher.app)
         return 0 if evidence["status"] == "passed" else 1
+    except Exception as error:
+        traceback_text = traceback.format_exc()
+        print(traceback_text, file=sys.stderr, flush=True)
+        try:
+            evidence_path, traceback_path = write_failure_evidence(args, error, traceback_text)
+            print(
+                f"[landau-passive] failure evidence={evidence_path} traceback={traceback_path}",
+                file=sys.stderr,
+                flush=True,
+            )
+        except Exception:
+            print("[landau-passive] failed to write failure evidence", file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+        return 1
     finally:
-        launcher.app.close()
+        if launcher is not None:
+            launcher.app.close()
 
 
 if __name__ == "__main__":

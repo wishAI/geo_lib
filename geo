@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -10,6 +12,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -35,6 +38,8 @@ class LaunchSpec:
     env: dict[str, str] | None = None
     sidecars: tuple["LaunchSpec", ...] = ()
     success_artifact: Path | None = None
+    failure_artifact: Path | None = None
+    console_log: Path | None = None
 
 
 def _default_usd_path() -> Path:
@@ -380,6 +385,82 @@ def _display_command(spec: LaunchSpec, cmd: list[str]) -> str:
     return env_prefix + shlex.join(cmd)
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _run_logged(cmd: list[str], env: dict[str, str], console_log: Path | None) -> int:
+    if console_log is None:
+        return int(subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False).returncode)
+    console_log.parent.mkdir(parents=True, exist_ok=True)
+    with console_log.open("w", encoding="utf-8") as stream:
+        process = subprocess.Popen(
+            cmd,
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors="replace",
+            bufsize=1,
+        )
+        assert process.stdout is not None
+        try:
+            for line in process.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                stream.write(line)
+                stream.flush()
+            return int(process.wait())
+        except KeyboardInterrupt:
+            process.terminate()
+            try:
+                process.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3.0)
+            raise
+        finally:
+            process.stdout.close()
+
+
+def _write_launcher_failure(
+    spec: LaunchSpec, cmd: list[str], returncode: int, reason: str
+) -> None:
+    if spec.failure_artifact is None:
+        return
+    spec.failure_artifact.parent.mkdir(parents=True, exist_ok=True)
+    launcher = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason": reason,
+        "returncode": returncode,
+        "command": cmd,
+        "expected_success_artifact": (
+            str(spec.success_artifact) if spec.success_artifact is not None else None
+        ),
+        "console_log": str(spec.console_log) if spec.console_log is not None else None,
+        "console_log_sha256": (
+            _sha256(spec.console_log)
+            if spec.console_log is not None and spec.console_log.is_file() else None
+        ),
+    }
+    if spec.failure_artifact.exists():
+        try:
+            evidence = json.loads(spec.failure_artifact.read_text(encoding="utf-8"))
+            evidence["launcher"] = launcher
+        except (OSError, ValueError):
+            evidence = {"schema_version": 1, "status": "launcher_child_failed", **launcher}
+    else:
+        evidence = {"schema_version": 1, "status": "launcher_child_failed", **launcher}
+    spec.failure_artifact.write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
 def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
     cmd, env = _resolved_command(spec)
     sidecars: list[tuple[list[str], dict[str, str]]] = [_resolved_command(sidecar) for sidecar in spec.sidecars]
@@ -397,6 +478,10 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
 
     if spec.success_artifact is not None and spec.success_artifact.exists():
         spec.success_artifact.unlink()
+    if spec.failure_artifact is not None and spec.failure_artifact.exists():
+        spec.failure_artifact.unlink()
+    if spec.console_log is not None and spec.console_log.exists():
+        spec.console_log.unlink()
 
     sidecar_processes: list[subprocess.Popen[str]] = []
     try:
@@ -411,14 +496,17 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
             )
         if sidecar_processes:
             time.sleep(1.0)
-        completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False)
-        returncode = int(completed.returncode)
+        returncode = _run_logged(cmd, env, spec.console_log)
+        if returncode != 0:
+            _write_launcher_failure(spec, cmd, returncode, "child process returned non-zero")
+            return returncode
         if returncode == 0 and spec.success_artifact is not None and not spec.success_artifact.is_file():
             print(
                 f"Expected success artifact was not produced: {spec.success_artifact}",
                 file=sys.stderr,
                 flush=True,
             )
+            _write_launcher_failure(spec, cmd, returncode, "success artifact was not produced")
             return 1
         return returncode
     except KeyboardInterrupt:
@@ -623,12 +711,15 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                     success_artifact=output_dir.resolve() / evidence_name,
                 )
             if args.walk_cmd == "validate-passive-dynamics":
-                evidence_name = "dynamics_smoke_validation.json" if smoke else "dynamics_validation.json"
+                stem = "dynamics_smoke" if smoke else "dynamics"
+                evidence_name = f"{stem}_validation.json"
                 return LaunchSpec(
                     "isaac",
                     ["algorithms/urdf_learn_wasd_walk/passive_stand.py", "--phase", "dynamics", *extra_args],
                     env={"TERM": "xterm"},
                     success_artifact=output_dir.resolve() / evidence_name,
+                    failure_artifact=output_dir.resolve() / f"{stem}_failure.json",
+                    console_log=output_dir.resolve() / f"{stem}_console.log",
                 )
             if args.walk_cmd == "render-passive-proof":
                 evidence_name = "proof_smoke_validation.json" if smoke else "proof_validation.json"

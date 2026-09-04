@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand
 
@@ -52,6 +53,31 @@ class PassiveStandContractTests(unittest.TestCase):
         self.assertEqual(summary[0]["torque_saturation_step_fraction"], 0.25)
         with self.assertRaises(ValueError):
             passive_stand.summarize_joint_tracking([], [], [], [], [], [], [], 0)
+
+    def test_runtime_failure_evidence_records_stage_and_traceback(self) -> None:
+        passive_stand.OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=passive_stand.OUTPUT_ROOT) as temporary:
+            args = SimpleNamespace(
+                output_dir=Path(temporary), phase="dynamics", smoke=True,
+                runtime_stage="first_system_com_sample", device="cuda:0",
+                steps=1, duration=30.0, headless=True,
+            )
+            error = RuntimeError("device mismatch")
+            evidence_path, traceback_path = passive_stand.write_failure_evidence(
+                args, error, "Traceback: device mismatch\n"
+            )
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+            self.assertEqual(evidence["status"], "failed_to_execute")
+            self.assertEqual(evidence["runtime_stage"], "first_system_com_sample")
+            self.assertEqual(evidence["exception"]["type"], "RuntimeError")
+            self.assertEqual(traceback_path.read_text(encoding="utf-8"), "Traceback: device mismatch\n")
+            self.assertEqual(
+                evidence_path.name, passive_stand.failure_artifact_name("dynamics", True)
+            )
+
+    def test_mass_diagnostic_explicitly_moves_physx_masses_to_asset_device(self) -> None:
+        source = inspect.getsource(passive_stand._run)
+        self.assertIn("default_mass[0].to(device=robot.device, dtype=targets.dtype)", source)
 
     def test_gate_rejects_events_motion_and_short_duration(self) -> None:
         metrics = {
