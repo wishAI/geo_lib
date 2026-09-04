@@ -149,6 +149,29 @@ def _rpy_matrix(rpy: Vector3) -> Matrix3:
     return _matrix_multiply(_matrix_multiply(rotate_z, rotate_y), rotate_x)
 
 
+def _axis_angle_matrix(axis: Vector3, angle: float) -> Matrix3:
+    x, y, z = _normalized(axis)
+    cosine, sine = math.cos(angle), math.sin(angle)
+    one_minus_cosine = 1.0 - cosine
+    return (
+        (
+            cosine + x * x * one_minus_cosine,
+            x * y * one_minus_cosine - z * sine,
+            x * z * one_minus_cosine + y * sine,
+        ),
+        (
+            y * x * one_minus_cosine + z * sine,
+            cosine + y * y * one_minus_cosine,
+            y * z * one_minus_cosine - x * sine,
+        ),
+        (
+            z * x * one_minus_cosine - y * sine,
+            z * y * one_minus_cosine + x * sine,
+            cosine + z * z * one_minus_cosine,
+        ),
+    )
+
+
 def _compose(
     parent: tuple[Matrix3, Vector3], child: tuple[Matrix3, Vector3]
 ) -> tuple[Matrix3, Vector3]:
@@ -192,7 +215,10 @@ def _inertia_positive(inertia: dict[str, float]) -> bool:
     return ixx > 0.0 and second_minor > 0.0 and determinant > 0.0
 
 
-def _joint_world_transforms(root: ET.Element) -> tuple[dict[str, tuple[Matrix3, Vector3]], dict[str, ET.Element]]:
+def _joint_world_transforms(
+    root: ET.Element, joint_positions: dict[str, float] | None = None
+) -> tuple[dict[str, tuple[Matrix3, Vector3]], dict[str, ET.Element]]:
+    joint_positions = joint_positions or {}
     joints = root.findall("joint")
     child_joints = {joint.find("child").get("link"): joint for joint in joints}  # type: ignore[union-attr]
     link_transforms: dict[str, tuple[Matrix3, Vector3]] = {
@@ -204,7 +230,14 @@ def _joint_world_transforms(root: ET.Element) -> tuple[dict[str, tuple[Matrix3, 
         for child, joint in list(pending.items()):
             parent = joint.find("parent").get("link")  # type: ignore[union-attr]
             if parent in link_transforms:
-                link_transforms[child] = _compose(link_transforms[parent], _origin_transform(joint.find("origin")))
+                transform = _compose(link_transforms[parent], _origin_transform(joint.find("origin")))
+                if joint.get("type") != "fixed":
+                    axis = _normalized(_vector(joint.find("axis").get("xyz")))  # type: ignore[union-attr]
+                    transform = _compose(
+                        transform,
+                        (_axis_angle_matrix(axis, float(joint_positions.get(joint.get("name"), 0.0))), (0.0, 0.0, 0.0)),
+                    )
+                link_transforms[child] = transform
                 del pending[child]
                 progressed = True
         if not progressed:
@@ -274,6 +307,35 @@ def _convex_hull_xy(points: Sequence[Vector3]) -> list[list[float]]:
     return [list(point) for point in lower[:-1] + upper[:-1]]
 
 
+def _signed_polygon_margin(point: Sequence[float], polygon: Sequence[Sequence[float]]) -> float:
+    margins = []
+    for index, start in enumerate(polygon):
+        end = polygon[(index + 1) % len(polygon)]
+        edge_x, edge_y = end[0] - start[0], end[1] - start[1]
+        length = math.hypot(edge_x, edge_y)
+        margins.append(
+            (edge_x * (point[1] - start[1]) - edge_y * (point[0] - start[0])) / length
+        )
+    return min(margins)
+
+
+def _pose_center_of_mass(root: ET.Element, transforms: dict[str, tuple[Matrix3, Vector3]]) -> Vector3:
+    total_mass = 0.0
+    weighted = [0.0, 0.0, 0.0]
+    for link in root.findall("link"):
+        inertial = link.find("inertial")
+        if inertial is None:
+            continue
+        mass = float(inertial.find("mass").get("value"))  # type: ignore[union-attr]
+        center = _compose(
+            transforms[link.get("name")], _origin_transform(inertial.find("origin"))
+        )[1]
+        total_mass += mass
+        for axis in range(3):
+            weighted[axis] += mass * center[axis]
+    return tuple(value / total_mass for value in weighted)  # type: ignore[return-value]
+
+
 def collision_world_bounds(urdf_path: Path = URDF_PATH) -> dict[str, dict[str, list[float]]]:
     """Return zero-pose world bounds for every link with collision geometry."""
 
@@ -322,6 +384,113 @@ def zero_pose_ground_support(urdf_path: Path = URDF_PATH, tolerance_m: float = 0
             "maximum": [round(max(point[axis] for point in contacts), 9) for axis in (0, 1)],
         },
     }
+
+
+def analyze_pose_geometry(
+    joint_positions: dict[str, float],
+    urdf_path: Path = URDF_PATH,
+    tolerance_m: float = 0.0005,
+) -> dict:
+    """Measure COM and collision support for a candidate pose from exact URDF FK."""
+
+    root = ET.parse(urdf_path).getroot()
+    transforms, _ = _joint_world_transforms(root, joint_positions)
+    total_mass = 0.0
+    weighted = [0.0, 0.0, 0.0]
+    link_mass_properties = {}
+    for link in root.findall("link"):
+        inertial = link.find("inertial")
+        if inertial is None:
+            continue
+        mass = float(inertial.find("mass").get("value"))  # type: ignore[union-attr]
+        center = _compose(
+            transforms[link.get("name")], _origin_transform(inertial.find("origin"))
+        )[1]
+        link_mass_properties[link.get("name")] = (mass, center)
+        total_mass += mass
+        for axis in range(3):
+            weighted[axis] += mass * center[axis]
+    com = [value / total_mass for value in weighted]
+    support_links = ("foot_l", "foot_r", "toes_01_l", "toes_01_r")
+    points_by_link = _collision_world_points(root, urdf_path, transforms)
+    support_points = [point for link in support_links for point in points_by_link[link]]
+    ground_z = min(point[2] for point in support_points)
+    contacts = [point for point in support_points if point[2] <= ground_z + tolerance_m]
+    hull = _convex_hull_xy(contacts)
+
+    contact_counts = {
+        link: sum(point[2] <= ground_z + tolerance_m for point in points_by_link[link])
+        for link in support_links
+    }
+    gravity_torques = _fixed_root_gravity_torques(root, transforms, link_mass_properties)
+    effort_limits = {
+        joint.get("name"): float(joint.find("limit").get("effort"))  # type: ignore[union-attr]
+        for joint in root.findall("joint")
+        if joint.get("type") != "fixed"
+    }
+    return {
+        "method": "exact current-URDF FK, inertial origins, and collision vertices",
+        "joint_positions_rad": dict(sorted(joint_positions.items())),
+        "ground_aligned_base_z_m": round(-ground_z, 9),
+        "center_of_mass_m": [round(value, 9) for value in com],
+        "center_of_mass_height_above_ground_m": round(com[2] - ground_z, 9),
+        "support_hull_xy_m": hull,
+        "support_aabb_xy_m": {
+            "minimum": [round(min(point[axis] for point in contacts), 9) for axis in (0, 1)],
+            "maximum": [round(max(point[axis] for point in contacts), 9) for axis in (0, 1)],
+        },
+        "support_margin_m": round(_signed_polygon_margin(com[:2], hull), 9),
+        "near_ground_contact_vertex_count_by_link": contact_counts,
+        "fixed_root_gravity_torque_nm": {
+            name: round(value, 9) for name, value in sorted(gravity_torques.items())
+        },
+        "maximum_fixed_root_gravity_torque_limit_fraction": round(
+            max(abs(value) / effort_limits[name] for name, value in gravity_torques.items()), 9
+        ),
+    }
+
+
+def derive_static_pose(urdf_path: Path = URDF_PATH) -> dict:
+    """Derive a small crouch and center its COM using only exact current assets."""
+
+    # Half of the installed G1 leg flexion retains Landau's heel/toe support;
+    # the full G1 angles do not. Search waist pitch at 1 mrad resolution for
+    # maximum collision-hull margin without moving hands, fingers, or head.
+    leg_pose = {
+        f"{side}_hip_pitch_joint": -0.10
+        for side in ("left", "right")
+    }
+    leg_pose.update({f"{side}_knee_joint": 0.21 for side in ("left", "right")})
+    leg_pose.update({f"{side}_ankle_pitch_joint": -0.115 for side in ("left", "right")})
+    root = ET.parse(urdf_path).getroot()
+    seed_geometry = analyze_pose_geometry(leg_pose, urdf_path)
+    support_hull = seed_geometry["support_hull_xy_m"]
+    contacts = seed_geometry["near_ground_contact_vertex_count_by_link"]
+    bilateral = (
+        contacts["foot_l"] + contacts["toes_01_l"] > 0
+        and contacts["foot_r"] + contacts["toes_01_r"] > 0
+    )
+    if not bilateral:
+        raise ValueError("static-pose leg seed lacks bilateral ground support")
+    candidates = []
+    for step in range(351):
+        pose = {**leg_pose, "waist_pitch_joint": -step / 1000.0}
+        transforms, _ = _joint_world_transforms(root, pose)
+        com = _pose_center_of_mass(root, transforms)
+        candidates.append((_signed_polygon_margin(com[:2], support_hull), pose))
+    _, selected_pose = max(
+        candidates,
+        key=lambda item: (item[0], -abs(item[1]["waist_pitch_joint"])),
+    )
+    selected = analyze_pose_geometry(selected_pose, urdf_path)
+    selected["derivation"] = {
+        "leg_seed": "0.5 * installed Isaac Lab G1 hip/knee/ankle flexion",
+        "leg_seed_rad": leg_pose,
+        "waist_search_rad": {"minimum": -0.35, "maximum": 0.0, "increment": 0.001},
+        "selection": "maximum signed COM distance inside the bilateral near-ground collision hull",
+        "upper_body_offsets_during_geometry_search": "zero; fixed-root settling derives only necessary offsets",
+    }
+    return selected
 
 
 def passive_actuator_groups(movable_names: Sequence[str], *, authority_probe: bool = False) -> dict:
@@ -375,7 +544,7 @@ def passive_actuator_groups(movable_names: Sequence[str], *, authority_probe: bo
     return groups
 
 
-def _zero_pose_gravity_torques(
+def _fixed_root_gravity_torques(
     root: ET.Element,
     transforms: dict[str, tuple[Matrix3, Vector3]],
     link_mass_properties: dict[str, tuple[float, Vector3]],
@@ -502,7 +671,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     fixed_origin = fixed_root.find("origin")
     bounds = collision_world_bounds(urdf_path) if not missing_meshes else {}
     total_mass = sum(masses)
-    gravity_torques = _zero_pose_gravity_torques(root, transforms, link_mass_properties)
+    gravity_torques = _fixed_root_gravity_torques(root, transforms, link_mass_properties)
     default_groups = passive_actuator_groups(movable_names)
     default_gains = {
         joint: (group["stiffness"], group["damping"])
@@ -525,8 +694,9 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         "negative_y": round(zero_pose_com[1] - ground_support["support_aabb_xy_m"]["minimum"][1], 9),
         "positive_y": round(ground_support["support_aabb_xy_m"]["maximum"][1] - zero_pose_com[1], 9),
     }
+    static_pose_candidate = derive_static_pose(urdf_path)
     return {
-        "version": 5,
+        "version": 6,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -639,7 +809,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 },
                 {
                     "id": "zero_pose_upper_body_authority_probe_v1",
-                    "status": "active_bounded_test",
+                    "status": "rejected",
                     "scope": "zero pose, ground alignment, lower-body gains, effort limits, and contact geometry unchanged",
                     "hypothesis": (
                         "If the zero pose survives with explicit upper-body holding, compliant upper-body motion is causal; "
@@ -657,6 +827,44 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                         "G1_and_H1_arm_damping_nm_s_per_rad": 10.0,
                         "H1_torso_damping_nm_s_per_rad": 5.0,
                         "adaptation": "retain Landau effort/velocity limits and all lower-body gains",
+                    },
+                    "result": {
+                        "duration_s": 3.0,
+                        "first_fall_time_s": 1.156,
+                        "first_zero_pose_support_exit_time_s": 0.662,
+                        "max_reference_tilt_rad": 1.35250473,
+                        "horizontal_drift_m": 0.43666864,
+                        "peak_support_force_body_weight_ratio": 3.36800819,
+                        "right_shoulder_pitch_saturation_fraction": 0.20866667,
+                        "interpretation": "broad upper-body authority injected energy and worsened stability",
+                    },
+                    "evidence": (
+                        "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                        "experiments/zero_pose_upper_body_authority_probe_v1_20260904T061528Z.json"
+                    ),
+                    "evidence_sha256": "0876def2384e1e14963c8935ac03ed78e8c68ee0be52e0d2bac703bbce3c89a2",
+                },
+                {
+                    "id": "gravity_static_pose_release_v1",
+                    "status": "active_bounded_test",
+                    "scope": "derive with pinned root and baseline low-authority PD, then release in the same Isaac process",
+                    "hypothesis": (
+                        "A small collision-compatible crouch with centered COM and measured PD preload will avoid "
+                        "the zero-pose forward support exit without applying high authority to hands or fingers"
+                    ),
+                    "geometry_candidate": static_pose_candidate,
+                    "runtime_derivation": {
+                        "fixed_root_method": "rewrite audited root pose and zero velocity before every settling step",
+                        "settled_pose": "mean joint positions over the final settling window",
+                        "required_torque": "mean applied actuator torque over the final settling window",
+                        "released_pd_target": "settled position + required torque / baseline stiffness",
+                        "release": "restore free root at collision-derived ground-aligned height with zero velocity",
+                    },
+                    "comparison": {
+                        "zero_pose_support_margin_m": analyze_pose_geometry({}, urdf_path)["support_margin_m"],
+                        "candidate_support_margin_m": static_pose_candidate["support_margin_m"],
+                        "ground_alignment_retained": True,
+                        "authority_probe_rejected": True,
                     },
                 },
             ],

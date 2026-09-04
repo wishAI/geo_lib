@@ -74,7 +74,11 @@ def build_failure_evidence(args, error: Exception, traceback_text: str) -> dict:
         "experiment_id": (
             "zero_pose_upper_body_authority_probe_v1"
             if getattr(args, "authority_probe", False)
-            else None
+            else (
+                "gravity_static_pose_release_v1"
+                if getattr(args, "static_pose_probe", False)
+                else None
+            )
         ),
         "run_identity": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ"),
         "runtime_stage": getattr(args, "runtime_stage", "unknown"),
@@ -534,8 +538,32 @@ def _run(args, simulation_app) -> dict:
     foot_ids, foot_names = contacts.find_bodies(
         ["foot_l", "foot_r", "toes_01_l", "toes_01_r"], preserve_order=True
     )
+    configured_groups = model_spec.passive_actuator_groups(
+        robot.joint_names, authority_probe=args.authority_probe
+    )
+    expected_gains = {
+        name: (group["stiffness"], group["damping"])
+        for group in configured_groups.values()
+        for name in group["joints"]
+    }
+    static_pose_seed = None
+    initial_joint_positions = robot.data.default_joint_pos.clone()
     targets = robot.data.default_joint_pos.clone()
-    robot.write_joint_state_to_sim(targets, torch.zeros_like(targets))
+    initial_root_state = robot.data.default_root_state.clone()
+    if args.static_pose_probe:
+        static_pose_seed = model_spec.derive_static_pose()
+        for index, name in enumerate(robot.joint_names):
+            desired = float(static_pose_seed["joint_positions_rad"].get(name, 0.0))
+            gravity = float(static_pose_seed["fixed_root_gravity_torque_nm"][name])
+            stiffness = float(expected_gains[name][0])
+            initial_joint_positions[0, index] = desired
+            # The gravity-torque sign is the free acceleration direction; a
+            # position-drive preload must oppose it.
+            targets[0, index] = desired - gravity / stiffness
+        initial_root_state[:, 2] += float(static_pose_seed["ground_aligned_base_z_m"])
+        initial_root_state[:, 7:] = 0.0
+        robot.write_root_state_to_sim(initial_root_state)
+    robot.write_joint_state_to_sim(initial_joint_positions, torch.zeros_like(targets))
     robot.set_joint_position_target(targets)
     scene.write_data_to_sim()
     _set_runtime_stage(args, "mass_diagnostic_setup")
@@ -546,22 +574,15 @@ def _run(args, simulation_app) -> dict:
     total_mass = torch.sum(body_masses)
     robot_weight_n = float(total_mass.detach().cpu()) * 9.81
     support_aabb = contract["nominal_pose"]["zero_pose_ground_support"]["support_aabb_xy_m"]
+    support_reference = "audited_zero_pose_collision_support_aabb"
 
     _set_runtime_stage(args, "runtime_actuator_audit")
-    target_values = targets[0].detach().cpu().tolist()
+    target_values = robot.data.joint_pos_target[0].detach().cpu().tolist()
     stiffness_values = robot.data.joint_stiffness[0].detach().cpu().tolist()
     damping_values = robot.data.joint_damping[0].detach().cpu().tolist()
     effort_limit_values = robot.data.joint_effort_limits[0].detach().cpu().tolist()
     velocity_limit_values = robot.data.joint_vel_limits[0].detach().cpu().tolist()
     position_limits = robot.data.joint_pos_limits[0].detach().cpu().tolist()
-    configured_groups = model_spec.passive_actuator_groups(
-        robot.joint_names, authority_probe=args.authority_probe
-    )
-    expected_gains = {}
-    for group in configured_groups.values():
-        expected_gains.update(
-            {name: (group["stiffness"], group["damping"]) for name in group["joints"]}
-        )
     actuator_mismatches = []
     for index, name in enumerate(robot.joint_names):
         expected_stiffness, expected_damping = expected_gains[name]
@@ -569,7 +590,10 @@ def _run(args, simulation_app) -> dict:
             target_values[index], stiffness_values[index], damping_values[index],
             effort_limit_values[index], velocity_limit_values[index],
         )
-        expected_actual = (0.0, expected_stiffness, expected_damping, 50.0, 4.0)
+        expected_actual = (
+            float(targets[0, index].detach().cpu()), expected_stiffness,
+            expected_damping, 50.0, 4.0,
+        )
         if any(abs(float(a) - float(b)) > 1.0e-5 for a, b in zip(actual, expected_actual)):
             actuator_mismatches.append(
                 {"name": name, "actual_target_stiffness_damping_effort_velocity": actual,
@@ -616,6 +640,137 @@ def _run(args, simulation_app) -> dict:
             raise RuntimeError(f"viewport resolution did not settle: {viewport.resolution}")
         frame_context = tempfile.TemporaryDirectory(prefix="landau_viewport_frames_", dir=output_dir)
         frame_dir = Path(frame_context.name)
+
+    static_pose_derivation = None
+    if args.static_pose_probe:
+        _set_runtime_stage(args, "fixed_root_gravity_settling")
+        settle_window_steps = min(args.settle_steps, max(1, round(0.5 / SIM_DT)))
+        position_sum = torch.zeros_like(targets[0])
+        torque_sum = torch.zeros_like(targets[0])
+        velocity_sum = torch.zeros_like(targets[0])
+        support_force_sum_n = 0.0
+        settle_samples = 0
+        settling_trace = []
+        for settle_step in range(args.settle_steps):
+            # Installed Isaac Lab 0.36.1's supported root-state writer updates
+            # both PhysX and cached root state. Rewriting zero velocity makes
+            # this a bounded fixed-root settling phase without a second asset
+            # or Isaac process.
+            robot.write_root_state_to_sim(initial_root_state)
+            robot.set_joint_position_target(targets)
+            scene.write_data_to_sim()
+            sim.step(render=False)
+            scene.update(SIM_DT)
+            if settle_step >= args.settle_steps - settle_window_steps:
+                position_sum += robot.data.joint_pos[0]
+                torque_sum += robot.data.applied_torque[0]
+                velocity_sum += torch.abs(robot.data.joint_vel[0])
+                support_force_sum_n += float(
+                    torch.sum(
+                        torch.linalg.vector_norm(
+                            contacts.data.net_forces_w[0, foot_ids], dim=-1
+                        )
+                    ).detach().cpu()
+                )
+                settle_samples += 1
+            if (
+                settle_step == 0
+                or (settle_step + 1) % max(1, round(0.5 / SIM_DT)) == 0
+                or settle_step + 1 == args.settle_steps
+            ):
+                settling_trace.append(
+                    {
+                        "time_s": round((settle_step + 1) * SIM_DT, 6),
+                        "max_abs_joint_velocity_radps": round(
+                            float(torch.max(torch.abs(robot.data.joint_vel[0])).detach().cpu()), 8
+                        ),
+                        "support_force_n": round(
+                            float(
+                                torch.sum(
+                                    torch.linalg.vector_norm(
+                                        contacts.data.net_forces_w[0, foot_ids], dim=-1
+                                    )
+                                ).detach().cpu()
+                            ),
+                            8,
+                        ),
+                    }
+                )
+        if settle_samples == 0:
+            raise RuntimeError("fixed-root settling produced no averaging samples")
+        settled_positions = position_sum / settle_samples
+        required_torques = torque_sum / settle_samples
+        mean_abs_velocities = velocity_sum / settle_samples
+        stiffness_tensor = robot.data.joint_stiffness[0]
+        release_targets = settled_positions + required_torques / stiffness_tensor
+        settled_pose = {
+            name: float(settled_positions[index].detach().cpu())
+            for index, name in enumerate(robot.joint_names)
+        }
+        settled_geometry = model_spec.analyze_pose_geometry(settled_pose)
+        violations = []
+        torque_records = []
+        for index, name in enumerate(robot.joint_names):
+            desired = float(settled_positions[index].detach().cpu())
+            target = float(release_targets[index].detach().cpu())
+            lower, upper = map(float, position_limits[index])
+            required_torque = float(required_torques[index].detach().cpu())
+            effort_limit = float(effort_limit_values[index])
+            if not lower <= desired <= upper or not lower <= target <= upper:
+                violations.append(
+                    {"name": name, "desired_rad": desired, "target_rad": target,
+                     "limits_rad": [lower, upper]}
+                )
+            torque_records.append(
+                {
+                    "name": name,
+                    "settled_position_rad": round(desired, 9),
+                    "released_target_rad": round(target, 9),
+                    "required_torque_nm": round(required_torque, 9),
+                    "effort_limit_nm": round(effort_limit, 9),
+                    "required_torque_limit_fraction": round(abs(required_torque) / effort_limit, 9),
+                    "mean_abs_settling_velocity_radps": round(
+                        float(mean_abs_velocities[index].detach().cpu()), 9
+                    ),
+                }
+            )
+        if violations:
+            raise RuntimeError(f"derived static pose or preload exceeds joint limits: {violations}")
+        static_pose_derivation = {
+            "id": "gravity_static_pose_release_v1",
+            "fixed_root_duration_s": round(args.settle_steps * SIM_DT, 6),
+            "averaging_window_s": round(settle_window_steps * SIM_DT, 6),
+            "seed_geometry": static_pose_seed,
+            "settled_geometry": settled_geometry,
+            "mean_support_force_n": round(support_force_sum_n / settle_samples, 8),
+            "mean_support_force_body_weight_ratio": round(
+                support_force_sum_n / settle_samples / robot_weight_n, 8
+            ),
+            "maximum_required_torque_limit_fraction": max(
+                item["required_torque_limit_fraction"] for item in torque_records
+            ),
+            "maximum_mean_abs_settling_velocity_radps": max(
+                item["mean_abs_settling_velocity_radps"] for item in torque_records
+            ),
+            "joint_order": list(robot.joint_names),
+            "joints": torque_records,
+            "settling_trace": settling_trace,
+            "hands_and_fingers_use_baseline_locked_pd": True,
+            "high_authority_profile_used": False,
+        }
+        support_aabb = settled_geometry["support_aabb_xy_m"]
+        support_reference = "settled_pose_exact_fk_collision_support_aabb"
+        release_root_state = robot.data.default_root_state.clone()
+        release_root_state[:, 2] += float(settled_geometry["ground_aligned_base_z_m"])
+        release_root_state[:, 7:] = 0.0
+        robot.write_root_state_to_sim(release_root_state)
+        robot.write_joint_state_to_sim(
+            settled_positions.unsqueeze(0), torch.zeros_like(targets)
+        )
+        targets = release_targets.unsqueeze(0)
+        robot.set_joint_position_target(targets)
+        scene.write_data_to_sim()
+        _set_runtime_stage(args, "free_root_release")
 
     _set_runtime_stage(args, "diagnostic_buffer_setup")
     steps = args.steps if args.steps is not None else math.ceil(args.duration / SIM_DT)
@@ -737,6 +892,8 @@ def _run(args, simulation_app) -> dict:
                         "root_x_angular_velocity_radps": [round(float(v), 8) for v in robot.data.body_ang_vel_w[0, reference_ids[0]].detach().cpu().tolist()],
                         "reference_tilt_rad": round(tilt, 8),
                         "system_center_of_mass_m": [round(float(v), 8) for v in system_com],
+                        "support_reference": support_reference,
+                        "support_positive_y_margin_m": round(positive_y_margin, 8),
                         "zero_pose_support_positive_y_margin_m": round(positive_y_margin, 8),
                         "projected_gravity_semantic_body_frame": [round(float(v), 8) for v in projected_gravity],
                         "projected_gravity_imported_root_frame": [
@@ -795,7 +952,15 @@ def _run(args, simulation_app) -> dict:
             "minimum_zero_pose_support_positive_y_margin_m": round(
                 minimum_positive_y_support_margin_m, 8
             ),
+            "support_reference": support_reference,
+            "minimum_support_positive_y_margin_m": round(
+                minimum_positive_y_support_margin_m, 8
+            ),
             "first_zero_pose_support_exit_time_s": (
+                round(first_static_support_exit_time_s, 6)
+                if first_static_support_exit_time_s is not None else None
+            ),
+            "first_support_exit_time_s": (
                 round(first_static_support_exit_time_s, 6)
                 if first_static_support_exit_time_s is not None else None
             ),
@@ -816,6 +981,18 @@ def _run(args, simulation_app) -> dict:
             failures.append("imported PhysX/USD axes do not preserve the current URDF axis contract")
         if not runtime_actuators["passed"]:
             failures.append("runtime actuator targets, gains, or limits differ from the robot contract")
+        if static_pose_derivation is not None:
+            if static_pose_derivation["settled_geometry"]["support_margin_m"] <= 0.0:
+                failures.append("derived pose COM is outside its exact collision support hull")
+            if static_pose_derivation["maximum_required_torque_limit_fraction"] > 1.0:
+                failures.append("derived static torque exceeds an imported actuator effort limit")
+            support_ratio = static_pose_derivation["mean_support_force_body_weight_ratio"]
+            if not 0.8 <= support_ratio <= 1.2:
+                failures.append(
+                    "fixed-root settling contact force does not support 0.8-1.2 body weights"
+                )
+            if static_pose_derivation["maximum_mean_abs_settling_velocity_radps"] > 0.5:
+                failures.append("fixed-root pose did not settle below 0.5 rad/s mean joint speed")
 
         video = None
         if args.phase == "proof":
@@ -890,18 +1067,62 @@ def _run(args, simulation_app) -> dict:
                     "ground alignment and next change nominal posture/contact equilibrium."
                 ),
             }
+        elif args.static_pose_probe:
+            stable = (
+                metrics["fall_count"] == 0
+                and metrics["first_support_exit_time_s"] is None
+                and metrics["max_reference_tilt_rad"] <= MAX_REFERENCE_TILT_RAD
+            )
+            experiment = {
+                "id": "gravity_static_pose_release_v1",
+                "diagnostic_only": True,
+                "independent_variable": "derived nonzero standing pose and measured baseline-PD preload",
+                "held_constant": [
+                    "exact URDF and imported axes", "baseline PD gains and effort limits",
+                    "low-authority hand/finger locks", "contact material",
+                    "solver timestep and iterations",
+                ],
+                "derivation": static_pose_derivation,
+                "comparison_to_archived_runs": {
+                    "ground_aligned_zero_pose": {
+                        "first_fall_time_s": 1.212,
+                        "first_support_exit_time_s": 0.696,
+                        "horizontal_drift_m": 0.40758578,
+                    },
+                    "broad_authority_rejected": {
+                        "first_fall_time_s": 1.156,
+                        "first_support_exit_time_s": 0.662,
+                        "horizontal_drift_m": 0.43666864,
+                    },
+                },
+                "result_supports_static_pose_hypothesis": stable,
+                "interpretation": (
+                    "The derived pose retained support after free-root release; adopt it for a longer bounded test."
+                    if stable
+                    else "The derived pose did not retain support after release; use its settled-pose, torque, "
+                    "and contact diagnostics to revise the equilibrium method rather than increasing authority."
+                ),
+            }
         evidence = {
             "schema_version": 3, "milestone": MILESTONE_ID, "component": args.phase,
-            "scope": "diagnostic_experiment" if args.authority_probe else "component_only",
+            "scope": (
+                "diagnostic_experiment"
+                if args.authority_probe or args.static_pose_probe
+                else "component_only"
+            ),
             "status": "passed" if passed else "failed",
-            "gate_eligible": not args.smoke and not args.authority_probe,
+            "gate_eligible": not args.smoke and not args.authority_probe and not args.static_pose_probe,
             "milestone_status_changed": False,
             "experiment": experiment,
             "lineage": "clean_restart_2026_08_22",
             "run_identity": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ"),
             "seed": args.seed,
             "checkpoint": {
-                "kind": "passive_pd_configuration",
+                "kind": (
+                    "derived_static_pose_diagnostic"
+                    if args.static_pose_probe
+                    else "passive_pd_configuration"
+                ),
                 "identity": f"robot_spec_sha256:{_sha256(model_spec.ROBOT_SPEC_PATH)}",
                 "policy_checkpoint": None,
             },
@@ -913,6 +1134,8 @@ def _run(args, simulation_app) -> dict:
                 "solver_position_iterations": 8, "solver_velocity_iterations": 4,
                 "single_process": True, "num_envs": 1, "rendering_enabled": args.phase == "proof",
                 "camera_sensor_created": False, "usd_cache_reused": args.phase == "proof" or args.reuse_usd_cache,
+                "fixed_root_settling_steps": args.settle_steps if args.static_pose_probe else 0,
+                "free_root_validation_steps": steps,
             },
             "input": contract["source"],
             "joint_contract": {
@@ -958,6 +1181,17 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Diagnostic only: keep zero pose/lower-body settings and increase explicit upper-body holding.",
     )
+    parser.add_argument(
+        "--static-pose-probe",
+        action="store_true",
+        help="Diagnostic only: settle the derived pose with a pinned root, measure preload, then release.",
+    )
+    parser.add_argument(
+        "--settle-steps",
+        type=int,
+        default=2000,
+        help="Pinned-root settling steps before a --static-pose-probe release (default: 2000).",
+    )
     parser.add_argument("--video-fps", type=int, default=5)
     parser.add_argument("--video-width", type=int, default=640)
     parser.add_argument("--video-height", type=int, default=480)
@@ -978,6 +1212,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--reuse-usd-cache is restricted to non-promotable smoke runs")
     if args.authority_probe and (args.phase != "dynamics" or not args.smoke):
         raise SystemExit("--authority-probe requires --phase dynamics and --smoke")
+    if args.static_pose_probe and (args.phase != "dynamics" or not args.smoke):
+        raise SystemExit("--static-pose-probe requires --phase dynamics and --smoke")
+    if args.authority_probe and args.static_pose_probe:
+        raise SystemExit("authority and static-pose probes are mutually exclusive")
+    if args.settle_steps <= 0:
+        raise SystemExit("--settle-steps must be positive")
     output_dir = safe_output_dir(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / component_artifact_name(args.phase, args.smoke)).unlink(missing_ok=True)

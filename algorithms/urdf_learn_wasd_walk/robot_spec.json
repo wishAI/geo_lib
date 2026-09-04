@@ -3685,8 +3685,20 @@
           "waist_damping_nm_s_per_rad": 5.0,
           "waist_stiffness_nm_per_rad": 40.0
         },
+        "evidence": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/experiments/zero_pose_upper_body_authority_probe_v1_20260904T061528Z.json",
+        "evidence_sha256": "0876def2384e1e14963c8935ac03ed78e8c68ee0be52e0d2bac703bbce3c89a2",
         "hypothesis": "If the zero pose survives with explicit upper-body holding, compliant upper-body motion is causal; if support exit remains, the next experiment must change nominal posture/contact equilibrium",
         "id": "zero_pose_upper_body_authority_probe_v1",
+        "result": {
+          "duration_s": 3.0,
+          "first_fall_time_s": 1.156,
+          "first_zero_pose_support_exit_time_s": 0.662,
+          "horizontal_drift_m": 0.43666864,
+          "interpretation": "broad upper-body authority injected energy and worsened stability",
+          "max_reference_tilt_rad": 1.35250473,
+          "peak_support_force_body_weight_ratio": 3.36800819,
+          "right_shoulder_pitch_saturation_fraction": 0.20866667
+        },
         "scope": "zero pose, ground alignment, lower-body gains, effort limits, and contact geometry unchanged",
         "source_comparison": {
           "G1_and_H1_arm_damping_nm_s_per_rad": 10.0,
@@ -3695,6 +3707,217 @@
           "adaptation": "retain Landau effort/velocity limits and all lower-body gains",
           "installed_file": "IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/unitree.py"
         },
+        "status": "rejected"
+      },
+      {
+        "comparison": {
+          "authority_probe_rejected": true,
+          "candidate_support_margin_m": 0.062116802,
+          "ground_alignment_retained": true,
+          "zero_pose_support_margin_m": 0.045898885
+        },
+        "geometry_candidate": {
+          "center_of_mass_height_above_ground_m": 0.329238389,
+          "center_of_mass_m": [
+            1.24e-07,
+            -0.021219172,
+            0.334051442
+          ],
+          "derivation": {
+            "leg_seed": "0.5 * installed Isaac Lab G1 hip/knee/ankle flexion",
+            "leg_seed_rad": {
+              "left_ankle_pitch_joint": -0.115,
+              "left_hip_pitch_joint": -0.1,
+              "left_knee_joint": 0.21,
+              "right_ankle_pitch_joint": -0.115,
+              "right_hip_pitch_joint": -0.1,
+              "right_knee_joint": 0.21
+            },
+            "selection": "maximum signed COM distance inside the bilateral near-ground collision hull",
+            "upper_body_offsets_during_geometry_search": "zero; fixed-root settling derives only necessary offsets",
+            "waist_search_rad": {
+              "increment": 0.001,
+              "maximum": 0.0,
+              "minimum": -0.35
+            }
+          },
+          "fixed_root_gravity_torque_nm": {
+            "head_yaw_joint": 0.0,
+            "left_ankle_pitch_joint": 0.01155672,
+            "left_elbow_joint": 0.357541813,
+            "left_forearm_roll_joint": -0.007281758,
+            "left_hip_pitch_joint": 0.025004399,
+            "left_hip_roll_joint": 0.000696847,
+            "left_hip_yaw_joint": 0.000166095,
+            "left_index_base_joint": -0.018604709,
+            "left_index_distal_joint": 0.0,
+            "left_index_intermediate_joint": -0.00157199,
+            "left_index_proximal_joint": -0.004544007,
+            "left_knee_joint": -0.014450582,
+            "left_middle_base_joint": -0.018096684,
+            "left_middle_distal_joint": 0.0,
+            "left_middle_intermediate_joint": -0.001120252,
+            "left_middle_proximal_joint": -0.004584413,
+            "left_pinky_base_joint": -0.011425774,
+            "left_pinky_distal_joint": 0.0,
+            "left_pinky_intermediate_joint": -0.000151046,
+            "left_pinky_proximal_joint": -0.000795778,
+            "left_ring_base_joint": -0.015626671,
+            "left_ring_distal_joint": 0.0,
+            "left_ring_intermediate_joint": -0.000779279,
+            "left_ring_proximal_joint": -0.003206028,
+            "left_shin_roll_joint": 0.000157437,
+            "left_shoulder_lift_joint": 0.852747438,
+            "left_shoulder_pitch_joint": 0.234044666,
+            "left_thumb_distal_joint": 0.0,
+            "left_thumb_metacarpal_joint": -0.010537293,
+            "left_thumb_proximal_joint": 0.000970847,
+            "left_toe_joint": 0.0,
+            "left_upper_arm_roll_joint": 0.086351448,
+            "left_wrist_pitch_joint": 0.052062478,
+            "neck_pitch_joint": 0.00018584,
+            "right_ankle_pitch_joint": 0.011556723,
+            "right_elbow_joint": -0.357541567,
+            "right_forearm_roll_joint": 0.007281889,
+            "right_hip_pitch_joint": 0.025004302,
+            "right_hip_roll_joint": -0.00069695,
+            "right_hip_yaw_joint": -0.000166111,
+            "right_index_base_joint": -0.018604706,
+            "right_index_distal_joint": 0.0,
+            "right_index_intermediate_joint": -0.001571989,
+            "right_index_proximal_joint": -0.004544003,
+            "right_knee_joint": -0.014450417,
+            "right_middle_base_joint": -0.018096675,
+            "right_middle_distal_joint": 0.0,
+            "right_middle_intermediate_joint": -0.001120249,
+            "right_middle_proximal_joint": -0.004584408,
+            "right_pinky_base_joint": -0.011425827,
+            "right_pinky_distal_joint": 0.0,
+            "right_pinky_intermediate_joint": -0.000151041,
+            "right_pinky_proximal_joint": -0.000795853,
+            "right_ring_base_joint": -0.015626661,
+            "right_ring_distal_joint": 0.0,
+            "right_ring_intermediate_joint": -0.000779276,
+            "right_ring_proximal_joint": -0.003206023,
+            "right_shin_roll_joint": -0.00015744,
+            "right_shoulder_lift_joint": -0.852747188,
+            "right_shoulder_pitch_joint": 0.234043534,
+            "right_thumb_distal_joint": 0.0,
+            "right_thumb_metacarpal_joint": 0.010537283,
+            "right_thumb_proximal_joint": -0.000970854,
+            "right_toe_joint": 0.0,
+            "right_upper_arm_roll_joint": -0.261299582,
+            "right_wrist_pitch_joint": 0.05206231,
+            "waist_pitch_joint": 0.372217299,
+            "waist_roll_joint": 4.11e-07,
+            "waist_yaw_joint": 5.5e-08
+          },
+          "ground_aligned_base_z_m": -0.004813054,
+          "joint_positions_rad": {
+            "left_ankle_pitch_joint": -0.115,
+            "left_hip_pitch_joint": -0.1,
+            "left_knee_joint": 0.21,
+            "right_ankle_pitch_joint": -0.115,
+            "right_hip_pitch_joint": -0.1,
+            "right_knee_joint": 0.21,
+            "waist_pitch_joint": -0.197
+          },
+          "maximum_fixed_root_gravity_torque_limit_fraction": 0.017054949,
+          "method": "exact current-URDF FK, inertial origins, and collision vertices",
+          "near_ground_contact_vertex_count_by_link": {
+            "foot_l": 178,
+            "foot_r": 147,
+            "toes_01_l": 43,
+            "toes_01_r": 14
+          },
+          "support_aabb_xy_m": {
+            "maximum": [
+              0.106415031,
+              0.041922252
+            ],
+            "minimum": [
+              -0.104634093,
+              -0.089609824
+            ]
+          },
+          "support_hull_xy_m": [
+            [
+              -0.104634093,
+              -0.047562734
+            ],
+            [
+              -0.102159188,
+              -0.061928712
+            ],
+            [
+              -0.099590178,
+              -0.075655607
+            ],
+            [
+              0.076353963,
+              -0.089609824
+            ],
+            [
+              0.097359065,
+              -0.07698394
+            ],
+            [
+              0.106415031,
+              -0.052464852
+            ],
+            [
+              0.103132024,
+              -0.039280893
+            ],
+            [
+              0.076202981,
+              0.028788385
+            ],
+            [
+              0.069699972,
+              0.03677431
+            ],
+            [
+              0.065466946,
+              0.038911427
+            ],
+            [
+              0.055975912,
+              0.041922252
+            ],
+            [
+              -0.045565038,
+              0.040082074
+            ],
+            [
+              -0.066327068,
+              0.039116641
+            ],
+            [
+              -0.070555076,
+              0.035401492
+            ],
+            [
+              -0.073985074,
+              0.032136932
+            ],
+            [
+              -0.096891078,
+              -0.026792864
+            ]
+          ],
+          "support_margin_m": 0.062116802
+        },
+        "hypothesis": "A small collision-compatible crouch with centered COM and measured PD preload will avoid the zero-pose forward support exit without applying high authority to hands or fingers",
+        "id": "gravity_static_pose_release_v1",
+        "runtime_derivation": {
+          "fixed_root_method": "rewrite audited root pose and zero velocity before every settling step",
+          "release": "restore free root at collision-derived ground-aligned height with zero velocity",
+          "released_pd_target": "settled position + required torque / baseline stiffness",
+          "required_torque": "mean applied actuator torque over the final settling window",
+          "settled_pose": "mean joint positions over the final settling window"
+        },
+        "scope": "derive with pinned root and baseline low-authority PD, then release in the same Isaac process",
         "status": "active_bounded_test"
       }
     ],
@@ -3745,5 +3968,5 @@
       0.330791075
     ]
   },
-  "version": 5
+  "version": 6
 }

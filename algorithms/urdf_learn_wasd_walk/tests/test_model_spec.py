@@ -78,7 +78,9 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(experiments[1]["status"], "insufficient_supported")
         self.assertEqual(experiments[1]["change"], {"base_z_before_m": 0.002, "base_z_after_m": 0.0})
         self.assertEqual(experiments[2]["id"], "zero_pose_upper_body_authority_probe_v1")
-        self.assertEqual(experiments[2]["status"], "active_bounded_test")
+        self.assertEqual(experiments[2]["status"], "rejected")
+        self.assertEqual(experiments[3]["id"], "gravity_static_pose_release_v1")
+        self.assertEqual(experiments[3]["status"], "active_bounded_test")
         probe = self.spec["pd"]["authority_probe_actuator_groups"]
         flattened = [joint for group in probe.values() for joint in group["joints"]]
         self.assertEqual(set(flattened), {joint["name"] for joint in self.spec["joints"]})
@@ -88,6 +90,21 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(probe["waist_authority"]["stiffness"], 40.0)
         self.assertEqual(probe["upper_body_authority"]["damping"], 10.0)
         self.assertIn("right_shoulder_lift_joint", probe["upper_body_authority"]["joints"])
+
+    def test_static_pose_is_collision_supported_and_improves_com_margin(self) -> None:
+        experiments = self.spec["pd"]["stability_experiments"]
+        candidate = experiments[3]["geometry_candidate"]
+        zero = model_spec.analyze_pose_geometry({})
+        self.assertEqual(candidate["joint_positions_rad"]["left_hip_pitch_joint"], -0.1)
+        self.assertEqual(candidate["joint_positions_rad"]["left_knee_joint"], 0.21)
+        self.assertEqual(candidate["joint_positions_rad"]["left_ankle_pitch_joint"], -0.115)
+        self.assertAlmostEqual(candidate["joint_positions_rad"]["waist_pitch_joint"], -0.197)
+        self.assertGreater(candidate["support_margin_m"], zero["support_margin_m"] + 0.01)
+        self.assertLess(candidate["maximum_fixed_root_gravity_torque_limit_fraction"], 0.05)
+        contacts = candidate["near_ground_contact_vertex_count_by_link"]
+        self.assertGreater(contacts["foot_l"] + contacts["toes_01_l"], 0)
+        self.assertGreater(contacts["foot_r"] + contacts["toes_01_r"], 0)
+        self.assertEqual(candidate["derivation"]["waist_search_rad"]["increment"], 0.001)
 
     def test_fixed_root_gravity_audit_explains_measured_shoulder_compliance(self) -> None:
         audit = self.spec["pd"]["zero_pose_static_authority_audit"]

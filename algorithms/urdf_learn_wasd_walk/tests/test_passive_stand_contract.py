@@ -79,6 +79,14 @@ class PassiveStandContractTests(unittest.TestCase):
         source = inspect.getsource(passive_stand._run)
         self.assertIn("default_mass[0].to(device=robot.device, dtype=targets.dtype)", source)
 
+    def test_static_pose_probe_pins_then_releases_root_with_baseline_gains(self) -> None:
+        source = inspect.getsource(passive_stand._run)
+        self.assertIn('"fixed_root_gravity_settling"', source)
+        self.assertIn("robot.write_root_state_to_sim(initial_root_state)", source)
+        self.assertIn("release_targets = settled_positions + required_torques / stiffness_tensor", source)
+        self.assertIn('"hands_and_fingers_use_baseline_locked_pd": True', source)
+        self.assertIn('"high_authority_profile_used": False', source)
+
     def test_gate_rejects_events_motion_and_short_duration(self) -> None:
         metrics = {
             "duration_s": 29.0,
