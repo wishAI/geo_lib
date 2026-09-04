@@ -42,14 +42,49 @@
           "label": "Passive stand · finalized validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json",
           "kind": "json"
+        },
+        {
+          "label": "Policy training evidence",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json",
+          "kind": "json"
+        },
+        {
+          "label": "Durable PPO checkpoint",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt",
+          "kind": "file"
+        },
+        {
+          "label": "Policy stand · finalized validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Policy stand · camera-free dynamics",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Policy stand · proof validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Policy stand · 30 s proof video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4",
+          "kind": "video"
+        },
+        {
+          "label": "Policy stand · visual contact sheet",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
+          "kind": "image"
         }
       ]
     }
   ],
   "milestones": [
-    {"id": "stand_zero_signal_30s_no_reset", "name": "Passive stand · 30 s", "stage": "stand", "passWhen": "Zero actions, zero command, zero resets or done events.", "status": "not started"},
-    {"id": "stand_30s_no_reset", "name": "Policy stand · 30 s", "stage": "stand", "passWhen": "Policy control with zero falls, resets, or done events.", "status": "not started"},
-    {"id": "gate_5m_no_reset", "name": "Forward gate · 5 m", "stage": "fwd_only", "passWhen": "Walking pose preserved with no reset.", "status": "not started"},
+    {"id": "stand_zero_signal_30s_no_reset", "name": "Passive stand · 30 s", "stage": "stand", "passWhen": "Zero actions, zero command, zero resets or done events.", "status": "passed"},
+    {"id": "stand_30s_no_reset", "name": "Policy stand · 30 s", "stage": "stand", "passWhen": "Policy control with zero falls, resets, or done events.", "status": "passed"},
+    {"id": "gate_5m_no_reset", "name": "Forward gate · 5 m", "stage": "fwd_only", "passWhen": "Walking pose preserved with no reset.", "status": "in progress"},
     {"id": "gate_10m_no_reset", "name": "Forward gate · 10 m", "stage": "fwd_only", "passWhen": "Same checkpoint re-passes all earlier gates.", "status": "not started"},
     {"id": "yaw_turn_90deg_hold", "name": "Turn 90° and hold", "stage": "fwd_yaw", "passWhen": "Turn, settle, and hold without reset.", "status": "not started"},
     {"id": "teleop_60s_forward_turn", "name": "Teleop · 60 s", "stage": "fwd_yaw", "passWhen": "Forward and turn commands without reset or frozen joints.", "status": "not started"},
