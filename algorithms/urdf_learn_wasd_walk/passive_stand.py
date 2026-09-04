@@ -298,7 +298,12 @@ def evaluate_proof(video: dict, *, required_duration_s: float = MIN_GATE_DURATIO
     if not video["nonblank_frames_passed"]:
         failures.append("one or more representative proof frames are blank")
     if not video["character_visibility_passed"]:
-        failures.append("Landau link geometry is not fully framed with margin")
+        if video.get("visual_geometry_framing_passed") is False:
+            failures.append("Landau visual geometry is not fully inside the camera frustum with margin")
+        elif video.get("discernible_scale_passed") is False:
+            failures.append("Landau visual geometry is fully framed but too small for behavioral review")
+        else:
+            failures.append("Landau character visibility failed")
     if not video["temporal_progression_visible"]:
         failures.append("proof frames do not visibly establish temporal progression")
     return not failures, failures
@@ -558,6 +563,69 @@ def _projected_link_bbox(viewport, positions, width: int, height: int) -> dict:
         "minimum_projected_margin_px": round(margin, 2),
         "all_link_origins_in_front": front,
         "character_visible": visible,
+    }
+
+
+def _visual_geometry_world_corners(robot, local_corners: dict[str, list[list[float]]]) -> list[list[float]]:
+    """Transform audited URDF visual bounds with Isaac's current body poses."""
+
+    import torch
+    from isaaclab.utils.math import quat_apply
+
+    body_index = {name: index for index, name in enumerate(robot.body_names)}
+    missing = sorted(set(local_corners) - set(body_index))
+    if missing:
+        raise RuntimeError(f"visual-mesh links are absent from the imported articulation: {missing}")
+    world: list[list[float]] = []
+    for name, corners in local_corners.items():
+        index = body_index[name]
+        local = torch.tensor(corners, device=robot.device, dtype=robot.data.body_pos_w.dtype)
+        quaternion = robot.data.body_quat_w[0, index].unsqueeze(0).expand(len(corners), -1)
+        position = robot.data.body_pos_w[0, index].unsqueeze(0)
+        transformed = quat_apply(quaternion, local) + position
+        world.extend(transformed.detach().cpu().tolist())
+    return world
+
+
+def _projected_visual_geometry_bbox(viewport, positions, width: int, height: int) -> dict:
+    """Measure actual visual bounds in the viewport with framing and scale gates."""
+
+    from pxr import Gf
+
+    if not positions:
+        raise ValueError("visual geometry projection requires at least one point")
+    projected = [viewport.world_to_ndc.Transform(Gf.Vec3d(*map(float, point))) for point in positions]
+    return projected_visual_bbox_metrics(projected, width, height)
+
+
+def projected_visual_bbox_metrics(projected, width: int, height: int) -> dict:
+    """Evaluate already-projected visual corners without an Isaac dependency."""
+
+    if width <= 0 or height <= 0 or not projected:
+        raise ValueError("projection metrics require points and a positive resolution")
+    pixels = [
+        ((float(point[0]) + 1.0) * 0.5 * width, (1.0 - float(point[1])) * 0.5 * height)
+        for point in projected
+    ]
+    min_x, max_x = min(point[0] for point in pixels), max(point[0] for point in pixels)
+    min_y, max_y = min(point[1] for point in pixels), max(point[1] for point in pixels)
+    box_width, box_height = max_x - min_x, max_y - min_y
+    margin = min(min_x, min_y, width - max_x, height - max_y)
+    required_margin = max(12.0, 0.04 * min(width, height))
+    front = min(float(point[2]) for point in projected) >= 0.0
+    framing = front and margin >= required_margin
+    discernible = box_width >= 45.0 and box_height >= 100.0
+    return {
+        "projected_visual_geometry_bbox_xyxy": [
+            round(value, 2) for value in (min_x, min_y, max_x, max_y)
+        ],
+        "projected_visual_geometry_size_px": [round(box_width, 2), round(box_height, 2)],
+        "minimum_visual_geometry_margin_px": round(margin, 2),
+        "required_visual_geometry_margin_px": round(required_margin, 2),
+        "all_visual_geometry_corners_in_front": front,
+        "visual_geometry_framing_passed": framing,
+        "discernible_scale_passed": discernible,
+        "character_visible": framing and discernible,
     }
 
 

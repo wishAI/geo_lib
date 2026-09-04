@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import unittest
+import xml.etree.ElementTree as ET
 
 from algorithms.urdf_learn_wasd_walk import model_spec
 
@@ -181,6 +182,21 @@ class ModelSpecTests(unittest.TestCase):
             self.spec["frames"]["mapping"],
             {"linear_x": "strafe", "linear_y": "forward", "angular_z": "yaw"},
         )
+
+    def test_visual_mesh_bounds_cover_every_visual_link(self) -> None:
+        corners = model_spec.visual_local_aabb_corners()
+        self.assertEqual(len(corners), 58)
+        root = ET.parse(model_spec.URDF_PATH).getroot()
+        expected = {
+            link.get("name") for link in root.findall("link")
+            if link.find("visual/geometry/mesh") is not None
+        }
+        self.assertEqual(set(corners), expected)
+        for link_corners in corners.values():
+            self.assertEqual(len(link_corners), 8)
+            self.assertTrue(all(len(corner) == 3 for corner in link_corners))
+            for axis in range(3):
+                self.assertEqual(len({corner[axis] for corner in link_corners}), 2)
 
     def test_checked_in_robot_spec_is_current(self) -> None:
         checked_in = json.loads(model_spec.ROBOT_SPEC_PATH.read_text(encoding="utf-8"))

@@ -338,6 +338,7 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
 
         viewport = None
         frame_dir = None
+        visual_local_corners = None
         frames: list[dict] = []
         if phase == "proof":
             from omni.kit.viewport.utility import get_active_viewport
@@ -347,7 +348,13 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
                 raise RuntimeError("proof phase has no active viewport")
             viewport.updates_enabled = True
             viewport.resolution = (args.video_width, args.video_height)
-            env.sim.set_camera_view(eye=(1.8, -2.4, 1.35), target=(0.0, 0.0, 0.52))
+            visual_local_corners = model_spec.visual_local_aabb_corners()
+            if not visual_local_corners:
+                raise RuntimeError("exact URDF supplied no visual-mesh bounds")
+            env.sim.set_camera_view(
+                eye=contract.PROOF_CAMERA_EYE_OFFSET_M,
+                target=(0.0, 0.0, contract.PROOF_CAMERA_TARGET_HEIGHT_M),
+            )
             for _ in range(12):
                 env.sim.render()
             if tuple(map(int, viewport.resolution)) != (args.video_width, args.video_height):
@@ -452,18 +459,35 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
             })
             if viewport is not None and (step + 1) % video_stride == 0:
                 root_xy = position[:2].tolist()
+                eye_offset = contract.PROOF_CAMERA_EYE_OFFSET_M
                 env.sim.set_camera_view(
-                    eye=(1.8 + root_xy[0], -2.4 + root_xy[1], 1.35),
-                    target=(root_xy[0], root_xy[1], 0.52),
+                    eye=(
+                        eye_offset[0] + root_xy[0],
+                        eye_offset[1] + root_xy[1],
+                        eye_offset[2],
+                    ),
+                    target=(
+                        root_xy[0], root_xy[1], contract.PROOF_CAMERA_TARGET_HEIGHT_M
+                    ),
                 )
                 env.sim.render()
                 index = len(frames)
                 frame_path = frame_dir / f"frame_{index:04d}.png"  # type: ignore[operator]
                 passive_stand._capture_viewport_frame(viewport, env.sim, frame_path)
-                bbox = passive_stand._projected_link_bbox(
+                origin_bbox = passive_stand._projected_link_bbox(
                     viewport, robot.data.body_pos_w[0].detach().cpu().tolist(),
                     args.video_width, args.video_height,
                 )
+                visual_corners = passive_stand._visual_geometry_world_corners(
+                    robot, visual_local_corners
+                )
+                bbox = {
+                    key: value for key, value in origin_bbox.items() if key != "character_visible"
+                }
+                bbox["link_origin_scale_proxy_passed"] = origin_bbox["character_visible"]
+                bbox.update(passive_stand._projected_visual_geometry_bbox(
+                    viewport, visual_corners, args.video_width, args.video_height
+                ))
                 frames.append(_inspect_policy_frame(frame_path, bbox, index, time_s))
 
         final_position = robot.data.body_pos_w[0, reference_ids[0]].detach().cpu().tolist()
@@ -554,6 +578,12 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
                     "representative_mean_absolute_differences": differences,
                     "nonblank_frames_passed": all(item["nonblank"] for item in sampled),
                     "character_visibility_passed": all(item["character_visible"] for item in sampled),
+                    "visual_geometry_framing_passed": all(
+                        item["visual_geometry_framing_passed"] for item in sampled
+                    ),
+                    "discernible_scale_passed": all(
+                        item["discernible_scale_passed"] for item in sampled
+                    ),
                     "temporal_progression_visible": (
                         len(sampled) >= 3 and all(value > 0.005 for value in differences)
                     ),
@@ -593,6 +623,11 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
                 "num_envs": 1,
                 "rendering_enabled": phase == "proof",
                 "camera_sensor_created": False,
+                "tracking_camera": {
+                    "eye_offset_m": list(contract.PROOF_CAMERA_EYE_OFFSET_M),
+                    "target_height_m": contract.PROOF_CAMERA_TARGET_HEIGHT_M,
+                    "visual_bounds": "runtime body transforms applied to exact URDF visual-mesh local AABBs",
+                },
             },
             "input": spec["source"],
             "joint_contract": {

@@ -368,6 +368,43 @@ def _collision_world_points(
     return result
 
 
+def visual_local_aabb_corners(urdf_path: Path = URDF_PATH) -> dict[str, list[list[float]]]:
+    """Return conservative local-frame corners for every visual-mesh link.
+
+    The proof camera uses these corners with Isaac's runtime body transforms.
+    Unlike a link-origin proxy, this catches an imported visual mesh that is
+    partly behind the camera or outside the viewport.  Corners bound all STL
+    vertices after applying each URDF visual origin.
+    """
+
+    root = ET.parse(urdf_path).getroot()
+    result: dict[str, list[list[float]]] = {}
+    for link in root.findall("link"):
+        link_name = link.get("name")
+        points: list[Vector3] = []
+        for visual in link.findall("visual"):
+            mesh = visual.find("geometry/mesh")
+            if mesh is None:
+                continue
+            scale = _vector(mesh.get("scale"), "1 1 1")
+            mesh_path = (urdf_path.parent / mesh.get("filename")).resolve()  # type: ignore[arg-type]
+            rotation, position = _origin_transform(visual.find("origin"))
+            for vertex in _stl_vertices(mesh_path):
+                scaled = tuple(vertex[index] * scale[index] for index in range(3))
+                points.append(_vector_add(position, _matrix_vector(rotation, scaled)))
+        if not points:
+            continue
+        minimum = [min(point[axis] for point in points) for axis in range(3)]
+        maximum = [max(point[axis] for point in points) for axis in range(3)]
+        result[link_name] = [
+            [x, y, z]
+            for x in (minimum[0], maximum[0])
+            for y in (minimum[1], maximum[1])
+            for z in (minimum[2], maximum[2])
+        ]
+    return result
+
+
 def _convex_hull_xy(points: Sequence[Vector3]) -> list[list[float]]:
     """Return the deterministic counter-clockwise hull of XY projected points."""
 

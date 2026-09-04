@@ -204,6 +204,44 @@ class PassiveStandContractTests(unittest.TestCase):
             bad[key] = False
             self.assertFalse(passive_stand.evaluate_proof(bad)[0])
 
+    def test_visual_geometry_projection_separates_framing_from_scale(self) -> None:
+        def ndc(x: float, y: float, depth: float = 0.5) -> tuple[float, float, float]:
+            return (x / 320.0 - 1.0, 1.0 - y / 240.0, depth)
+
+        origin_proxy = passive_stand.projected_visual_bbox_metrics(
+            [ndc(297.0, 226.0), ndc(338.0, 328.0)], 640, 480
+        )
+        self.assertTrue(origin_proxy["visual_geometry_framing_passed"])
+        self.assertFalse(origin_proxy["discernible_scale_passed"])
+        self.assertFalse(origin_proxy["character_visible"])
+
+        visible_mesh = passive_stand.projected_visual_bbox_metrics(
+            [ndc(270.0, 125.0), ndc(370.0, 355.0)], 640, 480
+        )
+        self.assertTrue(visible_mesh["visual_geometry_framing_passed"])
+        self.assertTrue(visible_mesh["discernible_scale_passed"])
+        self.assertTrue(visible_mesh["character_visible"])
+        self.assertEqual(visible_mesh["required_visual_geometry_margin_px"], 19.2)
+
+    def test_visual_geometry_projection_rejects_frustum_outlier(self) -> None:
+        projected = [(-1.02, 0.0, 0.5), (0.4, -0.5, 0.5), (0.4, 0.5, 0.5)]
+        result = passive_stand.projected_visual_bbox_metrics(projected, 640, 480)
+        self.assertFalse(result["visual_geometry_framing_passed"])
+        self.assertTrue(result["discernible_scale_passed"])
+        self.assertFalse(result["character_visible"])
+
+    def test_proof_gate_explains_visual_framing_and_scale_separately(self) -> None:
+        common = {
+            "duration_s": 30.0,
+            "nonblank_frames_passed": True,
+            "character_visibility_passed": False,
+            "temporal_progression_visible": True,
+        }
+        framing = dict(common, visual_geometry_framing_passed=False, discernible_scale_passed=True)
+        self.assertIn("frustum", " ".join(passive_stand.evaluate_proof(framing)[1]))
+        scale = dict(common, visual_geometry_framing_passed=True, discernible_scale_passed=False)
+        self.assertIn("too small", " ".join(passive_stand.evaluate_proof(scale)[1]))
+
     def test_proof_preflight_requires_current_passing_dynamics(self) -> None:
         passive_stand.OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=passive_stand.OUTPUT_ROOT) as temporary:
