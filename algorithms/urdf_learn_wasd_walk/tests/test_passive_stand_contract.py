@@ -21,6 +21,23 @@ class PassiveStandContractTests(unittest.TestCase):
         self.assertEqual(passive_stand.quaternion_distance_wxyz(identity, identity), 0.0)
         self.assertEqual(passive_stand.quaternion_distance_wxyz(identity, (-1.0, 0.0, 0.0, 0.0)), 0.0)
 
+    def test_joint_tracking_summary_is_complete_and_worst_first(self) -> None:
+        summary = passive_stand.summarize_joint_tracking(
+            ["ankle", "knee"],
+            [0.1, 0.4],
+            [0.5, 1.2],
+            [1.0, 2.0],
+            [3.0, 6.0],
+            [3.0, 5.0],
+            [0, 25],
+            100,
+        )
+        self.assertEqual([item["name"] for item in summary], ["knee", "ankle"])
+        self.assertEqual(summary[0]["max_target_error_time_s"], 1.2)
+        self.assertEqual(summary[0]["torque_saturation_step_fraction"], 0.25)
+        with self.assertRaises(ValueError):
+            passive_stand.summarize_joint_tracking([], [], [], [], [], [], [], 0)
+
     def test_gate_rejects_events_motion_and_short_duration(self) -> None:
         metrics = {
             "duration_s": 29.0,

@@ -53,6 +53,44 @@ def quaternion_distance_wxyz(left: Sequence[float], right: Sequence[float]) -> f
     return 2.0 * math.acos(min(1.0, max(-1.0, dot)))
 
 
+def summarize_joint_tracking(
+    joint_names: Sequence[str],
+    max_errors: Sequence[float],
+    max_error_times: Sequence[float],
+    max_velocities: Sequence[float],
+    max_computed_torques: Sequence[float],
+    max_applied_torques: Sequence[float],
+    torque_saturation_counts: Sequence[int],
+    physics_steps: int,
+) -> list[dict]:
+    """Build a compact, deterministic per-joint diagnostic in worst-error order."""
+    columns = (
+        max_errors,
+        max_error_times,
+        max_velocities,
+        max_computed_torques,
+        max_applied_torques,
+        torque_saturation_counts,
+    )
+    if physics_steps <= 0 or any(len(column) != len(joint_names) for column in columns):
+        raise ValueError("joint diagnostic columns must match and physics_steps must be positive")
+    records = [
+        {
+            "name": name,
+            "max_target_error_rad": round(float(max_errors[index]), 8),
+            "max_target_error_time_s": round(float(max_error_times[index]), 6),
+            "max_abs_velocity_radps": round(float(max_velocities[index]), 8),
+            "max_abs_computed_torque_nm": round(float(max_computed_torques[index]), 8),
+            "max_abs_applied_torque_nm": round(float(max_applied_torques[index]), 8),
+            "torque_saturation_step_fraction": round(
+                int(torque_saturation_counts[index]) / physics_steps, 8
+            ),
+        }
+        for index, name in enumerate(joint_names)
+    ]
+    return sorted(records, key=lambda item: (-item["max_target_error_rad"], item["name"]))
+
+
 def evaluate_gate(metrics: dict, *, required_duration_s: float = MIN_GATE_DURATION_S) -> tuple[bool, list[str]]:
     failures = []
     if metrics["duration_s"] + 1.0e-6 < required_duration_s:
@@ -406,6 +444,52 @@ def _run(args, simulation_app) -> dict:
     robot.set_joint_position_target(targets)
     scene.write_data_to_sim()
 
+    target_values = targets[0].detach().cpu().tolist()
+    stiffness_values = robot.data.joint_stiffness[0].detach().cpu().tolist()
+    damping_values = robot.data.joint_damping[0].detach().cpu().tolist()
+    effort_limit_values = robot.data.joint_effort_limits[0].detach().cpu().tolist()
+    velocity_limit_values = robot.data.joint_vel_limits[0].detach().cpu().tolist()
+    position_limits = robot.data.joint_pos_limits[0].detach().cpu().tolist()
+    expected_gains = {
+        name: (model_spec.LOCKED_PD_STIFFNESS, model_spec.LOCKED_PD_DAMPING)
+        for name in contract["locked_joints"]
+    }
+    for group in model_spec.PD_GROUPS.values():
+        expected_gains.update(
+            {name: (group["stiffness"], group["damping"]) for name in group["joints"]}
+        )
+    actuator_mismatches = []
+    for index, name in enumerate(robot.joint_names):
+        expected_stiffness, expected_damping = expected_gains[name]
+        actual = (
+            target_values[index], stiffness_values[index], damping_values[index],
+            effort_limit_values[index], velocity_limit_values[index],
+        )
+        expected_actual = (0.0, expected_stiffness, expected_damping, 50.0, 4.0)
+        if any(abs(float(a) - float(b)) > 1.0e-5 for a, b in zip(actual, expected_actual)):
+            actuator_mismatches.append(
+                {"name": name, "actual_target_stiffness_damping_effort_velocity": actual,
+                 "expected_target_stiffness_damping_effort_velocity": expected_actual}
+            )
+    runtime_actuators = {
+        "authority": "values read from Isaac Lab ArticulationData after actuator initialization",
+        "passed": not actuator_mismatches,
+        "mismatches": actuator_mismatches,
+        "joint_order": list(robot.joint_names),
+        "joints": [
+            {
+                "name": name,
+                "target_position_rad": round(float(target_values[index]), 9),
+                "stiffness_nm_per_rad": round(float(stiffness_values[index]), 9),
+                "damping_nm_s_per_rad": round(float(damping_values[index]), 9),
+                "effort_limit_nm": round(float(effort_limit_values[index]), 9),
+                "velocity_limit_radps": round(float(velocity_limit_values[index]), 9),
+                "position_limits_rad": [round(float(value), 9) for value in position_limits[index]],
+            }
+            for index, name in enumerate(robot.joint_names)
+        ],
+    }
+
     imported = None
     if args.phase == "dynamics":
         imported = _inspect_imported_joint_contract(sim.stage, "/World/envs/env_0/Robot", contract)
@@ -435,6 +519,20 @@ def _run(args, simulation_app) -> dict:
     fall_count, max_joint_error = 0, 0.0
     previously_fallen = False
     initial_position = initial_quaternion = None
+    first_fall_time_s = None
+    joint_count = len(robot.joint_names)
+    max_errors = torch.zeros(joint_count, device=robot.device)
+    max_error_times = torch.zeros(joint_count, device=robot.device)
+    max_velocities = torch.zeros(joint_count, device=robot.device)
+    max_computed_torques = torch.zeros(joint_count, device=robot.device)
+    max_applied_torques = torch.zeros(joint_count, device=robot.device)
+    torque_saturation_counts = torch.zeros(joint_count, dtype=torch.int64, device=robot.device)
+    contact_threshold_n = 1.0
+    contact_timing = {
+        name: {"first_contact_time_s": None, "last_contact_time_s": None, "peak_force_n": 0.0,
+               "peak_force_time_s": None}
+        for name in foot_names
+    }
     try:
         for step in range(steps):
             robot.set_joint_position_target(targets)
@@ -451,14 +549,41 @@ def _run(args, simulation_app) -> dict:
             fallen = tilt > MAX_REFERENCE_TILT_RAD or drop > MAX_ROOT_HEIGHT_DROP_M
             if fallen and not previously_fallen:
                 fall_count += 1
+                if first_fall_time_s is None:
+                    first_fall_time_s = (step + 1) * SIM_DT
             previously_fallen = fallen
-            max_joint_error = max(
-                max_joint_error, float(torch.max(torch.abs(robot.data.joint_pos - targets)).detach().cpu())
+            absolute_errors = torch.abs(robot.data.joint_pos[0] - targets[0])
+            new_error_maxima = absolute_errors > max_errors
+            max_errors = torch.maximum(max_errors, absolute_errors)
+            max_error_times = torch.where(
+                new_error_maxima,
+                torch.full_like(max_error_times, (step + 1) * SIM_DT),
+                max_error_times,
             )
+            max_velocities = torch.maximum(max_velocities, torch.abs(robot.data.joint_vel[0]))
+            computed_torques = torch.abs(robot.data.computed_torque[0])
+            applied_torques = torch.abs(robot.data.applied_torque[0])
+            max_computed_torques = torch.maximum(max_computed_torques, computed_torques)
+            max_applied_torques = torch.maximum(max_applied_torques, applied_torques)
+            torque_saturation_counts += (
+                computed_torques > robot.data.joint_effort_limits[0] + 1.0e-6
+            ).to(torch.int64)
+            max_joint_error = max(max_joint_error, float(torch.max(absolute_errors).detach().cpu()))
+            force_norms_tensor = torch.linalg.vector_norm(
+                contacts.data.net_forces_w[0, foot_ids].detach().cpu(), dim=-1
+            )
+            time_s = (step + 1) * SIM_DT
+            for name, force in zip(foot_names, force_norms_tensor.tolist()):
+                timing = contact_timing[name]
+                if force >= contact_threshold_n:
+                    if timing["first_contact_time_s"] is None:
+                        timing["first_contact_time_s"] = round(time_s, 6)
+                    timing["last_contact_time_s"] = round(time_s, 6)
+                if force > timing["peak_force_n"]:
+                    timing["peak_force_n"] = round(float(force), 6)
+                    timing["peak_force_time_s"] = round(time_s, 6)
             if (step + 1) % trace_stride == 0 or step == 0 or step + 1 == steps:
-                force_norms = torch.linalg.vector_norm(
-                    contacts.data.net_forces_w[0, foot_ids].detach().cpu(), dim=-1
-                ).tolist()
+                force_norms = force_norms_tensor.tolist()
                 traces.append(
                     {
                         "time_s": round((step + 1) * SIM_DT, 6),
@@ -468,6 +593,11 @@ def _run(args, simulation_app) -> dict:
                         "root_x_angular_velocity_radps": [round(float(v), 8) for v in robot.data.body_ang_vel_w[0, reference_ids[0]].detach().cpu().tolist()],
                         "reference_tilt_rad": round(tilt, 8),
                         "foot_contact_force_n": {name: round(float(v), 6) for name, v in zip(foot_names, force_norms)},
+                        "joint_position_rad": [round(float(v), 8) for v in robot.data.joint_pos[0].detach().cpu().tolist()],
+                        "joint_velocity_radps": [round(float(v), 8) for v in robot.data.joint_vel[0].detach().cpu().tolist()],
+                        "joint_target_error_rad": [round(float(v), 8) for v in (targets[0] - robot.data.joint_pos[0]).detach().cpu().tolist()],
+                        "computed_torque_nm": [round(float(v), 8) for v in robot.data.computed_torque[0].detach().cpu().tolist()],
+                        "applied_torque_nm": [round(float(v), 8) for v in robot.data.applied_torque[0].detach().cpu().tolist()],
                         "fallen": fallen,
                     }
                 )
@@ -490,6 +620,16 @@ def _run(args, simulation_app) -> dict:
         if initial_position is None:
             raise RuntimeError("simulation produced no state samples")
         final_position = robot.data.body_pos_w[0, reference_ids[0]].detach().cpu().tolist()
+        joint_tracking = summarize_joint_tracking(
+            robot.joint_names,
+            max_errors.detach().cpu().tolist(),
+            max_error_times.detach().cpu().tolist(),
+            max_velocities.detach().cpu().tolist(),
+            max_computed_torques.detach().cpu().tolist(),
+            max_applied_torques.detach().cpu().tolist(),
+            torque_saturation_counts.detach().cpu().tolist(),
+            steps,
+        )
         metrics = {
             "duration_s": round(steps * SIM_DT, 6), "physics_steps": steps,
             "reset_count": 0, "done_count": fall_count, "fall_count": fall_count,
@@ -500,11 +640,15 @@ def _run(args, simulation_app) -> dict:
             "semantic_forward_displacement_m": round(final_position[1] - float(initial_position[1]), 8),
             "semantic_strafe_displacement_m": round(final_position[0] - float(initial_position[0]), 8),
             "max_joint_target_error_rad": round(max_joint_error, 8),
+            "first_fall_time_s": round(first_fall_time_s, 6) if first_fall_time_s is not None else None,
+            "worst_joint_target_errors": joint_tracking[:10],
         }
         required = 0.0 if args.smoke else MIN_GATE_DURATION_S
         passed, failures = evaluate_gate(metrics, required_duration_s=required)
         if imported is not None and not imported["passed"]:
             failures.append("imported PhysX/USD axes do not preserve the current URDF axis contract")
+        if not runtime_actuators["passed"]:
+            failures.append("runtime actuator targets, gains, or limits differ from the robot contract")
 
         video = None
         if args.phase == "proof":
@@ -553,7 +697,7 @@ def _run(args, simulation_app) -> dict:
 
         passed = passed and not failures
         evidence = {
-            "schema_version": 2, "milestone": MILESTONE_ID, "component": args.phase,
+            "schema_version": 3, "milestone": MILESTONE_ID, "component": args.phase,
             "scope": "component_only", "status": "passed" if passed else "failed",
             "gate_eligible": not args.smoke, "milestone_status_changed": False,
             "lineage": "clean_restart_2026_08_22",
@@ -567,6 +711,9 @@ def _run(args, simulation_app) -> dict:
             "versions": _versions(),
             "simulator": {
                 "device": args.device, "physics_dt_s": SIM_DT, "control_dt_s": CONTROL_DT,
+                "physics_steps_per_control_step": round(CONTROL_DT / SIM_DT),
+                "physx_substeps": 1,
+                "solver_position_iterations": 8, "solver_velocity_iterations": 4,
                 "single_process": True, "num_envs": 1, "rendering_enabled": args.phase == "proof",
                 "camera_sensor_created": False, "usd_cache_reused": args.phase == "proof" or args.reuse_usd_cache,
             },
@@ -576,7 +723,11 @@ def _run(args, simulation_app) -> dict:
                 "joints": contract["joints"], "nominal_pose": contract["nominal_pose"],
                 "pd": contract["pd"], "importer_axis_contract": contract["importer_axis_contract"],
                 "runtime_importer_axis_evidence": imported,
+                "runtime_actuators": runtime_actuators,
+                "joint_trace_order": list(robot.joint_names),
+                "joint_tracking_summary": joint_tracking,
             },
+            "contact_timing": {"threshold_n": contact_threshold_n, "bodies": contact_timing},
             "command_contract": contract["frames"], "metrics": metrics, "traces": traces,
             "video_inspection": video, "failures": failures,
             "cumulative_gates": [{"order": 1, "id": MILESTONE_ID, "status": "unresolved_pending_final_assembly"}],

@@ -26,6 +26,7 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(structure["joint_count"], 70)
         self.assertEqual(structure["movable_joint_count"], 69)
         self.assertAlmostEqual(structure["total_mass_kg"], 1.829753, places=6)
+        self.assertAlmostEqual(structure["zero_pose_center_of_mass_m"][1], -0.00601558, places=7)
         self.assertEqual(structure["invalid_inertia_links"], [])
         self.assertEqual(structure["root_link"], "base_link")
         self.assertEqual(structure["skeleton_root_link"], "root_x")
@@ -34,6 +35,15 @@ class ModelSpecTests(unittest.TestCase):
         bounds = self.spec["nominal_pose"]["zero_pose_collision_bounds"]
         for foot_link in ("foot_l", "foot_r", "toes_01_l", "toes_01_r"):
             self.assertAlmostEqual(bounds[foot_link]["minimum"][2], 0.0, delta=3.0e-5)
+        support = self.spec["nominal_pose"]["zero_pose_ground_support"]
+        self.assertAlmostEqual(support["ground_z_m"], 0.0, delta=3.0e-5)
+        minimum = support["support_aabb_xy_m"]["minimum"]
+        maximum = support["support_aabb_xy_m"]["maximum"]
+        com = structure["zero_pose_center_of_mass_m"]
+        self.assertLess(minimum[0], com[0])
+        self.assertLess(com[0], maximum[0])
+        self.assertLess(minimum[1], com[1])
+        self.assertLess(com[1], maximum[1])
 
     def test_action_and_locked_joint_sets_are_explicit_partition(self) -> None:
         action = self.spec["action_joints"]
@@ -46,6 +56,22 @@ class ModelSpecTests(unittest.TestCase):
         self.assertIn("left_shin_roll_joint", locked)
         self.assertIn("right_shin_roll_joint", locked)
         self.assertTrue(all(name not in action for name in locked))
+
+    def test_first_stability_hypothesis_changes_only_ankle_pitch_damping(self) -> None:
+        groups = self.spec["pd"]["groups"]
+        ankle = groups["ankle_pitch_contact"]
+        self.assertEqual(
+            ankle["joints"], ["left_ankle_pitch_joint", "right_ankle_pitch_joint"]
+        )
+        self.assertEqual((ankle["stiffness"], ankle["damping"]), (20.0, 4.0))
+        self.assertEqual(groups["leg_sagittal"]["damping"], 1.0)
+        controlled = [joint for group in groups.values() for joint in group["joints"]]
+        self.assertEqual(len(controlled), len(set(controlled)))
+        self.assertEqual(set(controlled), set(self.spec["action_joints"]))
+        hypothesis = self.spec["pd"]["stability_hypothesis"]
+        self.assertEqual(hypothesis["id"], "ankle_pitch_contact_damping_v1")
+        self.assertEqual(hypothesis["change"]["damping_before"], 1.0)
+        self.assertEqual(hypothesis["change"]["damping_after"], 4.0)
 
     def test_axes_were_interpreted_in_world_zero_pose(self) -> None:
         joints = {record["name"]: record for record in self.spec["joints"]}

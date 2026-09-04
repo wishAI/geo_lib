@@ -2815,10 +2815,40 @@
           1.149310348196736e-05
         ]
       }
+    },
+    "zero_pose_ground_support": {
+      "ground_z_m": 5.28e-07,
+      "links": [
+        "foot_l",
+        "foot_r",
+        "toes_01_l",
+        "toes_01_r"
+      ],
+      "method": "collision mesh vertices within tolerance of the zero-pose minimum Z",
+      "near_ground_vertex_count": 580,
+      "support_aabb_xy_m": {
+        "maximum": [
+          0.106415044,
+          0.040904973
+        ],
+        "minimum": [
+          -0.10627621,
+          -0.09544947
+        ]
+      },
+      "vertex_tolerance_m": 0.0005
     }
   },
   "pd": {
     "groups": {
+      "ankle_pitch_contact": {
+        "damping": 4.0,
+        "joints": [
+          "left_ankle_pitch_joint",
+          "right_ankle_pitch_joint"
+        ],
+        "stiffness": 20.0
+      },
       "leg_balance": {
         "damping": 0.8,
         "joints": [
@@ -2834,11 +2864,9 @@
         "joints": [
           "left_hip_pitch_joint",
           "left_knee_joint",
-          "left_ankle_pitch_joint",
           "left_toe_joint",
           "right_hip_pitch_joint",
           "right_knee_joint",
-          "right_ankle_pitch_joint",
           "right_toe_joint"
         ],
         "stiffness": 20.0
@@ -2864,6 +2892,21 @@
     "locked": {
       "damping": 0.35,
       "stiffness": 4.0
+    },
+    "stability_hypothesis": {
+      "change": {
+        "damping_after": 4.0,
+        "damping_before": 1.0,
+        "stiffness": 20.0
+      },
+      "id": "ankle_pitch_contact_damping_v1",
+      "installed_api_reference": "Isaac Lab 0.36.1 isaaclab_assets.robots.unitree.H1_CFG feet actuator uses stiffness=20 and damping=4",
+      "observed_failure": {
+        "contact_sequence": "toe contacts unload before the forward fall while both feet remain loaded",
+        "direction": "semantic forward (+Y) with rotation about -X",
+        "interpretation": "initial contact excites an underdamped sagittal ankle-rocking mode"
+      },
+      "scope": "left and right ankle-pitch damping only"
     }
   },
   "source": {
@@ -2893,7 +2936,12 @@
       -0.012911,
       0.299642
     ],
-    "total_mass_kg": 1.829753
+    "total_mass_kg": 1.829753,
+    "zero_pose_center_of_mass_m": [
+      1.24e-07,
+      -0.00601558,
+      0.330791075
+    ]
   },
-  "version": 2
+  "version": 3
 }

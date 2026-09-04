@@ -52,10 +52,15 @@ PD_GROUPS = {
         "joints": tuple(
             f"{side}_{joint}_joint"
             for side in ("left", "right")
-            for joint in ("hip_pitch", "knee", "ankle_pitch", "toe")
+            for joint in ("hip_pitch", "knee", "toe")
         ),
         "stiffness": 20.0,
         "damping": 1.0,
+    },
+    "ankle_pitch_contact": {
+        "joints": ("left_ankle_pitch_joint", "right_ankle_pitch_joint"),
+        "stiffness": 20.0,
+        "damping": 4.0,
     },
     "leg_balance": {
         "joints": tuple(
@@ -207,12 +212,12 @@ def _stl_vertices(path: Path) -> Iterable[Vector3]:
                 yield values[offset], values[offset + 1], values[offset + 2]
 
 
-def collision_world_bounds(urdf_path: Path = URDF_PATH) -> dict[str, dict[str, list[float]]]:
-    """Return zero-pose world bounds for every link with collision geometry."""
-
-    root = ET.parse(urdf_path).getroot()
-    transforms, _ = _joint_world_transforms(root)
-    result: dict[str, dict[str, list[float]]] = {}
+def _collision_world_points(
+    root: ET.Element,
+    urdf_path: Path,
+    transforms: dict[str, tuple[Matrix3, Vector3]],
+) -> dict[str, list[Vector3]]:
+    result: dict[str, list[Vector3]] = {}
     for link in root.findall("link"):
         link_name = link.get("name")
         points: list[Vector3] = []
@@ -225,11 +230,45 @@ def collision_world_bounds(urdf_path: Path = URDF_PATH) -> dict[str, dict[str, l
             rotation, position = collision_transform
             points.extend(_vector_add(position, _matrix_vector(rotation, vertex)) for vertex in _stl_vertices(mesh_path))
         if points:
-            result[link_name] = {
-                "minimum": [min(point[axis] for point in points) for axis in range(3)],
-                "maximum": [max(point[axis] for point in points) for axis in range(3)],
-            }
+            result[link_name] = points
     return result
+
+
+def collision_world_bounds(urdf_path: Path = URDF_PATH) -> dict[str, dict[str, list[float]]]:
+    """Return zero-pose world bounds for every link with collision geometry."""
+
+    root = ET.parse(urdf_path).getroot()
+    transforms, _ = _joint_world_transforms(root)
+    result: dict[str, dict[str, list[float]]] = {}
+    for link_name, points in _collision_world_points(root, urdf_path, transforms).items():
+        result[link_name] = {
+            "minimum": [min(point[axis] for point in points) for axis in range(3)],
+            "maximum": [max(point[axis] for point in points) for axis in range(3)],
+        }
+    return result
+
+
+def zero_pose_ground_support(urdf_path: Path = URDF_PATH, tolerance_m: float = 0.0005) -> dict:
+    """Measure the actual near-ground collision vertices of both feet and toes."""
+
+    root = ET.parse(urdf_path).getroot()
+    transforms, _ = _joint_world_transforms(root)
+    support_links = ("foot_l", "foot_r", "toes_01_l", "toes_01_r")
+    points_by_link = _collision_world_points(root, urdf_path, transforms)
+    all_points = [point for name in support_links for point in points_by_link[name]]
+    ground_z = min(point[2] for point in all_points)
+    contacts = [point for point in all_points if point[2] <= ground_z + tolerance_m]
+    return {
+        "method": "collision mesh vertices within tolerance of the zero-pose minimum Z",
+        "links": list(support_links),
+        "ground_z_m": round(ground_z, 9),
+        "vertex_tolerance_m": tolerance_m,
+        "near_ground_vertex_count": len(contacts),
+        "support_aabb_xy_m": {
+            "minimum": [round(min(point[axis] for point in contacts), 9) for axis in (0, 1)],
+            "maximum": [round(max(point[axis] for point in contacts), 9) for axis in (0, 1)],
+        },
+    }
 
 
 def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
@@ -275,6 +314,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         )
 
     masses = []
+    mass_weighted_positions = [0.0, 0.0, 0.0]
     invalid_inertias = []
     for link in links:
         inertial = link.find("inertial")
@@ -283,6 +323,11 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         mass = float(inertial.find("mass").get("value"))  # type: ignore[union-attr]
         inertia = {key: float(inertial.find("inertia").get(key, "0")) for key in ("ixx", "ixy", "ixz", "iyy", "iyz", "izz")}  # type: ignore[union-attr]
         masses.append(mass)
+        inertial_position = _compose(
+            transforms[link.get("name")], _origin_transform(inertial.find("origin"))
+        )[1]
+        for axis in range(3):
+            mass_weighted_positions[axis] += mass * inertial_position[axis]
         if not _inertia_positive(inertia):
             invalid_inertias.append(link.get("name"))
 
@@ -301,8 +346,11 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     fixed_root = next(joint for joint in joints if joint.find("parent").get("link") == "base_link")  # type: ignore[union-attr]
     fixed_origin = fixed_root.find("origin")
     bounds = collision_world_bounds(urdf_path) if not missing_meshes else {}
+    total_mass = sum(masses)
+    zero_pose_com = [round(value / total_mass, 9) for value in mass_weighted_positions]
+    ground_support = zero_pose_ground_support(urdf_path) if not missing_meshes else {}
     return {
-        "version": 2,
+        "version": 3,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -318,7 +366,8 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             "link_count": len(links),
             "joint_count": len(joints),
             "movable_joint_count": len(movable_joints),
-            "total_mass_kg": round(sum(masses), 9),
+            "total_mass_kg": round(total_mass, 9),
+            "zero_pose_center_of_mass_m": zero_pose_com,
             "invalid_inertia_links": invalid_inertias,
             "root_link": "base_link",
             "skeleton_root_link": fixed_root.find("child").get("link"),  # type: ignore[union-attr]
@@ -359,6 +408,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             "base_orientation_wxyz": [1.0, 0.0, 0.0, 0.0],
             "joint_positions_rad": {name: 0.0 for name in movable_names},
             "zero_pose_collision_bounds": bounds,
+            "zero_pose_ground_support": ground_support,
         },
         "action_joints": list(ACTION_JOINTS),
         "locked_joints": locked_names,
@@ -368,6 +418,20 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 for name, group in PD_GROUPS.items()
             },
             "locked": {"stiffness": LOCKED_PD_STIFFNESS, "damping": LOCKED_PD_DAMPING},
+            "stability_hypothesis": {
+                "id": "ankle_pitch_contact_damping_v1",
+                "scope": "left and right ankle-pitch damping only",
+                "change": {"stiffness": 20.0, "damping_before": 1.0, "damping_after": 4.0},
+                "observed_failure": {
+                    "direction": "semantic forward (+Y) with rotation about -X",
+                    "contact_sequence": "toe contacts unload before the forward fall while both feet remain loaded",
+                    "interpretation": "initial contact excites an underdamped sagittal ankle-rocking mode",
+                },
+                "installed_api_reference": (
+                    "Isaac Lab 0.36.1 isaaclab_assets.robots.unitree.H1_CFG feet actuator uses "
+                    "stiffness=20 and damping=4"
+                ),
+            },
         },
         "joints": joint_records,
     }

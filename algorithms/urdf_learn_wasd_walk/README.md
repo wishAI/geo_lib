@@ -28,6 +28,7 @@ Commands:
 - `./geo walk inspect`
 - `./geo walk test -v`
 - `./geo walk validate-passive-dynamics --steps 32 --smoke --reuse-usd-cache --headless`
+- `./geo walk validate-passive-dynamics --steps 1500 --smoke --reuse-usd-cache --headless` (bounded 3 s stability diagnostic)
 - `./geo walk validate-passive-dynamics --headless`
 - `./geo walk render-passive-proof --headless`
 - `./geo walk finalize-passive`
