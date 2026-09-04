@@ -3710,6 +3710,18 @@
         "status": "rejected"
       },
       {
+        "attempts": [
+          {
+            "evidence": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/experiments/gravity_static_pose_release_v1_limit_audit_failure_20260904T064751Z.json",
+            "evidence_sha256": "c0ba691d8863ddf9b0495d503b21f73f9bdfa964137408b454b714ae905d6222",
+            "physical_hypothesis_updated": false,
+            "reason": "strict floating-point comparison rejected finger targets at most 0.00114611 rad above a zero upper limit",
+            "run_identity": "20260904T064751.568514Z",
+            "runtime_stage": "fixed_root_gravity_settling",
+            "status": "failed_to_execute_before_release",
+            "traceback_sha256": "3c8544875512a3c08b6bc442a1475b9b78e0f4e9c05d407036981a1e03605ce2"
+          }
+        ],
         "comparison": {
           "authority_probe_rejected": true,
           "candidate_support_margin_m": 0.062116802,
@@ -3910,6 +3922,52 @@
         },
         "hypothesis": "A small collision-compatible crouch with centered COM and measured PD preload will avoid the zero-pose forward support exit without applying high authority to hands or fingers",
         "id": "gravity_static_pose_release_v1",
+        "limit_audit": {
+          "finger_joints": [
+            "left_thumb_metacarpal_joint",
+            "left_thumb_proximal_joint",
+            "left_thumb_distal_joint",
+            "right_thumb_metacarpal_joint",
+            "right_thumb_proximal_joint",
+            "right_thumb_distal_joint",
+            "left_index_base_joint",
+            "left_index_proximal_joint",
+            "left_index_intermediate_joint",
+            "left_index_distal_joint",
+            "left_middle_base_joint",
+            "left_middle_proximal_joint",
+            "left_middle_intermediate_joint",
+            "left_middle_distal_joint",
+            "left_ring_base_joint",
+            "left_ring_proximal_joint",
+            "left_ring_intermediate_joint",
+            "left_ring_distal_joint",
+            "left_pinky_base_joint",
+            "left_pinky_proximal_joint",
+            "left_pinky_intermediate_joint",
+            "left_pinky_distal_joint",
+            "right_index_base_joint",
+            "right_index_proximal_joint",
+            "right_index_intermediate_joint",
+            "right_index_distal_joint",
+            "right_middle_base_joint",
+            "right_middle_proximal_joint",
+            "right_middle_intermediate_joint",
+            "right_middle_distal_joint",
+            "right_ring_base_joint",
+            "right_ring_proximal_joint",
+            "right_ring_intermediate_joint",
+            "right_ring_distal_joint",
+            "right_pinky_base_joint",
+            "right_pinky_proximal_joint",
+            "right_pinky_intermediate_joint",
+            "right_pinky_distal_joint"
+          ],
+          "maximum_tip_displacement_at_40mm_m": 8e-05,
+          "policy": "Only non-locomotion finger desired positions and PD targets within tolerance are clamped to the imported hard limit; raw and clamped values are recorded. Any action-joint violation or finger excess beyond tolerance remains a hard failure.",
+          "tolerance_deg": 0.114591559,
+          "tolerance_rad": 0.002
+        },
         "runtime_derivation": {
           "fixed_root_method": "rewrite audited root pose and zero velocity before every settling step",
           "release": "restore free root at collision-derived ground-aligned height with zero velocity",
@@ -3968,5 +4026,5 @@
       0.330791075
     ]
   },
-  "version": 6
+  "version": 7
 }

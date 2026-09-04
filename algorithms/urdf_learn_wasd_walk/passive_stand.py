@@ -187,6 +187,55 @@ def summarize_joint_tracking(
     return sorted(records, key=lambda item: (-item["max_target_error_rad"], item["name"]))
 
 
+def audit_and_clamp_derived_limit(
+    name: str,
+    raw_desired_rad: float,
+    raw_target_rad: float,
+    limits_rad: Sequence[float],
+    *,
+    tolerance_rad: float = model_spec.DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD,
+) -> tuple[float, float, dict]:
+    """Clamp negligible finger-only noise while preserving meaningful failures.
+
+    Two milliradians is 0.115 degrees and moves a point on a 40 mm finger
+    segment by at most 80 micrometers. The tolerance never applies to an action
+    joint or another non-locomotion joint.
+    """
+
+    lower, upper = map(float, limits_rad)
+    if lower > upper or tolerance_rad < 0.0:
+        raise ValueError("joint limits and tolerance must be valid")
+    is_tolerant_finger = name in model_spec.FINGER_JOINTS
+
+    def audit_field(raw: float) -> tuple[float, float, bool, bool]:
+        legal = min(upper, max(lower, float(raw)))
+        excess = abs(float(raw) - legal)
+        outside = excess > 0.0
+        accepted = not outside or (is_tolerant_finger and excess <= tolerance_rad)
+        effective = legal if outside and accepted else float(raw)
+        return effective, excess, outside and accepted, accepted
+
+    desired, desired_excess, desired_clamped, desired_accepted = audit_field(raw_desired_rad)
+    target, target_excess, target_clamped, target_accepted = audit_field(raw_target_rad)
+    passed = desired_accepted and target_accepted
+    record = {
+        "name": name,
+        "limits_rad": [lower, upper],
+        "tolerance_rad": tolerance_rad if is_tolerant_finger else 0.0,
+        "tolerance_scope": "non_locomotion_finger_only" if is_tolerant_finger else "none",
+        "raw_desired_rad": float(raw_desired_rad),
+        "clamped_desired_rad": desired,
+        "desired_limit_excess_rad": desired_excess,
+        "desired_was_clamped": desired_clamped,
+        "raw_target_rad": float(raw_target_rad),
+        "clamped_target_rad": target,
+        "target_limit_excess_rad": target_excess,
+        "target_was_clamped": target_clamped,
+        "passed": passed,
+    }
+    return desired, target, record
+
+
 def evaluate_gate(metrics: dict, *, required_duration_s: float = MIN_GATE_DURATION_S) -> tuple[bool, list[str]]:
     failures = []
     if metrics["duration_s"] + 1.0e-6 < required_duration_s:
@@ -703,32 +752,37 @@ def _run(args, simulation_app) -> dict:
         mean_abs_velocities = velocity_sum / settle_samples
         stiffness_tensor = robot.data.joint_stiffness[0]
         release_targets = settled_positions + required_torques / stiffness_tensor
-        settled_pose = {
-            name: float(settled_positions[index].detach().cpu())
-            for index, name in enumerate(robot.joint_names)
-        }
-        settled_geometry = model_spec.analyze_pose_geometry(settled_pose)
         violations = []
         torque_records = []
+        limit_audits = []
         for index, name in enumerate(robot.joint_names):
-            desired = float(settled_positions[index].detach().cpu())
-            target = float(release_targets[index].detach().cpu())
-            lower, upper = map(float, position_limits[index])
+            raw_desired = float(settled_positions[index].detach().cpu())
+            raw_target = float(release_targets[index].detach().cpu())
+            desired, target, limit_audit = audit_and_clamp_derived_limit(
+                name, raw_desired, raw_target, position_limits[index]
+            )
+            settled_positions[index] = desired
+            release_targets[index] = target
+            limit_audits.append(limit_audit)
             required_torque = float(required_torques[index].detach().cpu())
             effort_limit = float(effort_limit_values[index])
-            if not lower <= desired <= upper or not lower <= target <= upper:
-                violations.append(
-                    {"name": name, "desired_rad": desired, "target_rad": target,
-                     "limits_rad": [lower, upper]}
-                )
+            if not limit_audit["passed"]:
+                violations.append(limit_audit)
             torque_records.append(
                 {
                     "name": name,
+                    "raw_settled_position_rad": round(raw_desired, 12),
                     "settled_position_rad": round(desired, 9),
+                    "raw_released_target_rad": round(raw_target, 12),
                     "released_target_rad": round(target, 9),
+                    "raw_required_torque_nm": round(required_torque, 9),
                     "required_torque_nm": round(required_torque, 9),
+                    "released_pd_preload_after_clamp_nm": round(
+                        float(stiffness_tensor[index].detach().cpu()) * (target - desired), 9
+                    ),
                     "effort_limit_nm": round(effort_limit, 9),
                     "required_torque_limit_fraction": round(abs(required_torque) / effort_limit, 9),
+                    "limit_audit": limit_audit,
                     "mean_abs_settling_velocity_radps": round(
                         float(mean_abs_velocities[index].detach().cpu()), 9
                     ),
@@ -736,6 +790,11 @@ def _run(args, simulation_app) -> dict:
             )
         if violations:
             raise RuntimeError(f"derived static pose or preload exceeds joint limits: {violations}")
+        settled_pose = {
+            name: float(settled_positions[index].detach().cpu())
+            for index, name in enumerate(robot.joint_names)
+        }
+        settled_geometry = model_spec.analyze_pose_geometry(settled_pose)
         static_pose_derivation = {
             "id": "gravity_static_pose_release_v1",
             "fixed_root_duration_s": round(args.settle_steps * SIM_DT, 6),
@@ -754,6 +813,22 @@ def _run(args, simulation_app) -> dict:
             ),
             "joint_order": list(robot.joint_names),
             "joints": torque_records,
+            "limit_audit": {
+                "tolerance_rad": model_spec.DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD,
+                "scope": "non_locomotion_finger_only",
+                "finger_joints": list(model_spec.FINGER_JOINTS),
+                "clamped_joint_count": sum(
+                    audit["desired_was_clamped"] or audit["target_was_clamped"]
+                    for audit in limit_audits
+                ),
+                "clamped_desired_count": sum(
+                    audit["desired_was_clamped"] for audit in limit_audits
+                ),
+                "clamped_target_count": sum(
+                    audit["target_was_clamped"] for audit in limit_audits
+                ),
+                "records": limit_audits,
+            },
             "settling_trace": settling_trace,
             "hands_and_fingers_use_baseline_locked_pd": True,
             "high_authority_profile_used": False,

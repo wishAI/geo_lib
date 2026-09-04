@@ -87,6 +87,35 @@ class PassiveStandContractTests(unittest.TestCase):
         self.assertIn('"hands_and_fingers_use_baseline_locked_pd": True', source)
         self.assertIn('"high_authority_profile_used": False', source)
 
+    def test_finger_limit_tolerance_at_within_and_beyond_boundary(self) -> None:
+        tolerance = model_spec.DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD
+        finger = "left_index_proximal_joint"
+        for excess in (tolerance, tolerance - 1.0e-9):
+            desired, target, audit = passive_stand.audit_and_clamp_derived_limit(
+                finger, 1.0e-12, excess, (-1.6, 0.0)
+            )
+            self.assertTrue(audit["passed"])
+            self.assertEqual(desired, 0.0)
+            self.assertEqual(target, 0.0)
+            self.assertTrue(audit["desired_was_clamped"])
+            self.assertTrue(audit["target_was_clamped"])
+
+        desired, target, audit = passive_stand.audit_and_clamp_derived_limit(
+            finger, 0.0, tolerance + 1.0e-9, (-1.6, 0.0)
+        )
+        self.assertFalse(audit["passed"])
+        self.assertEqual(desired, 0.0)
+        self.assertGreater(target, 0.0)
+        self.assertFalse(audit["target_was_clamped"])
+
+    def test_limit_tolerance_never_applies_to_locomotion_joint(self) -> None:
+        _, target, audit = passive_stand.audit_and_clamp_derived_limit(
+            "left_ankle_pitch_joint", 0.0, 1.0e-12, (-0.6, 0.0)
+        )
+        self.assertFalse(audit["passed"])
+        self.assertEqual(target, 1.0e-12)
+        self.assertEqual(audit["tolerance_rad"], 0.0)
+
     def test_gate_rejects_events_motion_and_short_duration(self) -> None:
         metrics = {
             "duration_s": 29.0,

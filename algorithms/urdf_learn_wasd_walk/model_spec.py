@@ -79,10 +79,25 @@ PD_GROUPS = {
 }
 LOCKED_PD_STIFFNESS = 4.0
 LOCKED_PD_DAMPING = 0.35
+DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD = 0.002
 AUTHORITY_PROBE_WAIST_STIFFNESS = 40.0
 AUTHORITY_PROBE_WAIST_DAMPING = 5.0
 AUTHORITY_PROBE_UPPER_STIFFNESS = 40.0
 AUTHORITY_PROBE_UPPER_DAMPING = 10.0
+
+FINGER_JOINTS = tuple(
+    [
+        f"{side}_thumb_{segment}_joint"
+        for side in ("left", "right")
+        for segment in ("metacarpal", "proximal", "distal")
+    ]
+    + [
+        f"{side}_{finger}_{segment}_joint"
+        for side in ("left", "right")
+        for finger in ("index", "middle", "ring", "pinky")
+        for segment in ("base", "proximal", "intermediate", "distal")
+    ]
+)
 
 Matrix3 = tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]
 Vector3 = tuple[float, float, float]
@@ -696,7 +711,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     }
     static_pose_candidate = derive_static_pose(urdf_path)
     return {
-        "version": 6,
+        "version": 7,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -860,6 +875,36 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                         "released_pd_target": "settled position + required torque / baseline stiffness",
                         "release": "restore free root at collision-derived ground-aligned height with zero velocity",
                     },
+                    "limit_audit": {
+                        "finger_joints": list(FINGER_JOINTS),
+                        "tolerance_rad": DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD,
+                        "tolerance_deg": round(
+                            math.degrees(DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD), 9
+                        ),
+                        "maximum_tip_displacement_at_40mm_m": round(
+                            0.04 * DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD, 9
+                        ),
+                        "policy": (
+                            "Only non-locomotion finger desired positions and PD targets within tolerance are "
+                            "clamped to the imported hard limit; raw and clamped values are recorded. Any action-"
+                            "joint violation or finger excess beyond tolerance remains a hard failure."
+                        ),
+                    },
+                    "attempts": [
+                        {
+                            "run_identity": "20260904T064751.568514Z",
+                            "status": "failed_to_execute_before_release",
+                            "runtime_stage": "fixed_root_gravity_settling",
+                            "reason": "strict floating-point comparison rejected finger targets at most 0.00114611 rad above a zero upper limit",
+                            "physical_hypothesis_updated": False,
+                            "evidence": (
+                                "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                                "experiments/gravity_static_pose_release_v1_limit_audit_failure_20260904T064751Z.json"
+                            ),
+                            "evidence_sha256": "c0ba691d8863ddf9b0495d503b21f73f9bdfa964137408b454b714ae905d6222",
+                            "traceback_sha256": "3c8544875512a3c08b6bc442a1475b9b78e0f4e9c05d407036981a1e03605ce2",
+                        }
+                    ],
                     "comparison": {
                         "zero_pose_support_margin_m": analyze_pose_geometry({}, urdf_path)["support_margin_m"],
                         "candidate_support_margin_m": static_pose_candidate["support_margin_m"],

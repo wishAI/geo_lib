@@ -81,6 +81,11 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(experiments[2]["status"], "rejected")
         self.assertEqual(experiments[3]["id"], "gravity_static_pose_release_v1")
         self.assertEqual(experiments[3]["status"], "active_bounded_test")
+        limit_audit = experiments[3]["limit_audit"]
+        self.assertEqual(limit_audit["tolerance_rad"], 0.002)
+        self.assertEqual(limit_audit["maximum_tip_displacement_at_40mm_m"], 0.00008)
+        self.assertEqual(set(limit_audit["finger_joints"]), set(model_spec.FINGER_JOINTS))
+        self.assertTrue(set(model_spec.FINGER_JOINTS) <= set(self.spec["locked_joints"]))
         probe = self.spec["pd"]["authority_probe_actuator_groups"]
         flattened = [joint for group in probe.values() for joint in group["joints"]]
         self.assertEqual(set(flattened), {joint["name"] for joint in self.spec["joints"]})
