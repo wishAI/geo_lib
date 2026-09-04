@@ -12,13 +12,15 @@
     {
       "id": "validate_passive_stand",
       "name": "Validate passive stand · 30 s",
-      "description": "Run one exact zero-command, zero-action Isaac environment and save dynamics, contact, and full-duration visual evidence.",
+      "description": "Run camera-free dynamics first, then a separate viewport proof replay; final evidence appears only when both exact components pass.",
       "target": "tk2",
       "targets": ["tk2"],
       "resource": "isaac",
       "command": ["./geo", "walk", "validate-passive", "--headless"],
       "artifacts": [
         {"label": "Passive stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json", "kind": "json"},
+        {"label": "Camera-free dynamics evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json", "kind": "json"},
+        {"label": "Viewport proof evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json", "kind": "json"},
         {"label": "Passive stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4", "kind": "video"},
         {"label": "Start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png", "kind": "image"}
       ]

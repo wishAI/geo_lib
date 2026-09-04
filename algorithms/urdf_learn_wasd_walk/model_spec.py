@@ -106,6 +106,18 @@ def _vector_add(left: Vector3, right: Vector3) -> Vector3:
     return tuple(left[index] + right[index] for index in range(3))  # type: ignore[return-value]
 
 
+def _normalized(vector: Vector3) -> Vector3:
+    norm = math.sqrt(sum(component * component for component in vector))
+    if norm <= 1.0e-12:
+        raise ValueError("Joint axis must be non-zero")
+    return tuple(component / norm for component in vector)  # type: ignore[return-value]
+
+
+def _is_primary_axis(vector: Vector3, *, tolerance: float = 1.0e-6) -> bool:
+    normalized = _normalized(vector)
+    return max(abs(component) for component in normalized) >= 1.0 - tolerance
+
+
 def _rpy_matrix(rpy: Vector3) -> Matrix3:
     roll, pitch, yaw = rpy
     cr, sr = math.cos(roll), math.sin(roll)
@@ -238,10 +250,8 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         name = joint.get("name")
         parent_name = joint.find("parent").get("link")  # type: ignore[union-attr]
         joint_transform = _compose(transforms[parent_name], _origin_transform(joint.find("origin")))
-        local_axis = _vector(joint.find("axis").get("xyz"))  # type: ignore[union-attr]
-        world_axis = _matrix_vector(joint_transform[0], local_axis)
-        norm = math.sqrt(sum(component * component for component in world_axis))
-        world_axis = tuple(component / norm for component in world_axis)  # type: ignore[assignment]
+        local_axis = _normalized(_vector(joint.find("axis").get("xyz")))  # type: ignore[union-attr]
+        world_axis = _normalized(_matrix_vector(joint_transform[0], local_axis))
         dominant_index = max(range(3), key=lambda index: abs(world_axis[index]))
         limit = joint.find("limit")
         joint_records.append(
@@ -253,6 +263,9 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 "child_link": joint.find("child").get("link"),  # type: ignore[union-attr]
                 "axis_joint_frame": list(local_axis),
                 "axis_world_zero_pose": [round(value, 9) for value in world_axis],
+                "axis_evidence": "source_urdf_forward_kinematics",
+                "source_axis_is_primary": _is_primary_axis(local_axis),
+                "runtime_importer_axis_verification_required": True,
                 "dominant_world_axis": f"{'+' if world_axis[dominant_index] >= 0 else '-'}{'XYZ'[dominant_index]}",
                 "limits_rad": [float(limit.get("lower")), float(limit.get("upper"))],  # type: ignore[union-attr]
                 "effort_limit": float(limit.get("effort")),  # type: ignore[union-attr]
@@ -289,7 +302,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     fixed_origin = fixed_root.find("origin")
     bounds = collision_world_bounds(urdf_path) if not missing_meshes else {}
     return {
-        "version": 1,
+        "version": 2,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -319,6 +332,27 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             "semantic_command_order": list(SEMANTIC_COMMAND_ORDER),
             "sim_command_order": list(SIM_COMMAND_ORDER),
             "mapping": {"linear_x": "strafe", "linear_y": "forward", "angular_z": "yaw"},
+        },
+        "importer_axis_contract": {
+            "authority": "installed Isaac Sim 4.5 URDF importer and PhysX USD schemas",
+            "source_interpretation": (
+                "axis_world_zero_pose is computed from the current URDF kinematic chain; it is not inferred from "
+                "the joint name and is not assumed to remain the authored USD primary axis"
+            ),
+            "observed_importer_behavior": (
+                "Isaac Sim warns that non-primary URDF axes are aligned to a PhysX X primary axis by rotating "
+                "the imported body and joint local frames; in the generated USD, an unauthored physics:axis "
+                "therefore means the PhysX X fallback"
+            ),
+            "runtime_requirement": (
+                "Each Isaac dynamics validation must record the imported USD primary axis and local frame, "
+                "reconstruct its zero-pose world axis, and verify directed alignment with this source contract"
+            ),
+            "minimum_directed_axis_cosine": 0.995,
+            "runtime_evidence_artifact": (
+                "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                "dynamics_validation.json"
+            ),
         },
         "nominal_pose": {
             "base_position_m": [0.0, 0.0, 0.002],

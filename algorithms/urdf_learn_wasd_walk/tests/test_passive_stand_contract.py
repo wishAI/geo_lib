@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import inspect
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from algorithms.urdf_learn_wasd_walk import passive_stand
+from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand
 
 
 class PassiveStandContractTests(unittest.TestCase):
@@ -47,6 +50,49 @@ class PassiveStandContractTests(unittest.TestCase):
             "max_abs_command": 0.0,
         }
         self.assertEqual(passive_stand.evaluate_gate(metrics), (True, []))
+
+    def test_physics_source_has_no_isaac_camera_sensor(self) -> None:
+        source = inspect.getsource(passive_stand)
+        self.assertNotIn("from isaaclab.sensors import Camera", source)
+        self.assertNotIn("CameraCfg(", source)
+        self.assertIn("active_viewport_LdrColor_AOV", source)
+        self.assertEqual(passive_stand.component_artifact_name("dynamics", False), "dynamics_validation.json")
+        self.assertEqual(passive_stand.component_artifact_name("proof", False), "proof_validation.json")
+
+    def test_proof_gate_checks_duration_frames_visibility_and_progression(self) -> None:
+        good = {
+            "duration_s": 30.0,
+            "nonblank_frames_passed": True,
+            "character_visibility_passed": True,
+            "temporal_progression_visible": True,
+        }
+        self.assertEqual(passive_stand.evaluate_proof(good), (True, []))
+        for key in ("nonblank_frames_passed", "character_visibility_passed", "temporal_progression_visible"):
+            bad = dict(good)
+            bad[key] = False
+            self.assertFalse(passive_stand.evaluate_proof(bad)[0])
+
+    def test_proof_preflight_requires_current_passing_dynamics(self) -> None:
+        passive_stand.OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=passive_stand.OUTPUT_ROOT) as temporary:
+            output_dir = Path(temporary)
+            path = output_dir / "dynamics_validation.json"
+            evidence = {
+                "component": "dynamics",
+                "status": "passed",
+                "seed": 42,
+                "input": {"urdf_sha256": model_spec.EXPECTED_URDF_SHA256},
+                "checkpoint": {
+                    "identity": f"robot_spec_sha256:{passive_stand._sha256(model_spec.ROBOT_SPEC_PATH)}"
+                },
+                "joint_contract": {"runtime_importer_axis_evidence": {"passed": True}},
+            }
+            path.write_text(json.dumps(evidence), encoding="utf-8")
+            self.assertEqual(passive_stand.preflight_proof(output_dir, smoke=False, seed=42), evidence)
+            evidence["status"] = "failed"
+            path.write_text(json.dumps(evidence), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "passing dynamics"):
+                passive_stand.preflight_proof(output_dir, smoke=False, seed=42)
 
 
 if __name__ == "__main__":

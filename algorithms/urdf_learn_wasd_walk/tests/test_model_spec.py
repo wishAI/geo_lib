@@ -56,6 +56,14 @@ class ModelSpecTests(unittest.TestCase):
         self.assertGreater(abs(joints["left_shin_roll_joint"]["axis_world_zero_pose"][2]), 0.98)
         self.assertEqual(joints["left_shoulder_pitch_joint"]["dominant_world_axis"], "+X")
 
+    def test_importer_reorientation_is_explicitly_a_runtime_contract(self) -> None:
+        joints = self.spec["joints"]
+        self.assertEqual(sum(not joint["source_axis_is_primary"] for joint in joints), 51)
+        self.assertTrue(all(joint["runtime_importer_axis_verification_required"] for joint in joints))
+        importer = self.spec["importer_axis_contract"]
+        self.assertEqual(importer["minimum_directed_axis_cosine"], 0.995)
+        self.assertIn("PhysX X primary axis", importer["observed_importer_behavior"])
+
     def test_semantic_forward_mapping_is_body_plus_y(self) -> None:
         self.assertEqual(model_spec.SEMANTIC_COMMAND_ORDER, ("forward", "strafe", "yaw"))
         self.assertEqual(model_spec.semantic_to_sim_command(1.25, -0.4, 0.3), (-0.4, 1.25, 0.3))

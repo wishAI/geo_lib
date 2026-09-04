@@ -38,12 +38,21 @@
       "angular_z"
     ]
   },
+  "importer_axis_contract": {
+    "authority": "installed Isaac Sim 4.5 URDF importer and PhysX USD schemas",
+    "minimum_directed_axis_cosine": 0.995,
+    "observed_importer_behavior": "Isaac Sim warns that non-primary URDF axes are aligned to a PhysX X primary axis by rotating the imported body and joint local frames; in the generated USD, an unauthored physics:axis therefore means the PhysX X fallback",
+    "runtime_evidence_artifact": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json",
+    "runtime_requirement": "Each Isaac dynamics validation must record the imported USD primary axis and local frame, reconstruct its zero-pose world axis, and verify directed alignment with this source contract",
+    "source_interpretation": "axis_world_zero_pose is computed from the current URDF kinematic chain; it is not inferred from the joint name and is not assumed to remain the authored USD primary axis"
+  },
   "joints": [
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         -0.0,
-        0.998247,
-        -0.059194
+        0.9982464995566945,
+        -0.059193970324738235
       ],
       "axis_world_zero_pose": [
         0.0,
@@ -62,13 +71,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "root_x",
       "role": "waist_yaw",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
-        -0.400321,
-        -0.916375
+        -0.4003209912597918,
+        -0.9163749799927853
       ],
       "axis_world_zero_pose": [
         -0.0,
@@ -87,9 +99,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "spine_01_x",
       "role": "waist_roll",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         -0.0,
@@ -112,9 +127,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "spine_02_x",
       "role": "waist_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -137,13 +155,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "spine_03_x",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         -0.0,
-        0.991039,
-        -0.133576
+        0.9910385801480811,
+        -0.13357594341076395
       ],
       "axis_world_zero_pose": [
         0.0,
@@ -162,13 +183,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "neck_x",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.991294,
+        0.9912940033084437,
         0.0,
-        -0.131667
+        -0.13166700043943863
       ],
       "axis_world_zero_pose": [
         -2.01e-07,
@@ -187,13 +211,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "spine_03_x",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.039611,
-        -0.616886,
-        -0.786055
+        0.03961100334035644,
+        -0.6168860520213861,
+        -0.7860550662872404
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -212,9 +239,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "shoulder_r",
       "role": "right_shoulder_counter_swing",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
         0.0,
@@ -237,9 +267,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "arm_stretch_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -262,9 +295,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "arm_twist_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
         1.0,
@@ -287,13 +323,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "forearm_stretch_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.077713,
-        -0.590647,
-        -0.803179
+        0.07771301185049695,
+        -0.590647090068077,
+        -0.8031791224771954
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -312,13 +351,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "forearm_twist_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.980893,
-        1e-06,
-        0.194549
+        -0.9808928083085512,
+        9.999998045745572e-07,
+        0.19454896198017554
       ],
       "axis_world_zero_pose": [
         0.972955097,
@@ -337,13 +379,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.118535,
-        0.533251,
-        0.837611
+        0.11853503778026374,
+        0.5332511699613062,
+        0.83761126696895
       ],
       "axis_world_zero_pose": [
         -0.141309203,
@@ -362,13 +407,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thumb1_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.130429,
-        0.598209,
-        0.790655
+        0.13042893082396978,
+        0.5982086827260513,
+        0.7906545806578739
       ],
       "axis_world_zero_pose": [
         -0.141308506,
@@ -387,9 +435,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thumb2_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -412,13 +463,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.95518,
-        -0.295966,
-        0.005924
+        0.9551800958370446,
+        -0.2959660296954571,
+        0.005924000594378705
       ],
       "axis_world_zero_pose": [
         0.141309149,
@@ -437,13 +491,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "index1_base_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.985924,
-        -0.167022,
-        0.007621
+        0.9859237230042761,
+        -0.1670219530751054,
+        0.007620997858877143
       ],
       "axis_world_zero_pose": [
         0.141308291,
@@ -462,13 +519,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "index1_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.985696,
-        -0.168074,
-        0.012467
+        0.9856955564464636,
+        -0.16807392436834775,
+        0.012466994389972225
       ],
       "axis_world_zero_pose": [
         0.141309341,
@@ -487,9 +547,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "index2_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -512,13 +575,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.997106,
-        -0.076018,
-        -0.000571
+        0.9971062803858269,
+        -0.0760180213762326,
+        -0.0005710001605649822
       ],
       "axis_world_zero_pose": [
         0.141309021,
@@ -537,13 +603,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "middle1_base_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.999792,
-        -0.018046,
-        -0.009476
+        0.9997922519696746,
+        -0.01804600454799073,
+        -0.009476002388161374
       ],
       "axis_world_zero_pose": [
         0.141308783,
@@ -562,13 +631,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "middle1_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.999693,
-        -0.019566,
-        -0.015182
+        0.9996932920459423,
+        -0.019566005715925695,
+        -0.015182004435203102
       ],
       "axis_world_zero_pose": [
         0.14130941,
@@ -587,9 +659,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "middle2_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -612,13 +687,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.988607,
-        0.15033,
-        -0.007496
+        0.9886074451873333,
+        0.1503300676962755,
+        -0.00749600337558226
       ],
       "axis_world_zero_pose": [
         0.14130927,
@@ -637,13 +715,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "ring1_base_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.975595,
-        0.218373,
-        -0.022983
+        0.9755947124713054,
+        0.21837293564081034,
+        -0.02298299322641876
       ],
       "axis_world_zero_pose": [
         0.141309096,
@@ -662,13 +743,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "ring1_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.980156,
-        0.19714,
-        -0.020734
+        0.980156067291637,
+        0.19714001353445096,
+        -0.020734001423472183
       ],
       "axis_world_zero_pose": [
         0.141310468,
@@ -687,9 +771,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "ring2_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -712,13 +799,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.894467,
-        0.445599,
-        -0.037008
+        0.8944673242650365,
+        0.44559916153997414,
+        -0.03700801341625848
       ],
       "axis_world_zero_pose": [
         0.141308637,
@@ -737,13 +827,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "pinky1_base_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.896458,
-        0.44016,
-        -0.051208
+        0.8964579862716425,
+        0.4401599932593899,
+        -0.05120799921580071
       ],
       "axis_world_zero_pose": [
         0.141310016,
@@ -762,13 +855,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "pinky1_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.901025,
-        0.430232,
-        -0.055275
+        0.901024571980092,
+        0.4302317956240271,
+        -0.055274973742348535
       ],
       "axis_world_zero_pose": [
         0.141309508,
@@ -787,13 +883,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "pinky2_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.991294,
+        -0.9912940033084437,
         0.0,
-        -0.131667
+        -0.13166700043943863
       ],
       "axis_world_zero_pose": [
         -4.07e-07,
@@ -812,13 +911,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "spine_03_x",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.039278,
-        0.616885,
-        0.786072
+        0.03927801858453636,
+        0.616885291881504,
+        0.7860723719329821
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -837,9 +939,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "shoulder_l",
       "role": "left_shoulder_counter_swing",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
         1.0,
@@ -862,9 +967,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "arm_stretch_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         -1.0,
         0.0,
@@ -887,9 +995,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "arm_twist_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
         1.0,
@@ -912,13 +1023,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "forearm_stretch_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.077713,
-        0.590646,
-        0.80318
+        0.07771299533391764,
+        0.5906459645361408,
+        0.8031799517750693
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -937,13 +1051,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "forearm_twist_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.980893,
-        -1e-06,
-        0.19455
+        0.9808926174764759,
+        -9.999996100252278e-07,
+        0.1945499241304081
       ],
       "axis_world_zero_pose": [
         -0.972955519,
@@ -962,13 +1079,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.118534,
-        0.533252,
-        0.837611
+        -0.11853398862186372,
+        0.5332519488128813,
+        0.8376109195973129
       ],
       "axis_world_zero_pose": [
         0.141306372,
@@ -987,13 +1107,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thumb1_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.130429,
-        0.59821,
-        0.790654
+        -0.13042895592434603,
+        0.5982097978478945,
+        0.7906537328156152
       ],
       "axis_world_zero_pose": [
         0.141306334,
@@ -1012,9 +1135,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thumb2_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -1037,13 +1163,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.95518,
-        0.295965,
-        -0.005925
+        0.9551803728786108,
+        0.2959651155374045,
+        -0.0059250023129732285
       ],
       "axis_world_zero_pose": [
         0.141307345,
@@ -1062,13 +1191,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "index1_base_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.985924,
-        0.167021,
-        -0.007622
+        0.9859238801604667,
+        0.16702097969851765,
+        -0.007621999073542259
       ],
       "axis_world_zero_pose": [
         0.141307377,
@@ -1087,13 +1219,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "index1_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.985696,
-        0.168073,
-        -0.012468
+        0.9856957098265041,
+        0.1680729505219358,
+        -0.012467996329615675
       ],
       "axis_world_zero_pose": [
         0.141307655,
@@ -1112,9 +1247,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "index2_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -1137,13 +1275,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.997106,
-        0.076017,
-        0.00057
+        0.9971063567522545,
+        0.07601702719794699,
+        0.0005700002039389844
       ],
       "axis_world_zero_pose": [
         0.141307628,
@@ -1162,13 +1303,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "middle1_base_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.999792,
-        0.018045,
-        0.009475
+        0.9997922794849723,
+        0.01804500504435555,
+        0.009475002648671037
       ],
       "axis_world_zero_pose": [
         0.141307425,
@@ -1187,13 +1331,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "middle1_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.999693,
-        0.019565,
-        0.015181
+        0.9996933267823073,
+        0.019565006395459245,
+        0.015181004962405665
       ],
       "axis_world_zero_pose": [
         0.141308061,
@@ -1212,9 +1359,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "middle2_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -1237,13 +1387,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.988607,
-        -0.15033,
-        0.007495
+        0.9886074525974473,
+        -0.15033006882307554,
+        0.007495003431310791
       ],
       "axis_world_zero_pose": [
         0.141307598,
@@ -1262,13 +1415,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "ring1_base_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.975595,
-        -0.218373,
-        0.022982
+        0.9755947348928983,
+        -0.21837294065956356,
+        0.022981993754896846
       ],
       "axis_world_zero_pose": [
         0.141307988,
@@ -1287,13 +1443,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "ring1_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.980156,
-        -0.197141,
-        0.020733
+        0.9801558943852675,
+        -0.19714097875746925,
+        0.02073299776595741
       ],
       "axis_world_zero_pose": [
         0.141308078,
@@ -1312,9 +1471,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "ring2_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         1.0,
         0.0,
@@ -1337,13 +1499,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.894467,
-        -0.445599,
-        0.037007
+        0.8944673573670618,
+        -0.4455991780304979,
+        0.03700701478543407
       ],
       "axis_world_zero_pose": [
         0.141306762,
@@ -1362,13 +1527,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "pinky1_base_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.896459,
-        -0.440159,
-        0.051207
+        0.8964586231239435,
+        -0.44015881495485226,
+        0.05120697847230914
       ],
       "axis_world_zero_pose": [
         0.141307384,
@@ -1387,13 +1555,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "pinky1_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.901025,
-        -0.430231,
-        0.055273
+        0.9010250592356419,
+        -0.4302310282844643,
+        0.05527300363378557
       ],
       "axis_world_zero_pose": [
         0.141307711,
@@ -1412,13 +1583,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "pinky2_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.285805,
-        0.0189,
-        0.958101
+        0.2858051094310819,
+        0.01890000723656846,
+        0.9581013668446283
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1437,13 +1611,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "root_x",
       "role": "left_hip_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.009195,
-        -0.999705,
-        0.022463
+        -0.009195003579528238,
+        -0.9997053891758866,
+        0.02246300874463761
       ],
       "axis_world_zero_pose": [
         2.92e-07,
@@ -1462,13 +1639,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "left_hip_roll_link",
       "role": "left_hip_yaw",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.280812,
-        -0.056446,
-        0.958101
+        0.28081213247863057,
+        -0.056446026629520044,
+        0.9581014520031496
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1487,13 +1667,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thigh_twist_l",
       "role": "left_knee_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.960401,
-        0.26314,
-        0.091586
+        -0.9604006466701076,
+        0.2631399031912421,
+        0.09158596630566657
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1512,13 +1695,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "leg_twist_l",
       "role": "left_ankle_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.960365,
-        0.216718,
-        -0.175304
+        0.9603654239221981,
+        0.21671809566318112,
+        -0.17530407738230466
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1537,9 +1723,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "foot_l",
       "role": "left_toe_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
         1.0,
@@ -1562,13 +1751,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "leg_stretch_l",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.285805,
-        -0.0189,
-        -0.958101
+        0.2858051094310819,
+        -0.01890000723656846,
+        -0.9581013668446283
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1587,13 +1779,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "root_x",
       "role": "right_hip_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.009195,
-        -0.999705,
-        0.022463
+        0.009195003579528238,
+        -0.9997053891758866,
+        0.02246300874463761
       ],
       "axis_world_zero_pose": [
         1.23e-07,
@@ -1612,13 +1807,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "right_hip_roll_link",
       "role": "right_hip_yaw",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.280812,
-        0.056446,
-        -0.958101
+        0.28081213247863057,
+        0.056446026629520044,
+        -0.9581014520031496
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1637,13 +1835,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thigh_twist_r",
       "role": "right_knee_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.960401,
-        -0.263139,
-        -0.091588
+        -0.9604007234689782,
+        -0.26313892423363106,
+        -0.09158797362880379
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1662,13 +1863,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "leg_twist_r",
       "role": "right_ankle_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.960401,
-        -0.216718,
-        0.17511
+        0.960400863419002,
+        -0.21671796917999803,
+        0.17510997509717444
       ],
       "axis_world_zero_pose": [
         1.0,
@@ -1687,9 +1891,12 @@
       "nominal_position_rad": 0.0,
       "parent_link": "foot_r",
       "role": "right_toe_pitch",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
         0.0,
         1.0,
@@ -1712,13 +1919,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "leg_stretch_r",
       "role": "non_locomotion_locked",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": true,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        -0.958244,
-        0.01523,
-        0.285547
+        -0.958243709822288,
+        0.01522999538801542,
+        0.28554691352998285
       ],
       "axis_world_zero_pose": [
         2.69e-07,
@@ -1737,13 +1947,16 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thigh_stretch_l",
       "role": "left_hip_roll",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     },
     {
+      "axis_evidence": "source_urdf_forward_kinematics",
       "axis_joint_frame": [
-        0.958244,
-        0.01523,
-        0.285547
+        0.958243709822288,
+        0.01522999538801542,
+        0.28554691352998285
       ],
       "axis_world_zero_pose": [
         2.32e-07,
@@ -1762,6 +1975,8 @@
       "nominal_position_rad": 0.0,
       "parent_link": "thigh_stretch_r",
       "role": "right_hip_roll",
+      "runtime_importer_axis_verification_required": true,
+      "source_axis_is_primary": false,
       "velocity_limit": 4.0
     }
   ],
@@ -2680,5 +2895,5 @@
     ],
     "total_mass_kg": 1.829753
   },
-  "version": 1
+  "version": 2
 }
