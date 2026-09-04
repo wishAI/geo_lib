@@ -70,6 +70,20 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertIsNone(requested["environment"]["curriculum"])
         self.assertFalse(requested["environment"]["rough_terrain"])
 
+    def test_forward_velocity_diagnostics_distinguish_progress_and_reverse_motion(self) -> None:
+        summary = contract.summarize_forward_velocity_samples(
+            [-0.2, 0.0, 0.2, 0.4], [0.4, 0.4, 0.4, 0.4], control_dt_s=0.02
+        )
+        self.assertEqual(summary["mean_semantic_forward_velocity_mps"], 0.1)
+        self.assertEqual(summary["mean_abs_semantic_forward_velocity_tracking_error_mps"], 0.3)
+        self.assertEqual(summary["forward_progress_step_fraction"], 0.5)
+        self.assertEqual(summary["reverse_motion_step_fraction"], 0.25)
+        self.assertEqual(summary["first_positive_forward_velocity_time_s"], 0.06)
+
+    def test_forward_velocity_diagnostics_reject_misaligned_samples(self) -> None:
+        with self.assertRaisesRegex(ValueError, "non-empty and aligned"):
+            contract.summarize_forward_velocity_samples([0.1], [], control_dt_s=0.02)
+
 
 if __name__ == "__main__":
     unittest.main()

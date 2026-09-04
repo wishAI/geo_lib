@@ -314,6 +314,7 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
         )
         minima = {name: math.inf for name in gait_joints}
         maxima = {name: -math.inf for name in gait_joints}
+        max_target_errors = {name: 0.0 for name in action_names}
         previous_contact = {"left": None, "right": None}
         liftoffs = {"left": 0, "right": 0}
         air_steps = {"left": 0, "right": 0}
@@ -326,6 +327,8 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
         traces = []
         action_traces = []
         command_values = []
+        forward_velocity_samples = []
+        forward_command_samples = []
         body_masses = robot.data.default_mass[0].to(
             device=robot.device, dtype=robot.data.joint_pos.dtype
         )
@@ -364,6 +367,11 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
             command = env.command_manager.get_command("base_velocity")[0].detach().cpu().tolist()
             semantic_command = [float(command[1]), float(command[0]), float(command[2])]
             command_values.append(semantic_command)
+            root_linear_velocity_body = robot.data.root_lin_vel_b[0].detach().cpu().tolist()
+            root_linear_velocity_world = robot.data.root_lin_vel_w[0].detach().cpu().tolist()
+            root_angular_velocity_body = robot.data.root_ang_vel_b[0].detach().cpu().tolist()
+            forward_velocity_samples.append(float(root_linear_velocity_body[1]))
+            forward_command_samples.append(semantic_command[0])
             forces = torch.linalg.vector_norm(
                 contacts.data.net_forces_w[0, sensor_ids].detach().cpu(), dim=-1
             ).tolist()
@@ -386,10 +394,27 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
                     contact_slip_sum += math.hypot(float(velocity[0]), float(velocity[1]))
                     contact_slip_samples += 1
             current_joint = robot.data.joint_pos[0].detach().cpu()
+            current_joint_velocity = robot.data.joint_vel[0].detach().cpu()
+            current_joint_target = robot.data.joint_pos_target[0].detach().cpu()
             for name in gait_joints:
                 value = float(current_joint[joint_indices[name]])
                 minima[name] = min(minima[name], value)
                 maxima[name] = max(maxima[name], value)
+            action_joint_position = []
+            action_joint_velocity = []
+            action_joint_target = []
+            action_joint_target_error = []
+            for name in action_names:
+                joint_index = joint_indices[name]
+                position_value = float(current_joint[joint_index])
+                velocity_value = float(current_joint_velocity[joint_index])
+                target_value = float(current_joint_target[joint_index])
+                target_error = abs(target_value - position_value)
+                action_joint_position.append(position_value)
+                action_joint_velocity.append(velocity_value)
+                action_joint_target.append(target_value)
+                action_joint_target_error.append(target_error)
+                max_target_errors[name] = max(max_target_errors[name], target_error)
             system_com = (
                 torch.sum(robot.data.body_com_pos_w[0] * body_masses.unsqueeze(-1), dim=0)
                 / total_mass
@@ -406,6 +431,15 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
                 "root_x_position_m": [round(float(v), 8) for v in position.tolist()],
                 "root_x_orientation_wxyz": [round(float(v), 9) for v in quaternion.tolist()],
                 "semantic_command": [round(v, 6) for v in semantic_command],
+                "root_linear_velocity_body_mps": [
+                    round(float(v), 8) for v in root_linear_velocity_body
+                ],
+                "root_linear_velocity_world_mps": [
+                    round(float(v), 8) for v in root_linear_velocity_world
+                ],
+                "root_angular_velocity_body_radps": [
+                    round(float(v), 8) for v in root_angular_velocity_body
+                ],
                 "semantic_forward_displacement_m": round(forward, 8),
                 "semantic_strafe_displacement_m": round(strafe, 8),
                 "reference_tilt_rad": round(tilt, 8),
@@ -418,6 +452,12 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
             action_traces.append({
                 "time_s": round(time_s, 6), "joint_order": action_names,
                 "raw_policy_action": [round(float(v), 8) for v in raw_action],
+                "joint_position_rad": [round(v, 8) for v in action_joint_position],
+                "joint_velocity_radps": [round(v, 8) for v in action_joint_velocity],
+                "joint_target_rad": [round(v, 8) for v in action_joint_target],
+                "absolute_joint_target_error_rad": [
+                    round(v, 8) for v in action_joint_target_error
+                ],
             })
             if viewport is not None and (step + 1) % video_stride == 0:
                 eye = policy_stand.contract.PROOF_CAMERA_EYE_OFFSET_M
@@ -485,6 +525,15 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
             ),
             "mean_support_force_body_weight_ratio": round(
                 support_force_sum / control_steps / robot_weight_n, 8
+            ),
+            "max_joint_target_error_rad": round(max(max_target_errors.values()), 8),
+            "max_joint_target_error_by_action_joint_rad": {
+                name: round(value, 8) for name, value in max_target_errors.items()
+            },
+            **contract.summarize_forward_velocity_samples(
+                forward_velocity_samples,
+                forward_command_samples,
+                control_dt_s=contract.CONTROL_DT_S,
             ),
         }
         failures = (

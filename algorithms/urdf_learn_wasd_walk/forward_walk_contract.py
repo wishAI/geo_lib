@@ -32,6 +32,7 @@ MAX_STRAFE_DISPLACEMENT_M = 0.75
 MIN_LEG_JOINT_EXCURSION_RAD = 0.05
 MAX_MEAN_CONTACT_SLIP_MPS = 0.3
 MAX_SIMULTANEOUS_AIR_FRACTION = 0.05
+FORWARD_PROGRESS_VELOCITY_EPS_MPS = 0.01
 
 ACTOR_OBSERVATION_TERMS = (
     ("base_linear_velocity", 3),
@@ -77,6 +78,38 @@ def safe_output_dir(path: Path) -> Path:
 
 def semantic_command_to_sim(forward: float, strafe: float = 0.0, yaw: float = 0.0) -> tuple[float, float, float]:
     return model_spec.semantic_to_sim_command(forward, strafe, yaw)
+
+
+def summarize_forward_velocity_samples(
+    samples_mps: list[float], command_samples_mps: list[float], *, control_dt_s: float
+) -> dict:
+    """Summarize measured body +Y velocity without changing gate acceptance."""
+
+    if not samples_mps or len(samples_mps) != len(command_samples_mps):
+        raise ValueError("forward velocity and command samples must be non-empty and aligned")
+    if control_dt_s <= 0.0:
+        raise ValueError("control_dt_s must be positive")
+    positive = [value > FORWARD_PROGRESS_VELOCITY_EPS_MPS for value in samples_mps]
+    reverse = [value < -FORWARD_PROGRESS_VELOCITY_EPS_MPS for value in samples_mps]
+    first_positive_index = next((index for index, value in enumerate(positive) if value), None)
+    count = len(samples_mps)
+    return {
+        "mean_semantic_forward_velocity_mps": round(sum(samples_mps) / count, 8),
+        "minimum_semantic_forward_velocity_mps": round(min(samples_mps), 8),
+        "maximum_semantic_forward_velocity_mps": round(max(samples_mps), 8),
+        "mean_abs_semantic_forward_velocity_tracking_error_mps": round(
+            sum(abs(value - command) for value, command in zip(samples_mps, command_samples_mps))
+            / count,
+            8,
+        ),
+        "forward_progress_step_fraction": round(sum(positive) / count, 8),
+        "reverse_motion_step_fraction": round(sum(reverse) / count, 8),
+        "first_positive_forward_velocity_time_s": (
+            round((first_positive_index + 1) * control_dt_s, 6)
+            if first_positive_index is not None
+            else None
+        ),
+    }
 
 
 def load_cumulative_prior() -> tuple[list[dict], dict]:
