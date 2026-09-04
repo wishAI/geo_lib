@@ -35,6 +35,9 @@ MAX_REFERENCE_TILT_RAD = math.radians(30.0)
 MAX_ROOT_HEIGHT_DROP_M = 0.08
 MAX_HORIZONTAL_DRIFT_M = 0.12
 MIN_IMPORTED_AXIS_COSINE = 0.995
+MAX_FREE_ROOT_PEAK_SUPPORT_BODY_WEIGHT_RATIO = 3.0
+MIN_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO = 0.5
+MAX_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO = 1.5
 
 
 def safe_output_dir(path: Path) -> Path:
@@ -254,6 +257,40 @@ def evaluate_gate(metrics: dict, *, required_duration_s: float = MIN_GATE_DURATI
     return not failures, failures
 
 
+def evaluate_static_derivation(derivation: dict) -> list[str]:
+    """Evaluate derivation facts without mistaking a root reaction for missing support."""
+
+    failures = []
+    if derivation["settled_geometry"]["support_margin_m"] <= 0.0:
+        failures.append("derived pose COM is outside its exact collision support hull")
+    if derivation["maximum_required_torque_limit_fraction"] > 1.0:
+        failures.append("derived static torque exceeds an imported actuator effort limit")
+    if derivation["maximum_mean_abs_settling_velocity_radps"] > 0.5:
+        failures.append("fixed-root pose did not settle below 0.5 rad/s mean joint speed")
+    load = derivation["fixed_root_load_balance"]
+    if load["root_constraint_reaction_included"]:
+        ratio = load["observed_total_upward_reaction_body_weight_ratio"]
+        if ratio is None or not 0.8 <= ratio <= 1.2:
+            failures.append("measured fixed-root contact plus constraint reaction is outside 0.8-1.2 body weights")
+    return failures
+
+
+def evaluate_free_root_support(metrics: dict) -> list[str]:
+    """Fail closed on free-root COM containment and contact-load plausibility."""
+
+    failures = []
+    if metrics["first_support_exit_time_s"] is not None:
+        failures.append("free-root COM exited the canonical collision support hull")
+    if metrics["minimum_support_polygon_margin_m"] <= 0.0:
+        failures.append("free-root minimum support-polygon margin is not positive")
+    if metrics["peak_support_force_body_weight_ratio"] > MAX_FREE_ROOT_PEAK_SUPPORT_BODY_WEIGHT_RATIO:
+        failures.append("free-root peak support force exceeded 3 body weights")
+    mean_ratio = metrics["mean_support_force_body_weight_ratio"]
+    if not MIN_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO <= mean_ratio <= MAX_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO:
+        failures.append("free-root mean support force is outside 0.5-1.5 body weights")
+    return failures
+
+
 def evaluate_proof(video: dict, *, required_duration_s: float = MIN_GATE_DURATION_S) -> tuple[bool, list[str]]:
     failures = []
     if video["duration_s"] + 0.15 < required_duration_s:
@@ -387,7 +424,8 @@ def _build_scene_cfg(args):
             init_state=ArticulationCfg.InitialStateCfg(
                 pos=tuple(spec["nominal_pose"]["base_position_m"]),
                 rot=tuple(spec["nominal_pose"]["base_orientation_wxyz"]),
-                joint_pos={".*": 0.0}, joint_vel={".*": 0.0},
+                joint_pos=spec["nominal_pose"]["joint_positions_rad"],
+                joint_vel={".*": 0.0},
             ),
             soft_joint_pos_limit_factor=0.95,
             actuators={
@@ -598,6 +636,8 @@ def _run(args, simulation_app) -> dict:
     static_pose_seed = None
     initial_joint_positions = robot.data.default_joint_pos.clone()
     targets = robot.data.default_joint_pos.clone()
+    for index, name in enumerate(robot.joint_names):
+        targets[0, index] = float(contract["nominal_pose"]["joint_position_targets_rad"][name])
     initial_root_state = robot.data.default_root_state.clone()
     if args.static_pose_probe:
         static_pose_seed = model_spec.derive_static_pose()
@@ -609,7 +649,10 @@ def _run(args, simulation_app) -> dict:
             # The gravity-torque sign is the free acceleration direction; a
             # position-drive preload must oppose it.
             targets[0, index] = desired - gravity / stiffness
-        initial_root_state[:, 2] += float(static_pose_seed["ground_aligned_base_z_m"])
+        initial_root_state[:, 2] += (
+            float(static_pose_seed["ground_aligned_base_z_m"])
+            - float(contract["nominal_pose"]["base_position_m"][2])
+        )
         initial_root_state[:, 7:] = 0.0
         robot.write_root_state_to_sim(initial_root_state)
     robot.write_joint_state_to_sim(initial_joint_positions, torch.zeros_like(targets))
@@ -622,8 +665,9 @@ def _run(args, simulation_app) -> dict:
     body_masses = robot.data.default_mass[0].to(device=robot.device, dtype=targets.dtype)
     total_mass = torch.sum(body_masses)
     robot_weight_n = float(total_mass.detach().cpu()) * 9.81
-    support_aabb = contract["nominal_pose"]["zero_pose_ground_support"]["support_aabb_xy_m"]
-    support_reference = "audited_zero_pose_collision_support_aabb"
+    support_aabb = contract["nominal_pose"]["geometry"]["support_aabb_xy_m"]
+    support_hull = contract["nominal_pose"]["geometry"]["support_hull_xy_m"]
+    support_reference = "canonical_nominal_pose_exact_fk_collision_support_hull"
 
     _set_runtime_stage(args, "runtime_actuator_audit")
     target_values = robot.data.joint_pos_target[0].detach().cpu().tolist()
@@ -805,6 +849,19 @@ def _run(args, simulation_app) -> dict:
             "mean_support_force_body_weight_ratio": round(
                 support_force_sum_n / settle_samples / robot_weight_n, 8
             ),
+            "fixed_root_load_balance": {
+                "contact_force_body_weight_ratio": round(
+                    support_force_sum_n / settle_samples / robot_weight_n, 8
+                ),
+                "root_constraint_reaction_included": False,
+                "root_constraint_reaction_body_weight_ratio": None,
+                "observed_total_upward_reaction_body_weight_ratio": None,
+                "contact_force_is_gating": False,
+                "reason": (
+                    "the kinematic root writer supplies an unmeasured constraint reaction; contact-only "
+                    "load cannot close the fixed-root force balance"
+                ),
+            },
             "maximum_required_torque_limit_fraction": max(
                 item["required_torque_limit_fraction"] for item in torque_records
             ),
@@ -834,9 +891,13 @@ def _run(args, simulation_app) -> dict:
             "high_authority_profile_used": False,
         }
         support_aabb = settled_geometry["support_aabb_xy_m"]
+        support_hull = settled_geometry["support_hull_xy_m"]
         support_reference = "settled_pose_exact_fk_collision_support_aabb"
         release_root_state = robot.data.default_root_state.clone()
-        release_root_state[:, 2] += float(settled_geometry["ground_aligned_base_z_m"])
+        release_root_state[:, 2] += (
+            float(settled_geometry["ground_aligned_base_z_m"])
+            - float(contract["nominal_pose"]["base_position_m"][2])
+        )
         release_root_state[:, 7:] = 0.0
         robot.write_root_state_to_sim(release_root_state)
         robot.write_joint_state_to_sim(
@@ -859,9 +920,12 @@ def _run(args, simulation_app) -> dict:
     initial_system_com = None
     first_static_support_exit_time_s = None
     minimum_positive_y_support_margin_m = math.inf
+    minimum_support_polygon_margin_m = math.inf
     max_projected_gravity_horizontal = 0.0
     peak_total_support_force_n = 0.0
     peak_total_support_force_time_s = None
+    total_support_force_sum_n = 0.0
+    total_support_force_samples = 0
     joint_count = len(robot.joint_names)
     max_errors = torch.zeros(joint_count, device=robot.device)
     max_error_times = torch.zeros(joint_count, device=robot.device)
@@ -931,7 +995,11 @@ def _run(args, simulation_app) -> dict:
             minimum_positive_y_support_margin_m = min(
                 minimum_positive_y_support_margin_m, positive_y_margin
             )
-            if positive_y_margin < 0.0 and first_static_support_exit_time_s is None:
+            polygon_margin = model_spec.support_polygon_margin(system_com[:2], support_hull)
+            minimum_support_polygon_margin_m = min(
+                minimum_support_polygon_margin_m, polygon_margin
+            )
+            if polygon_margin < 0.0 and first_static_support_exit_time_s is None:
                 first_static_support_exit_time_s = time_s
             imported_root_gravity = robot.data.projected_gravity_b[0].detach().cpu().tolist()
             projected_gravity = semantic_projected_gravity_wxyz(
@@ -942,6 +1010,8 @@ def _run(args, simulation_app) -> dict:
                 math.hypot(float(projected_gravity[0]), float(projected_gravity[1])),
             )
             total_support_force = sum(float(force) for force in force_norms_tensor.tolist())
+            total_support_force_sum_n += total_support_force
+            total_support_force_samples += 1
             if step == 0:
                 _set_runtime_stage(args, "physics_loop")
             if total_support_force > peak_total_support_force_n:
@@ -969,6 +1039,7 @@ def _run(args, simulation_app) -> dict:
                         "system_center_of_mass_m": [round(float(v), 8) for v in system_com],
                         "support_reference": support_reference,
                         "support_positive_y_margin_m": round(positive_y_margin, 8),
+                        "support_polygon_margin_m": round(polygon_margin, 8),
                         "zero_pose_support_positive_y_margin_m": round(positive_y_margin, 8),
                         "projected_gravity_semantic_body_frame": [round(float(v), 8) for v in projected_gravity],
                         "projected_gravity_imported_root_frame": [
@@ -1031,6 +1102,9 @@ def _run(args, simulation_app) -> dict:
             "minimum_support_positive_y_margin_m": round(
                 minimum_positive_y_support_margin_m, 8
             ),
+            "minimum_support_polygon_margin_m": round(
+                minimum_support_polygon_margin_m, 8
+            ),
             "first_zero_pose_support_exit_time_s": (
                 round(first_static_support_exit_time_s, 6)
                 if first_static_support_exit_time_s is not None else None
@@ -1048,6 +1122,12 @@ def _run(args, simulation_app) -> dict:
             "peak_support_force_body_weight_ratio": round(
                 peak_total_support_force_n / robot_weight_n, 8
             ),
+            "mean_support_force_n": round(
+                total_support_force_sum_n / total_support_force_samples, 8
+            ),
+            "mean_support_force_body_weight_ratio": round(
+                total_support_force_sum_n / total_support_force_samples / robot_weight_n, 8
+            ),
             "worst_joint_target_errors": joint_tracking[:10],
         }
         required = 0.0 if args.smoke else MIN_GATE_DURATION_S
@@ -1057,17 +1137,8 @@ def _run(args, simulation_app) -> dict:
         if not runtime_actuators["passed"]:
             failures.append("runtime actuator targets, gains, or limits differ from the robot contract")
         if static_pose_derivation is not None:
-            if static_pose_derivation["settled_geometry"]["support_margin_m"] <= 0.0:
-                failures.append("derived pose COM is outside its exact collision support hull")
-            if static_pose_derivation["maximum_required_torque_limit_fraction"] > 1.0:
-                failures.append("derived static torque exceeds an imported actuator effort limit")
-            support_ratio = static_pose_derivation["mean_support_force_body_weight_ratio"]
-            if not 0.8 <= support_ratio <= 1.2:
-                failures.append(
-                    "fixed-root settling contact force does not support 0.8-1.2 body weights"
-                )
-            if static_pose_derivation["maximum_mean_abs_settling_velocity_radps"] > 0.5:
-                failures.append("fixed-root pose did not settle below 0.5 rad/s mean joint speed")
+            failures.extend(evaluate_static_derivation(static_pose_derivation))
+        failures.extend(evaluate_free_root_support(metrics))
 
         video = None
         if args.phase == "proof":
@@ -1177,6 +1248,15 @@ def _run(args, simulation_app) -> dict:
                     else "The derived pose did not retain support after release; use its settled-pose, torque, "
                     "and contact diagnostics to revise the equilibrium method rather than increasing authority."
                 ),
+            }
+        elif args.smoke:
+            experiment = {
+                "id": "canonical_settled_pose_free_root_smoke",
+                "diagnostic_only": True,
+                "duration_s": metrics["duration_s"],
+                "nominal_pose_provenance": contract["nominal_pose"]["provenance"],
+                "result_supports_longer_validation": passed,
+                "next_duration_s": 30.0 if metrics["duration_s"] >= 10.0 and passed else None,
             }
         evidence = {
             "schema_version": 3, "milestone": MILESTONE_ID, "component": args.phase,

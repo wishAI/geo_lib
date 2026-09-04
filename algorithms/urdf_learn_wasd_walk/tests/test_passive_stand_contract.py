@@ -116,6 +116,43 @@ class PassiveStandContractTests(unittest.TestCase):
         self.assertEqual(target, 1.0e-12)
         self.assertEqual(audit["tolerance_rad"], 0.0)
 
+    def test_unmeasured_fixed_root_reaction_makes_contact_load_non_gating(self) -> None:
+        derivation = {
+            "settled_geometry": {"support_margin_m": 0.03},
+            "maximum_required_torque_limit_fraction": 0.1,
+            "maximum_mean_abs_settling_velocity_radps": 0.01,
+            "fixed_root_load_balance": {
+                "contact_force_body_weight_ratio": 0.0,
+                "root_constraint_reaction_included": False,
+                "observed_total_upward_reaction_body_weight_ratio": None,
+            },
+        }
+        self.assertEqual(passive_stand.evaluate_static_derivation(derivation), [])
+        derivation["fixed_root_load_balance"].update(
+            root_constraint_reaction_included=True,
+            observed_total_upward_reaction_body_weight_ratio=0.0,
+        )
+        self.assertIn(
+            "measured fixed-root contact plus constraint reaction is outside 0.8-1.2 body weights",
+            passive_stand.evaluate_static_derivation(derivation),
+        )
+
+    def test_free_root_support_checks_are_fail_closed(self) -> None:
+        metrics = {
+            "first_support_exit_time_s": None,
+            "minimum_support_polygon_margin_m": 0.03,
+            "peak_support_force_body_weight_ratio": 1.7,
+            "mean_support_force_body_weight_ratio": 1.0,
+        }
+        self.assertEqual(passive_stand.evaluate_free_root_support(metrics), [])
+        metrics.update(
+            first_support_exit_time_s=0.8,
+            minimum_support_polygon_margin_m=-0.001,
+            peak_support_force_body_weight_ratio=3.1,
+            mean_support_force_body_weight_ratio=0.2,
+        )
+        self.assertEqual(len(passive_stand.evaluate_free_root_support(metrics)), 4)
+
     def test_gate_rejects_events_motion_and_short_duration(self) -> None:
         metrics = {
             "duration_s": 29.0,

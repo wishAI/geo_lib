@@ -99,6 +99,77 @@ FINGER_JOINTS = tuple(
     ]
 )
 
+# Promoted from the clamped settled state of gravity_static_pose_release_v1.
+# Finger states are intentionally zeroed; every other imported joint preserves
+# the diagnostic's recorded float value and corresponding released PD target.
+CANONICAL_NOMINAL_NONFINGER_POSITIONS_RAD = {
+    "head_yaw_joint": -3.6964324934274373e-09,
+    "left_ankle_pitch_joint": -0.11557767540216446,
+    "left_elbow_joint": -0.0893860012292862,
+    "left_forearm_roll_joint": 0.0018204370280727744,
+    "left_hip_pitch_joint": -0.1012502983212471,
+    "left_hip_roll_joint": -5.807069828733802e-05,
+    "left_hip_yaw_joint": -1.3841487998433877e-05,
+    "left_knee_joint": 0.21072299778461456,
+    "left_shin_roll_joint": -3.935918357456103e-05,
+    "left_shoulder_lift_joint": -0.21318794786930084,
+    "left_shoulder_pitch_joint": -0.04680832847952843,
+    "left_toe_joint": 2.073991152429233e-11,
+    "left_upper_arm_roll_joint": -0.021588018164038658,
+    "left_wrist_pitch_joint": -0.013015508651733398,
+    "neck_pitch_joint": -4.6467419451801106e-05,
+    "right_ankle_pitch_joint": -0.115577831864357,
+    "right_elbow_joint": 0.08938424289226532,
+    "right_forearm_roll_joint": -0.0018204532098025084,
+    "right_hip_pitch_joint": -0.10125018656253815,
+    "right_hip_roll_joint": 5.807937486679293e-05,
+    "right_hip_yaw_joint": 1.3842480257153511e-05,
+    "right_knee_joint": 0.21072296798229218,
+    "right_shin_roll_joint": 3.9359278162010014e-05,
+    "right_shoulder_lift_joint": 0.21318525075912476,
+    "right_shoulder_pitch_joint": -0.046809207648038864,
+    "right_toe_joint": -4.708099188288628e-11,
+    "right_upper_arm_roll_joint": 0.06532390415668488,
+    "right_wrist_pitch_joint": -0.013015508651733398,
+    "waist_pitch_joint": -0.2342214286327362,
+    "waist_roll_joint": -4.540688891552236e-08,
+    "waist_yaw_joint": -2.6809352515755336e-09,
+}
+
+CANONICAL_NOMINAL_NONFINGER_TARGETS_RAD = {
+    "left_hip_pitch_joint": -0.101250290871,
+    "right_hip_pitch_joint": -0.101250179112,
+    "waist_yaw_joint": -4.476e-09,
+    "left_hip_roll_joint": -5.8070698e-05,
+    "right_hip_roll_joint": 5.8079069e-05,
+    "waist_roll_joint": -4.2567e-08,
+    "left_hip_yaw_joint": -1.3841432e-05,
+    "right_hip_yaw_joint": 1.3842453e-05,
+    "waist_pitch_joint": -0.234221488237,
+    "left_knee_joint": 0.210722982883,
+    "right_knee_joint": 0.210722953081,
+    "left_shoulder_lift_joint": -0.213187932968,
+    "neck_pitch_joint": -4.6429348e-05,
+    "right_shoulder_lift_joint": 0.213185280561,
+    "left_shin_roll_joint": -3.9359344e-05,
+    "right_shin_roll_joint": 3.9359995e-05,
+    "left_shoulder_pitch_joint": -0.04680833593,
+    "head_yaw_joint": -1.588e-09,
+    "right_shoulder_pitch_joint": -0.046809121966,
+    "left_ankle_pitch_joint": -0.115577682853,
+    "right_ankle_pitch_joint": -0.115577816963,
+    "left_upper_arm_roll_joint": -0.021587988362,
+    "right_upper_arm_roll_joint": 0.065324053168,
+    "left_toe_joint": 0.0,
+    "right_toe_joint": 2e-12,
+    "left_elbow_joint": -0.089385993779,
+    "right_elbow_joint": 0.089384287596,
+    "left_forearm_roll_joint": 0.001820431091,
+    "right_forearm_roll_joint": -0.001820385922,
+    "left_wrist_pitch_joint": -0.013015515171,
+    "right_wrist_pitch_joint": -0.013015516102,
+}
+
 Matrix3 = tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]
 Vector3 = tuple[float, float, float]
 
@@ -322,7 +393,7 @@ def _convex_hull_xy(points: Sequence[Vector3]) -> list[list[float]]:
     return [list(point) for point in lower[:-1] + upper[:-1]]
 
 
-def _signed_polygon_margin(point: Sequence[float], polygon: Sequence[Sequence[float]]) -> float:
+def support_polygon_margin(point: Sequence[float], polygon: Sequence[Sequence[float]]) -> float:
     margins = []
     for index, start in enumerate(polygon):
         end = polygon[(index + 1) % len(polygon)]
@@ -454,7 +525,7 @@ def analyze_pose_geometry(
             "minimum": [round(min(point[axis] for point in contacts), 9) for axis in (0, 1)],
             "maximum": [round(max(point[axis] for point in contacts), 9) for axis in (0, 1)],
         },
-        "support_margin_m": round(_signed_polygon_margin(com[:2], hull), 9),
+        "support_margin_m": round(support_polygon_margin(com[:2], hull), 9),
         "near_ground_contact_vertex_count_by_link": contact_counts,
         "fixed_root_gravity_torque_nm": {
             name: round(value, 9) for name, value in sorted(gravity_torques.items())
@@ -492,7 +563,7 @@ def derive_static_pose(urdf_path: Path = URDF_PATH) -> dict:
         pose = {**leg_pose, "waist_pitch_joint": -step / 1000.0}
         transforms, _ = _joint_world_transforms(root, pose)
         com = _pose_center_of_mass(root, transforms)
-        candidates.append((_signed_polygon_margin(com[:2], support_hull), pose))
+        candidates.append((support_polygon_margin(com[:2], support_hull), pose))
     _, selected_pose = max(
         candidates,
         key=lambda item: (item[0], -abs(item[1]["waist_pitch_joint"])),
@@ -620,6 +691,18 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     if unknown_actions:
         raise ValueError(f"Action joints missing from URDF: {sorted(unknown_actions)}")
     locked_names = [name for name in movable_names if name not in ACTION_JOINTS]
+    canonical_positions = {
+        name: CANONICAL_NOMINAL_NONFINGER_POSITIONS_RAD.get(name, 0.0)
+        for name in movable_names
+    }
+    canonical_targets = {
+        name: CANONICAL_NOMINAL_NONFINGER_TARGETS_RAD.get(name, 0.0)
+        for name in movable_names
+    }
+    if set(CANONICAL_NOMINAL_NONFINGER_POSITIONS_RAD) - set(movable_names):
+        raise ValueError("canonical pose contains joints absent from the current URDF")
+    if set(CANONICAL_NOMINAL_NONFINGER_TARGETS_RAD) - set(movable_names):
+        raise ValueError("canonical targets contain joints absent from the current URDF")
 
     joint_records = []
     for joint in movable_joints:
@@ -646,7 +729,8 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 "limits_rad": [float(limit.get("lower")), float(limit.get("upper"))],  # type: ignore[union-attr]
                 "effort_limit": float(limit.get("effort")),  # type: ignore[union-attr]
                 "velocity_limit": float(limit.get("velocity")),  # type: ignore[union-attr]
-                "nominal_position_rad": 0.0,
+                "nominal_position_rad": canonical_positions[name],
+                "nominal_target_rad": canonical_targets[name],
             }
         )
 
@@ -710,8 +794,9 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         "positive_y": round(ground_support["support_aabb_xy_m"]["maximum"][1] - zero_pose_com[1], 9),
     }
     static_pose_candidate = derive_static_pose(urdf_path)
+    canonical_pose_geometry = analyze_pose_geometry(canonical_positions, urdf_path)
     return {
-        "version": 7,
+        "version": 8,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -765,9 +850,39 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             ),
         },
         "nominal_pose": {
-            "base_position_m": [0.0, 0.0, 0.0],
+            "base_position_m": [0.0, 0.0, canonical_pose_geometry["ground_aligned_base_z_m"]],
             "base_orientation_wxyz": [1.0, 0.0, 0.0, 0.0],
-            "joint_positions_rad": {name: 0.0 for name in movable_names},
+            "joint_positions_rad": canonical_positions,
+            "joint_position_targets_rad": canonical_targets,
+            "geometry": canonical_pose_geometry,
+            "provenance": {
+                "kind": "promoted_derived_settled_pose_not_probe_status",
+                "source_experiment": "gravity_static_pose_release_v1",
+                "source_run_identity": "20260904T071956.210897Z",
+                "source_evidence": (
+                    "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                    "experiments/gravity_static_pose_release_v1_20260904T071956Z.json"
+                ),
+                "source_evidence_sha256": "6bbd26111a61026ae33ecdc7ee7b296e2faefbb7b4500530c320635b98519765",
+                "source_probe_status": "failed_due_to_invalid_fixed_root_contact_criterion",
+                "free_root_result": {
+                    "duration_s": 3.0,
+                    "reset_count": 0,
+                    "done_count": 0,
+                    "fall_count": 0,
+                    "max_reference_tilt_rad": 0.0412149,
+                    "root_height_drop_m": 0.00143432,
+                    "horizontal_drift_m": 0.00062895,
+                    "minimum_positive_y_support_margin_m": 0.04963283,
+                    "peak_support_force_body_weight_ratio": 1.69168651,
+                },
+                "canonicalization": {
+                    "nonfinger_positions": "exact clamped settled_geometry values from source evidence",
+                    "nonfinger_targets": "raw released targets from source evidence",
+                    "finger_positions_and_targets": "zeroed to prevent fixed-root numerical noise from selecting pose",
+                    "zeroed_finger_joints": list(FINGER_JOINTS),
+                },
+            },
             "zero_pose_collision_bounds": bounds,
             "zero_pose_ground_support": ground_support,
         },
@@ -861,7 +976,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 },
                 {
                     "id": "gravity_static_pose_release_v1",
-                    "status": "active_bounded_test",
+                    "status": "free_root_supported_non_gate",
                     "scope": "derive with pinned root and baseline low-authority PD, then release in the same Isaac process",
                     "hypothesis": (
                         "A small collision-compatible crouch with centered COM and measured PD preload will avoid "
@@ -903,14 +1018,53 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                             ),
                             "evidence_sha256": "c0ba691d8863ddf9b0495d503b21f73f9bdfa964137408b454b714ae905d6222",
                             "traceback_sha256": "3c8544875512a3c08b6bc442a1475b9b78e0f4e9c05d407036981a1e03605ce2",
+                        },
+                        {
+                            "run_identity": "20260904T071956.210897Z",
+                            "status": "free_root_supported_probe_status_not_promoted",
+                            "free_root_duration_s": 3.0,
+                            "free_root_fall_count": 0,
+                            "free_root_max_reference_tilt_rad": 0.0412149,
+                            "free_root_horizontal_drift_m": 0.00062895,
+                            "fixed_root_contact_force_body_weight_ratio": 0.0,
+                            "criterion_correction": (
+                                "contact force alone cannot close fixed-root load balance because the root "
+                                "constraint reaction was not measured; fixed-root contact load is diagnostic"
+                            ),
+                            "evidence": (
+                                "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                                "experiments/gravity_static_pose_release_v1_20260904T071956Z.json"
+                            ),
+                            "evidence_sha256": "6bbd26111a61026ae33ecdc7ee7b296e2faefbb7b4500530c320635b98519765",
                         }
                     ],
+                    "fixed_root_load_contract": {
+                        "contact_force_is_gating": False,
+                        "root_constraint_reaction_included": False,
+                        "reason": (
+                            "the unmeasured kinematic root constraint may carry any residual weight reaction; "
+                            "contact force becomes gating only when summed with a measured constraint reaction"
+                        ),
+                    },
                     "comparison": {
                         "zero_pose_support_margin_m": analyze_pose_geometry({}, urdf_path)["support_margin_m"],
                         "candidate_support_margin_m": static_pose_candidate["support_margin_m"],
                         "ground_alignment_retained": True,
                         "authority_probe_rejected": True,
                     },
+                    "result": {
+                        "physical_result": "free_root_supported_for_3_seconds",
+                        "probe_status": "failed_only_by_invalid_fixed_root_contact_criterion",
+                        "pose_promoted": True,
+                        "milestone_status_changed": False,
+                    },
+                },
+                {
+                    "id": "canonical_settled_pose_10s_v1",
+                    "status": "active_bounded_test",
+                    "scope": "canonical pose, free root, zero action/command, camera-free 10-second smoke",
+                    "predecessor": "gravity_static_pose_release_v1",
+                    "promotion_requirement": "pass free-root COM/support/load and ordinary passive gate checks",
                 },
             ],
             "zero_pose_static_authority_audit": {
@@ -939,14 +1093,14 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 movable_names, authority_probe=True
             ),
             "nominal_pose_selection": {
-                "selected": "verified-axis zero joint pose with collision geometry aligned to ground",
+                "selected": "promoted gravity-static settled pose with collision geometry aligned to ground",
                 "installed_humanoid_comparison": {
                     "G1_CFG": {"hip_pitch_rad": -0.20, "knee_rad": 0.42, "ankle_pitch_rad": -0.23},
                     "H1_CFG": {"hip_pitch_rad": -0.28, "knee_rad": 0.79, "ankle_pitch_rad": -0.52},
                 },
-                "crouch_deferred_reason": (
-                    "Landau's zero-pose COM projection is inside its measured support hull; first remove the "
-                    "2 mm spawn drop as the smaller single-variable correction"
+                "selection_reason": (
+                    "the canonical pose completed a 3-second free-root release with zero falls and 0.63 mm "
+                    "drift, while all zero-pose variants fell near 1.2 seconds"
                 ),
             },
         },

@@ -64,9 +64,10 @@ class ModelSpecTests(unittest.TestCase):
         self.assertIn("right_shin_roll_joint", locked)
         self.assertTrue(all(name not in action for name in locked))
 
-    def test_ground_alignment_is_retained_and_authority_probe_is_isolated(self) -> None:
+    def test_canonical_ground_alignment_is_retained_and_authority_probe_is_isolated(self) -> None:
         groups = self.spec["pd"]["groups"]
-        self.assertEqual(self.spec["nominal_pose"]["base_position_m"], [0.0, 0.0, 0.0])
+        self.assertAlmostEqual(self.spec["nominal_pose"]["base_position_m"][2], -0.004776894)
+        self.assertGreater(self.spec["nominal_pose"]["geometry"]["support_margin_m"], 0.0)
         self.assertEqual(groups["leg_sagittal"]["damping"], 1.0)
         controlled = [joint for group in groups.values() for joint in group["joints"]]
         self.assertEqual(len(controlled), len(set(controlled)))
@@ -80,7 +81,10 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(experiments[2]["id"], "zero_pose_upper_body_authority_probe_v1")
         self.assertEqual(experiments[2]["status"], "rejected")
         self.assertEqual(experiments[3]["id"], "gravity_static_pose_release_v1")
-        self.assertEqual(experiments[3]["status"], "active_bounded_test")
+        self.assertEqual(experiments[3]["status"], "free_root_supported_non_gate")
+        self.assertFalse(experiments[3]["fixed_root_load_contract"]["contact_force_is_gating"])
+        self.assertEqual(experiments[4]["id"], "canonical_settled_pose_10s_v1")
+        self.assertEqual(experiments[4]["status"], "active_bounded_test")
         limit_audit = experiments[3]["limit_audit"]
         self.assertEqual(limit_audit["tolerance_rad"], 0.002)
         self.assertEqual(limit_audit["maximum_tip_displacement_at_40mm_m"], 0.00008)
@@ -95,6 +99,33 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(probe["waist_authority"]["stiffness"], 40.0)
         self.assertEqual(probe["upper_body_authority"]["damping"], 10.0)
         self.assertIn("right_shoulder_lift_joint", probe["upper_body_authority"]["joints"])
+
+    def test_canonical_pose_has_exact_archived_provenance_and_zero_fingers(self) -> None:
+        nominal = self.spec["nominal_pose"]
+        provenance = nominal["provenance"]
+        self.assertEqual(provenance["source_run_identity"], "20260904T071956.210897Z")
+        self.assertEqual(
+            provenance["source_evidence_sha256"],
+            "6bbd26111a61026ae33ecdc7ee7b296e2faefbb7b4500530c320635b98519765",
+        )
+        self.assertEqual(provenance["free_root_result"]["fall_count"], 0)
+        self.assertAlmostEqual(nominal["joint_positions_rad"]["waist_pitch_joint"], -0.2342214286327362)
+        self.assertAlmostEqual(nominal["joint_positions_rad"]["left_knee_joint"], 0.21072299778461456)
+        self.assertAlmostEqual(
+            nominal["joint_position_targets_rad"]["right_shoulder_lift_joint"],
+            0.213185280561,
+        )
+        self.assertTrue(all(nominal["joint_positions_rad"][name] == 0.0 for name in model_spec.FINGER_JOINTS))
+        self.assertTrue(all(nominal["joint_position_targets_rad"][name] == 0.0 for name in model_spec.FINGER_JOINTS))
+        for joint in self.spec["joints"]:
+            lower, upper = joint["limits_rad"]
+            self.assertLessEqual(lower, joint["nominal_position_rad"])
+            self.assertLessEqual(joint["nominal_position_rad"], upper)
+            self.assertLessEqual(lower, joint["nominal_target_rad"])
+            self.assertLessEqual(joint["nominal_target_rad"], upper)
+            self.assertEqual(
+                joint["nominal_position_rad"], nominal["joint_positions_rad"][joint["name"]]
+            )
 
     def test_static_pose_is_collision_supported_and_improves_com_margin(self) -> None:
         experiments = self.spec["pd"]["stability_experiments"]
