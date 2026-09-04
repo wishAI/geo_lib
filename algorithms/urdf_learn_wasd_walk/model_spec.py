@@ -52,15 +52,10 @@ PD_GROUPS = {
         "joints": tuple(
             f"{side}_{joint}_joint"
             for side in ("left", "right")
-            for joint in ("hip_pitch", "knee", "toe")
+            for joint in ("hip_pitch", "knee", "ankle_pitch", "toe")
         ),
         "stiffness": 20.0,
         "damping": 1.0,
-    },
-    "ankle_pitch_contact": {
-        "joints": ("left_ankle_pitch_joint", "right_ankle_pitch_joint"),
-        "stiffness": 20.0,
-        "damping": 4.0,
     },
     "leg_balance": {
         "joints": tuple(
@@ -234,6 +229,31 @@ def _collision_world_points(
     return result
 
 
+def _convex_hull_xy(points: Sequence[Vector3]) -> list[list[float]]:
+    """Return the deterministic counter-clockwise hull of XY projected points."""
+
+    unique = sorted({(round(point[0], 9), round(point[1], 9)) for point in points})
+    if len(unique) <= 1:
+        return [list(point) for point in unique]
+
+    def cross(origin, left, right) -> float:
+        return (left[0] - origin[0]) * (right[1] - origin[1]) - (
+            left[1] - origin[1]
+        ) * (right[0] - origin[0])
+
+    lower = []
+    for point in unique:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], point) <= 0.0:
+            lower.pop()
+        lower.append(point)
+    upper = []
+    for point in reversed(unique):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], point) <= 0.0:
+            upper.pop()
+        upper.append(point)
+    return [list(point) for point in lower[:-1] + upper[:-1]]
+
+
 def collision_world_bounds(urdf_path: Path = URDF_PATH) -> dict[str, dict[str, list[float]]]:
     """Return zero-pose world bounds for every link with collision geometry."""
 
@@ -258,12 +278,25 @@ def zero_pose_ground_support(urdf_path: Path = URDF_PATH, tolerance_m: float = 0
     all_points = [point for name in support_links for point in points_by_link[name]]
     ground_z = min(point[2] for point in all_points)
     contacts = [point for point in all_points if point[2] <= ground_z + tolerance_m]
+    links = {}
+    for name in support_links:
+        link_contacts = [point for point in points_by_link[name] if point[2] <= ground_z + tolerance_m]
+        links[name] = {
+            "near_ground_vertex_count": len(link_contacts),
+            "minimum_z_m": round(min(point[2] for point in points_by_link[name]), 9),
+            "candidate_contact_hull_xy_m": _convex_hull_xy(link_contacts),
+        }
     return {
         "method": "collision mesh vertices within tolerance of the zero-pose minimum Z",
-        "links": list(support_links),
+        "support_links": list(support_links),
+        "links": links,
         "ground_z_m": round(ground_z, 9),
         "vertex_tolerance_m": tolerance_m,
         "near_ground_vertex_count": len(contacts),
+        "candidate_contact_hull_xy_m": _convex_hull_xy(contacts),
+        "flat_ground_contact_normal_w": [0.0, 0.0, 1.0],
+        "gravity_direction_w": [0.0, 0.0, -1.0],
+        "gravity_normal_dot": -1.0,
         "support_aabb_xy_m": {
             "minimum": [round(min(point[axis] for point in contacts), 9) for axis in (0, 1)],
             "maximum": [round(max(point[axis] for point in contacts), 9) for axis in (0, 1)],
@@ -349,8 +382,15 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     total_mass = sum(masses)
     zero_pose_com = [round(value / total_mass, 9) for value in mass_weighted_positions]
     ground_support = zero_pose_ground_support(urdf_path) if not missing_meshes else {}
+    ground_support["zero_pose_com_projection_xy_m"] = zero_pose_com[:2]
+    ground_support["zero_pose_com_support_aabb_margin_m"] = {
+        "negative_x": round(zero_pose_com[0] - ground_support["support_aabb_xy_m"]["minimum"][0], 9),
+        "positive_x": round(ground_support["support_aabb_xy_m"]["maximum"][0] - zero_pose_com[0], 9),
+        "negative_y": round(zero_pose_com[1] - ground_support["support_aabb_xy_m"]["minimum"][1], 9),
+        "positive_y": round(ground_support["support_aabb_xy_m"]["maximum"][1] - zero_pose_com[1], 9),
+    }
     return {
-        "version": 3,
+        "version": 4,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -404,7 +444,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             ),
         },
         "nominal_pose": {
-            "base_position_m": [0.0, 0.0, 0.002],
+            "base_position_m": [0.0, 0.0, 0.0],
             "base_orientation_wxyz": [1.0, 0.0, 0.0, 0.0],
             "joint_positions_rad": {name: 0.0 for name in movable_names},
             "zero_pose_collision_bounds": bounds,
@@ -418,18 +458,46 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 for name, group in PD_GROUPS.items()
             },
             "locked": {"stiffness": LOCKED_PD_STIFFNESS, "damping": LOCKED_PD_DAMPING},
-            "stability_hypothesis": {
-                "id": "ankle_pitch_contact_damping_v1",
-                "scope": "left and right ankle-pitch damping only",
-                "change": {"stiffness": 20.0, "damping_before": 1.0, "damping_after": 4.0},
-                "observed_failure": {
-                    "direction": "semantic forward (+Y) with rotation about -X",
-                    "contact_sequence": "toe contacts unload before the forward fall while both feet remain loaded",
-                    "interpretation": "initial contact excites an underdamped sagittal ankle-rocking mode",
+            "stability_experiments": [
+                {
+                    "id": "ankle_pitch_contact_damping_v1",
+                    "status": "rejected",
+                    "change": {"stiffness": 20.0, "damping_before": 1.0, "damping_tested": 4.0},
+                    "result": {
+                        "duration_s": 3.0, "first_fall_time_s": 0.958,
+                        "max_reference_tilt_rad": 1.3513303,
+                        "semantic_forward_displacement_m": 0.40405083,
+                        "ankle_torque_saturated": False,
+                    },
+                    "evidence": (
+                        "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                        "experiments/ankle_pitch_contact_damping_v1_20260904T043639Z.json"
+                    ),
+                    "evidence_sha256": "a45c224c1d95edc9b02dea9ced0de9ebecd9d6fa064f1db0029143ccf75b77b3",
                 },
-                "installed_api_reference": (
-                    "Isaac Lab 0.36.1 isaaclab_assets.robots.unitree.H1_CFG feet actuator uses "
-                    "stiffness=20 and damping=4"
+                {
+                    "id": "ground_aligned_spawn_v1",
+                    "status": "active_bounded_test",
+                    "scope": "base spawn Z only; restore baseline ankle damping",
+                    "change": {"base_z_before_m": 0.002, "base_z_after_m": 0.0},
+                    "reason": {
+                        "zero_pose_collision_ground_z_m": ground_support.get("ground_z_m"),
+                        "previous_first_contact_time_s": 0.016,
+                        "previous_sum_of_individual_body_peak_forces_n": 99.814347,
+                        "robot_weight_n": round(total_mass * 9.81, 6),
+                        "interpretation": "remove the artificial free-fall and asymmetric impact before changing pose or gains",
+                    },
+                },
+            ],
+            "nominal_pose_selection": {
+                "selected": "verified-axis zero joint pose with collision geometry aligned to ground",
+                "installed_humanoid_comparison": {
+                    "G1_CFG": {"hip_pitch_rad": -0.20, "knee_rad": 0.42, "ankle_pitch_rad": -0.23},
+                    "H1_CFG": {"hip_pitch_rad": -0.28, "knee_rad": 0.79, "ankle_pitch_rad": -0.52},
+                },
+                "crouch_deferred_reason": (
+                    "Landau's zero-pose COM projection is inside its measured support hull; first remove the "
+                    "2 mm spawn drop as the smaller single-variable correction"
                 ),
             },
         },

@@ -21,6 +21,21 @@ class PassiveStandContractTests(unittest.TestCase):
         self.assertEqual(passive_stand.quaternion_distance_wxyz(identity, identity), 0.0)
         self.assertEqual(passive_stand.quaternion_distance_wxyz(identity, (-1.0, 0.0, 0.0, 0.0)), 0.0)
 
+    def test_semantic_projected_gravity_removes_imported_root_rotation(self) -> None:
+        root_x_upright = (2**-0.5, 2**-0.5, 0.0, 0.0)
+        gravity = passive_stand.semantic_projected_gravity_wxyz(root_x_upright, root_x_upright)
+        self.assertAlmostEqual(gravity[0], 0.0)
+        self.assertAlmostEqual(gravity[1], 0.0)
+        self.assertAlmostEqual(gravity[2], -1.0)
+        # A semantic -30 degree X pitch composed with the imported +90 degree
+        # root rotation produces a +60 degree X root quaternion.
+        pitched_root = (3**0.5 / 2.0, 0.5, 0.0, 0.0)
+        pitched_gravity = passive_stand.semantic_projected_gravity_wxyz(
+            pitched_root, root_x_upright
+        )
+        self.assertAlmostEqual(pitched_gravity[1], 0.5)
+        self.assertAlmostEqual(pitched_gravity[2], -(3**0.5 / 2.0))
+
     def test_joint_tracking_summary_is_complete_and_worst_first(self) -> None:
         summary = passive_stand.summarize_joint_tracking(
             ["ankle", "knee"],

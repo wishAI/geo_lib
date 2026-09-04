@@ -53,6 +53,31 @@ def quaternion_distance_wxyz(left: Sequence[float], right: Sequence[float]) -> f
     return 2.0 * math.acos(min(1.0, max(-1.0, dot)))
 
 
+def semantic_projected_gravity_wxyz(
+    current_root: Sequence[float], upright_root: Sequence[float]
+) -> list[float]:
+    """Project unit gravity into a frame that is identity at the audited upright pose."""
+
+    def multiply(left: Sequence[float], right: Sequence[float]) -> tuple[float, float, float, float]:
+        lw, lx, ly, lz = map(float, left)
+        rw, rx, ry, rz = map(float, right)
+        return (
+            lw * rw - lx * rx - ly * ry - lz * rz,
+            lw * rx + lx * rw + ly * rz - lz * ry,
+            lw * ry - lx * rz + ly * rw + lz * rx,
+            lw * rz + lx * ry - ly * rx + lz * rw,
+        )
+
+    upright_inverse = (
+        float(upright_root[0]), -float(upright_root[1]),
+        -float(upright_root[2]), -float(upright_root[3]),
+    )
+    semantic_world = multiply(current_root, upright_inverse)
+    inverse = (semantic_world[0], -semantic_world[1], -semantic_world[2], -semantic_world[3])
+    rotated = multiply(multiply(inverse, (0.0, 0.0, 0.0, -1.0)), semantic_world)
+    return [rotated[1], rotated[2], rotated[3]]
+
+
 def summarize_joint_tracking(
     joint_names: Sequence[str],
     max_errors: Sequence[float],
@@ -443,6 +468,10 @@ def _run(args, simulation_app) -> dict:
     robot.write_joint_state_to_sim(targets, torch.zeros_like(targets))
     robot.set_joint_position_target(targets)
     scene.write_data_to_sim()
+    body_masses = robot.data.default_mass[0]
+    total_mass = torch.sum(body_masses)
+    robot_weight_n = float(total_mass.detach().cpu()) * 9.81
+    support_aabb = contract["nominal_pose"]["zero_pose_ground_support"]["support_aabb_xy_m"]
 
     target_values = targets[0].detach().cpu().tolist()
     stiffness_values = robot.data.joint_stiffness[0].detach().cpu().tolist()
@@ -520,6 +549,12 @@ def _run(args, simulation_app) -> dict:
     previously_fallen = False
     initial_position = initial_quaternion = None
     first_fall_time_s = None
+    initial_system_com = None
+    first_static_support_exit_time_s = None
+    minimum_positive_y_support_margin_m = math.inf
+    max_projected_gravity_horizontal = 0.0
+    peak_total_support_force_n = 0.0
+    peak_total_support_force_time_s = None
     joint_count = len(robot.joint_names)
     max_errors = torch.zeros(joint_count, device=robot.device)
     max_error_times = torch.zeros(joint_count, device=robot.device)
@@ -573,6 +608,30 @@ def _run(args, simulation_app) -> dict:
                 contacts.data.net_forces_w[0, foot_ids].detach().cpu(), dim=-1
             )
             time_s = (step + 1) * SIM_DT
+            system_com_tensor = torch.sum(
+                robot.data.body_com_pos_w[0] * body_masses.unsqueeze(-1), dim=0
+            ) / total_mass
+            system_com = system_com_tensor.detach().cpu().tolist()
+            if initial_system_com is None:
+                initial_system_com = list(system_com)
+            positive_y_margin = float(support_aabb["maximum"][1]) - float(system_com[1])
+            minimum_positive_y_support_margin_m = min(
+                minimum_positive_y_support_margin_m, positive_y_margin
+            )
+            if positive_y_margin < 0.0 and first_static_support_exit_time_s is None:
+                first_static_support_exit_time_s = time_s
+            imported_root_gravity = robot.data.projected_gravity_b[0].detach().cpu().tolist()
+            projected_gravity = semantic_projected_gravity_wxyz(
+                quaternion.tolist(), initial_quaternion.tolist()
+            )
+            max_projected_gravity_horizontal = max(
+                max_projected_gravity_horizontal,
+                math.hypot(float(projected_gravity[0]), float(projected_gravity[1])),
+            )
+            total_support_force = sum(float(force) for force in force_norms_tensor.tolist())
+            if total_support_force > peak_total_support_force_n:
+                peak_total_support_force_n = total_support_force
+                peak_total_support_force_time_s = time_s
             for name, force in zip(foot_names, force_norms_tensor.tolist()):
                 timing = contact_timing[name]
                 if force >= contact_threshold_n:
@@ -592,6 +651,12 @@ def _run(args, simulation_app) -> dict:
                         "root_x_linear_velocity_mps": [round(float(v), 8) for v in robot.data.body_lin_vel_w[0, reference_ids[0]].detach().cpu().tolist()],
                         "root_x_angular_velocity_radps": [round(float(v), 8) for v in robot.data.body_ang_vel_w[0, reference_ids[0]].detach().cpu().tolist()],
                         "reference_tilt_rad": round(tilt, 8),
+                        "system_center_of_mass_m": [round(float(v), 8) for v in system_com],
+                        "zero_pose_support_positive_y_margin_m": round(positive_y_margin, 8),
+                        "projected_gravity_semantic_body_frame": [round(float(v), 8) for v in projected_gravity],
+                        "projected_gravity_imported_root_frame": [
+                            round(float(v), 8) for v in imported_root_gravity
+                        ],
                         "foot_contact_force_n": {name: round(float(v), 6) for name, v in zip(foot_names, force_norms)},
                         "joint_position_rad": [round(float(v), 8) for v in robot.data.joint_pos[0].detach().cpu().tolist()],
                         "joint_velocity_radps": [round(float(v), 8) for v in robot.data.joint_vel[0].detach().cpu().tolist()],
@@ -617,7 +682,7 @@ def _run(args, simulation_app) -> dict:
                 )
                 frames.append(_inspect_frame(path, bbox, index, (step + 1) * SIM_DT))
 
-        if initial_position is None:
+        if initial_position is None or initial_system_com is None:
             raise RuntimeError("simulation produced no state samples")
         final_position = robot.data.body_pos_w[0, reference_ids[0]].detach().cpu().tolist()
         joint_tracking = summarize_joint_tracking(
@@ -641,6 +706,23 @@ def _run(args, simulation_app) -> dict:
             "semantic_strafe_displacement_m": round(final_position[0] - float(initial_position[0]), 8),
             "max_joint_target_error_rad": round(max_joint_error, 8),
             "first_fall_time_s": round(first_fall_time_s, 6) if first_fall_time_s is not None else None,
+            "initial_system_center_of_mass_m": [round(float(v), 8) for v in initial_system_com],
+            "minimum_zero_pose_support_positive_y_margin_m": round(
+                minimum_positive_y_support_margin_m, 8
+            ),
+            "first_zero_pose_support_exit_time_s": (
+                round(first_static_support_exit_time_s, 6)
+                if first_static_support_exit_time_s is not None else None
+            ),
+            "max_projected_gravity_horizontal_norm": round(max_projected_gravity_horizontal, 8),
+            "peak_total_support_force_n": round(peak_total_support_force_n, 8),
+            "peak_total_support_force_time_s": (
+                round(peak_total_support_force_time_s, 6)
+                if peak_total_support_force_time_s is not None else None
+            ),
+            "peak_support_force_body_weight_ratio": round(
+                peak_total_support_force_n / robot_weight_n, 8
+            ),
             "worst_joint_target_errors": joint_tracking[:10],
         }
         required = 0.0 if args.smoke else MIN_GATE_DURATION_S

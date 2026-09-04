@@ -44,6 +44,13 @@ class ModelSpecTests(unittest.TestCase):
         self.assertLess(com[0], maximum[0])
         self.assertLess(minimum[1], com[1])
         self.assertLess(com[1], maximum[1])
+        self.assertGreater(len(support["candidate_contact_hull_xy_m"]), 3)
+        self.assertEqual(support["flat_ground_contact_normal_w"], [0.0, 0.0, 1.0])
+        self.assertEqual(support["gravity_direction_w"], [0.0, 0.0, -1.0])
+        self.assertEqual(set(support["links"]), {"foot_l", "foot_r", "toes_01_l", "toes_01_r"})
+        self.assertTrue(
+            all(value["candidate_contact_hull_xy_m"] for value in support["links"].values())
+        )
 
     def test_action_and_locked_joint_sets_are_explicit_partition(self) -> None:
         action = self.spec["action_joints"]
@@ -57,21 +64,19 @@ class ModelSpecTests(unittest.TestCase):
         self.assertIn("right_shin_roll_joint", locked)
         self.assertTrue(all(name not in action for name in locked))
 
-    def test_first_stability_hypothesis_changes_only_ankle_pitch_damping(self) -> None:
+    def test_second_stability_hypothesis_changes_only_spawn_height(self) -> None:
         groups = self.spec["pd"]["groups"]
-        ankle = groups["ankle_pitch_contact"]
-        self.assertEqual(
-            ankle["joints"], ["left_ankle_pitch_joint", "right_ankle_pitch_joint"]
-        )
-        self.assertEqual((ankle["stiffness"], ankle["damping"]), (20.0, 4.0))
+        self.assertEqual(self.spec["nominal_pose"]["base_position_m"], [0.0, 0.0, 0.0])
         self.assertEqual(groups["leg_sagittal"]["damping"], 1.0)
         controlled = [joint for group in groups.values() for joint in group["joints"]]
         self.assertEqual(len(controlled), len(set(controlled)))
         self.assertEqual(set(controlled), set(self.spec["action_joints"]))
-        hypothesis = self.spec["pd"]["stability_hypothesis"]
-        self.assertEqual(hypothesis["id"], "ankle_pitch_contact_damping_v1")
-        self.assertEqual(hypothesis["change"]["damping_before"], 1.0)
-        self.assertEqual(hypothesis["change"]["damping_after"], 4.0)
+        experiments = self.spec["pd"]["stability_experiments"]
+        self.assertEqual(experiments[0]["id"], "ankle_pitch_contact_damping_v1")
+        self.assertEqual(experiments[0]["status"], "rejected")
+        self.assertEqual(experiments[1]["id"], "ground_aligned_spawn_v1")
+        self.assertEqual(experiments[1]["status"], "active_bounded_test")
+        self.assertEqual(experiments[1]["change"], {"base_z_before_m": 0.002, "base_z_after_m": 0.0})
 
     def test_axes_were_interpreted_in_world_zero_pose(self) -> None:
         joints = {record["name"]: record for record in self.spec["joints"]}

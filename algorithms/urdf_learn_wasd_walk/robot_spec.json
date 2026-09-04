@@ -2045,7 +2045,7 @@
     "base_position_m": [
       0.0,
       0.0,
-      0.002
+      0.0
     ],
     "joint_positions_rad": {
       "head_yaw_joint": 0.0,
@@ -2817,13 +2817,350 @@
       }
     },
     "zero_pose_ground_support": {
-      "ground_z_m": 5.28e-07,
-      "links": [
-        "foot_l",
-        "foot_r",
-        "toes_01_l",
-        "toes_01_r"
+      "candidate_contact_hull_xy_m": [
+        [
+          -0.10627621,
+          -0.062893109
+        ],
+        [
+          -0.103520192,
+          -0.074781104
+        ],
+        [
+          -0.099948173,
+          -0.083080128
+        ],
+        [
+          -0.093759168,
+          -0.089960114
+        ],
+        [
+          -0.077854138,
+          -0.094148115
+        ],
+        [
+          0.068878944,
+          -0.09544947
+        ],
+        [
+          0.078426982,
+          -0.094937467
+        ],
+        [
+          0.09414706,
+          -0.089761489
+        ],
+        [
+          0.097993074,
+          -0.085422491
+        ],
+        [
+          0.105236131,
+          -0.071746491
+        ],
+        [
+          0.106353131,
+          -0.066536484
+        ],
+        [
+          0.106415044,
+          -0.053482122
+        ],
+        [
+          0.103132037,
+          -0.040298118
+        ],
+        [
+          0.076202994,
+          0.027770951
+        ],
+        [
+          0.069699985,
+          0.035756965
+        ],
+        [
+          0.06546696,
+          0.037894964
+        ],
+        [
+          0.055975925,
+          0.040904973
+        ],
+        [
+          -0.04556505,
+          0.039065315
+        ],
+        [
+          -0.070555088,
+          0.0343843
+        ],
+        [
+          -0.076473092,
+          0.022965295
+        ],
+        [
+          -0.1006741,
+          -0.033048732
+        ],
+        [
+          -0.103897096,
+          -0.042476744
+        ],
+        [
+          -0.104634107,
+          -0.048579747
+        ]
       ],
+      "flat_ground_contact_normal_w": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "gravity_direction_w": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "gravity_normal_dot": -1.0,
+      "ground_z_m": 5.28e-07,
+      "links": {
+        "foot_l": {
+          "candidate_contact_hull_xy_m": [
+            [
+              0.030670805,
+              0.01004497
+            ],
+            [
+              0.035281765,
+              -0.050057074
+            ],
+            [
+              0.038085765,
+              -0.064274091
+            ],
+            [
+              0.043792777,
+              -0.07700109
+            ],
+            [
+              0.076353896,
+              -0.090626121
+            ],
+            [
+              0.097358991,
+              -0.078000139
+            ],
+            [
+              0.10635304,
+              -0.066536128
+            ],
+            [
+              0.106415044,
+              -0.053482122
+            ],
+            [
+              0.103132037,
+              -0.040298118
+            ],
+            [
+              0.076202994,
+              0.027770951
+            ],
+            [
+              0.069699985,
+              0.035756965
+            ],
+            [
+              0.06546696,
+              0.037894964
+            ],
+            [
+              0.055975925,
+              0.040904973
+            ],
+            [
+              0.047203888,
+              0.039484979
+            ],
+            [
+              0.039426861,
+              0.035051983
+            ],
+            [
+              0.033465831,
+              0.028064981
+            ],
+            [
+              0.031336813,
+              0.02047798
+            ]
+          ],
+          "minimum_z_m": 6.51e-07,
+          "near_ground_vertex_count": 209
+        },
+        "foot_r": {
+          "candidate_contact_hull_xy_m": [
+            [
+              -0.106276095,
+              -0.06289275
+            ],
+            [
+              -0.053831,
+              -0.081425738
+            ],
+            [
+              -0.041440994,
+              -0.073161721
+            ],
+            [
+              -0.038508987,
+              -0.066883716
+            ],
+            [
+              -0.036134983,
+              -0.055809714
+            ],
+            [
+              -0.031199015,
+              0.018922314
+            ],
+            [
+              -0.033082018,
+              0.028001319
+            ],
+            [
+              -0.04556505,
+              0.039065315
+            ],
+            [
+              -0.070555088,
+              0.0343843
+            ],
+            [
+              -0.076473092,
+              0.022965295
+            ],
+            [
+              -0.1006741,
+              -0.033048732
+            ],
+            [
+              -0.103897096,
+              -0.042476744
+            ],
+            [
+              -0.104634107,
+              -0.048579747
+            ]
+          ],
+          "minimum_z_m": 2.4619e-05,
+          "near_ground_vertex_count": 175
+        },
+        "toes_01_l": {
+          "candidate_contact_hull_xy_m": [
+            [
+              0.043162859,
+              -0.077210412
+            ],
+            [
+              0.04854488,
+              -0.08391143
+            ],
+            [
+              0.052921888,
+              -0.088699432
+            ],
+            [
+              0.05893591,
+              -0.09198243
+            ],
+            [
+              0.068878944,
+              -0.09544947
+            ],
+            [
+              0.078426982,
+              -0.094937467
+            ],
+            [
+              0.09414706,
+              -0.089761489
+            ],
+            [
+              0.097993074,
+              -0.085422491
+            ],
+            [
+              0.105236131,
+              -0.071746491
+            ],
+            [
+              0.106353131,
+              -0.066536484
+            ],
+            [
+              0.102780107,
+              -0.061189478
+            ],
+            [
+              0.064915014,
+              -0.033088411
+            ],
+            [
+              0.044496878,
+              -0.069091411
+            ]
+          ],
+          "minimum_z_m": 5.28e-07,
+          "near_ground_vertex_count": 108
+        },
+        "toes_01_r": {
+          "candidate_contact_hull_xy_m": [
+            [
+              -0.10627621,
+              -0.062893109
+            ],
+            [
+              -0.103520192,
+              -0.074781104
+            ],
+            [
+              -0.099948173,
+              -0.083080128
+            ],
+            [
+              -0.093759168,
+              -0.089960114
+            ],
+            [
+              -0.077854138,
+              -0.094148115
+            ],
+            [
+              -0.060408112,
+              -0.093332091
+            ],
+            [
+              -0.051927099,
+              -0.08821206
+            ],
+            [
+              -0.048836106,
+              -0.084101079
+            ],
+            [
+              -0.041441104,
+              -0.073162061
+            ],
+            [
+              -0.102159202,
+              -0.062945119
+            ]
+          ],
+          "minimum_z_m": 1.1493e-05,
+          "near_ground_vertex_count": 88
+        }
+      },
       "method": "collision mesh vertices within tolerance of the zero-pose minimum Z",
       "near_ground_vertex_count": 580,
       "support_aabb_xy_m": {
@@ -2836,19 +3173,27 @@
           -0.09544947
         ]
       },
-      "vertex_tolerance_m": 0.0005
+      "support_links": [
+        "foot_l",
+        "foot_r",
+        "toes_01_l",
+        "toes_01_r"
+      ],
+      "vertex_tolerance_m": 0.0005,
+      "zero_pose_com_projection_xy_m": [
+        1.24e-07,
+        -0.00601558
+      ],
+      "zero_pose_com_support_aabb_margin_m": {
+        "negative_x": 0.106276334,
+        "negative_y": 0.08943389,
+        "positive_x": 0.10641492,
+        "positive_y": 0.046920553
+      }
     }
   },
   "pd": {
     "groups": {
-      "ankle_pitch_contact": {
-        "damping": 4.0,
-        "joints": [
-          "left_ankle_pitch_joint",
-          "right_ankle_pitch_joint"
-        ],
-        "stiffness": 20.0
-      },
       "leg_balance": {
         "damping": 0.8,
         "joints": [
@@ -2864,9 +3209,11 @@
         "joints": [
           "left_hip_pitch_joint",
           "left_knee_joint",
+          "left_ankle_pitch_joint",
           "left_toe_joint",
           "right_hip_pitch_joint",
           "right_knee_joint",
+          "right_ankle_pitch_joint",
           "right_toe_joint"
         ],
         "stiffness": 20.0
@@ -2893,21 +3240,58 @@
       "damping": 0.35,
       "stiffness": 4.0
     },
-    "stability_hypothesis": {
-      "change": {
-        "damping_after": 4.0,
-        "damping_before": 1.0,
-        "stiffness": 20.0
+    "nominal_pose_selection": {
+      "crouch_deferred_reason": "Landau's zero-pose COM projection is inside its measured support hull; first remove the 2 mm spawn drop as the smaller single-variable correction",
+      "installed_humanoid_comparison": {
+        "G1_CFG": {
+          "ankle_pitch_rad": -0.23,
+          "hip_pitch_rad": -0.2,
+          "knee_rad": 0.42
+        },
+        "H1_CFG": {
+          "ankle_pitch_rad": -0.52,
+          "hip_pitch_rad": -0.28,
+          "knee_rad": 0.79
+        }
       },
-      "id": "ankle_pitch_contact_damping_v1",
-      "installed_api_reference": "Isaac Lab 0.36.1 isaaclab_assets.robots.unitree.H1_CFG feet actuator uses stiffness=20 and damping=4",
-      "observed_failure": {
-        "contact_sequence": "toe contacts unload before the forward fall while both feet remain loaded",
-        "direction": "semantic forward (+Y) with rotation about -X",
-        "interpretation": "initial contact excites an underdamped sagittal ankle-rocking mode"
+      "selected": "verified-axis zero joint pose with collision geometry aligned to ground"
+    },
+    "stability_experiments": [
+      {
+        "change": {
+          "damping_before": 1.0,
+          "damping_tested": 4.0,
+          "stiffness": 20.0
+        },
+        "evidence": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/experiments/ankle_pitch_contact_damping_v1_20260904T043639Z.json",
+        "evidence_sha256": "a45c224c1d95edc9b02dea9ced0de9ebecd9d6fa064f1db0029143ccf75b77b3",
+        "id": "ankle_pitch_contact_damping_v1",
+        "result": {
+          "ankle_torque_saturated": false,
+          "duration_s": 3.0,
+          "first_fall_time_s": 0.958,
+          "max_reference_tilt_rad": 1.3513303,
+          "semantic_forward_displacement_m": 0.40405083
+        },
+        "status": "rejected"
       },
-      "scope": "left and right ankle-pitch damping only"
-    }
+      {
+        "change": {
+          "base_z_after_m": 0.0,
+          "base_z_before_m": 0.002
+        },
+        "id": "ground_aligned_spawn_v1",
+        "reason": {
+          "interpretation": "remove the artificial free-fall and asymmetric impact before changing pose or gains",
+          "previous_first_contact_time_s": 0.016,
+          "previous_sum_of_individual_body_peak_forces_n": 99.814347,
+          "robot_weight_n": 17.949877,
+          "zero_pose_collision_ground_z_m": 5.28e-07
+        },
+        "scope": "base spawn Z only; restore baseline ankle damping",
+        "status": "active_bounded_test"
+      }
+    ]
   },
   "source": {
     "derived_urdf_used": false,
@@ -2943,5 +3327,5 @@
       0.330791075
     ]
   },
-  "version": 3
+  "version": 4
 }
