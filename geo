@@ -34,6 +34,7 @@ class LaunchSpec:
     argv: list[str]
     env: dict[str, str] | None = None
     sidecars: tuple["LaunchSpec", ...] = ()
+    success_artifact: Path | None = None
 
 
 def _default_usd_path() -> Path:
@@ -241,9 +242,12 @@ def _build_parser() -> argparse.ArgumentParser:
     usd_subparsers.add_parser("compare", help="Run offline FK comparison in ptenv.")
     usd_subparsers.add_parser("test", help="Run usd_parallel_urdf unit tests in ptenv.")
 
-    walk_parser = subparsers.add_parser("walk", help="Inspect the intentionally clean locomotion milestone ladder.")
+    walk_parser = subparsers.add_parser("walk", help="Build and validate Landau locomotion one milestone at a time.")
     walk_subparsers = walk_parser.add_subparsers(dest="walk_cmd", required=True)
     walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
+    walk_subparsers.add_parser("inspect", help="Audit the retained URDF and print the robot control contract.")
+    walk_subparsers.add_parser("validate-passive", help="Run the passive zero-signal standing validator in Isaac Lab.")
+    walk_subparsers.add_parser("test", help="Run pure-Python walk contract tests.")
 
     avp_parser = subparsers.add_parser("avp", help="AVP presets.")
     avp_subparsers = avp_parser.add_subparsers(dest="avp_cmd", required=True)
@@ -380,6 +384,9 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
     if dry_run:
         return 0
 
+    if spec.success_artifact is not None and spec.success_artifact.exists():
+        spec.success_artifact.unlink()
+
     sidecar_processes: list[subprocess.Popen[str]] = []
     try:
         for sidecar_cmd, sidecar_env in sidecars:
@@ -394,7 +401,15 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
         if sidecar_processes:
             time.sleep(1.0)
         completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False)
-        return int(completed.returncode)
+        returncode = int(completed.returncode)
+        if returncode == 0 and spec.success_artifact is not None and not spec.success_artifact.is_file():
+            print(
+                f"Expected success artifact was not produced: {spec.success_artifact}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
+        return returncode
     except KeyboardInterrupt:
         return 130
     finally:
@@ -568,12 +583,43 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             )
 
     if args.group == "walk":
-        if args.walk_cmd != "milestones" or extra_args:
-            raise SystemExit("The clean walk sandbox currently supports only: ./geo walk milestones")
-        return LaunchSpec(
-            "direct",
-            [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
-        )
+        if args.walk_cmd == "milestones":
+            if extra_args:
+                raise SystemExit(f"Unexpected milestone arguments: {shlex.join(extra_args)}")
+            return LaunchSpec(
+                "direct",
+                [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
+            )
+        if args.walk_cmd == "inspect":
+            return LaunchSpec(
+                "direct",
+                [sys.executable, "algorithms/urdf_learn_wasd_walk/model_spec.py", *extra_args],
+            )
+        if args.walk_cmd == "validate-passive":
+            output_value = _extract_option_value(extra_args, "--output-dir")
+            output_dir = Path(output_value).expanduser() if output_value else REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "stand_zero_signal_30s_no_reset"
+            if not output_dir.is_absolute():
+                output_dir = REPO_ROOT / output_dir
+            evidence_name = "smoke_validation.json" if "--smoke" in extra_args else "validation.json"
+            return LaunchSpec(
+                "isaac",
+                ["algorithms/urdf_learn_wasd_walk/passive_stand.py", *extra_args],
+                env={"TERM": "xterm"},
+                success_artifact=output_dir.resolve() / evidence_name,
+            )
+        if args.walk_cmd == "test":
+            return LaunchSpec(
+                "direct",
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "algorithms/urdf_learn_wasd_walk/tests",
+                    *extra_args,
+                ],
+            )
 
     if args.group == "avp":
         snapshot_path = getattr(args, "snapshot_path", None) or _repo_arg(_default_avp_snapshot_path())

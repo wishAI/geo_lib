@@ -3,12 +3,27 @@
   "icon": "walk",
   "name": "Learn WASD Walk",
   "eyebrow": "CLEAN TRAINING RESTART",
-  "summary": "A deliberately empty locomotion workspace. Previous training logic and experimental history are removed; only the strict cumulative milestone ladder and robot input remain for the next coding agent.",
+  "summary": "Clean-lineage Landau locomotion rebuilt one hard gate at a time. The current validator targets the passive 30-second zero-signal stand and records exact dynamics plus visual evidence.",
   "accent": "#cb6b42",
   "runtime": "tk2-clean",
-  "runtimeLabel": "TK2 · rebuild required",
-  "capabilities": ["milestones only", "Isaac Lab", "clean room"],
-  "examples": [],
+  "runtimeLabel": "TK2 · passive stand gate",
+  "capabilities": ["passive stand", "Isaac Lab", "clean room"],
+  "examples": [
+    {
+      "id": "validate_passive_stand",
+      "name": "Validate passive stand · 30 s",
+      "description": "Run one exact zero-command, zero-action Isaac environment and save dynamics, contact, and full-duration visual evidence.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "validate-passive", "--headless"],
+      "artifacts": [
+        {"label": "Passive stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json", "kind": "json"},
+        {"label": "Passive stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4", "kind": "video"},
+        {"label": "Start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png", "kind": "image"}
+      ]
+    }
+  ],
   "milestones": [
     {"id": "stand_zero_signal_30s_no_reset", "name": "Passive stand · 30 s", "stage": "stand", "passWhen": "Zero actions, zero command, zero resets or done events.", "status": "not started"},
     {"id": "stand_30s_no_reset", "name": "Policy stand · 30 s", "stage": "stand", "passWhen": "Policy control with zero falls, resets, or done events.", "status": "not started"},

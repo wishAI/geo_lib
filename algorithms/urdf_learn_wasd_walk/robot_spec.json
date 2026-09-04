@@ -1,0 +1,2684 @@
+{
+  "action_joints": [
+    "left_hip_pitch_joint",
+    "left_hip_yaw_joint",
+    "left_hip_roll_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_toe_joint",
+    "right_hip_pitch_joint",
+    "right_hip_yaw_joint",
+    "right_hip_roll_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_toe_joint",
+    "waist_yaw_joint",
+    "waist_roll_joint",
+    "waist_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "right_shoulder_pitch_joint"
+  ],
+  "frames": {
+    "body_forward_axis": "+Y",
+    "body_strafe_axis": "+X",
+    "body_up_axis": "+Z",
+    "mapping": {
+      "angular_z": "yaw",
+      "linear_x": "strafe",
+      "linear_y": "forward"
+    },
+    "semantic_command_order": [
+      "forward",
+      "strafe",
+      "yaw"
+    ],
+    "sim_command_order": [
+      "linear_x",
+      "linear_y",
+      "angular_z"
+    ]
+  },
+  "joints": [
+    {
+      "axis_joint_frame": [
+        -0.0,
+        0.998247,
+        -0.059194
+      ],
+      "axis_world_zero_pose": [
+        0.0,
+        0.13357647,
+        0.991038509
+      ],
+      "child_link": "spine_01_x",
+      "control": "action",
+      "dominant_world_axis": "+Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "waist_yaw_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "root_x",
+      "role": "waist_yaw",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        -0.400321,
+        -0.916375
+      ],
+      "axis_world_zero_pose": [
+        -0.0,
+        0.991038575,
+        -0.133575984
+      ],
+      "child_link": "spine_02_x",
+      "control": "action",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "waist_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "spine_01_x",
+      "role": "waist_roll",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        -0.0,
+        -0.0
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -0.0,
+        -0.0
+      ],
+      "child_link": "spine_03_x",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "waist_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "spine_02_x",
+      "role": "waist_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        -0.0
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -0.0,
+        -0.0
+      ],
+      "child_link": "neck_x",
+      "control": "locked_pd",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "neck_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "spine_03_x",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.0,
+        0.991039,
+        -0.133576
+      ],
+      "axis_world_zero_pose": [
+        0.0,
+        0.133575276,
+        0.99103867
+      ],
+      "child_link": "head_x",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "head_yaw_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "neck_x",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.991294,
+        0.0,
+        -0.131667
+      ],
+      "axis_world_zero_pose": [
+        -2.01e-07,
+        0.991038574,
+        -0.133575987
+      ],
+      "child_link": "shoulder_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "right_shoulder_lift_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "spine_03_x",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.039611,
+        -0.616886,
+        -0.786055
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        1.98e-07,
+        6.3e-07
+      ],
+      "child_link": "arm_stretch_r",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "right_shoulder_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "shoulder_r",
+      "role": "right_shoulder_counter_swing",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "axis_world_zero_pose": [
+        -0.786055456,
+        0.000176569,
+        0.618155959
+      ],
+      "child_link": "arm_twist_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "-X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "right_upper_arm_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "arm_stretch_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        -0.123014374,
+        0.979999041,
+        -0.156426798
+      ],
+      "child_link": "forearm_stretch_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "right_elbow_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "arm_twist_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        -0.605782932,
+        -0.199002209,
+        -0.770340938
+      ],
+      "child_link": "forearm_twist_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "right_forearm_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "forearm_stretch_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.077713,
+        -0.590647,
+        -0.803179
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -6.08e-07,
+        4.84e-07
+      ],
+      "child_link": "hand_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "right_wrist_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "forearm_twist_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.980893,
+        1e-06,
+        0.194549
+      ],
+      "axis_world_zero_pose": [
+        0.972955097,
+        -0.150965864,
+        -0.174836174
+      ],
+      "child_link": "thumb1_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "right_thumb_metacarpal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.118535,
+        0.533251,
+        0.837611
+      ],
+      "axis_world_zero_pose": [
+        -0.141309203,
+        -0.987729749,
+        0.066495507
+      ],
+      "child_link": "thumb2_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.5,
+        1.0
+      ],
+      "name": "right_thumb_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thumb1_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.130429,
+        0.598209,
+        0.790655
+      ],
+      "axis_world_zero_pose": [
+        -0.141308506,
+        -0.987729859,
+        0.066495347
+      ],
+      "child_link": "thumb3_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.5,
+        1.0
+      ],
+      "name": "right_thumb_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thumb2_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.022025001,
+        0.972039483,
+        -0.233782255
+      ],
+      "child_link": "index1_base_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "right_index_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.95518,
+        -0.295966,
+        0.005924
+      ],
+      "axis_world_zero_pose": [
+        0.141309149,
+        0.987729713,
+        -0.066496158
+      ],
+      "child_link": "index1_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_index_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "index1_base_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.985924,
+        -0.167022,
+        0.007621
+      ],
+      "axis_world_zero_pose": [
+        0.141308291,
+        0.987729854,
+        -0.066495881
+      ],
+      "child_link": "index2_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_index_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "index1_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.985696,
+        -0.168074,
+        0.012467
+      ],
+      "axis_world_zero_pose": [
+        0.141309341,
+        0.987729685,
+        -0.066496169
+      ],
+      "child_link": "index3_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_index_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "index2_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.095637144,
+        0.986247433,
+        -0.134794429
+      ],
+      "child_link": "middle1_base_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "right_middle_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.997106,
+        -0.076018,
+        -0.000571
+      ],
+      "axis_world_zero_pose": [
+        0.141309021,
+        0.987729768,
+        -0.066495609
+      ],
+      "child_link": "middle1_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_middle_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "middle1_base_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.999792,
+        -0.018046,
+        -0.009476
+      ],
+      "axis_world_zero_pose": [
+        0.141308783,
+        0.987729835,
+        -0.066495114
+      ],
+      "child_link": "middle2_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_middle_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "middle1_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.999693,
+        -0.019566,
+        -0.015182
+      ],
+      "axis_world_zero_pose": [
+        0.14130941,
+        0.98772975,
+        -0.066495057
+      ],
+      "child_link": "middle3_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_middle_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "middle2_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.149580957,
+        0.986950789,
+        -0.059612729
+      ],
+      "child_link": "ring1_base_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "right_ring_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.988607,
+        0.15033,
+        -0.007496
+      ],
+      "axis_world_zero_pose": [
+        0.14130927,
+        0.987729762,
+        -0.066495176
+      ],
+      "child_link": "ring1_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_ring_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "ring1_base_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.975595,
+        0.218373,
+        -0.022983
+      ],
+      "axis_world_zero_pose": [
+        0.141309096,
+        0.98772979,
+        -0.06649512
+      ],
+      "child_link": "ring2_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_ring_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "ring1_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.980156,
+        0.19714,
+        -0.020734
+      ],
+      "axis_world_zero_pose": [
+        0.141310468,
+        0.987729618,
+        -0.066494757
+      ],
+      "child_link": "ring3_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_ring_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "ring2_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.217015125,
+        0.975438307,
+        0.03774315
+      ],
+      "child_link": "pinky1_base_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "right_pinky_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.894467,
+        0.445599,
+        -0.037008
+      ],
+      "axis_world_zero_pose": [
+        0.141308637,
+        0.987729812,
+        -0.066495774
+      ],
+      "child_link": "pinky1_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_pinky_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "pinky1_base_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.896458,
+        0.44016,
+        -0.051208
+      ],
+      "axis_world_zero_pose": [
+        0.141310016,
+        0.98772958,
+        -0.06649629
+      ],
+      "child_link": "pinky2_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_pinky_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "pinky1_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.901025,
+        0.430232,
+        -0.055275
+      ],
+      "axis_world_zero_pose": [
+        0.141309508,
+        0.987729631,
+        -0.066496603
+      ],
+      "child_link": "pinky3_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "right_pinky_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "pinky2_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.991294,
+        0.0,
+        -0.131667
+      ],
+      "axis_world_zero_pose": [
+        -4.07e-07,
+        0.991038574,
+        -0.133575987
+      ],
+      "child_link": "shoulder_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "left_shoulder_lift_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "spine_03_x",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.039278,
+        0.616885,
+        0.786072
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        5.05e-07,
+        7.49e-07
+      ],
+      "child_link": "arm_stretch_l",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "left_shoulder_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "shoulder_l",
+      "role": "left_shoulder_counter_swing",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.616885847,
+        0.063854389,
+        -0.784458073
+      ],
+      "child_link": "arm_twist_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "left_upper_arm_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "arm_stretch_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.123014413,
+        0.979998948,
+        -0.156427352
+      ],
+      "child_link": "forearm_stretch_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "left_elbow_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "arm_twist_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.605783687,
+        -0.19900267,
+        -0.770340225
+      ],
+      "child_link": "forearm_twist_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "left_forearm_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "forearm_stretch_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.077713,
+        0.590646,
+        0.80318
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        3e-08,
+        1.06e-06
+      ],
+      "child_link": "hand_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "left_wrist_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "forearm_twist_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.980893,
+        -1e-06,
+        0.19455
+      ],
+      "axis_world_zero_pose": [
+        -0.972955519,
+        -0.150964012,
+        -0.174835423
+      ],
+      "child_link": "thumb1_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "left_thumb_metacarpal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.118534,
+        0.533252,
+        0.837611
+      ],
+      "axis_world_zero_pose": [
+        0.141306372,
+        -0.987730121,
+        0.066495987
+      ],
+      "child_link": "thumb2_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.5,
+        1.0
+      ],
+      "name": "left_thumb_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thumb1_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.130429,
+        0.59821,
+        0.790654
+      ],
+      "axis_world_zero_pose": [
+        0.141306334,
+        -0.987730127,
+        0.06649599
+      ],
+      "child_link": "thumb3_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.5,
+        1.0
+      ],
+      "name": "left_thumb_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thumb2_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.022024167,
+        -0.972039464,
+        0.233782411
+      ],
+      "child_link": "index1_base_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "left_index_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.95518,
+        0.295965,
+        -0.005925
+      ],
+      "axis_world_zero_pose": [
+        0.141307345,
+        -0.987730012,
+        0.066495541
+      ],
+      "child_link": "index1_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_index_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "index1_base_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.985924,
+        0.167021,
+        -0.007622
+      ],
+      "axis_world_zero_pose": [
+        0.141307377,
+        -0.98772998,
+        0.066495954
+      ],
+      "child_link": "index2_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_index_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "index1_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.985696,
+        0.168073,
+        -0.012468
+      ],
+      "axis_world_zero_pose": [
+        0.141307655,
+        -0.987729965,
+        0.06649558
+      ],
+      "child_link": "index3_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_index_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "index2_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.095636315,
+        -0.98624749,
+        0.1347946
+      ],
+      "child_link": "middle1_base_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "left_middle_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.997106,
+        0.076017,
+        0.00057
+      ],
+      "axis_world_zero_pose": [
+        0.141307628,
+        -0.987729898,
+        0.066496645
+      ],
+      "child_link": "middle1_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_middle_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "middle1_base_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.999792,
+        0.018045,
+        0.009475
+      ],
+      "axis_world_zero_pose": [
+        0.141307425,
+        -0.987729951,
+        0.066496277
+      ],
+      "child_link": "middle2_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_middle_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "middle1_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.999693,
+        0.019565,
+        0.015181
+      ],
+      "axis_world_zero_pose": [
+        0.141308061,
+        -0.987729861,
+        0.066496267
+      ],
+      "child_link": "middle3_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_middle_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "middle2_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.149580139,
+        -0.986950902,
+        0.05961291
+      ],
+      "child_link": "ring1_base_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "left_ring_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.988607,
+        -0.15033,
+        0.007495
+      ],
+      "axis_world_zero_pose": [
+        0.141307598,
+        -0.987730022,
+        0.066494857
+      ],
+      "child_link": "ring1_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_ring_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "ring1_base_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.975595,
+        -0.218373,
+        0.022982
+      ],
+      "axis_world_zero_pose": [
+        0.141307988,
+        -0.987729933,
+        0.066495352
+      ],
+      "child_link": "ring2_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_ring_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "ring1_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.980156,
+        -0.197141,
+        0.020733
+      ],
+      "axis_world_zero_pose": [
+        0.141308078,
+        -0.98772991,
+        0.066495497
+      ],
+      "child_link": "ring3_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_ring_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "ring2_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.217014334,
+        -0.97543849,
+        -0.03774296
+      ],
+      "child_link": "pinky1_base_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.45,
+        0.45
+      ],
+      "name": "left_pinky_base_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "hand_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.894467,
+        -0.445599,
+        0.037007
+      ],
+      "axis_world_zero_pose": [
+        0.141306762,
+        -0.98773009,
+        0.066495625
+      ],
+      "child_link": "pinky1_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_pinky_proximal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "pinky1_base_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.896459,
+        -0.440159,
+        0.051207
+      ],
+      "axis_world_zero_pose": [
+        0.141307384,
+        -0.987730048,
+        0.066494933
+      ],
+      "child_link": "pinky2_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_pinky_intermediate_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "pinky1_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.901025,
+        -0.430231,
+        0.055273
+      ],
+      "axis_world_zero_pose": [
+        0.141307711,
+        -0.987730013,
+        0.066494748
+      ],
+      "child_link": "pinky3_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.6,
+        0.0
+      ],
+      "name": "left_pinky_distal_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "pinky2_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.285805,
+        0.0189,
+        0.958101
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -5.94e-07,
+        -7.98e-07
+      ],
+      "child_link": "thigh_stretch_l",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "left_hip_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "root_x",
+      "role": "left_hip_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.009195,
+        -0.999705,
+        0.022463
+      ],
+      "axis_world_zero_pose": [
+        2.92e-07,
+        0.133576525,
+        0.991038502
+      ],
+      "child_link": "thigh_twist_l",
+      "control": "action",
+      "dominant_world_axis": "+Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "left_hip_yaw_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "left_hip_roll_link",
+      "role": "left_hip_yaw",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.280812,
+        -0.056446,
+        0.958101
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -2.6e-07,
+        -1.52e-07
+      ],
+      "child_link": "leg_stretch_l",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "left_knee_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thigh_twist_l",
+      "role": "left_knee_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.960401,
+        0.26314,
+        0.091586
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -8.62e-07,
+        3.79e-07
+      ],
+      "child_link": "foot_l",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.6,
+        0.8
+      ],
+      "name": "left_ankle_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "leg_twist_l",
+      "role": "left_ankle_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.960365,
+        0.216718,
+        -0.175304
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -1.233e-06,
+        2.13e-07
+      ],
+      "child_link": "toes_01_l",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.6,
+        0.8
+      ],
+      "name": "left_toe_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "foot_l",
+      "role": "left_toe_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        -0.056446142,
+        0.134164131,
+        -0.9893502
+      ],
+      "child_link": "leg_twist_l",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "left_shin_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "leg_stretch_l",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.285805,
+        -0.0189,
+        -0.958101
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        4.3e-08,
+        4.54e-07
+      ],
+      "child_link": "thigh_stretch_r",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "right_hip_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "root_x",
+      "role": "right_hip_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.009195,
+        -0.999705,
+        0.022463
+      ],
+      "axis_world_zero_pose": [
+        1.23e-07,
+        0.133576605,
+        0.991038491
+      ],
+      "child_link": "thigh_twist_r",
+      "control": "action",
+      "dominant_world_axis": "+Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "right_hip_yaw_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "right_hip_roll_link",
+      "role": "right_hip_yaw",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.280812,
+        0.056446,
+        -0.958101
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -2.91e-07,
+        -1.92e-07
+      ],
+      "child_link": "leg_stretch_r",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.8,
+        1.8
+      ],
+      "name": "right_knee_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thigh_twist_r",
+      "role": "right_knee_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.960401,
+        -0.263139,
+        -0.091588
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        -1.56e-07,
+        -8.96e-07
+      ],
+      "child_link": "foot_r",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.6,
+        0.8
+      ],
+      "name": "right_ankle_pitch_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "leg_twist_r",
+      "role": "right_ankle_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.960401,
+        -0.216718,
+        0.17511
+      ],
+      "axis_world_zero_pose": [
+        1.0,
+        6.96e-07,
+        -2.96e-07
+      ],
+      "child_link": "toes_01_r",
+      "control": "action",
+      "dominant_world_axis": "+X",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.6,
+        0.8
+      ],
+      "name": "right_toe_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "foot_r",
+      "role": "right_toe_pitch",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "axis_world_zero_pose": [
+        0.056445876,
+        0.13416402,
+        -0.989350231
+      ],
+      "child_link": "leg_twist_r",
+      "control": "locked_pd",
+      "dominant_world_axis": "-Z",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -1.2,
+        1.2
+      ],
+      "name": "right_shin_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "leg_stretch_r",
+      "role": "non_locomotion_locked",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        -0.958244,
+        0.01523,
+        0.285547
+      ],
+      "axis_world_zero_pose": [
+        2.69e-07,
+        0.991038474,
+        -0.133576735
+      ],
+      "child_link": "left_hip_roll_link",
+      "control": "action",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "left_hip_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thigh_stretch_l",
+      "role": "left_hip_roll",
+      "velocity_limit": 4.0
+    },
+    {
+      "axis_joint_frame": [
+        0.958244,
+        0.01523,
+        0.285547
+      ],
+      "axis_world_zero_pose": [
+        2.32e-07,
+        0.991038463,
+        -0.133576814
+      ],
+      "child_link": "right_hip_roll_link",
+      "control": "action",
+      "dominant_world_axis": "+Y",
+      "effort_limit": 50.0,
+      "limits_rad": [
+        -0.7,
+        0.7
+      ],
+      "name": "right_hip_roll_joint",
+      "nominal_position_rad": 0.0,
+      "parent_link": "thigh_stretch_r",
+      "role": "right_hip_roll",
+      "velocity_limit": 4.0
+    }
+  ],
+  "lineage": "clean_restart_2026_08_22",
+  "locked_joints": [
+    "neck_pitch_joint",
+    "head_yaw_joint",
+    "right_shoulder_lift_joint",
+    "right_upper_arm_roll_joint",
+    "right_elbow_joint",
+    "right_forearm_roll_joint",
+    "right_wrist_pitch_joint",
+    "right_thumb_metacarpal_joint",
+    "right_thumb_proximal_joint",
+    "right_thumb_distal_joint",
+    "right_index_base_joint",
+    "right_index_proximal_joint",
+    "right_index_intermediate_joint",
+    "right_index_distal_joint",
+    "right_middle_base_joint",
+    "right_middle_proximal_joint",
+    "right_middle_intermediate_joint",
+    "right_middle_distal_joint",
+    "right_ring_base_joint",
+    "right_ring_proximal_joint",
+    "right_ring_intermediate_joint",
+    "right_ring_distal_joint",
+    "right_pinky_base_joint",
+    "right_pinky_proximal_joint",
+    "right_pinky_intermediate_joint",
+    "right_pinky_distal_joint",
+    "left_shoulder_lift_joint",
+    "left_upper_arm_roll_joint",
+    "left_elbow_joint",
+    "left_forearm_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_thumb_metacarpal_joint",
+    "left_thumb_proximal_joint",
+    "left_thumb_distal_joint",
+    "left_index_base_joint",
+    "left_index_proximal_joint",
+    "left_index_intermediate_joint",
+    "left_index_distal_joint",
+    "left_middle_base_joint",
+    "left_middle_proximal_joint",
+    "left_middle_intermediate_joint",
+    "left_middle_distal_joint",
+    "left_ring_base_joint",
+    "left_ring_proximal_joint",
+    "left_ring_intermediate_joint",
+    "left_ring_distal_joint",
+    "left_pinky_base_joint",
+    "left_pinky_proximal_joint",
+    "left_pinky_intermediate_joint",
+    "left_pinky_distal_joint",
+    "left_shin_roll_joint",
+    "right_shin_roll_joint"
+  ],
+  "nominal_pose": {
+    "base_orientation_wxyz": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "base_position_m": [
+      0.0,
+      0.0,
+      0.002
+    ],
+    "joint_positions_rad": {
+      "head_yaw_joint": 0.0,
+      "left_ankle_pitch_joint": 0.0,
+      "left_elbow_joint": 0.0,
+      "left_forearm_roll_joint": 0.0,
+      "left_hip_pitch_joint": 0.0,
+      "left_hip_roll_joint": 0.0,
+      "left_hip_yaw_joint": 0.0,
+      "left_index_base_joint": 0.0,
+      "left_index_distal_joint": 0.0,
+      "left_index_intermediate_joint": 0.0,
+      "left_index_proximal_joint": 0.0,
+      "left_knee_joint": 0.0,
+      "left_middle_base_joint": 0.0,
+      "left_middle_distal_joint": 0.0,
+      "left_middle_intermediate_joint": 0.0,
+      "left_middle_proximal_joint": 0.0,
+      "left_pinky_base_joint": 0.0,
+      "left_pinky_distal_joint": 0.0,
+      "left_pinky_intermediate_joint": 0.0,
+      "left_pinky_proximal_joint": 0.0,
+      "left_ring_base_joint": 0.0,
+      "left_ring_distal_joint": 0.0,
+      "left_ring_intermediate_joint": 0.0,
+      "left_ring_proximal_joint": 0.0,
+      "left_shin_roll_joint": 0.0,
+      "left_shoulder_lift_joint": 0.0,
+      "left_shoulder_pitch_joint": 0.0,
+      "left_thumb_distal_joint": 0.0,
+      "left_thumb_metacarpal_joint": 0.0,
+      "left_thumb_proximal_joint": 0.0,
+      "left_toe_joint": 0.0,
+      "left_upper_arm_roll_joint": 0.0,
+      "left_wrist_pitch_joint": 0.0,
+      "neck_pitch_joint": 0.0,
+      "right_ankle_pitch_joint": 0.0,
+      "right_elbow_joint": 0.0,
+      "right_forearm_roll_joint": 0.0,
+      "right_hip_pitch_joint": 0.0,
+      "right_hip_roll_joint": 0.0,
+      "right_hip_yaw_joint": 0.0,
+      "right_index_base_joint": 0.0,
+      "right_index_distal_joint": 0.0,
+      "right_index_intermediate_joint": 0.0,
+      "right_index_proximal_joint": 0.0,
+      "right_knee_joint": 0.0,
+      "right_middle_base_joint": 0.0,
+      "right_middle_distal_joint": 0.0,
+      "right_middle_intermediate_joint": 0.0,
+      "right_middle_proximal_joint": 0.0,
+      "right_pinky_base_joint": 0.0,
+      "right_pinky_distal_joint": 0.0,
+      "right_pinky_intermediate_joint": 0.0,
+      "right_pinky_proximal_joint": 0.0,
+      "right_ring_base_joint": 0.0,
+      "right_ring_distal_joint": 0.0,
+      "right_ring_intermediate_joint": 0.0,
+      "right_ring_proximal_joint": 0.0,
+      "right_shin_roll_joint": 0.0,
+      "right_shoulder_lift_joint": 0.0,
+      "right_shoulder_pitch_joint": 0.0,
+      "right_thumb_distal_joint": 0.0,
+      "right_thumb_metacarpal_joint": 0.0,
+      "right_thumb_proximal_joint": 0.0,
+      "right_toe_joint": 0.0,
+      "right_upper_arm_roll_joint": 0.0,
+      "right_wrist_pitch_joint": 0.0,
+      "waist_pitch_joint": 0.0,
+      "waist_roll_joint": 0.0,
+      "waist_yaw_joint": 0.0
+    },
+    "zero_pose_collision_bounds": {
+      "arm_twist_l": {
+        "maximum": [
+          0.14570677731506088,
+          0.03728883983333795,
+          0.5447301197166073
+        ],
+        "minimum": [
+          0.05441770316351422,
+          -0.03941915079146968,
+          0.43015599309268054
+        ]
+      },
+      "arm_twist_r": {
+        "maximum": [
+          -0.050389464730967656,
+          0.038260832340475066,
+          0.5446759011692277
+        ],
+        "minimum": [
+          -0.1410405997221532,
+          -0.03705916619126329,
+          0.43051497761970753
+        ]
+      },
+      "foot_l": {
+        "maximum": [
+          0.10874004603869665,
+          0.04261199041720601,
+          0.06553161408087314
+        ],
+        "minimum": [
+          0.027469793505118544,
+          -0.09062612077002792,
+          6.508759693851784e-07
+        ]
+      },
+      "foot_r": {
+        "maximum": [
+          -0.02711200071728644,
+          0.04255631960137932,
+          0.06562554493181526
+        ],
+        "minimum": [
+          -0.10854310452597242,
+          -0.08259170510133436,
+          2.461924300253132e-05
+        ]
+      },
+      "forearm_stretch_l": {
+        "maximum": [
+          0.1958515970367142,
+          0.036255856068602876,
+          0.4742641704999926
+        ],
+        "minimum": [
+          0.09182566586849339,
+          -0.03174314424629164,
+          0.36550252505305153
+        ]
+      },
+      "forearm_stretch_r": {
+        "maximum": [
+          -0.09014345546395183,
+          0.036156896824389564,
+          0.4736510624785744
+        ],
+        "minimum": [
+          -0.19482235993984456,
+          -0.03178610628755936,
+          0.36562625109621477
+        ]
+      },
+      "hand_l": {
+        "maximum": [
+          0.21618346525972032,
+          0.01873496156219432,
+          0.3973047008725219
+        ],
+        "minimum": [
+          0.16718842581870705,
+          -0.02042204890211011,
+          0.3527817426065556
+        ]
+      },
+      "hand_r": {
+        "maximum": [
+          -0.16860113364864193,
+          0.01519204598926428,
+          0.3936375603011648
+        ],
+        "minimum": [
+          -0.2160982065328333,
+          -0.020421958259441257,
+          0.34456957398991045
+        ]
+      },
+      "head_x": {
+        "maximum": [
+          0.15790910943469802,
+          0.18375521317923027,
+          1.164623985505226
+        ],
+        "minimum": [
+          -0.15770489052810888,
+          -0.15578177029665108,
+          0.545196118754706
+        ]
+      },
+      "index1_base_l": {
+        "maximum": [
+          0.22846459659590107,
+          -0.005993266300331989,
+          0.38869738512772806
+        ],
+        "minimum": [
+          0.17345953321555196,
+          -0.039818300404805336,
+          0.3113743814603202
+        ]
+      },
+      "index1_base_r": {
+        "maximum": [
+          -0.18151022297675562,
+          -0.004024160175586116,
+          0.38776626818275867
+        ],
+        "minimum": [
+          -0.22796228434233137,
+          -0.04044718743339139,
+          0.31338525061826433
+        ]
+      },
+      "index1_l": {
+        "maximum": [
+          0.233016626723465,
+          -0.021404262754689467,
+          0.3534534042099013
+        ],
+        "minimum": [
+          0.20455663173360522,
+          -0.03724125692007153,
+          0.3226763359213514
+        ]
+      },
+      "index1_r": {
+        "maximum": [
+          -0.2050862794380919,
+          -0.017902142948377765,
+          0.35023529445972323
+        ],
+        "minimum": [
+          -0.2328583257991445,
+          -0.037415124395918785,
+          0.31123728186469746
+        ]
+      },
+      "index2_l": {
+        "maximum": [
+          0.24312246731571852,
+          -0.017360172774182357,
+          0.33578260632927587
+        ],
+        "minimum": [
+          0.20406438662451593,
+          -0.03779615983703897,
+          0.3027896268409985
+        ]
+      },
+      "index2_r": {
+        "maximum": [
+          -0.20666112467687675,
+          -0.01859204863333851,
+          0.3362234908371131
+        ],
+        "minimum": [
+          -0.2440731352192775,
+          -0.037814042813016216,
+          0.3022345319816282
+        ]
+      },
+      "index3_l": {
+        "maximum": [
+          0.24456238849695067,
+          -0.02117015299599591,
+          0.3198356315947185
+        ],
+        "minimum": [
+          0.22814031070318516,
+          -0.03779613614389985,
+          0.30207368359295933
+        ]
+      },
+      "index3_r": {
+        "maximum": [
+          -0.2294260493236717,
+          -0.022709029656887814,
+          0.31880463439287837
+        ],
+        "minimum": [
+          -0.24443603877662043,
+          -0.037814039663871035,
+          0.3019405993514413
+        ]
+      },
+      "leg_twist_l": {
+        "maximum": [
+          0.10229603520319455,
+          0.054868131477223206,
+          0.1848789212636576
+        ],
+        "minimum": [
+          0.008930726698462677,
+          -0.05387185180379912,
+          0.046466296624691414
+        ]
+      },
+      "leg_twist_r": {
+        "maximum": [
+          -0.008611915112016463,
+          0.05508648849928036,
+          0.1865849542027985
+        ],
+        "minimum": [
+          -0.10178404421878051,
+          -0.053828482316664025,
+          0.04759430760620866
+        ]
+      },
+      "middle1_base_l": {
+        "maximum": [
+          0.22552043941095404,
+          0.007437879510068592,
+          0.3671271952253341
+        ],
+        "minimum": [
+          0.17932545463562405,
+          -0.018927131814198715,
+          0.31874819906379315
+        ]
+      },
+      "middle1_base_r": {
+        "maximum": [
+          -0.18145618673114797,
+          0.007560996119806139,
+          0.36779891763142586
+        ],
+        "minimum": [
+          -0.2260401561261204,
+          -0.026454015673767484,
+          0.3208480584843015
+        ]
+      },
+      "middle1_l": {
+        "maximum": [
+          0.2360776418190599,
+          0.0026238710954541496,
+          0.3387949705056316
+        ],
+        "minimum": [
+          0.20496367180091712,
+          -0.024224145037591988,
+          0.2976579085391998
+        ]
+      },
+      "middle1_r": {
+        "maximum": [
+          -0.20688937106160524,
+          0.001923986675104173,
+          0.33815378102951626
+        ],
+        "minimum": [
+          -0.23553644309952182,
+          -0.024072019732239207,
+          0.298446820586813
+        ]
+      },
+      "middle2_l": {
+        "maximum": [
+          0.23940877101641383,
+          -0.0009081248619538743,
+          0.3280239821881322
+        ],
+        "minimum": [
+          0.22108974113399468,
+          -0.015045137831256536,
+          0.3011008848217359
+        ]
+      },
+      "middle2_r": {
+        "maximum": [
+          -0.2142094326382724,
+          -0.0010470113873662975,
+          0.32764678263776614
+        ],
+        "minimum": [
+          -0.23981845774426683,
+          -0.017437027671474738,
+          0.29601573773508477
+        ]
+      },
+      "middle3_l": {
+        "maximum": [
+          0.24037057856217242,
+          -0.0012341261394569324,
+          0.31892329418439896
+        ],
+        "minimum": [
+          0.21124355542589893,
+          -0.01706913193884444,
+          0.29092426302819596
+        ]
+      },
+      "middle3_r": {
+        "maximum": [
+          -0.20975023036703738,
+          -0.0010910042602529889,
+          0.3208771160802635
+        ],
+        "minimum": [
+          -0.24005026809506302,
+          -0.016177994755474427,
+          0.2909910377180488
+        ]
+      },
+      "neck_x": {
+        "maximum": [
+          0.027465108028182174,
+          -0.005733548369353362,
+          0.5693829452396975
+        ],
+        "minimum": [
+          0.01759510598195549,
+          -0.012348549495548294,
+          0.562017954160343
+        ]
+      },
+      "pinky1_base_l": {
+        "maximum": [
+          0.210809916990917,
+          0.03131070372905107,
+          0.38015369987594805
+        ],
+        "minimum": [
+          0.1724878002633189,
+          -0.003864306346372904,
+          0.3076596590357471
+        ]
+      },
+      "pinky1_base_r": {
+        "maximum": [
+          -0.17272552959125678,
+          0.03066480524762947,
+          0.3799054145543941
+        ],
+        "minimum": [
+          -0.21139753828356223,
+          0.0003697607184581352,
+          0.30907943328086723
+        ]
+      },
+      "pinky1_l": {
+        "maximum": [
+          0.2206059054519639,
+          0.02792670121539572,
+          0.33423071067866933
+        ],
+        "minimum": [
+          0.19877099873006604,
+          0.0026837034452187516,
+          0.3011525480492779
+        ]
+      },
+      "pinky1_r": {
+        "maximum": [
+          -0.19850560199399703,
+          0.0281768173803737,
+          0.33513240946545453
+        ],
+        "minimum": [
+          -0.2184766074944874,
+          0.004791793168049233,
+          0.3006814842193024
+        ]
+      },
+      "pinky2_l": {
+        "maximum": [
+          0.21266084149691236,
+          0.031863501680778276,
+          0.3329349362431861
+        ],
+        "minimum": [
+          0.20056686021127204,
+          0.021778495261988908,
+          0.31214003276603636
+        ]
+      },
+      "pinky2_r": {
+        "maximum": [
+          -0.19809366461346667,
+          0.032392994194866256,
+          0.3329300027987588
+        ],
+        "minimum": [
+          -0.21157571084649116,
+          0.02250196448301249,
+          0.3118669672269136
+        ]
+      },
+      "pinky3_l": {
+        "maximum": [
+          0.2127618449123926,
+          0.0340114628514247,
+          0.33293507652279675
+        ],
+        "minimum": [
+          0.19623085736274498,
+          0.010600441479096827,
+          0.29852219851552886
+        ]
+      },
+      "pinky3_r": {
+        "maximum": [
+          -0.19623371596282144,
+          0.033905959469800385,
+          0.3241701546899276
+        ],
+        "minimum": [
+          -0.21247266460720668,
+          0.01216495470988985,
+          0.29834400602764405
+        ]
+      },
+      "ring1_base_l": {
+        "maximum": [
+          0.2199492982896936,
+          0.01847216271237334,
+          0.38455703915944817
+        ],
+        "minimum": [
+          0.17548028234840946,
+          -0.00485184896178859,
+          0.3227820822748841
+        ]
+      },
+      "ring1_base_r": {
+        "maximum": [
+          -0.17513097283572784,
+          0.01800128076553256,
+          0.37941590699588845
+        ],
+        "minimum": [
+          -0.21940200980971425,
+          -0.009474720012387337,
+          0.31992700074188196
+        ]
+      },
+      "ring1_l": {
+        "maximum": [
+          0.22868651975835474,
+          0.013979190209776756,
+          0.3338417348956903
+        ],
+        "minimum": [
+          0.20401158299186345,
+          -0.002906805901036688,
+          0.3010497333753259
+        ]
+      },
+      "ring1_r": {
+        "maximum": [
+          -0.20362625628576864,
+          0.01028432691826175,
+          0.336938655859121
+        ],
+        "minimum": [
+          -0.23350923470077825,
+          -0.006522695762273384,
+          0.2992817561301344
+        ]
+      },
+      "ring2_l": {
+        "maximum": [
+          0.2288466487302421,
+          0.017604247053501134,
+          0.32880846632030286
+        ],
+        "minimum": [
+          0.21501172113163897,
+          0.003915239283275924,
+          0.30169745327588593
+        ]
+      },
+      "ring2_r": {
+        "maximum": [
+          -0.20697836958999496,
+          0.01768736895840757,
+          0.3295884304860459
+        ],
+        "minimum": [
+          -0.22903740505270453,
+          0.0003293437786571077,
+          0.2981144546221953
+        ]
+      },
+      "ring3_l": {
+        "maximum": [
+          0.22954379781604514,
+          0.01764134409810168,
+          0.3227941045414065
+        ],
+        "minimum": [
+          0.2040118426149278,
+          -0.0011936806786237465,
+          0.29129108996540287
+        ]
+      },
+      "ring3_r": {
+        "maximum": [
+          -0.20362645901216203,
+          0.017687468815344446,
+          0.32272791538181095
+        ],
+        "minimum": [
+          -0.2291054993589054,
+          0.00032943612602625433,
+          0.29104603872329027
+        ]
+      },
+      "root_x": {
+        "maximum": [
+          0.11881401447590516,
+          0.0636003471985468,
+          0.4368997440154928
+        ],
+        "minimum": [
+          -0.11825302160220924,
+          -0.08947956512129265,
+          0.2596686788410533
+        ]
+      },
+      "shoulder_l": {
+        "maximum": [
+          0.07791253953416949,
+          0.04552383663647297,
+          0.5692649693900095
+        ],
+        "minimum": [
+          0.003943489458669992,
+          -0.0520581577245135,
+          0.4762069699666209
+        ]
+      },
+      "shoulder_r": {
+        "maximum": [
+          -0.0013982995026536708,
+          0.04557184468639998,
+          0.5694769917381939
+        ],
+        "minimum": [
+          -0.07753535623398701,
+          -0.0540571593338015,
+          0.481223999058899
+        ]
+      },
+      "spine_03_x": {
+        "maximum": [
+          0.06672511174385279,
+          0.12107127828551519,
+          0.5733978840601358
+        ],
+        "minimum": [
+          -0.06660693214233322,
+          -0.07725913764889741,
+          0.2935135986890729
+        ]
+      },
+      "thigh_twist_l": {
+        "maximum": [
+          0.11751718244854154,
+          0.04419120917546559,
+          0.31236767495810436
+        ],
+        "minimum": [
+          0.00332782666747692,
+          -0.07197185768668402,
+          0.1603167557267426
+        ]
+      },
+      "thigh_twist_r": {
+        "maximum": [
+          -0.003614961140501159,
+          0.04366457048736951,
+          0.3124426742993541
+        ],
+        "minimum": [
+          -0.11563705112502959,
+          -0.07204347364066824,
+          0.1620487695701336
+        ]
+      },
+      "thumb1_l": {
+        "maximum": [
+          0.2008434322998207,
+          -0.0026034555880730913,
+          0.3730190535116966
+        ],
+        "minimum": [
+          0.17204638205205122,
+          -0.05298850375667319,
+          0.33410199216465813
+        ]
+      },
+      "thumb1_r": {
+        "maximum": [
+          -0.16606006558325126,
+          0.00036962680518909385,
+          0.3847489288074948
+        ],
+        "minimum": [
+          -0.20324912923208371,
+          -0.04956039014371823,
+          0.33498296258900145
+        ]
+      },
+      "thumb2_l": {
+        "maximum": [
+          0.20193044718698813,
+          -0.027191563768472836,
+          0.35255291797625515
+        ],
+        "minimum": [
+          0.17653347227182561,
+          -0.056181596800646556,
+          0.3216178310801478
+        ]
+      },
+      "thumb2_r": {
+        "maximum": [
+          -0.1761981857286264,
+          -0.028566453696929534,
+          0.3544326841069536
+        ],
+        "minimum": [
+          -0.2007021367913743,
+          -0.05614148468076459,
+          0.32193478295047484
+        ]
+      },
+      "thumb3_l": {
+        "maximum": [
+          0.19523156006193076,
+          -0.03744832964763101,
+          0.34243424276334206
+        ],
+        "minimum": [
+          0.17653354827156437,
+          -0.05940933152597774,
+          0.3184381571412473
+        ]
+      },
+      "thumb3_r": {
+        "maximum": [
+          -0.17619827768714957,
+          -0.034382165676643144,
+          0.3455951299450625
+        ],
+        "minimum": [
+          -0.1944212482608708,
+          -0.05941719330527116,
+          0.3182820921350023
+        ]
+      },
+      "toes_01_l": {
+        "maximum": [
+          0.10904613077208461,
+          -0.033088411322256685,
+          0.04104654892943009
+        ],
+        "minimum": [
+          0.04035985573340675,
+          -0.09830045931001286,
+          5.275234307329513e-07
+        ]
+      },
+      "toes_01_r": {
+        "maximum": [
+          -0.0387600904573117,
+          -0.057283109420325495,
+          0.040280509019477204
+        ],
+        "minimum": [
+          -0.10854321691901682,
+          -0.09835408730527388,
+          1.149310348196736e-05
+        ]
+      }
+    }
+  },
+  "pd": {
+    "groups": {
+      "leg_balance": {
+        "damping": 0.8,
+        "joints": [
+          "left_hip_yaw_joint",
+          "left_hip_roll_joint",
+          "right_hip_yaw_joint",
+          "right_hip_roll_joint"
+        ],
+        "stiffness": 12.0
+      },
+      "leg_sagittal": {
+        "damping": 1.0,
+        "joints": [
+          "left_hip_pitch_joint",
+          "left_knee_joint",
+          "left_ankle_pitch_joint",
+          "left_toe_joint",
+          "right_hip_pitch_joint",
+          "right_knee_joint",
+          "right_ankle_pitch_joint",
+          "right_toe_joint"
+        ],
+        "stiffness": 20.0
+      },
+      "shoulder_counter_swing": {
+        "damping": 0.4,
+        "joints": [
+          "left_shoulder_pitch_joint",
+          "right_shoulder_pitch_joint"
+        ],
+        "stiffness": 5.0
+      },
+      "waist": {
+        "damping": 0.7,
+        "joints": [
+          "waist_yaw_joint",
+          "waist_roll_joint",
+          "waist_pitch_joint"
+        ],
+        "stiffness": 10.0
+      }
+    },
+    "locked": {
+      "damping": 0.35,
+      "stiffness": 4.0
+    }
+  },
+  "source": {
+    "derived_urdf_used": false,
+    "expected_urdf_sha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
+    "mesh_reference_count": 136,
+    "mesh_tree_sha256": "e912ac2e7fcc16a52d726ef410c2b0eb860727d033e07b1728d63a3f906d4da0",
+    "missing_meshes": [],
+    "unique_mesh_count": 68,
+    "urdf_path": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/landau_v10_parallel_mesh.urdf",
+    "urdf_sha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca"
+  },
+  "structure": {
+    "invalid_inertia_links": [],
+    "joint_count": 70,
+    "link_count": 71,
+    "movable_joint_count": 69,
+    "root_link": "base_link",
+    "skeleton_root_link": "root_x",
+    "skeleton_root_origin_rpy": [
+      1.570796,
+      -0.0,
+      -3e-06
+    ],
+    "skeleton_root_origin_xyz": [
+      0.0,
+      -0.012911,
+      0.299642
+    ],
+    "total_mass_kg": 1.829753
+  },
+  "version": 1
+}
