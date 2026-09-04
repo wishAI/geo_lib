@@ -498,7 +498,11 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
             time.sleep(1.0)
         returncode = _run_logged(cmd, env, spec.console_log)
         if returncode != 0:
-            _write_launcher_failure(spec, cmd, returncode, "child process returned non-zero")
+            # A validator may intentionally return non-zero after writing a
+            # complete failed-gate artifact. Reserve launcher failure evidence
+            # for exits that produced no component artifact.
+            if spec.success_artifact is None or not spec.success_artifact.is_file():
+                _write_launcher_failure(spec, cmd, returncode, "child process returned non-zero")
             return returncode
         if returncode == 0 and spec.success_artifact is not None and not spec.success_artifact.is_file():
             print(

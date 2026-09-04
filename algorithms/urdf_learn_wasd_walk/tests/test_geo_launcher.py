@@ -79,6 +79,28 @@ class GeoLauncherTests(unittest.TestCase):
             self.assertEqual(evidence["launcher"]["returncode"], 3)
             self.assertIsNotNone(evidence["launcher"]["console_log_sha256"])
 
+    def test_failed_gate_artifact_is_not_mislabeled_as_launcher_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            success = root / "validation.json"
+            failure = root / "failure.json"
+            script = (
+                "import pathlib, sys; pathlib.Path(sys.argv[1]).write_text('failed gate'); "
+                "raise SystemExit(1)"
+            )
+            launch = self.geo.LaunchSpec(
+                "direct",
+                [sys.executable, "-c", script, str(success)],
+                success_artifact=success,
+                failure_artifact=failure,
+                console_log=root / "console.log",
+            )
+            self.assertEqual(
+                self.geo._run_with_runner(launch, dry_run=False, verbose=False), 1
+            )
+            self.assertTrue(success.is_file())
+            self.assertFalse(failure.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
