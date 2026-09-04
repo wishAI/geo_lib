@@ -71,6 +71,11 @@ def build_failure_evidence(args, error: Exception, traceback_text: str) -> dict:
         "status": "failed_to_execute",
         "gate_eligible": False,
         "milestone_status_changed": False,
+        "experiment_id": (
+            "zero_pose_upper_body_authority_probe_v1"
+            if getattr(args, "authority_probe", False)
+            else None
+        ),
         "run_identity": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ"),
         "runtime_stage": getattr(args, "runtime_stage", "unknown"),
         "exception": {
@@ -281,6 +286,10 @@ def _build_scene_cfg(args):
     from isaaclab.utils import configclass
 
     spec = model_spec.build_robot_spec()
+    actuator_groups = model_spec.passive_actuator_groups(
+        [joint["name"] for joint in spec["joints"]],
+        authority_probe=args.authority_probe,
+    )
 
     @configclass
     class PassiveStandSceneCfg(InteractiveSceneCfg):
@@ -334,13 +343,8 @@ def _build_scene_cfg(args):
                         joint_names_expr=list(group["joints"]), effort_limit_sim=50.0,
                         velocity_limit_sim=4.0, stiffness=group["stiffness"], damping=group["damping"],
                     )
-                    for name, group in model_spec.PD_GROUPS.items()
+                    for name, group in actuator_groups.items()
                 },
-                "locked": ImplicitActuatorCfg(
-                    joint_names_expr=spec["locked_joints"], effort_limit_sim=50.0,
-                    velocity_limit_sim=4.0, stiffness=model_spec.LOCKED_PD_STIFFNESS,
-                    damping=model_spec.LOCKED_PD_DAMPING,
-                ),
             },
         )
         contact_forces = ContactSensorCfg(
@@ -550,11 +554,11 @@ def _run(args, simulation_app) -> dict:
     effort_limit_values = robot.data.joint_effort_limits[0].detach().cpu().tolist()
     velocity_limit_values = robot.data.joint_vel_limits[0].detach().cpu().tolist()
     position_limits = robot.data.joint_pos_limits[0].detach().cpu().tolist()
-    expected_gains = {
-        name: (model_spec.LOCKED_PD_STIFFNESS, model_spec.LOCKED_PD_DAMPING)
-        for name in contract["locked_joints"]
-    }
-    for group in model_spec.PD_GROUPS.values():
+    configured_groups = model_spec.passive_actuator_groups(
+        robot.joint_names, authority_probe=args.authority_probe
+    )
+    expected_gains = {}
+    for group in configured_groups.values():
         expected_gains.update(
             {name: (group["stiffness"], group["damping"]) for name in group["joints"]}
         )
@@ -859,10 +863,40 @@ def _run(args, simulation_app) -> dict:
                 failures.extend(proof_failures)
 
         passed = passed and not failures
+        experiment = None
+        if args.authority_probe:
+            stable = (
+                metrics["fall_count"] == 0
+                and metrics["first_zero_pose_support_exit_time_s"] is None
+                and metrics["max_reference_tilt_rad"] <= MAX_REFERENCE_TILT_RAD
+            )
+            experiment = {
+                "id": "zero_pose_upper_body_authority_probe_v1",
+                "diagnostic_only": True,
+                "independent_variable": "waist and upper-body PD stiffness/damping",
+                "held_constant": [
+                    "zero joint targets", "ground-aligned root pose", "lower-body PD gains",
+                    "effort and velocity limits", "collision geometry", "contact material",
+                    "solver timestep and iterations",
+                ],
+                "runtime_actuator_groups": configured_groups,
+                "result_supports_controller_authority_hypothesis": stable,
+                "result_supports_posture_or_contact_hypothesis": not stable,
+                "interpretation": (
+                    "The zero pose remained inside its measured support region with high upper-body holding; "
+                    "promote the explicit holding contract before exact validation."
+                    if stable
+                    else "High upper-body holding did not retain the zero-pose COM over support; keep the "
+                    "ground alignment and next change nominal posture/contact equilibrium."
+                ),
+            }
         evidence = {
             "schema_version": 3, "milestone": MILESTONE_ID, "component": args.phase,
-            "scope": "component_only", "status": "passed" if passed else "failed",
-            "gate_eligible": not args.smoke, "milestone_status_changed": False,
+            "scope": "diagnostic_experiment" if args.authority_probe else "component_only",
+            "status": "passed" if passed else "failed",
+            "gate_eligible": not args.smoke and not args.authority_probe,
+            "milestone_status_changed": False,
+            "experiment": experiment,
             "lineage": "clean_restart_2026_08_22",
             "run_identity": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ"),
             "seed": args.seed,
@@ -887,6 +921,7 @@ def _run(args, simulation_app) -> dict:
                 "pd": contract["pd"], "importer_axis_contract": contract["importer_axis_contract"],
                 "runtime_importer_axis_evidence": imported,
                 "runtime_actuators": runtime_actuators,
+                "runtime_actuator_groups": configured_groups,
                 "joint_trace_order": list(robot.joint_names),
                 "joint_tracking_summary": joint_tracking,
             },
@@ -918,6 +953,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--reuse-usd-cache", action="store_true")
+    parser.add_argument(
+        "--authority-probe",
+        action="store_true",
+        help="Diagnostic only: keep zero pose/lower-body settings and increase explicit upper-body holding.",
+    )
     parser.add_argument("--video-fps", type=int, default=5)
     parser.add_argument("--video-width", type=int, default=640)
     parser.add_argument("--video-height", type=int, default=480)
@@ -936,6 +976,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("exact validation duration must be at least 30 seconds")
     if args.reuse_usd_cache and not args.smoke:
         raise SystemExit("--reuse-usd-cache is restricted to non-promotable smoke runs")
+    if args.authority_probe and (args.phase != "dynamics" or not args.smoke):
+        raise SystemExit("--authority-probe requires --phase dynamics and --smoke")
     output_dir = safe_output_dir(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / component_artifact_name(args.phase, args.smoke)).unlink(missing_ok=True)

@@ -68,12 +68,16 @@
         0.7
       ],
       "name": "waist_yaw_joint",
+      "nominal_damping_nm_s_per_rad": 0.7,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 10.0,
       "parent_link": "root_x",
       "role": "waist_yaw",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 5.5e-08,
+      "zero_pose_linear_pd_gravity_error_rad": 6e-09
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -96,12 +100,16 @@
         0.7
       ],
       "name": "waist_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.7,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 10.0,
       "parent_link": "spine_01_x",
       "role": "waist_roll",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 4.11e-07,
+      "zero_pose_linear_pd_gravity_error_rad": 4.1e-08
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -124,12 +132,16 @@
         0.7
       ],
       "name": "waist_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 0.7,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 10.0,
       "parent_link": "spine_02_x",
       "role": "waist_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.112014782,
+      "zero_pose_linear_pd_gravity_error_rad": 0.011201478
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -152,12 +164,16 @@
         0.7
       ],
       "name": "neck_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "spine_03_x",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.001693537,
+      "zero_pose_linear_pd_gravity_error_rad": 0.000423384
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -180,12 +196,16 @@
         0.7
       ],
       "name": "head_yaw_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "neck_x",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -208,12 +228,16 @@
         1.8
       ],
       "name": "right_shoulder_lift_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "spine_03_x",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.893605318,
+      "zero_pose_linear_pd_gravity_error_rad": -0.22340133
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -236,12 +260,16 @@
         1.8
       ],
       "name": "right_shoulder_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 0.4,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 5.0,
       "parent_link": "shoulder_r",
       "role": "right_shoulder_counter_swing",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.068189236,
+      "zero_pose_linear_pd_gravity_error_rad": 0.013637847
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -264,12 +292,16 @@
         1.2
       ],
       "name": "right_upper_arm_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "arm_stretch_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.053713309,
+      "zero_pose_linear_pd_gravity_error_rad": -0.013428327
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -292,12 +324,16 @@
         1.8
       ],
       "name": "right_elbow_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "arm_twist_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.363548995,
+      "zero_pose_linear_pd_gravity_error_rad": -0.090887249
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -320,12 +356,16 @@
         1.2
       ],
       "name": "right_forearm_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "forearm_stretch_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.01256767,
+      "zero_pose_linear_pd_gravity_error_rad": 0.003141917
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -348,12 +388,16 @@
         1.8
       ],
       "name": "right_wrist_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "forearm_twist_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.016118624,
+      "zero_pose_linear_pd_gravity_error_rad": 0.004029656
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -376,12 +420,16 @@
         1.2
       ],
       "name": "right_thumb_metacarpal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.008691928,
+      "zero_pose_linear_pd_gravity_error_rad": 0.002172982
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -404,12 +452,16 @@
         1.0
       ],
       "name": "right_thumb_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "thumb1_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000931181,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000232795
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -432,12 +484,16 @@
         1.0
       ],
       "name": "right_thumb_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "thumb2_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -460,12 +516,16 @@
         0.45
       ],
       "name": "right_index_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.020049985,
+      "zero_pose_linear_pd_gravity_error_rad": -0.005012496
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -488,12 +548,16 @@
         0.0
       ],
       "name": "right_index_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "index1_base_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.004880304,
+      "zero_pose_linear_pd_gravity_error_rad": -0.001220076
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -516,12 +580,16 @@
         0.0
       ],
       "name": "right_index_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "index1_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.00168703,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000421758
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -544,12 +612,16 @@
         0.0
       ],
       "name": "right_index_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "index2_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -572,12 +644,16 @@
         0.45
       ],
       "name": "right_middle_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.019526145,
+      "zero_pose_linear_pd_gravity_error_rad": -0.004881536
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -600,12 +676,16 @@
         0.0
       ],
       "name": "right_middle_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "middle1_base_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.004963019,
+      "zero_pose_linear_pd_gravity_error_rad": -0.001240755
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -628,12 +708,16 @@
         0.0
       ],
       "name": "right_middle_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "middle1_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.001220949,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000305237
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -656,12 +740,16 @@
         0.0
       ],
       "name": "right_middle_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "middle2_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -684,12 +772,16 @@
         0.45
       ],
       "name": "right_ring_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.016976813,
+      "zero_pose_linear_pd_gravity_error_rad": -0.004244203
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -712,12 +804,16 @@
         0.0
       ],
       "name": "right_ring_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "ring1_base_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.00350442,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000876105
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -740,12 +836,16 @@
         0.0
       ],
       "name": "right_ring_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "ring1_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000865754,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000216438
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -768,12 +868,16 @@
         0.0
       ],
       "name": "right_ring_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "ring2_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -796,12 +900,16 @@
         0.45
       ],
       "name": "right_pinky_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.012719569,
+      "zero_pose_linear_pd_gravity_error_rad": -0.003179892
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -824,12 +932,16 @@
         0.0
       ],
       "name": "right_pinky_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "pinky1_base_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000936715,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000234179
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -852,12 +964,16 @@
         0.0
       ],
       "name": "right_pinky_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "pinky1_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000194655,
+      "zero_pose_linear_pd_gravity_error_rad": -4.8664e-05
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -880,12 +996,16 @@
         0.0
       ],
       "name": "right_pinky_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "pinky2_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -908,12 +1028,16 @@
         1.8
       ],
       "name": "left_shoulder_lift_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "spine_03_x",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.893605688,
+      "zero_pose_linear_pd_gravity_error_rad": 0.223401422
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -936,12 +1060,16 @@
         1.8
       ],
       "name": "left_shoulder_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 0.4,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 5.0,
       "parent_link": "shoulder_l",
       "role": "left_shoulder_counter_swing",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.068190366,
+      "zero_pose_linear_pd_gravity_error_rad": 0.013638073
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -964,12 +1092,16 @@
         1.2
       ],
       "name": "left_upper_arm_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "arm_stretch_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.082818178,
+      "zero_pose_linear_pd_gravity_error_rad": 0.020704544
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -992,12 +1124,16 @@
         1.8
       ],
       "name": "left_elbow_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "arm_twist_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.363549306,
+      "zero_pose_linear_pd_gravity_error_rad": 0.090887327
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1020,12 +1156,16 @@
         1.2
       ],
       "name": "left_forearm_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "forearm_stretch_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.012567536,
+      "zero_pose_linear_pd_gravity_error_rad": -0.003141884
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1048,12 +1188,16 @@
         1.8
       ],
       "name": "left_wrist_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "forearm_twist_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.016118839,
+      "zero_pose_linear_pd_gravity_error_rad": 0.00402971
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1076,12 +1220,16 @@
         1.2
       ],
       "name": "left_thumb_metacarpal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.008691939,
+      "zero_pose_linear_pd_gravity_error_rad": -0.002172985
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1104,12 +1252,16 @@
         1.0
       ],
       "name": "left_thumb_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "thumb1_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.000931175,
+      "zero_pose_linear_pd_gravity_error_rad": 0.000232794
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1132,12 +1284,16 @@
         1.0
       ],
       "name": "left_thumb_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "thumb2_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1160,12 +1316,16 @@
         0.45
       ],
       "name": "left_index_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.020049984,
+      "zero_pose_linear_pd_gravity_error_rad": -0.005012496
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1188,12 +1348,16 @@
         0.0
       ],
       "name": "left_index_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "index1_base_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.004880305,
+      "zero_pose_linear_pd_gravity_error_rad": -0.001220076
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1216,12 +1380,16 @@
         0.0
       ],
       "name": "left_index_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "index1_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.001687031,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000421758
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1244,12 +1412,16 @@
         0.0
       ],
       "name": "left_index_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "index2_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1272,12 +1444,16 @@
         0.45
       ],
       "name": "left_middle_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.019526151,
+      "zero_pose_linear_pd_gravity_error_rad": -0.004881538
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1300,12 +1476,16 @@
         0.0
       ],
       "name": "left_middle_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "middle1_base_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.004963022,
+      "zero_pose_linear_pd_gravity_error_rad": -0.001240756
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1328,12 +1508,16 @@
         0.0
       ],
       "name": "left_middle_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "middle1_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.001220951,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000305238
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1356,12 +1540,16 @@
         0.0
       ],
       "name": "left_middle_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "middle2_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1384,12 +1572,16 @@
         0.45
       ],
       "name": "left_ring_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.016976819,
+      "zero_pose_linear_pd_gravity_error_rad": -0.004244205
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1412,12 +1604,16 @@
         0.0
       ],
       "name": "left_ring_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "ring1_base_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.003504422,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000876106
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1440,12 +1636,16 @@
         0.0
       ],
       "name": "left_ring_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "ring1_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000865756,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000216439
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1468,12 +1668,16 @@
         0.0
       ],
       "name": "left_ring_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "ring2_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1496,12 +1700,16 @@
         0.45
       ],
       "name": "left_pinky_base_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "hand_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.012719496,
+      "zero_pose_linear_pd_gravity_error_rad": -0.003179874
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1524,12 +1732,16 @@
         0.0
       ],
       "name": "left_pinky_proximal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "pinky1_base_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000936626,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000234156
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1552,12 +1764,16 @@
         0.0
       ],
       "name": "left_pinky_intermediate_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "pinky1_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000194658,
+      "zero_pose_linear_pd_gravity_error_rad": -4.8665e-05
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1580,12 +1796,16 @@
         0.0
       ],
       "name": "left_pinky_distal_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "pinky2_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1608,12 +1828,16 @@
         1.8
       ],
       "name": "left_hip_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "root_x",
       "role": "left_hip_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.018654325,
+      "zero_pose_linear_pd_gravity_error_rad": 0.000932716
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1636,12 +1860,16 @@
         1.2
       ],
       "name": "left_hip_yaw_joint",
+      "nominal_damping_nm_s_per_rad": 0.8,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 12.0,
       "parent_link": "left_hip_roll_link",
       "role": "left_hip_yaw",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 9.5696e-05,
+      "zero_pose_linear_pd_gravity_error_rad": 7.975e-06
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1664,12 +1892,16 @@
         1.8
       ],
       "name": "left_knee_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "thigh_twist_l",
       "role": "left_knee_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.002884651,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000144233
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1692,12 +1924,16 @@
         0.8
       ],
       "name": "left_ankle_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "leg_twist_l",
       "role": "left_ankle_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.011535962,
+      "zero_pose_linear_pd_gravity_error_rad": 0.000576798
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1720,12 +1956,16 @@
         0.8
       ],
       "name": "left_toe_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "foot_l",
       "role": "left_toe_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1748,12 +1988,16 @@
         1.2
       ],
       "name": "left_shin_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "leg_stretch_l",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000202157,
+      "zero_pose_linear_pd_gravity_error_rad": -5.0539e-05
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1776,12 +2020,16 @@
         1.8
       ],
       "name": "right_hip_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "root_x",
       "role": "right_hip_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.018654285,
+      "zero_pose_linear_pd_gravity_error_rad": 0.000932714
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1804,12 +2052,16 @@
         1.2
       ],
       "name": "right_hip_yaw_joint",
+      "nominal_damping_nm_s_per_rad": 0.8,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 12.0,
       "parent_link": "right_hip_roll_link",
       "role": "right_hip_yaw",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -9.5704e-05,
+      "zero_pose_linear_pd_gravity_error_rad": -7.975e-06
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1832,12 +2084,16 @@
         1.8
       ],
       "name": "right_knee_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "thigh_twist_r",
       "role": "right_knee_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.002884554,
+      "zero_pose_linear_pd_gravity_error_rad": -0.000144228
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1860,12 +2116,16 @@
         0.8
       ],
       "name": "right_ankle_pitch_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "leg_twist_r",
       "role": "right_ankle_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.011535966,
+      "zero_pose_linear_pd_gravity_error_rad": 0.000576798
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1888,12 +2148,16 @@
         0.8
       ],
       "name": "right_toe_joint",
+      "nominal_damping_nm_s_per_rad": 1.0,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 20.0,
       "parent_link": "foot_r",
       "role": "right_toe_pitch",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.0,
+      "zero_pose_linear_pd_gravity_error_rad": 0.0
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1916,12 +2180,16 @@
         1.2
       ],
       "name": "right_shin_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.35,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 4.0,
       "parent_link": "leg_stretch_r",
       "role": "non_locomotion_locked",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": true,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.000202154,
+      "zero_pose_linear_pd_gravity_error_rad": 5.0538e-05
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1944,12 +2212,16 @@
         0.7
       ],
       "name": "left_hip_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.8,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 12.0,
       "parent_link": "thigh_stretch_l",
       "role": "left_hip_roll",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": 0.000709957,
+      "zero_pose_linear_pd_gravity_error_rad": 5.9163e-05
     },
     {
       "axis_evidence": "source_urdf_forward_kinematics",
@@ -1972,12 +2244,16 @@
         0.7
       ],
       "name": "right_hip_roll_joint",
+      "nominal_damping_nm_s_per_rad": 0.8,
       "nominal_position_rad": 0.0,
+      "nominal_stiffness_nm_per_rad": 12.0,
       "parent_link": "thigh_stretch_r",
       "role": "right_hip_roll",
       "runtime_importer_axis_verification_required": true,
       "source_axis_is_primary": false,
-      "velocity_limit": 4.0
+      "velocity_limit": 4.0,
+      "zero_pose_fixed_root_gravity_torque_nm": -0.000710063,
+      "zero_pose_linear_pd_gravity_error_rad": -5.9172e-05
     }
   ],
   "lineage": "clean_restart_2026_08_22",
@@ -3193,6 +3469,107 @@
     }
   },
   "pd": {
+    "authority_probe_actuator_groups": {
+      "distal_twist_hold": {
+        "damping": 0.35,
+        "joints": [
+          "left_shin_roll_joint",
+          "right_shin_roll_joint"
+        ],
+        "stiffness": 4.0
+      },
+      "leg_balance": {
+        "damping": 0.8,
+        "joints": [
+          "left_hip_yaw_joint",
+          "left_hip_roll_joint",
+          "right_hip_yaw_joint",
+          "right_hip_roll_joint"
+        ],
+        "stiffness": 12.0
+      },
+      "leg_sagittal": {
+        "damping": 1.0,
+        "joints": [
+          "left_hip_pitch_joint",
+          "left_knee_joint",
+          "left_ankle_pitch_joint",
+          "left_toe_joint",
+          "right_hip_pitch_joint",
+          "right_knee_joint",
+          "right_ankle_pitch_joint",
+          "right_toe_joint"
+        ],
+        "stiffness": 20.0
+      },
+      "upper_body_authority": {
+        "damping": 10.0,
+        "joints": [
+          "head_yaw_joint",
+          "left_elbow_joint",
+          "left_forearm_roll_joint",
+          "left_index_base_joint",
+          "left_index_distal_joint",
+          "left_index_intermediate_joint",
+          "left_index_proximal_joint",
+          "left_middle_base_joint",
+          "left_middle_distal_joint",
+          "left_middle_intermediate_joint",
+          "left_middle_proximal_joint",
+          "left_pinky_base_joint",
+          "left_pinky_distal_joint",
+          "left_pinky_intermediate_joint",
+          "left_pinky_proximal_joint",
+          "left_ring_base_joint",
+          "left_ring_distal_joint",
+          "left_ring_intermediate_joint",
+          "left_ring_proximal_joint",
+          "left_shoulder_lift_joint",
+          "left_shoulder_pitch_joint",
+          "left_thumb_distal_joint",
+          "left_thumb_metacarpal_joint",
+          "left_thumb_proximal_joint",
+          "left_upper_arm_roll_joint",
+          "left_wrist_pitch_joint",
+          "neck_pitch_joint",
+          "right_elbow_joint",
+          "right_forearm_roll_joint",
+          "right_index_base_joint",
+          "right_index_distal_joint",
+          "right_index_intermediate_joint",
+          "right_index_proximal_joint",
+          "right_middle_base_joint",
+          "right_middle_distal_joint",
+          "right_middle_intermediate_joint",
+          "right_middle_proximal_joint",
+          "right_pinky_base_joint",
+          "right_pinky_distal_joint",
+          "right_pinky_intermediate_joint",
+          "right_pinky_proximal_joint",
+          "right_ring_base_joint",
+          "right_ring_distal_joint",
+          "right_ring_intermediate_joint",
+          "right_ring_proximal_joint",
+          "right_shoulder_lift_joint",
+          "right_shoulder_pitch_joint",
+          "right_thumb_distal_joint",
+          "right_thumb_metacarpal_joint",
+          "right_thumb_proximal_joint",
+          "right_upper_arm_roll_joint",
+          "right_wrist_pitch_joint"
+        ],
+        "stiffness": 40.0
+      },
+      "waist_authority": {
+        "damping": 5.0,
+        "joints": [
+          "waist_pitch_joint",
+          "waist_roll_joint",
+          "waist_yaw_joint"
+        ],
+        "stiffness": 40.0
+      }
+    },
     "groups": {
       "leg_balance": {
         "damping": 0.8,
@@ -3280,6 +3657,8 @@
           "base_z_after_m": 0.0,
           "base_z_before_m": 0.002
         },
+        "evidence": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/experiments/ground_aligned_spawn_v1_20260904T054229Z.json",
+        "evidence_sha256": "3732537deaf5ac6e6cb909bd5387f8cd99b8c5c9c53fb3d8e7ca9b8127875eb8",
         "id": "ground_aligned_spawn_v1",
         "reason": {
           "interpretation": "remove the artificial free-fall and asymmetric impact before changing pose or gains",
@@ -3288,10 +3667,49 @@
           "robot_weight_n": 17.949877,
           "zero_pose_collision_ground_z_m": 5.28e-07
         },
+        "result": {
+          "duration_s": 3.0,
+          "first_fall_time_s": 1.212,
+          "first_zero_pose_support_exit_time_s": 0.696,
+          "interpretation": "initial impact improved materially, but zero-pose long-term stability did not pass",
+          "max_reference_tilt_rad": 1.34737886,
+          "peak_support_force_body_weight_ratio": 2.73713852
+        },
         "scope": "base spawn Z only; restore baseline ankle damping",
+        "status": "insufficient_supported"
+      },
+      {
+        "change": {
+          "upper_body_damping_nm_s_per_rad": 10.0,
+          "upper_body_stiffness_nm_per_rad": 40.0,
+          "waist_damping_nm_s_per_rad": 5.0,
+          "waist_stiffness_nm_per_rad": 40.0
+        },
+        "hypothesis": "If the zero pose survives with explicit upper-body holding, compliant upper-body motion is causal; if support exit remains, the next experiment must change nominal posture/contact equilibrium",
+        "id": "zero_pose_upper_body_authority_probe_v1",
+        "scope": "zero pose, ground alignment, lower-body gains, effort limits, and contact geometry unchanged",
+        "source_comparison": {
+          "G1_and_H1_arm_damping_nm_s_per_rad": 10.0,
+          "G1_and_H1_arm_stiffness_nm_per_rad": 40.0,
+          "H1_torso_damping_nm_s_per_rad": 5.0,
+          "adaptation": "retain Landau effort/velocity limits and all lower-body gains",
+          "installed_file": "IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/unitree.py"
+        },
         "status": "active_bounded_test"
       }
-    ]
+    ],
+    "zero_pose_static_authority_audit": {
+      "authority_probe_linear_pd_shoulder_lift_error_rad": 0.022340142,
+      "current_linear_pd_shoulder_lift_error_rad": 0.223401422,
+      "left_shoulder_lift_gravity_torque_nm": 0.893605688,
+      "limitation": "diagnoses joint holding compliance; it is not a floating-base contact inverse-dynamics solution",
+      "measured_ground_aligned_shoulder_lift_rad_at_0_3_s": {
+        "left": 0.221,
+        "right": -0.242
+      },
+      "method": "current URDF subtree gravity moments with the floating base held fixed",
+      "right_shoulder_lift_gravity_torque_nm": -0.893605318
+    }
   },
   "source": {
     "derived_urdf_used": false,
@@ -3327,5 +3745,5 @@
       0.330791075
     ]
   },
-  "version": 4
+  "version": 5
 }

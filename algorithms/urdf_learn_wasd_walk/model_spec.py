@@ -79,6 +79,10 @@ PD_GROUPS = {
 }
 LOCKED_PD_STIFFNESS = 4.0
 LOCKED_PD_DAMPING = 0.35
+AUTHORITY_PROBE_WAIST_STIFFNESS = 40.0
+AUTHORITY_PROBE_WAIST_DAMPING = 5.0
+AUTHORITY_PROBE_UPPER_STIFFNESS = 40.0
+AUTHORITY_PROBE_UPPER_DAMPING = 10.0
 
 Matrix3 = tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]
 Vector3 = tuple[float, float, float]
@@ -104,6 +108,22 @@ def _matrix_vector(matrix: Matrix3, vector: Vector3) -> Vector3:
 
 def _vector_add(left: Vector3, right: Vector3) -> Vector3:
     return tuple(left[index] + right[index] for index in range(3))  # type: ignore[return-value]
+
+
+def _vector_subtract(left: Vector3, right: Vector3) -> Vector3:
+    return tuple(left[index] - right[index] for index in range(3))  # type: ignore[return-value]
+
+
+def _dot(left: Vector3, right: Vector3) -> float:
+    return sum(left[index] * right[index] for index in range(3))
+
+
+def _cross(left: Vector3, right: Vector3) -> Vector3:
+    return (
+        left[1] * right[2] - left[2] * right[1],
+        left[2] * right[0] - left[0] * right[2],
+        left[0] * right[1] - left[1] * right[0],
+    )
 
 
 def _normalized(vector: Vector3) -> Vector3:
@@ -304,6 +324,106 @@ def zero_pose_ground_support(urdf_path: Path = URDF_PATH, tolerance_m: float = 0
     }
 
 
+def passive_actuator_groups(movable_names: Sequence[str], *, authority_probe: bool = False) -> dict:
+    """Return a non-overlapping actuator contract for normal or diagnostic holding.
+
+    The authority probe deliberately leaves all lower-body gains and the zero pose
+    unchanged.  Only waist and upper-body holding authority changes, so a bounded
+    run can separate compliant upper-body motion from a support-pose failure.
+    """
+
+    names = set(movable_names)
+    controlled = {joint for group in PD_GROUPS.values() for joint in group["joints"]}
+    locked = names - controlled
+    if not authority_probe:
+        groups = {
+            name: {**group, "joints": list(group["joints"])}
+            for name, group in PD_GROUPS.items()
+        }
+        groups["locked"] = {
+            "joints": sorted(locked),
+            "stiffness": LOCKED_PD_STIFFNESS,
+            "damping": LOCKED_PD_DAMPING,
+        }
+    else:
+        waist = set(PD_GROUPS["waist"]["joints"])
+        lower = set(PD_GROUPS["leg_sagittal"]["joints"]) | set(PD_GROUPS["leg_balance"]["joints"])
+        distal_twist = {"left_shin_roll_joint", "right_shin_roll_joint"}
+        upper = names - lower - distal_twist - waist
+        groups = {
+            "leg_sagittal": {**PD_GROUPS["leg_sagittal"], "joints": list(PD_GROUPS["leg_sagittal"]["joints"])},
+            "leg_balance": {**PD_GROUPS["leg_balance"], "joints": list(PD_GROUPS["leg_balance"]["joints"])},
+            "distal_twist_hold": {
+                "joints": sorted(distal_twist),
+                "stiffness": LOCKED_PD_STIFFNESS,
+                "damping": LOCKED_PD_DAMPING,
+            },
+            "waist_authority": {
+                "joints": sorted(waist),
+                "stiffness": AUTHORITY_PROBE_WAIST_STIFFNESS,
+                "damping": AUTHORITY_PROBE_WAIST_DAMPING,
+            },
+            "upper_body_authority": {
+                "joints": sorted(upper),
+                "stiffness": AUTHORITY_PROBE_UPPER_STIFFNESS,
+                "damping": AUTHORITY_PROBE_UPPER_DAMPING,
+            },
+        }
+    flattened = [joint for group in groups.values() for joint in group["joints"]]
+    if len(flattened) != len(set(flattened)) or set(flattened) != names:
+        raise ValueError("actuator groups must form an exact, non-overlapping movable-joint partition")
+    return groups
+
+
+def _zero_pose_gravity_torques(
+    root: ET.Element,
+    transforms: dict[str, tuple[Matrix3, Vector3]],
+    link_mass_properties: dict[str, tuple[float, Vector3]],
+) -> dict[str, float]:
+    """Compute fixed-root generalized gravity torques from the current URDF."""
+
+    children: dict[str, list[str]] = {}
+    for joint in root.findall("joint"):
+        parent = joint.find("parent").get("link")  # type: ignore[union-attr]
+        child = joint.find("child").get("link")  # type: ignore[union-attr]
+        children.setdefault(parent, []).append(child)
+
+    def subtree(start: str) -> set[str]:
+        result, pending = set(), [start]
+        while pending:
+            link = pending.pop()
+            if link in result:
+                continue
+            result.add(link)
+            pending.extend(children.get(link, []))
+        return result
+
+    torques = {}
+    gravity: Vector3 = (0.0, 0.0, -9.81)
+    for joint in root.findall("joint"):
+        if joint.get("type") == "fixed":
+            continue
+        name = joint.get("name")
+        parent = joint.find("parent").get("link")  # type: ignore[union-attr]
+        child = joint.find("child").get("link")  # type: ignore[union-attr]
+        joint_transform = _compose(transforms[parent], _origin_transform(joint.find("origin")))
+        axis = _normalized(
+            _matrix_vector(
+                joint_transform[0],
+                _normalized(_vector(joint.find("axis").get("xyz"))),  # type: ignore[union-attr]
+            )
+        )
+        moment = (0.0, 0.0, 0.0)
+        for link in subtree(child):
+            if link not in link_mass_properties:
+                continue
+            mass, center = link_mass_properties[link]
+            force = tuple(mass * value for value in gravity)  # type: ignore[assignment]
+            moment = _vector_add(moment, _cross(_vector_subtract(center, joint_transform[1]), force))
+        torques[name] = _dot(axis, moment)
+    return torques
+
+
 def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     root = ET.parse(urdf_path).getroot()
     urdf_sha256 = _sha256(urdf_path)
@@ -347,6 +467,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         )
 
     masses = []
+    link_mass_properties: dict[str, tuple[float, Vector3]] = {}
     mass_weighted_positions = [0.0, 0.0, 0.0]
     invalid_inertias = []
     for link in links:
@@ -359,6 +480,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         inertial_position = _compose(
             transforms[link.get("name")], _origin_transform(inertial.find("origin"))
         )[1]
+        link_mass_properties[link.get("name")] = (mass, inertial_position)
         for axis in range(3):
             mass_weighted_positions[axis] += mass * inertial_position[axis]
         if not _inertia_positive(inertia):
@@ -380,6 +502,20 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     fixed_origin = fixed_root.find("origin")
     bounds = collision_world_bounds(urdf_path) if not missing_meshes else {}
     total_mass = sum(masses)
+    gravity_torques = _zero_pose_gravity_torques(root, transforms, link_mass_properties)
+    default_groups = passive_actuator_groups(movable_names)
+    default_gains = {
+        joint: (group["stiffness"], group["damping"])
+        for group in default_groups.values()
+        for joint in group["joints"]
+    }
+    for record in joint_records:
+        torque = gravity_torques[record["name"]]
+        stiffness, damping = default_gains[record["name"]]
+        record["zero_pose_fixed_root_gravity_torque_nm"] = round(torque, 9)
+        record["zero_pose_linear_pd_gravity_error_rad"] = round(torque / stiffness, 9)
+        record["nominal_stiffness_nm_per_rad"] = stiffness
+        record["nominal_damping_nm_s_per_rad"] = damping
     zero_pose_com = [round(value / total_mass, 9) for value in mass_weighted_positions]
     ground_support = zero_pose_ground_support(urdf_path) if not missing_meshes else {}
     ground_support["zero_pose_com_projection_xy_m"] = zero_pose_com[:2]
@@ -390,7 +526,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         "positive_y": round(ground_support["support_aabb_xy_m"]["maximum"][1] - zero_pose_com[1], 9),
     }
     return {
-        "version": 4,
+        "version": 5,
         "lineage": "clean_restart_2026_08_22",
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
@@ -477,7 +613,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 },
                 {
                     "id": "ground_aligned_spawn_v1",
-                    "status": "active_bounded_test",
+                    "status": "insufficient_supported",
                     "scope": "base spawn Z only; restore baseline ankle damping",
                     "change": {"base_z_before_m": 0.002, "base_z_after_m": 0.0},
                     "reason": {
@@ -487,8 +623,68 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                         "robot_weight_n": round(total_mass * 9.81, 6),
                         "interpretation": "remove the artificial free-fall and asymmetric impact before changing pose or gains",
                     },
+                    "result": {
+                        "duration_s": 3.0,
+                        "first_fall_time_s": 1.212,
+                        "first_zero_pose_support_exit_time_s": 0.696,
+                        "max_reference_tilt_rad": 1.34737886,
+                        "peak_support_force_body_weight_ratio": 2.73713852,
+                        "interpretation": "initial impact improved materially, but zero-pose long-term stability did not pass",
+                    },
+                    "evidence": (
+                        "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/"
+                        "experiments/ground_aligned_spawn_v1_20260904T054229Z.json"
+                    ),
+                    "evidence_sha256": "3732537deaf5ac6e6cb909bd5387f8cd99b8c5c9c53fb3d8e7ca9b8127875eb8",
+                },
+                {
+                    "id": "zero_pose_upper_body_authority_probe_v1",
+                    "status": "active_bounded_test",
+                    "scope": "zero pose, ground alignment, lower-body gains, effort limits, and contact geometry unchanged",
+                    "hypothesis": (
+                        "If the zero pose survives with explicit upper-body holding, compliant upper-body motion is causal; "
+                        "if support exit remains, the next experiment must change nominal posture/contact equilibrium"
+                    ),
+                    "change": {
+                        "waist_stiffness_nm_per_rad": AUTHORITY_PROBE_WAIST_STIFFNESS,
+                        "waist_damping_nm_s_per_rad": AUTHORITY_PROBE_WAIST_DAMPING,
+                        "upper_body_stiffness_nm_per_rad": AUTHORITY_PROBE_UPPER_STIFFNESS,
+                        "upper_body_damping_nm_s_per_rad": AUTHORITY_PROBE_UPPER_DAMPING,
+                    },
+                    "source_comparison": {
+                        "installed_file": "IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/unitree.py",
+                        "G1_and_H1_arm_stiffness_nm_per_rad": 40.0,
+                        "G1_and_H1_arm_damping_nm_s_per_rad": 10.0,
+                        "H1_torso_damping_nm_s_per_rad": 5.0,
+                        "adaptation": "retain Landau effort/velocity limits and all lower-body gains",
+                    },
                 },
             ],
+            "zero_pose_static_authority_audit": {
+                "method": "current URDF subtree gravity moments with the floating base held fixed",
+                "limitation": "diagnoses joint holding compliance; it is not a floating-base contact inverse-dynamics solution",
+                "left_shoulder_lift_gravity_torque_nm": round(
+                    gravity_torques["left_shoulder_lift_joint"], 9
+                ),
+                "right_shoulder_lift_gravity_torque_nm": round(
+                    gravity_torques["right_shoulder_lift_joint"], 9
+                ),
+                "current_linear_pd_shoulder_lift_error_rad": round(
+                    abs(gravity_torques["left_shoulder_lift_joint"]) / LOCKED_PD_STIFFNESS, 9
+                ),
+                "authority_probe_linear_pd_shoulder_lift_error_rad": round(
+                    abs(gravity_torques["left_shoulder_lift_joint"])
+                    / AUTHORITY_PROBE_UPPER_STIFFNESS,
+                    9,
+                ),
+                "measured_ground_aligned_shoulder_lift_rad_at_0_3_s": {
+                    "left": 0.221,
+                    "right": -0.242,
+                },
+            },
+            "authority_probe_actuator_groups": passive_actuator_groups(
+                movable_names, authority_probe=True
+            ),
             "nominal_pose_selection": {
                 "selected": "verified-axis zero joint pose with collision geometry aligned to ground",
                 "installed_humanoid_comparison": {

@@ -64,7 +64,7 @@ class ModelSpecTests(unittest.TestCase):
         self.assertIn("right_shin_roll_joint", locked)
         self.assertTrue(all(name not in action for name in locked))
 
-    def test_second_stability_hypothesis_changes_only_spawn_height(self) -> None:
+    def test_ground_alignment_is_retained_and_authority_probe_is_isolated(self) -> None:
         groups = self.spec["pd"]["groups"]
         self.assertEqual(self.spec["nominal_pose"]["base_position_m"], [0.0, 0.0, 0.0])
         self.assertEqual(groups["leg_sagittal"]["damping"], 1.0)
@@ -75,8 +75,34 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(experiments[0]["id"], "ankle_pitch_contact_damping_v1")
         self.assertEqual(experiments[0]["status"], "rejected")
         self.assertEqual(experiments[1]["id"], "ground_aligned_spawn_v1")
-        self.assertEqual(experiments[1]["status"], "active_bounded_test")
+        self.assertEqual(experiments[1]["status"], "insufficient_supported")
         self.assertEqual(experiments[1]["change"], {"base_z_before_m": 0.002, "base_z_after_m": 0.0})
+        self.assertEqual(experiments[2]["id"], "zero_pose_upper_body_authority_probe_v1")
+        self.assertEqual(experiments[2]["status"], "active_bounded_test")
+        probe = self.spec["pd"]["authority_probe_actuator_groups"]
+        flattened = [joint for group in probe.values() for joint in group["joints"]]
+        self.assertEqual(set(flattened), {joint["name"] for joint in self.spec["joints"]})
+        self.assertEqual(len(flattened), len(set(flattened)))
+        self.assertEqual(probe["leg_sagittal"]["stiffness"], 20.0)
+        self.assertEqual(probe["leg_balance"]["damping"], 0.8)
+        self.assertEqual(probe["waist_authority"]["stiffness"], 40.0)
+        self.assertEqual(probe["upper_body_authority"]["damping"], 10.0)
+        self.assertIn("right_shoulder_lift_joint", probe["upper_body_authority"]["joints"])
+
+    def test_fixed_root_gravity_audit_explains_measured_shoulder_compliance(self) -> None:
+        audit = self.spec["pd"]["zero_pose_static_authority_audit"]
+        self.assertAlmostEqual(audit["left_shoulder_lift_gravity_torque_nm"], 0.893606, places=5)
+        self.assertAlmostEqual(audit["right_shoulder_lift_gravity_torque_nm"], -0.893606, places=5)
+        self.assertAlmostEqual(audit["current_linear_pd_shoulder_lift_error_rad"], 0.223402, places=5)
+        self.assertAlmostEqual(
+            audit["authority_probe_linear_pd_shoulder_lift_error_rad"], 0.0223402, places=5
+        )
+        joints = {joint["name"]: joint for joint in self.spec["joints"]}
+        self.assertAlmostEqual(
+            joints["left_shoulder_lift_joint"]["zero_pose_linear_pd_gravity_error_rad"],
+            0.223402,
+            places=5,
+        )
 
     def test_axes_were_interpreted_in_world_zero_pose(self) -> None:
         joints = {record["name"]: record for record in self.spec["joints"]}
