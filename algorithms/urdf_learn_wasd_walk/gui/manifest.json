@@ -132,6 +132,36 @@
           "kind": "image"
         }
       ]
+    },
+    {
+      "id": "train_forward_walk",
+      "name": "Train +Y forward walk · PPO",
+      "description": "Expand the proven stand actor with semantic command inputs and fine-tune on flat standing and +Y forward commands.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "train-forward-walk", "--headless", "--num-envs", "512", "--iterations", "600"],
+      "artifacts": [
+        {"label": "Forward training evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/training.json", "kind": "json"},
+        {"label": "Forward PPO checkpoint", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/checkpoint.pt", "kind": "file"}
+      ]
+    },
+    {
+      "id": "validate_forward_walk",
+      "name": "Validate cumulative forward gate · 5 m",
+      "description": "Re-pass policy standing with the candidate, run camera-free +Y forward dynamics, render the full gate, and finalize only when all components pass.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "validate-forward-walk", "--headless"],
+      "artifacts": [
+        {"label": "Cumulative 5 m validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/validation.json", "kind": "json"},
+        {"label": "Candidate stand re-pass", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/stand_dynamics_validation.json", "kind": "json"},
+        {"label": "5 m camera-free dynamics", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/forward_dynamics_validation.json", "kind": "json"},
+        {"label": "5 m proof inspection", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof_validation.json", "kind": "json"},
+        {"label": "5 m proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof.mp4", "kind": "video"},
+        {"label": "5 m start · middle · end", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/contact_sheet.png", "kind": "image"}
+      ]
     }
   ],
   "milestones": [

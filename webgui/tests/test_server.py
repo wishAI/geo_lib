@@ -63,7 +63,10 @@ class ManifestTests(unittest.TestCase):
         manifest = server.manifest_map()["urdf_learn_wasd_walk"]
         self.assertEqual(
             [example["id"] for example in manifest["examples"]],
-            ["validate_passive_stand", "train_policy_stand", "validate_policy_stand"],
+            [
+                "validate_passive_stand", "train_policy_stand", "validate_policy_stand",
+                "train_forward_walk", "validate_forward_walk",
+            ],
         )
         example = manifest["examples"][0]
         self.assertEqual(example["command"][:3], ["./geo", "walk", "validate-passive"])
@@ -71,6 +74,11 @@ class ManifestTests(unittest.TestCase):
         policy_validation = manifest["examples"][2]
         self.assertEqual(policy_validation["command"][:3], ["./geo", "walk", "validate-policy-stand"])
         self.assertIn("video", {artifact["kind"] for artifact in policy_validation["artifacts"]})
+        forward_validation = manifest["examples"][4]
+        self.assertEqual(
+            forward_validation["command"][:3], ["./geo", "walk", "validate-forward-walk"]
+        )
+        self.assertIn("video", {artifact["kind"] for artifact in forward_validation["artifacts"]})
 
 
 class StorageAndRobotTests(unittest.TestCase):

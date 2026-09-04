@@ -101,6 +101,29 @@ class GeoLauncherTests(unittest.TestCase):
             self.assertTrue(success.is_file())
             self.assertFalse(failure.exists())
 
+    def test_forward_gate_launchers_are_single_isaac_components_or_direct_pipeline(self) -> None:
+        parser = self.geo._build_parser()
+        args, extra = parser.parse_known_args(
+            ["walk", "train-forward-walk", "--num-envs", "64", "--iterations", "2"]
+        )
+        training = self.geo._build_spec(args, extra)
+        self.assertEqual(training.runner, "isaac")
+        self.assertEqual(training.argv[1:3], ["--mode", "train"])
+        self.assertEqual(training.success_artifact.name, "training.json")
+
+        args, extra = parser.parse_known_args(
+            ["walk", "validate-forward-walk-dynamics", "--steps", "32", "--smoke"]
+        )
+        dynamics = self.geo._build_spec(args, extra)
+        self.assertEqual(dynamics.runner, "isaac")
+        self.assertEqual(dynamics.argv[1:3], ["--mode", "forward"])
+        self.assertEqual(dynamics.success_artifact.name, "forward_dynamics_smoke_validation.json")
+
+        args, extra = parser.parse_known_args(["walk", "validate-forward-walk", "--headless"])
+        gate = self.geo._build_spec(args, extra)
+        self.assertEqual(gate.runner, "direct")
+        self.assertEqual(gate.success_artifact.name, "validation.json")
+
 
 if __name__ == "__main__":
     unittest.main()

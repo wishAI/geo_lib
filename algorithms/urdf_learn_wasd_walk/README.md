@@ -41,7 +41,12 @@ Commands:
 - `./geo walk validate-policy-stand-dynamics --steps 500 --smoke --reuse-usd-cache --headless`
 - `./geo walk validate-policy-stand --headless`
 - `./geo walk finalize-policy-stand`
+- `./geo walk train-forward-walk --headless --num-envs 512 --iterations 600`
+- `./geo walk validate-forward-walk-stand --steps 32 --smoke --reuse-usd-cache --headless`
+- `./geo walk validate-forward-walk-dynamics --steps 32 --smoke --reuse-usd-cache --headless`
+- `./geo walk validate-forward-walk --headless`
+- `./geo walk finalize-forward-walk`
 
-Each exact all-in-one validator runs its two Isaac components sequentially; it never overlaps Isaac processes. Camera-free results remain available when proof rendering fails. A final `validation.json` appears only after both exact components pass. Policy training writes a durable `checkpoint.pt`, its originating run checkpoint, and `training.json` below `outputs/stand_30s_no_reset/`; training completion alone cannot promote the milestone. Short smokes are never promotable.
+Each exact all-in-one validator runs its independent Isaac components sequentially; it never overlaps Isaac processes. Camera-free results remain available when proof rendering fails. A final `validation.json` appears only after every exact component passes. Policy training writes a durable `checkpoint.pt`, its originating run checkpoint, and `training.json` below the active milestone output; training completion alone cannot promote a milestone. Short smokes are never promotable.
 
-Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. The next implementation extends the proven stand policy to the 5 m flat forward gate.
+Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. The active implementation transfers the proven stand actor into the 5 m flat forward gate while requiring the candidate checkpoint to re-pass standing.
