@@ -20,7 +20,7 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "single_application_reference_zero_residual_v12"
+TRAINING_METHOD_ID = "forward_only_command_curriculum_v13"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 1.0
 ROLLOUT_STEPS_PER_ENV = 112
@@ -38,6 +38,7 @@ REFERENCE_PROBE_PATH = (
 )
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
+TRAIN_STANDING_ENVIRONMENT_FRACTION = 0.0
 TARGET_DISTANCE_M = 5.0
 MAX_GATE_DURATION_S = 30.0
 STAND_DURATION_S = 30.0
@@ -53,16 +54,14 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the corrected probe applies its reference exactly once; at 1.0 second and 0.24 rad it "
-        "produces bilateral liftoff, 0.0439 m forward motion, and zero events, while smaller "
-        "single-application amplitudes do not lift either foot; a zero-output residual transferred "
-        "from the passed stand actor should initially preserve this verified gait"
+        "the exact gate command has no standing episodes, while the prior training distribution "
+        "spent 25 percent of samples standing; removing only that standing fraction should focus "
+        "the residual update on forward tracking without changing the passed gait reference, "
+        "reward set, speed range, or PPO parameters"
     ),
     "first_experiment": (
-        "two iterations initialized from the passed stand checkpoint with a zeroed actor output "
-        "head, canonical reset offsets, and the passed single-application 1.0-second, 0.24-rad "
-        "reference, "
-        "followed by a deterministic 10 s smoke"
+        "twenty iterations initialized from the best v12 stage20 checkpoint with the training "
+        "standing fraction changed from 0.25 to 0.0, followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -382,7 +381,7 @@ def training_contract(
             "semantic_command_order": list(model_spec.SEMANTIC_COMMAND_ORDER),
             "sim_command_mapping": {"forward": "linear_y", "strafe": "linear_x", "yaw": "angular_z"},
             "training_forward_speed_range_mps": list(TRAIN_FORWARD_SPEED_RANGE_MPS),
-            "standing_environment_fraction": 0.25,
+            "standing_environment_fraction": TRAIN_STANDING_ENVIRONMENT_FRACTION,
             "training_reset_distribution": {
                 "root_pose_offset": "exact_zero",
                 "root_velocity": "exact_zero",

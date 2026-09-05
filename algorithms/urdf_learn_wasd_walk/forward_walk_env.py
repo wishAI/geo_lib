@@ -162,7 +162,7 @@ class CommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(8.0, 12.0),
-        rel_standing_envs=0.25,
+        rel_standing_envs=contract.TRAIN_STANDING_ENVIRONMENT_FRACTION,
         rel_heading_envs=0.0,
         heading_command=False,
         debug_vis=False,
