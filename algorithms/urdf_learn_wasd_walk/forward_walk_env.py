@@ -90,7 +90,7 @@ def semantic_velocity_command(env) -> torch.Tensor:
 
 
 def gait_phase(env) -> torch.Tensor:
-    """Deployable periodic phase that is shape-safe while managers initialize."""
+    """Deployable phase aligned exactly with the settle-relative leg reference."""
 
     episode_steps = contract.episode_phase_step_buffer(env)
     if episode_steps is None:
@@ -99,7 +99,9 @@ def gait_phase(env) -> torch.Tensor:
         episode_steps = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
     else:
         episode_steps = episode_steps.to(dtype=torch.float32)
-    phase = 2.0 * torch.pi * episode_steps * env.step_dt / contract.GAIT_PERIOD_S
+    elapsed = episode_steps * env.step_dt
+    reference_time = torch.clamp(elapsed - contract.REFERENCE_SETTLE_S, min=0.0)
+    phase = 2.0 * torch.pi * reference_time / contract.GAIT_PERIOD_S
     return torch.stack((torch.sin(phase), torch.cos(phase)), dim=-1)
 
 
@@ -135,11 +137,21 @@ def alternating_single_support(
     right_force = torch.linalg.vector_norm(force_history[:, :, right_cfg.body_ids], dim=-1)
     left_contact = torch.any(torch.any(left_force > 1.0, dim=1), dim=1)
     right_contact = torch.any(torch.any(right_force > 1.0, dim=1), dim=1)
-    left_stance = gait_phase(env)[:, 0] >= 0.0
+    # The reference lifts the left foot over phase [0, 0.5), so its stance
+    # schedule is the complementary half-cycle.  Use the same settle-relative
+    # clock as ReferenceResidualJointPositionAction and suppress this term
+    # before that reference becomes active.
+    left_stance = gait_phase(env)[:, 0] < 0.0
     stance_contact = torch.where(left_stance, left_contact, right_contact)
     swing_clear = torch.where(left_stance, ~right_contact, ~left_contact)
     moving = torch.abs(env.command_manager.get_command("base_velocity")[:, 1]) > 0.1
-    return 0.5 * (stance_contact.float() + swing_clear.float()) * moving
+    steps = contract.episode_phase_step_buffer(env)
+    gait_active = (
+        torch.zeros(env.num_envs, device=env.device, dtype=torch.bool)
+        if steps is None
+        else steps.to(dtype=torch.float32) * env.step_dt >= contract.REFERENCE_SETTLE_S
+    )
+    return 0.5 * (stance_contact.float() + swing_clear.float()) * moving * gait_active
 
 
 @configclass

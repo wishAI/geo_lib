@@ -129,6 +129,33 @@ class EvolutionTests(unittest.TestCase):
             self.assertEqual(payload["currentNodeId"], "milestone:gate_5m_no_reset")
             self.assertEqual(nodes["milestone:gate_5m_no_reset"]["status"], "running")
 
+    def test_current_node_uses_shared_run_chronology_not_artifact_kind(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs"
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "latest-mesh",
+                "milestones": [{"id": "gate_5m_no_reset", "status": "in_progress"}],
+            }))
+            probe_dir = output / "gate_5m_no_reset" / "reference_probe" / "passed"
+            probe_dir.mkdir(parents=True)
+            probe_dir.joinpath("reference_probe.json").write_text(json.dumps({
+                "lineage": "latest-mesh", "milestone": "gate_5m_no_reset",
+                "component": "open_loop_reference_probe", "run_identity": "20260905T010000Z",
+                "status": "passed", "ppo_eligible": True,
+            }))
+            stage = output / "gate_5m_no_reset" / "stage40"
+            stage.mkdir(parents=True)
+            stage.joinpath("training.json").write_text(json.dumps({
+                "lineage": "latest-mesh", "milestone": "gate_5m_no_reset",
+                "run_identity": "20260905T020000Z", "status": "completed_not_promoted",
+                "requested_contract": {"training_method": "v3"},
+                "checkpoint": {"sha256": "stage-sha", "path": "ignored.pt"},
+            }))
+            payload = evolution.build_evolution(output, ledger)
+            self.assertEqual(payload["currentNodeId"], "run:20260905T020000Z")
+
 
 if __name__ == "__main__":
     unittest.main()

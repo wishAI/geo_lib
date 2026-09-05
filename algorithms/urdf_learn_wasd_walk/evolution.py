@@ -390,7 +390,12 @@ def build_evolution(
     ]
     if not current_candidates:
         current_candidates = [node for node in nodes if node.get("lineage") == lineage]
-    current = max(current_candidates, key=lambda item: item.get("step", 0))["id"]
+    # Runs and probes are assembled in separate passes, so their local `step`
+    # values do not define a shared chronology.  Compact UTC run identities do.
+    current = max(
+        current_candidates,
+        key=lambda item: (str(item.get("startedAt") or ""), item.get("step", 0)),
+    )["id"]
     return {
         "schemaVersion": 1,
         "type": "evolutionTree",

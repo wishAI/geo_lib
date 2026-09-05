@@ -49,6 +49,20 @@ class ForwardWalkContractTests(unittest.TestCase):
         env.episode_length_buf = [0, 7]
         self.assertEqual(contract.episode_phase_step_buffer(env), [0, 7])
 
+    def test_reference_phase_uses_settle_relative_clock_and_complementary_stance(self) -> None:
+        self.assertEqual(contract.reference_phase_cycle(0.0), 0.0)
+        self.assertEqual(contract.reference_phase_cycle(1.0), 0.0)
+        self.assertAlmostEqual(contract.reference_phase_cycle(1.2), 0.25)
+        self.assertAlmostEqual(contract.reference_phase_cycle(1.4), 0.5)
+        self.assertFalse(contract.left_stance_for_reference_phase(0.0))
+        self.assertFalse(contract.left_stance_for_reference_phase(0.499999))
+        self.assertTrue(contract.left_stance_for_reference_phase(0.5))
+        self.assertTrue(contract.left_stance_for_reference_phase(0.999999))
+        with self.assertRaises(ValueError):
+            contract.reference_phase_cycle(-0.01)
+        with self.assertRaises(ValueError):
+            contract.left_stance_for_reference_phase(1.0)
+
     def test_command_mapping_keeps_landau_body_plus_y_forward(self) -> None:
         self.assertEqual(contract.semantic_command_to_sim(0.4, -0.1, 0.2), (-0.1, 0.4, 0.2))
         self.assertEqual(model_spec.SEMANTIC_COMMAND_ORDER, ("forward", "strafe", "yaw"))

@@ -111,6 +111,23 @@ def episode_phase_step_buffer(env):
     return getattr(env, "episode_length_buf", None)
 
 
+def reference_phase_cycle(elapsed_s: float) -> float:
+    """Return the settle-relative reference phase used by actions and rewards."""
+
+    if elapsed_s < 0.0:
+        raise ValueError("elapsed_s must be non-negative")
+    reference_time = max(elapsed_s - REFERENCE_SETTLE_S, 0.0)
+    return (reference_time / GAIT_PERIOD_S) % 1.0
+
+
+def left_stance_for_reference_phase(phase_cycle: float) -> bool:
+    """The left foot is stance while the right-side reference is in swing."""
+
+    if not 0.0 <= phase_cycle < 1.0:
+        raise ValueError("phase_cycle must be in [0, 1)")
+    return phase_cycle >= 0.5
+
+
 def summarize_forward_velocity_samples(
     samples_mps: list[float], command_samples_mps: list[float], *, control_dt_s: float
 ) -> dict:
