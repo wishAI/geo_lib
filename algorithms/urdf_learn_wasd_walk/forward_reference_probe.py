@@ -56,6 +56,21 @@ def _longest_true_run(values: list[bool]) -> int:
     return longest
 
 
+def probe_protocol(settle_steps: int, reference_steps: int) -> dict:
+    """Describe the command-onset baseline without weakening positive progress."""
+
+    if settle_steps < 0 or reference_steps <= 0:
+        raise ValueError("settle steps must be non-negative and reference steps positive")
+    return {
+        "pre_command_zero_action_steps": settle_steps,
+        "pre_command_zero_action_duration_s": round(settle_steps * contract.CONTROL_DT_S, 6),
+        "reference_steps": reference_steps,
+        "reference_duration_s": round(reference_steps * contract.CONTROL_DT_S, 6),
+        "forward_displacement_baseline": "root +Y at command onset after zero-action settling",
+        "total_displacement_also_recorded": True,
+    }
+
+
 def _run(args, training: dict, prior: list[dict]) -> dict:
     import torch
     from isaaclab.envs import ManagerBasedRLEnv
@@ -111,6 +126,8 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
             raise RuntimeError("imported axes differ from the exact URDF contract")
         initial_root = robot.data.body_pos_w[0, root_ids[0]].detach().cpu().clone()
         initial_support_z = robot.data.body_pos_w[0, body_ids, 2].detach().cpu().clone()
+        command_root = initial_root.clone()
+        command_support_z = initial_support_z.clone()
         initial_quaternion = robot.data.body_quat_w[0, root_ids[0]].detach().cpu().clone()
         joint_indices = {name: index for index, name in enumerate(robot.joint_names)}
         air_samples = {"left": [], "right": []}
@@ -120,10 +137,16 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         max_tilt = max_height_drop = max_abs_action = 0.0
         traces = []
         _stage(args, "open_loop_reference")
-        for step in range(args.steps):
-            time_s = step * contract.CONTROL_DT_S
-            action_values = forward_reference.reference_action(
-                time_s, contract.TARGET_FORWARD_SPEED_MPS, config
+        total_steps = args.settle_steps + args.steps
+        for step in range(total_steps):
+            reference_step = step - args.settle_steps
+            in_reference = reference_step >= 0
+            time_s = max(0, reference_step) * contract.CONTROL_DT_S
+            action_values = (
+                forward_reference.reference_action(
+                    time_s, contract.TARGET_FORWARD_SPEED_MPS, config
+                )
+                if in_reference else [0.0] * len(action_names)
             )
             actions = torch.tensor([action_values], device=env.device, dtype=torch.float32)
             with torch.inference_mode():
@@ -151,12 +174,16 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
                 "right": support_contact[2] or support_contact[3],
             }
             support_z = robot.data.body_pos_w[0, body_ids, 2].detach().cpu()
+            if step == args.settle_steps - 1:
+                command_root = position.clone()
+                command_support_z = support_z.clone()
             for side, indices in (("left", (0, 1)), ("right", (2, 3))):
-                air_samples[side].append(not side_contact[side])
-                max_height_gain[side] = max(
-                    max_height_gain[side],
-                    max(float(support_z[index] - initial_support_z[index]) for index in indices),
-                )
+                if in_reference:
+                    air_samples[side].append(not side_contact[side])
+                    max_height_gain[side] = max(
+                        max_height_gain[side],
+                        max(float(support_z[index] - command_support_z[index]) for index in indices),
+                    )
             current_joint = robot.data.joint_pos[0].detach().cpu()
             current_target = robot.data.joint_pos_target[0].detach().cpu()
             target_errors = []
@@ -167,7 +194,9 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
                 max_target_errors[name] = max(max_target_errors[name], error)
             traces.append({
                 "time_s": round((step + 1) * contract.CONTROL_DT_S, 6),
-                "semantic_forward_displacement_m": round(float(position[1] - initial_root[1]), 8),
+                "phase": "reference" if in_reference else "pre_command_settle",
+                "semantic_forward_displacement_m": round(float(position[1] - command_root[1]), 8),
+                "total_semantic_forward_displacement_m": round(float(position[1] - initial_root[1]), 8),
                 "semantic_strafe_displacement_m": round(float(position[0] - initial_root[0]), 8),
                 "root_height_change_m": round(float(position[2] - initial_root[2]), 8),
                 "reference_tilt_rad": round(tilt, 8),
@@ -184,14 +213,17 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
             })
         final = traces[-1]
         metrics = {
-            "duration_s": round(args.steps * contract.CONTROL_DT_S, 6),
-            "physics_steps": args.steps * round(contract.CONTROL_DT_S / contract.PHYSICS_DT_S),
-            "control_steps": args.steps,
+            "duration_s": round(total_steps * contract.CONTROL_DT_S, 6),
+            "reference_duration_s": round(args.steps * contract.CONTROL_DT_S, 6),
+            "physics_steps": total_steps * round(contract.CONTROL_DT_S / contract.PHYSICS_DT_S),
+            "control_steps": total_steps,
+            "reference_control_steps": args.steps,
             "policy_inference_steps": 0,
             "reset_count": reset_count,
             "done_count": done_count,
             "fall_count": fall_count,
             "semantic_forward_displacement_m": final["semantic_forward_displacement_m"],
+            "total_semantic_forward_displacement_m": final["total_semantic_forward_displacement_m"],
             "semantic_strafe_displacement_m": final["semantic_strafe_displacement_m"],
             "max_reference_tilt_rad": round(max_tilt, 8),
             "root_height_drop_m": round(max(0.0, max_height_drop), 8),
@@ -247,6 +279,7 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
                 "training_method": "current_mesh_policy_stand_parent",
             },
             "reference_contract": reference,
+            "probe_protocol": probe_protocol(args.settle_steps, args.steps),
             "joint_contract": {
                 "action_joints": spec["action_joints"],
                 "locked_joints": spec["locked_joints"],
@@ -290,6 +323,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--parent-output-dir", type=Path, default=DEFAULT_PARENT_OUTPUT)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--steps", type=int, default=250)
+    parser.add_argument("--settle-steps", type=int, default=50)
     parser.add_argument("--period-s", type=float, default=contract.GAIT_PERIOD_S)
     parser.add_argument("--amplitude-scale", type=float, default=1.0)
     parser.add_argument("--startup-ramp-s", type=float, default=0.4)
@@ -308,8 +342,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     args.output_dir = contract.safe_output_dir(args.output_dir)
     args.parent_output_dir = contract.safe_output_dir(args.parent_output_dir)
-    if args.seed < 0 or args.steps <= 0:
-        raise SystemExit("seed must be non-negative and steps positive")
+    if args.seed < 0 or args.steps <= 0 or args.settle_steps < 0:
+        raise SystemExit("seed/settle-steps must be non-negative and steps positive")
     try:
         prior, parent = contract.load_cumulative_prior()
         training = policy_stand_contract.load_training_evidence(args.parent_output_dir)

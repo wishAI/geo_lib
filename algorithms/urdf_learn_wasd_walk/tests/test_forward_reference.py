@@ -17,6 +17,14 @@ class ForwardReferenceTests(unittest.TestCase):
             policy_stand_contract.DEFAULT_OUTPUT_DIR,
         )
 
+    def test_probe_protocol_uses_command_onset_without_hiding_total_motion(self) -> None:
+        protocol = forward_reference_probe.probe_protocol(50, 250)
+        self.assertEqual(protocol["pre_command_zero_action_duration_s"], 1.0)
+        self.assertEqual(protocol["reference_duration_s"], 5.0)
+        self.assertTrue(protocol["total_displacement_also_recorded"])
+        with self.assertRaises(ValueError):
+            forward_reference_probe.probe_protocol(-1, 250)
+
     def test_zero_command_is_exact_stand_reference(self) -> None:
         for time_s in (0.0, 0.2, 1.7):
             self.assertEqual(
