@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from algorithms.urdf_learn_wasd_walk import forward_walk_contract as contract, model_spec
+from algorithms.urdf_learn_wasd_walk import forward_walk, forward_walk_contract as contract, model_spec
 
 
 def _forward_prerequisites_are_current() -> bool:
@@ -40,6 +40,49 @@ def passing_forward() -> dict:
 
 
 class ForwardWalkContractTests(unittest.TestCase):
+    def test_checkpoint_transfer_resets_loaded_scalar_exploration_std(self) -> None:
+        class Scalar:
+            def __init__(self, value):
+                self.value = value
+
+            def item(self):
+                return self.value
+
+        class Tensor:
+            ndim = 1
+
+            def __init__(self, values):
+                self.values = list(values)
+
+            def numel(self):
+                return len(self.values)
+
+            def detach(self):
+                return self
+
+            def clone(self):
+                return Tensor(self.values)
+
+            def fill_(self, value):
+                self.values = [value] * len(self.values)
+
+            def min(self):
+                return Scalar(min(self.values))
+
+            def max(self):
+                return Scalar(max(self.values))
+
+        state = {"std": Tensor([0.2] * len(model_spec.ACTION_JOINTS))}
+        audit = forward_walk._reset_scalar_exploration_std(state, 0.02)
+        self.assertEqual(state["std"].values, [0.02] * len(model_spec.ACTION_JOINTS))
+        self.assertAlmostEqual(audit["source_min"], 0.2)
+        self.assertAlmostEqual(audit["source_max"], 0.2)
+        self.assertEqual(audit["reset_value"], 0.02)
+
+    def test_checkpoint_transfer_rejects_unknown_noise_parameterization(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "log-std"):
+            forward_walk._reset_scalar_exploration_std({"log_std": object()}, 0.02)
+
     def test_gait_phase_clock_tolerates_manager_shape_probe_before_rl_buffer_exists(self) -> None:
         class ConstructionPhaseEnv:
             num_envs = 64

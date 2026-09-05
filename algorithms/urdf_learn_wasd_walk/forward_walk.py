@@ -48,6 +48,28 @@ def _write_failure(args, error: Exception) -> None:
     )
 
 
+def _reset_scalar_exploration_std(state: dict, desired_std: float) -> dict:
+    """Reset RSL-RL's scalar-noise tensor after checkpoint state transfer."""
+
+    if desired_std <= 0.0:
+        raise ValueError("desired exploration std must be positive")
+    if "log_std" in state:
+        raise RuntimeError("log-std exploration checkpoints are not supported by this transfer")
+    source = state.get("std")
+    if source is None or source.ndim != 1 or source.numel() != len(model_spec.ACTION_JOINTS):
+        raise RuntimeError("checkpoint transfer requires one scalar-noise std per action joint")
+    source_values = source.detach()
+    reset = source.clone()
+    reset.fill_(desired_std)
+    state["std"] = reset
+    return {
+        "source_min": float(source_values.min().item()),
+        "source_max": float(source_values.max().item()),
+        "reset_value": desired_std,
+        "tensor": "std",
+    }
+
+
 def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
     """Preserve features/critic while starting the gait residual at exact zero."""
 
@@ -99,6 +121,9 @@ def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
             raise RuntimeError(f"actor output tensor is missing: {name}")
         residual_state[name] = torch.zeros_like(parameter)
         zeroed_output_tensors.append(name)
+    exploration_std = _reset_scalar_exploration_std(
+        residual_state, contract.PPO_INITIAL_ACTION_NOISE_STD
+    )
     runner.alg.actor_critic.load_state_dict(residual_state, strict=True)
     return {
         "source_checkpoint_path": str(checkpoint_path.relative_to(REPO_ROOT)),
@@ -113,6 +138,7 @@ def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
         "optimizer_state_loaded": False,
         "zero_initialized_actor_output_tensors": zeroed_output_tensors,
         "initial_deterministic_residual": "exactly_zero",
+        "exploration_std_after_checkpoint_transfer": exploration_std,
     }
 
 
