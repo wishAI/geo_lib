@@ -72,7 +72,10 @@
     const metrics = Object.entries(node.metrics || {}).map(([key, value]) => `<div><span>${escapeHtml(key)}</span><b>${formatMetric(value)}</b></div>`).join('');
     const parentLabels = (node.parentIds || []).map(id => nodes.get(id)?.label || id).join(', ') || 'none';
     const storage = node.checkpointStorage;
-    const checkpoint = node.checkpointPath ? `<div class="evolution-checkpoint"><span>Checkpoint · ${formatBytes(node.diskBytes)}</span><code>${escapeHtml(node.checkpointPath)}</code><small>${escapeHtml(storage ? `${storage.provider} · ${storage.macHydration} · local preview disabled` : 'storage not recorded')}</small></div>` : '';
+    const checkpointPath = typeof node.checkpointPath === 'string'
+      ? node.checkpointPath
+      : node.checkpointPath?.path || node.checkpointPath?.identity || null;
+    const checkpoint = checkpointPath ? `<div class="evolution-checkpoint"><span>Checkpoint · ${formatBytes(node.diskBytes)}</span><code>${escapeHtml(checkpointPath)}</code><small>${escapeHtml(storage ? `${storage.provider} · ${storage.macHydration} · local preview disabled` : 'storage not recorded')}</small></div>` : '';
     queueMicrotask(() => document.querySelectorAll('[data-evolution-artifact]').forEach(button => button.addEventListener('click', () => onPreview(button.dataset.evolutionArtifact, button.dataset.kind))));
     return `<div class="evolution-properties">
       <div class="evolution-node-heading"><span class="evolution-status ${escapeHtml(node.status)}">${escapeHtml(node.status)}</span><p>${escapeHtml(node.kind)} · step ${escapeHtml(node.step)}</p><h3>${escapeHtml(node.label)}</h3></div>

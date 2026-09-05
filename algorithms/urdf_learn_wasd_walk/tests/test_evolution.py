@@ -15,7 +15,7 @@ class EvolutionTests(unittest.TestCase):
             ledger.write_text(json.dumps({
                 "lineage": "clean_restart_2026_08_22",
                 "milestones": [
-                    {"id": "stand_zero_signal_30s_no_reset", "status": "passed", "checkpoint": "robot"},
+                    {"id": "stand_zero_signal_30s_no_reset", "status": "passed", "checkpoint": {"identity": "robot-spec"}},
                     {"id": "stand_30s_no_reset", "status": "passed", "checkpoint": {"sha256": "stand-sha"}},
                     {"id": "gate_5m_no_reset", "status": "in_progress"},
                 ],
@@ -60,6 +60,7 @@ class EvolutionTests(unittest.TestCase):
             }))
             payload = evolution.build_evolution(output, ledger)
             nodes = {item["id"]: item for item in payload["nodes"]}
+            self.assertEqual(nodes["milestone:stand_zero_signal_30s_no_reset"]["checkpointPath"], "robot-spec")
             self.assertEqual(nodes["run:phase-run"]["parentIds"], ["milestone:stand_30s_no_reset"])
             self.assertEqual(nodes["run:phase-run"]["status"], "failed")
             self.assertEqual(nodes["run:phase-run"]["checkpointStorage"]["macHydration"], "online-only")

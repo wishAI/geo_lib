@@ -164,6 +164,12 @@ def build_evolution(
             "meshTreeSha256": invalidated.get("meshTreeSha256"),
         })
     passive_status = str(passive.get("status", "not_started"))
+    passive_checkpoint = passive.get("checkpoint")
+    passive_checkpoint_path = (
+        passive_checkpoint.get("path") or passive_checkpoint.get("identity")
+        if isinstance(passive_checkpoint, dict)
+        else passive_checkpoint
+    )
     nodes.append({
         "id": "milestone:stand_zero_signal_30s_no_reset",
         "parentIds": [invalidated_root_id] if invalidated_root_id else [],
@@ -176,7 +182,7 @@ def build_evolution(
         "result": "canonical zero-signal stand gate passed" if passive_status == "passed" else "latest visual/collision mesh awaits gate re-certification",
         "metrics": passive.get("metrics", {}),
         "important": True,
-        "checkpointPath": passive.get("checkpoint"),
+        "checkpointPath": passive_checkpoint_path,
         "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256"),
     })
     checkpoint_nodes: dict[str, str] = {}
