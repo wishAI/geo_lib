@@ -11,6 +11,7 @@
     "source": "repository algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10 lowpoly_surface package visually verified with rabbit ears"
   },
   "invalidatedLineage": {
+    "label": "False latest · no rabbit ears",
     "lineage": "latest_parallel_mesh_recertification_2026_09_05",
     "meshTreeSha256": "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435",
     "invalidatedAt": "20260905T071500Z",
@@ -18,12 +19,14 @@
   },
   "invalidatedLineages": [
     {
+      "label": "Original stale mesh package",
       "lineage": "clean_restart_2026_08_22",
       "meshTreeSha256": "e912ac2e7fcc16a52d726ef410c2b0eb860727d033e07b1728d63a3f906d4da0",
       "invalidatedAt": "20260905T035000Z",
       "reason": "The prior package used 68 stale visual/collision STL files; its checkpoints and gate evidence do not describe the latest usd_parallel_urdf robot."
     },
     {
+      "label": "False latest · no rabbit ears",
       "lineage": "latest_parallel_mesh_recertification_2026_09_05",
       "meshTreeSha256": "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435",
       "invalidatedAt": "20260905T071500Z",

@@ -158,7 +158,7 @@ def build_evolution(
         nodes.append({
             "id": invalidated_root_id,
             "parentIds": [previous_invalidated_root_id] if previous_invalidated_root_id else [],
-            "label": f"Invalidated mesh · {invalidated_lineage}",
+            "label": str(invalidated.get("label") or f"Invalidated mesh · {invalidated_index + 1}"),
             "step": invalidated_index - len(invalidated_entries),
             "status": "failed",
             "kind": "root",

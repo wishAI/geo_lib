@@ -272,7 +272,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(28px, 4vw, 58px)
 .evolution-preview-node.running i { background: #d5a43d; }
 .evolution-preview-node span { min-width: 0; }
 .evolution-preview-node small { display: block; color: var(--ink-soft); font: 700 7px/1 var(--mono); text-transform: uppercase; }
-.evolution-preview-node b { display: block; margin-top: 5px; font-size: 11px; line-height: 1.25; }
+.evolution-preview-node b { display: block; margin-top: 5px; font-size: 11px; line-height: 1.25; overflow-wrap: anywhere; }
 .evolution-preview-node em { grid-column: 2; color: var(--ink-soft); font: normal 700 7px/1 var(--mono); text-transform: uppercase; }
 .evolution-preview-edge { width: 34px; height: 2px; background: linear-gradient(90deg,#9bafa5,var(--orange)); }
 
