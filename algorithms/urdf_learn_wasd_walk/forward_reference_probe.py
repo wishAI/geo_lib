@@ -348,7 +348,9 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--common-hip-roll-amplitude", type=float, default=0.0)
     parser.add_argument("--common-hip-roll-phase-offset", type=float, default=0.15)
     parser.add_argument("--waist-roll-amplitude", type=float, default=0.0)
-    parser.add_argument("--action-scale-rad", type=float, default=contract.ACTION_SCALE_RAD)
+    parser.add_argument(
+        "--action-scale-rad", type=float, default=contract.REFERENCE_ACTION_SCALE_RAD
+    )
     parser.add_argument("--reuse-usd-cache", action="store_true")
     AppLauncher.add_app_launcher_args(parser)
     return parser

@@ -70,7 +70,10 @@ class ReferenceResidualJointPositionAction(JointPositionAction):
                 torch.zeros_like(phase),
             )
             reference[:, self._action_index[f"{side}_hip_pitch_joint"]] = (
-                scale * 0.2 * torch.sin(2.0 * torch.pi * phase) * torch.sign(command)
+                scale
+                * contract.REFERENCE_HIP_PITCH_AMPLITUDE
+                * torch.sin(2.0 * torch.pi * phase)
+                * torch.sign(command)
             )
             reference[:, self._action_index[f"{side}_knee_joint"]] = scale * clearance
             reference[:, self._action_index[f"{side}_ankle_pitch_joint"]] = -scale * clearance

@@ -35,9 +35,9 @@ class ForwardReferenceTests(unittest.TestCase):
     def test_bilateral_phase_difference_and_soft_landing(self) -> None:
         config = forward_reference.ReferenceConfig(startup_ramp_s=0.0)
         start = forward_reference.reference_action(0.0, 0.4, config)
-        quarter = forward_reference.reference_action(0.2, 0.4, config)
-        half = forward_reference.reference_action(0.4, 0.4, config)
-        three_quarter = forward_reference.reference_action(0.6, 0.4, config)
+        quarter = forward_reference.reference_action(0.25, 0.4, config)
+        half = forward_reference.reference_action(0.5, 0.4, config)
+        three_quarter = forward_reference.reference_action(0.75, 0.4, config)
         index = {name: model_spec.ACTION_JOINTS.index(name) for name in model_spec.ACTION_JOINTS}
         self.assertAlmostEqual(start[index["left_knee_joint"]], 0.0)
         self.assertAlmostEqual(start[index["right_knee_joint"]], 0.0)
@@ -64,7 +64,7 @@ class ForwardReferenceTests(unittest.TestCase):
 
     def test_toe_amplitude_is_an_independent_recorded_probe_factor(self) -> None:
         config = forward_reference.ReferenceConfig(startup_ramp_s=0.0, toe_amplitude=0.0)
-        action = forward_reference.reference_action(0.2, 0.4, config)
+        action = forward_reference.reference_action(0.25, 0.4, config)
         toe_indices = [
             model_spec.ACTION_JOINTS.index(f"{side}_toe_joint")
             for side in ("left", "right")
@@ -122,7 +122,7 @@ class ForwardReferenceTests(unittest.TestCase):
         config = forward_reference.ReferenceConfig(
             startup_ramp_s=0.0, hip_roll_amplitude=0.5
         )
-        action = forward_reference.reference_action(0.2, 0.4, config)
+        action = forward_reference.reference_action(0.25, 0.4, config)
         left = model_spec.ACTION_JOINTS.index("left_hip_roll_joint")
         right = model_spec.ACTION_JOINTS.index("right_hip_roll_joint")
         self.assertAlmostEqual(action[left], -action[right])
@@ -159,7 +159,7 @@ class ForwardReferenceTests(unittest.TestCase):
             startup_ramp_s=0.0, waist_roll_amplitude=0.5
         )
         waist = model_spec.ACTION_JOINTS.index("waist_roll_joint")
-        self.assertAlmostEqual(forward_reference.reference_action(0.2, 0.4, config)[waist], 0.5)
+        self.assertAlmostEqual(forward_reference.reference_action(0.25, 0.4, config)[waist], 0.5)
         self.assertEqual(
             forward_reference.reference_action(0.2, 0.0, config),
             [0.0] * len(model_spec.ACTION_JOINTS),

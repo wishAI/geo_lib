@@ -20,17 +20,18 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "canonical_reset_balance_seed_v9"
+TRAINING_METHOD_ID = "slower_low_amplitude_balance_seed_v10"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
-GAIT_PERIOD_S = 0.8
-ROLLOUT_STEPS_PER_ENV = 96
+GAIT_PERIOD_S = 1.0
+ROLLOUT_STEPS_PER_ENV = 112
 PPO_LEARNING_RATE = 1.0e-4
 PPO_INITIAL_ACTION_NOISE_STD = 0.02
-REFERENCE_ACTION_SCALE_RAD = 0.20
+REFERENCE_ACTION_SCALE_RAD = 0.12
+REFERENCE_HIP_PITCH_AMPLITUDE = 0.20
 REFERENCE_SETTLE_S = 1.0
 REFERENCE_STARTUP_RAMP_S = 0.4
 REFERENCE_PROBE_PATH = (
-    DEFAULT_OUTPUT_DIR / "reference_probe_v3" / "settled_scale_0p20" / "reference_probe.json"
+    DEFAULT_OUTPUT_DIR / "reference_probe_v3" / "period_1p00" / "reference_probe.json"
 )
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
@@ -49,13 +50,14 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the validated v4 balance seed remains stable in deterministic replay, but 64.6% of "
-        "training environments terminate in the first rollout under reset perturbations; using "
-        "canonical zero-offset episode resets should align training with the exact flat-gate "
-        "initial condition without weakening validation"
+        "the 0.8-second 0.12-rad reference is stable but moves slightly backward, while changing "
+        "only its period to 1.0 second produces 0.1305 m forward motion with bilateral liftoff "
+        "and zero events; residual PPO from the validated balance seed should exploit the slower "
+        "support transition without the destabilizing 0.20-rad physical amplitude"
     ),
     "first_experiment": (
-        "two iterations initialized from the validated v4 output with canonical reset offsets, "
+        "two iterations initialized from the validated v4 output with canonical reset offsets "
+        "and the passed 1.0-second, 0.12-rad reference, "
         "followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
@@ -312,6 +314,11 @@ def load_reference_probe(parent_sha256: str) -> dict:
         raise ValueError("the v3 reference probe used another method")
     if float(reference.get("action_scale_rad", -1.0)) != REFERENCE_ACTION_SCALE_RAD:
         raise ValueError("the v3 reference probe used another physical scale")
+    parameters = reference.get("parameters", {})
+    if float(parameters.get("period_s", -1.0)) != GAIT_PERIOD_S:
+        raise ValueError("the v3 reference probe used another gait period")
+    if float(parameters.get("hip_pitch_amplitude", -1.0)) != REFERENCE_HIP_PITCH_AMPLITUDE:
+        raise ValueError("the v3 reference probe used another hip-pitch amplitude")
     return {
         "path": str(REFERENCE_PROBE_PATH.relative_to(model_spec.ALGORITHM_ROOT.parent.parent)),
         "sha256": sha256(REFERENCE_PROBE_PATH),
@@ -319,6 +326,8 @@ def load_reference_probe(parent_sha256: str) -> dict:
         "semantic_forward_displacement_m": evidence.get("metrics", {}).get(
             "semantic_forward_displacement_m"
         ),
+        "period_s": parameters["period_s"],
+        "action_scale_rad": reference["action_scale_rad"],
     }
 
 
@@ -383,10 +392,11 @@ def training_contract(
                 "pre_command_settle_s": REFERENCE_SETTLE_S,
                 "startup_ramp_s": REFERENCE_STARTUP_RAMP_S,
                 "period_s": GAIT_PERIOD_S,
+                "hip_pitch_amplitude": REFERENCE_HIP_PITCH_AMPLITUDE,
                 "left_right_phase_difference_cycles": 0.5,
                 "source_probe": (
                     "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/"
-                    "reference_probe_v3/settled_scale_0p20/reference_probe.json"
+                    "reference_probe_v3/period_1p00/reference_probe.json"
                 ),
                 "source_probe_evidence": reference_probe,
             },
