@@ -92,7 +92,9 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         hip_roll_amplitude=args.hip_roll_amplitude,
         waist_roll_amplitude=args.waist_roll_amplitude,
     )
-    reference = forward_reference.reference_contract(config)
+    reference = forward_reference.reference_contract(
+        config, action_scale_rad=args.action_scale_rad
+    )
     _stage(args, "manager_environment_construction")
     cfg = build_env_cfg(
         num_envs=1,
@@ -101,6 +103,7 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         evaluation_command="forward",
         force_usd_conversion=not args.reuse_usd_cache,
     )
+    cfg.actions.joint_pos.scale = args.action_scale_rad
     cfg.sim.device = args.device
     env = ManagerBasedRLEnv(cfg=cfg, render_mode=None)
     try:
@@ -335,6 +338,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--toe-phase-offset", type=float, default=0.0)
     parser.add_argument("--hip-roll-amplitude", type=float, default=0.0)
     parser.add_argument("--waist-roll-amplitude", type=float, default=0.0)
+    parser.add_argument("--action-scale-rad", type=float, default=contract.ACTION_SCALE_RAD)
     parser.add_argument("--reuse-usd-cache", action="store_true")
     AppLauncher.add_app_launcher_args(parser)
     return parser
@@ -362,6 +366,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             ankle_phase_offset_cycles=args.ankle_phase_offset,
             toe_phase_offset_cycles=args.toe_phase_offset,
         ).validate()
+        forward_reference.reference_contract(
+            forward_reference.ReferenceConfig(), action_scale_rad=args.action_scale_rad
+        )
     except ValueError as error:
         print(f"Reference probe preflight failed: {error}", file=sys.stderr)
         return 1

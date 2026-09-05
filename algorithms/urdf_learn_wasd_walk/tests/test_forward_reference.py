@@ -112,6 +112,17 @@ class ForwardReferenceTests(unittest.TestCase):
     def test_invalid_single_factor_bounds_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "amplitude scale"):
             forward_reference.ReferenceConfig(amplitude_scale=1.01).validate()
+        with self.assertRaisesRegex(ValueError, "action scale"):
+            forward_reference.reference_contract(
+                forward_reference.ReferenceConfig(), action_scale_rad=0.31
+            )
+
+    def test_probe_action_scale_is_recorded_in_fk_audit(self) -> None:
+        reference = forward_reference.reference_contract(
+            forward_reference.ReferenceConfig(), action_scale_rad=0.24
+        )
+        self.assertEqual(reference["action_scale_rad"], 0.24)
+        self.assertEqual(reference["offline_kinematic_audit"]["action_scale_rad"], 0.24)
 
 
 if __name__ == "__main__":
