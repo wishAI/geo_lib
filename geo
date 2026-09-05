@@ -250,6 +250,7 @@ def _build_parser() -> argparse.ArgumentParser:
     walk_parser = subparsers.add_parser("walk", help="Build and validate Landau locomotion one milestone at a time.")
     walk_subparsers = walk_parser.add_subparsers(dest="walk_cmd", required=True)
     walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
+    walk_subparsers.add_parser("evolution", help="Rebuild the real checkpoint and experiment evolution tree.")
     walk_subparsers.add_parser("inspect", help="Audit the retained URDF and print the robot control contract.")
     walk_subparsers.add_parser(
         "validate-passive", help="Run camera-free dynamics, viewport proof, and final assembly sequentially."
@@ -725,6 +726,12 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             return LaunchSpec(
                 "direct",
                 [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
+            )
+        if args.walk_cmd == "evolution":
+            return LaunchSpec(
+                "direct",
+                [sys.executable, "algorithms/urdf_learn_wasd_walk/evolution.py", *extra_args],
+                success_artifact=REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "evolution.json",
             )
         if args.walk_cmd == "inspect":
             return LaunchSpec(

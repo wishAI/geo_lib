@@ -11,7 +11,9 @@
   const urdfDialogContent = document.querySelector('#urdf-dialog-content');
   const meshDialog = document.querySelector('#mesh-dialog');
   const meshDialogContent = document.querySelector('#mesh-dialog-content');
-  const state = { catalog: [], status: null, jobs: [], artifacts: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', pollTimer: null };
+  const evolutionDialog = document.querySelector('#evolution-dialog');
+  const evolutionDialogContent = document.querySelector('#evolution-dialog-content');
+  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', pollTimer: null };
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatBytes = value => value == null ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) + 'B';
@@ -148,10 +150,11 @@
   }
 
   function visualToolsPanel(sandbox) {
-    if (sandbox.viewer?.type !== 'urdf' && !sandbox.meshWorkbench) return '';
+    if (sandbox.viewer?.type !== 'urdf' && !sandbox.meshWorkbench && sandbox.inspector?.type !== 'evolutionTree') return '';
     return `<section class="panel visual-tools-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('cube')}</span><div><p class="eyebrow">FLOATING WINDOWS</p><h2>3D visual tools</h2></div></div></header><div class="panel-body visual-tool-grid">
       ${sandbox.viewer?.type === 'urdf' ? `<button class="visual-tool" type="button" data-open-workbench="urdf"><span class="visual-tool-icon">${icon('robot')}</span><span><b>URDF workbench</b><small>Orbit the produced robot and tune grouped joints.</small></span>${icon('arrow')}</button>` : ''}
       ${sandbox.meshWorkbench ? `<button class="visual-tool" type="button" data-open-workbench="mesh"><span class="visual-tool-icon">${icon('layers')}</span><span><b>Mesh → STL lab</b><small>Compare each body-part mesh and generated STL, then apply a method.</small></span>${icon('arrow')}</button>` : ''}
+      ${sandbox.inspector?.type === 'evolutionTree' ? `<button class="visual-tool" type="button" data-open-workbench="evolution"><span class="visual-tool-icon">${icon('milestones')}</span><span><b>${escapeHtml(sandbox.inspector.label || 'Evolution tree')}</b><small>Inspect real checkpoint ancestry, failures, metrics, and cloud-only model metadata.</small></span>${icon('arrow')}</button>` : ''}
     </div></section>`;
   }
 
@@ -205,6 +208,28 @@
     document.querySelectorAll('[data-artifact]').forEach(button => button.addEventListener('click', () => void previewArtifact(button.dataset.artifact, button.dataset.kind)));
     document.querySelector('[data-open-workbench="urdf"]')?.addEventListener('click', () => void openRobotWorkbench(sandbox));
     document.querySelector('[data-open-workbench="mesh"]')?.addEventListener('click', () => void openMeshWorkbench(sandbox));
+    document.querySelector('[data-open-workbench="evolution"]')?.addEventListener('click', () => void openEvolutionTree(sandbox));
+  }
+
+  async function openEvolutionTree(sandbox) {
+    evolutionDialog.dataset.sandbox = sandbox.id;
+    evolutionDialogContent.innerHTML = `<div class="viewer-loading">${icon('milestones')}<span>Loading real lineage…</span></div>`;
+    evolutionDialog.showModal();
+    try {
+      const path = sandbox.inspector?.path;
+      if (!path) throw new Error('This sandbox does not declare an evolution artifact.');
+      const payload = await api(`/api/artifact?path=${encodeURIComponent(path)}`);
+      state.evolution[sandbox.id] = payload;
+      if (!window.GeoEvolutionTree) throw new Error('Evolution Tree renderer is unavailable.');
+      window.GeoEvolutionTree.mount(evolutionDialogContent, {
+        data: payload,
+        artifacts: state.artifacts[sandbox.id] || [],
+        onPreview: (artifactPath, kind) => void previewArtifact(artifactPath, kind),
+      });
+    } catch (error) {
+      evolutionDialogContent.innerHTML = `<div class="workbench-retry workbench-retry-centered"><div class="warning-box">Evolution data could not be loaded. ${escapeHtml(error.message)}</div><button class="button button-with-icon" type="button" data-retry-evolution>${icon('refresh')}<span>Retry</span></button></div>`;
+      evolutionDialogContent.querySelector('[data-retry-evolution]')?.addEventListener('click', () => void openEvolutionTree(sandbox));
+    }
   }
 
   async function previewArtifact(path, kind) {
@@ -476,6 +501,7 @@
     state.meshViewers = [];
     if (urdfDialog.open && urdfDialog.dataset.sandbox !== sandbox?.id) urdfDialog.close();
     if (meshDialog.open && meshDialog.dataset.sandbox !== sandbox?.id) meshDialog.close();
+    if (evolutionDialog.open && evolutionDialog.dataset.sandbox !== sandbox?.id) evolutionDialog.close();
     if (sandbox) {
       sandboxView(sandbox);
       if (!state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
@@ -563,9 +589,11 @@
   artifactDialog.addEventListener('click', event => { if (event.target === artifactDialog) artifactDialog.close(); });
   document.querySelector('[data-close-workbench="urdf"]').addEventListener('click', () => urdfDialog.close());
   document.querySelector('[data-close-workbench="mesh"]').addEventListener('click', () => meshDialog.close());
-  for (const dialog of [urdfDialog, meshDialog]) dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  document.querySelector('[data-close-workbench="evolution"]').addEventListener('click', () => evolutionDialog.close());
+  for (const dialog of [urdfDialog, meshDialog, evolutionDialog]) dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
   urdfDialog.addEventListener('close', () => { state.robotViewer?.destroy?.(); state.robotViewer = null; urdfDialogContent.innerHTML = ''; });
   meshDialog.addEventListener('close', () => { state.meshViewers.forEach(viewer => viewer.destroy?.()); state.meshViewers = []; meshDialogContent.innerHTML = ''; });
+  evolutionDialog.addEventListener('close', () => { evolutionDialogContent.innerHTML = ''; });
   window.addEventListener('hashchange', renderRoute);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void refreshAll(); else clearTimeout(state.pollTimer); });
   void refreshAll();

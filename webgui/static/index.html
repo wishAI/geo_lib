@@ -64,8 +64,17 @@
       <div id="mesh-dialog-content" class="workbench-dialog-content"></div>
     </dialog>
 
+    <dialog id="evolution-dialog" class="workbench-dialog evolution-dialog" aria-labelledby="evolution-dialog-title">
+      <header class="workbench-dialog-head">
+        <div><p class="eyebrow">CHECKPOINT LINEAGE</p><h2 id="evolution-dialog-title">Training evolution</h2></div>
+        <button class="button button-icon" type="button" data-close-workbench="evolution" aria-label="Close evolution tree"><svg class="icon"><use href="/icons.svg?v=3#icon-close"></use></svg></button>
+      </header>
+      <div id="evolution-dialog-content" class="workbench-dialog-content"></div>
+    </dialog>
+
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
     <script src="/motion_urdf_viewer.js?v=6"></script>
-    <script src="/app.js?v=8"></script>
+    <script src="/evolution_tree.js?v=1"></script>
+    <script src="/app.js?v=9"></script>
   </body>
 </html>

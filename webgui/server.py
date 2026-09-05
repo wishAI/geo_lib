@@ -90,6 +90,9 @@ def declared_artifact_paths() -> set[str]:
                 paths.add(artifact["path"])
         for candidate in manifest.get("viewer", {}).get("urdfCandidates", []):
             paths.add(candidate["path"])
+        inspector = manifest.get("inspector", {})
+        if inspector.get("path"):
+            paths.add(inspector["path"])
     return paths
 
 

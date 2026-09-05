@@ -79,6 +79,12 @@ class ManifestTests(unittest.TestCase):
             forward_validation["command"][:3], ["./geo", "walk", "validate-forward-walk"]
         )
         self.assertIn("video", {artifact["kind"] for artifact in forward_validation["artifacts"]})
+        self.assertEqual(manifest["inspector"]["type"], "evolutionTree")
+        self.assertIn(manifest["inspector"]["path"], server.declared_artifact_paths())
+        self.assertFalse(any(
+            artifact["path"].endswith((".pt", ".pth", ".ckpt", ".onnx", ".engine", ".safetensors"))
+            for example in manifest["examples"] for artifact in example.get("artifacts", [])
+        ))
 
 
 class StorageAndRobotTests(unittest.TestCase):

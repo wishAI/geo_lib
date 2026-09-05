@@ -8,6 +8,11 @@
   "runtime": "tk2-clean",
   "runtimeLabel": "TK2 · 5 m forward gate",
   "capabilities": ["passive stand", "policy stand", "forward walk", "Isaac Lab", "clean room"],
+  "inspector": {
+    "type": "evolutionTree",
+    "label": "Training evolution",
+    "path": "algorithms/urdf_learn_wasd_walk/outputs/evolution.json"
+  },
   "examples": [
     {
       "id": "validate_passive_stand",
