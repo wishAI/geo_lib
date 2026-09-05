@@ -71,9 +71,23 @@ def probe_protocol(settle_steps: int, reference_steps: int) -> dict:
     }
 
 
+def configure_single_reference_application(env_cfg, joint_position_action_class) -> dict:
+    """Disable the policy environment's built-in reference for an explicit probe action."""
+
+    previous = env_cfg.actions.joint_pos.class_type
+    env_cfg.actions.joint_pos.class_type = joint_position_action_class
+    return {
+        "application_count": 1,
+        "actor_input": "explicit normalized reference action",
+        "action_term": joint_position_action_class.__name__,
+        "disabled_action_term": previous.__name__,
+    }
+
+
 def _run(args, training: dict, prior: list[dict]) -> dict:
     import torch
     from isaaclab.envs import ManagerBasedRLEnv
+    from isaaclab.envs.mdp.actions import JointPositionAction
 
     from algorithms.urdf_learn_wasd_walk.forward_walk_env import build_env_cfg
 
@@ -108,6 +122,9 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         evaluation_command="forward",
         force_usd_conversion=not args.reuse_usd_cache,
     )
+    reference_application = configure_single_reference_application(
+        cfg, JointPositionAction
+    )
     cfg.actions.joint_pos.scale = args.action_scale_rad
     cfg.sim.device = args.device
     env = ManagerBasedRLEnv(cfg=cfg, render_mode=None)
@@ -115,6 +132,8 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         robot = env.scene["robot"]
         contacts = env.scene["contact_forces"]
         action_term = env.action_manager.get_term("joint_pos")
+        if type(action_term) is not JointPositionAction:
+            raise RuntimeError("probe action term still contains the policy reference residual")
         action_names = list(action_term._joint_names)
         if action_names != list(model_spec.ACTION_JOINTS):
             raise RuntimeError(f"runtime action order differs: {action_names}")
@@ -289,6 +308,7 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
                 "training_method": "current_mesh_policy_stand_parent",
             },
             "reference_contract": reference,
+            "reference_application": reference_application,
             "probe_protocol": probe_protocol(args.settle_steps, args.steps),
             "joint_contract": {
                 "action_joints": spec["action_joints"],

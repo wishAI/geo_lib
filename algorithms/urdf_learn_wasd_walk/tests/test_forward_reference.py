@@ -11,6 +11,29 @@ from algorithms.urdf_learn_wasd_walk import (
 
 
 class ForwardReferenceTests(unittest.TestCase):
+    def test_probe_disables_the_policy_action_terms_internal_reference(self) -> None:
+        class ReferenceResidual:
+            pass
+
+        class PlainJointPosition:
+            pass
+
+        class JointTerm:
+            class_type = ReferenceResidual
+
+        class Actions:
+            joint_pos = JointTerm()
+
+        class EnvCfg:
+            actions = Actions()
+
+        audit = forward_reference_probe.configure_single_reference_application(
+            EnvCfg(), PlainJointPosition
+        )
+        self.assertIs(EnvCfg.actions.joint_pos.class_type, PlainJointPosition)
+        self.assertEqual(audit["application_count"], 1)
+        self.assertEqual(audit["disabled_action_term"], "ReferenceResidual")
+
     def test_probe_defaults_to_current_policy_stand_parent(self) -> None:
         self.assertEqual(
             forward_reference_probe.DEFAULT_PARENT_OUTPUT,
