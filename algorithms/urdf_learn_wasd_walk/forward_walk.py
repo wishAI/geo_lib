@@ -198,6 +198,7 @@ def _train(args) -> dict:
         wrapped = RslRlVecEnvWrapper(env)
         runner_cfg = policy_stand._runner_cfg(args.seed, args.iterations)
         runner_cfg.experiment_name = "landau_forward_5m"
+        runner_cfg.num_steps_per_env = contract.ROLLOUT_STEPS_PER_ENV
         runner = OnPolicyRunner(
             wrapped, runner_cfg.to_dict(), log_dir=os.fspath(run_dir), device=args.device
         )
@@ -349,6 +350,7 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
             args.seed, training["requested_contract"]["iterations"]
         )
         runner_cfg.experiment_name = "landau_forward_5m"
+        runner_cfg.num_steps_per_env = training["requested_contract"]["num_steps_per_env"]
         runner = OnPolicyRunner(wrapped, runner_cfg.to_dict(), log_dir=None, device=args.device)
         _stage(args, "checkpoint_load")
         runner.load(training["checkpoint"]["resolved_path"], load_optimizer=False)

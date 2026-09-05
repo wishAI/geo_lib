@@ -20,9 +20,10 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "zero_initialized_reference_residual_v4"
+TRAINING_METHOD_ID = "full_cycle_rollout_zero_residual_v5"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
+ROLLOUT_STEPS_PER_ENV = 96
 REFERENCE_ACTION_SCALE_RAD = 0.20
 REFERENCE_SETTLE_S = 1.0
 REFERENCE_STARTUP_RAMP_S = 0.4
@@ -46,13 +47,12 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the transferred stand actor emits nonzero actions that destructively combine with the "
-        "short-probe-qualified phase reference; preserving its feature extractor and critic while "
-        "zeroing only the actor output head starts PPO from an exact zero residual"
+        "the zero-output residual removed the early destructive policy response, but the prior "
+        "24-step rollout spans only 0.48 s and cannot contain the 1.0 s settle boundary plus a "
+        "complete 0.8 s gait cycle; a 96-step rollout exposes each PPO update to both"
     ),
     "first_experiment": (
-        "two-iteration runtime smoke followed by a bounded training stage that covers the first "
-        "reference-induced instability interval"
+        "two iterations with 96 steps per environment followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -346,8 +346,8 @@ def training_contract(
         "seed": seed,
         "num_envs": num_envs,
         "iterations": iterations,
-        "num_steps_per_env": 24,
-        "sample_count": num_envs * iterations * 24,
+        "num_steps_per_env": ROLLOUT_STEPS_PER_ENV,
+        "sample_count": num_envs * iterations * ROLLOUT_STEPS_PER_ENV,
         "initialization": {
             **initialization_source,
             "preserved_observation_prefix_width": source_width,
