@@ -283,7 +283,16 @@ def build_env_cfg(
     cfg.scene.num_envs = num_envs
     cfg.scene.robot = make_landau_articulation_cfg(force_usd_conversion=force_usd_conversion)
     cfg.seed = seed
-    if not training:
+    if training:
+        cfg.events.reset_base.params["pose_range"] = {
+            name: (0.0, 0.0) for name in ("x", "y", "z", "roll", "pitch", "yaw")
+        }
+        cfg.events.reset_base.params["velocity_range"] = {
+            name: (0.0, 0.0) for name in ("x", "y", "z", "roll", "pitch", "yaw")
+        }
+        cfg.events.reset_action_joints.params["position_range"] = (0.0, 0.0)
+        cfg.events.reset_action_joints.params["velocity_range"] = (0.0, 0.0)
+    else:
         cfg.events.reset_base = None
         cfg.events.reset_action_joints = None
         cfg.episode_length_s = contract.MAX_GATE_DURATION_S + contract.CONTROL_DT_S * 2

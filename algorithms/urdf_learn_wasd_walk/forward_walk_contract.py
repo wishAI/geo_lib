@@ -20,7 +20,7 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "validated_balance_seed_full_cycle_v8"
+TRAINING_METHOD_ID = "canonical_reset_balance_seed_v9"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
 ROLLOUT_STEPS_PER_ENV = 96
@@ -49,14 +49,14 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "three full-cycle restarts from a zero residual failed, while the current-mesh v4 short-"
-        "rollout checkpoint completed a deterministic 10 s replay with bilateral liftoff and no "
-        "fall; preserving that validated balance residual before conservative full-cycle updates "
-        "should avoid relearning the narrow standing basin from scratch"
+        "the validated v4 balance seed remains stable in deterministic replay, but 64.6% of "
+        "training environments terminate in the first rollout under reset perturbations; using "
+        "canonical zero-offset episode resets should align training with the exact flat-gate "
+        "initial condition without weakening validation"
     ),
     "first_experiment": (
-        "two iterations initialized from the validated v4 output with the same 96-step rollout, "
-        "1e-4 learning rate, and 0.02 action noise, followed by a deterministic 10 s smoke"
+        "two iterations initialized from the validated v4 output with canonical reset offsets, "
+        "followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -368,6 +368,12 @@ def training_contract(
             "sim_command_mapping": {"forward": "linear_y", "strafe": "linear_x", "yaw": "angular_z"},
             "training_forward_speed_range_mps": list(TRAIN_FORWARD_SPEED_RANGE_MPS),
             "standing_environment_fraction": 0.25,
+            "training_reset_distribution": {
+                "root_pose_offset": "exact_zero",
+                "root_velocity": "exact_zero",
+                "action_joint_position_offset": "exact_zero",
+                "action_joint_velocity": "exact_zero",
+            },
             "action_scale_rad": ACTION_SCALE_RAD,
             "reference_residual": {
                 "method": REFERENCE_PROBE_METHOD_ID,
