@@ -24,6 +24,7 @@ class ReferenceConfig:
     knee_amplitude: float = 1.0
     ankle_pitch_amplitude: float = -1.0
     toe_amplitude: float = -0.5
+    hip_roll_amplitude: float = 0.0
     hip_phase_offset_cycles: float = 0.0
     knee_phase_offset_cycles: float = 0.0
     ankle_phase_offset_cycles: float = 0.0
@@ -41,6 +42,7 @@ class ReferenceConfig:
         for name in (
             "hip_pitch_amplitude", "knee_amplitude", "ankle_pitch_amplitude",
             "toe_amplitude",
+            "hip_roll_amplitude",
         ):
             if abs(float(getattr(self, name))) > 1.0:
                 raise ValueError(f"{name} escapes the normalized action limit")
@@ -95,6 +97,9 @@ def reference_action(
         result[f"{side}_hip_pitch_joint"] = (
             scale * direction * config.hip_pitch_amplitude * math.sin(2.0 * math.pi * hip_phase)
         )
+        result[f"{side}_hip_roll_joint"] = (
+            scale * config.hip_roll_amplitude * math.sin(2.0 * math.pi * phase)
+        )
         result[f"{side}_knee_joint"] = (
             scale * config.knee_amplitude * _swing_clearance(knee_phase, config.swing_fraction)
         )
@@ -121,6 +126,10 @@ def reference_contract(config: ReferenceConfig) -> dict:
         "command_gating": "smoothstep(abs(forward_mps) / 0.25); exactly zero at zero command",
         "left_right_phase_difference_cycles": config.phase_difference_cycles,
         "swing_clearance_envelope": "sin(pi*u)^2 during swing; zero value and slope at toe-off/landing",
+        "lateral_weight_transfer": (
+            "phase-opposed bilateral hip-roll sinus; amplitude is zero in the baseline and the "
+            "entire reference remains exactly zero at zero command"
+        ),
         "action_scale_rad": contract.ACTION_SCALE_RAD,
         "action_order": list(model_spec.ACTION_JOINTS),
         "parameters": config.as_metadata(),

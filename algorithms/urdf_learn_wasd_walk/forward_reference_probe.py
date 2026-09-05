@@ -89,6 +89,7 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         knee_phase_offset_cycles=args.knee_phase_offset,
         ankle_phase_offset_cycles=args.ankle_phase_offset,
         toe_phase_offset_cycles=args.toe_phase_offset,
+        hip_roll_amplitude=args.hip_roll_amplitude,
     )
     reference = forward_reference.reference_contract(config)
     _stage(args, "manager_environment_construction")
@@ -331,6 +332,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--knee-phase-offset", type=float, default=0.0)
     parser.add_argument("--ankle-phase-offset", type=float, default=0.0)
     parser.add_argument("--toe-phase-offset", type=float, default=0.0)
+    parser.add_argument("--hip-roll-amplitude", type=float, default=0.0)
     parser.add_argument("--reuse-usd-cache", action="store_true")
     AppLauncher.add_app_launcher_args(parser)
     return parser
