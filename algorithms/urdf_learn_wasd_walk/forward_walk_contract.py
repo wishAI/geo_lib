@@ -20,7 +20,7 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "slower_low_amplitude_balance_seed_v10"
+TRAINING_METHOD_ID = "slower_low_amplitude_zero_residual_v11"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 1.0
 ROLLOUT_STEPS_PER_ENV = 112
@@ -52,12 +52,13 @@ NEXT_TRAINING_HYPOTHESIS = {
     "hypothesis": (
         "the 0.8-second 0.12-rad reference is stable but moves slightly backward, while changing "
         "only its period to 1.0 second produces 0.1305 m forward motion with bilateral liftoff "
-        "and zero events; residual PPO from the validated balance seed should exploit the slower "
-        "support transition without the destabilizing 0.20-rad physical amplitude"
+        "and zero events; the v4 actor residual was learned against a 0.8-second phase and cancels "
+        "liftoff under the 1.0-second reference, so a zero-output residual transferred from the "
+        "passed stand actor should initially preserve the verified open-loop gait"
     ),
     "first_experiment": (
-        "two iterations initialized from the validated v4 output with canonical reset offsets "
-        "and the passed 1.0-second, 0.12-rad reference, "
+        "two iterations initialized from the passed stand checkpoint with a zeroed actor output "
+        "head, canonical reset offsets, and the passed 1.0-second, 0.12-rad reference, "
         "followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
