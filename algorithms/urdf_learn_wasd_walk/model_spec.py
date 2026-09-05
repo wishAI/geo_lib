@@ -20,6 +20,8 @@ ALGORITHM_ROOT = Path(__file__).resolve().parent
 URDF_PATH = ALGORITHM_ROOT / "inputs" / "landau_v10" / "landau_v10_parallel_mesh.urdf"
 ROBOT_SPEC_PATH = ALGORITHM_ROOT / "robot_spec.json"
 EXPECTED_URDF_SHA256 = "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca"
+EXPECTED_MESH_TREE_SHA256 = "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435"
+LINEAGE = "latest_parallel_mesh_recertification_2026_09_05"
 
 SEMANTIC_COMMAND_ORDER = ("forward", "strafe", "yaw")
 SIM_COMMAND_ORDER = ("linear_x", "linear_y", "angular_z")
@@ -802,6 +804,14 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
         mesh_tree_digest.update(path.name.encode("utf-8"))
         if path.is_file():
             mesh_tree_digest.update(bytes.fromhex(_sha256(path)))
+    mesh_tree_sha256 = mesh_tree_digest.hexdigest()
+    if missing_meshes:
+        raise ValueError(f"Landau mesh package is incomplete: {missing_meshes}")
+    if urdf_path == URDF_PATH and mesh_tree_sha256 != EXPECTED_MESH_TREE_SHA256:
+        raise ValueError(
+            "Landau mesh package differs from the latest usd_parallel_urdf contract: "
+            f"{mesh_tree_sha256} != {EXPECTED_MESH_TREE_SHA256}"
+        )
 
     fixed_root = next(joint for joint in joints if joint.find("parent").get("link") == "base_link")  # type: ignore[union-attr]
     fixed_origin = fixed_root.find("origin")
@@ -834,7 +844,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
     canonical_pose_geometry = analyze_pose_geometry(canonical_positions, urdf_path)
     return {
         "version": 8,
-        "lineage": "clean_restart_2026_08_22",
+        "lineage": LINEAGE,
         "source": {
             "urdf_path": str(urdf_path.relative_to(ALGORITHM_ROOT.parent.parent)),
             "urdf_sha256": urdf_sha256,
@@ -843,7 +853,8 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             "mesh_reference_count": len(mesh_paths),
             "unique_mesh_count": len(unique_mesh_paths),
             "missing_meshes": missing_meshes,
-            "mesh_tree_sha256": mesh_tree_digest.hexdigest(),
+            "mesh_tree_sha256": mesh_tree_sha256,
+            "expected_mesh_tree_sha256": EXPECTED_MESH_TREE_SHA256,
         },
         "structure": {
             "link_count": len(links),

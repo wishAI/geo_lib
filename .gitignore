@@ -28,6 +28,9 @@ __pycache__/
 *.blend1
 *.glb
 *.stl
+# The clean locomotion URDF references this versioned 68-link visual/collision
+# package.  It is robot source data, not a trained checkpoint or run output.
+!algorithms/urdf_learn_wasd_walk/inputs/landau_v10/mesh_collision_stl/**/*.stl
 **/textures/texture_pbr_20250901.png
 **/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png
 **/textures/texture_pbr_20250901_normal.png

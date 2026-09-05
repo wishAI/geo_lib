@@ -51,14 +51,14 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unknown parameters"):
             server.build_example_command(manifest, example, {"resolution": 0.02, "command": "oops"})
 
-    def test_walk_sandbox_preserves_clean_lineage_and_exposes_current_gate(self) -> None:
+    def test_walk_sandbox_exposes_latest_mesh_recertification_gate(self) -> None:
         root = server.REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk"
         payload = json.loads((root / "milestones.json").read_text(encoding="utf-8"))
         self.assertEqual(len(payload["milestones"]), 12)
-        self.assertEqual(payload["milestones"][0]["status"], "passed")
-        self.assertEqual(payload["milestones"][1]["status"], "passed")
-        self.assertEqual(payload["milestones"][2]["status"], "in_progress")
-        self.assertEqual({item["status"] for item in payload["milestones"][3:]}, {"not_started"})
+        self.assertEqual(payload["milestones"][0]["status"], "in_progress")
+        self.assertEqual({item["status"] for item in payload["milestones"][1:]}, {"not_started"})
+        self.assertEqual(payload["assetContract"]["meshTreeSha256"], "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435")
+        self.assertEqual(payload["invalidatedLineage"]["meshTreeSha256"], "e912ac2e7fcc16a52d726ef410c2b0eb860727d033e07b1728d63a3f906d4da0")
         self.assertFalse(payload["historyCarriedForward"])
         manifest = server.manifest_map()["urdf_learn_wasd_walk"]
         self.assertEqual(
