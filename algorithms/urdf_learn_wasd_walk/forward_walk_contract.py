@@ -20,7 +20,7 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "low_noise_full_cycle_residual_v7"
+TRAINING_METHOD_ID = "validated_balance_seed_full_cycle_v8"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
 ROLLOUT_STEPS_PER_ENV = 96
@@ -49,14 +49,14 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "both full-cycle runs terminated 62.5% of environments during the first pre-update "
-        "rollout, with mean episode length 0.96 s before the gait activates; reducing only the "
-        "Gaussian action noise from 0.2 to 0.02 should keep exploration inside the passive "
-        "standing basin while retaining full-cycle data"
+        "three full-cycle restarts from a zero residual failed, while the current-mesh v4 short-"
+        "rollout checkpoint completed a deterministic 10 s replay with bilateral liftoff and no "
+        "fall; preserving that validated balance residual before conservative full-cycle updates "
+        "should avoid relearning the narrow standing basin from scratch"
     ),
     "first_experiment": (
-        "two iterations with the same 96-step rollout and 1e-4 learning rate at 0.02 action "
-        "noise, followed by a deterministic 10 s smoke"
+        "two iterations initialized from the validated v4 output with the same 96-step rollout, "
+        "1e-4 learning rate, and 0.02 action noise, followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }

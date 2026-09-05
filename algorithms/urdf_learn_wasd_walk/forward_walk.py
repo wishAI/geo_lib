@@ -70,8 +70,8 @@ def _reset_scalar_exploration_std(state: dict, desired_std: float) -> dict:
     }
 
 
-def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
-    """Preserve features/critic while starting the gait residual at exact zero."""
+def _transfer_checkpoint(runner, checkpoint_path: Path, *, zero_actor_output: bool) -> dict:
+    """Transfer a policy, optionally clearing its actor output for a fresh residual."""
 
     import torch
 
@@ -115,12 +115,13 @@ def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
         raise RuntimeError("actor/critic source widths differ")
     zeroed_output_tensors = []
     residual_state = runner.alg.actor_critic.state_dict()
-    for name in ("actor.4.weight", "actor.4.bias"):
-        parameter = residual_state.get(name)
-        if parameter is None:
-            raise RuntimeError(f"actor output tensor is missing: {name}")
-        residual_state[name] = torch.zeros_like(parameter)
-        zeroed_output_tensors.append(name)
+    if zero_actor_output:
+        for name in ("actor.4.weight", "actor.4.bias"):
+            parameter = residual_state.get(name)
+            if parameter is None:
+                raise RuntimeError(f"actor output tensor is missing: {name}")
+            residual_state[name] = torch.zeros_like(parameter)
+            zeroed_output_tensors.append(name)
     exploration_std = _reset_scalar_exploration_std(
         residual_state, contract.PPO_INITIAL_ACTION_NOISE_STD
     )
@@ -137,7 +138,9 @@ def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
         ),
         "optimizer_state_loaded": False,
         "zero_initialized_actor_output_tensors": zeroed_output_tensors,
-        "initial_deterministic_residual": "exactly_zero",
+        "initial_deterministic_residual": (
+            "exactly_zero" if zero_actor_output else "preserved_from_validated_seed"
+        ),
         "exploration_std_after_checkpoint_transfer": exploration_std,
     }
 
@@ -154,7 +157,42 @@ def _train(args) -> dict:
     training_path = output / contract.TRAINING_EVIDENCE
     prior, parent = contract.load_cumulative_prior()
     predecessor = None
-    if args.resume_gate_checkpoint:
+    zero_actor_output = True
+    if args.initialization_output_dir is not None:
+        seed_output = contract.safe_output_dir(args.initialization_output_dir)
+        seed_training = contract.load_training_evidence(seed_output)
+        seed_validation_path = seed_output / contract.component_artifact_name("forward", smoke=True)
+        seed_validation = json.loads(seed_validation_path.read_text(encoding="utf-8"))
+        if (
+            seed_validation.get("status") != "passed"
+            or seed_validation.get("checkpoint", {}).get("sha256")
+            != seed_training["checkpoint"]["sha256"]
+        ):
+            raise ValueError("initialization output lacks matching passed smoke dynamics")
+        diagnostic_failures = contract.evaluate_training_smoke_diagnostic(
+            seed_validation.get("metrics", {})
+        )
+        if diagnostic_failures:
+            raise ValueError(
+                "initialization output failed gait smoke diagnostics: "
+                + "; ".join(diagnostic_failures)
+            )
+        source_checkpoint = Path(seed_training["checkpoint"]["resolved_path"])
+        source_width = int(
+            seed_training["requested_contract"]["environment"]["actor_observation_dim"]
+        )
+        initialization_source = {
+            "kind": "validated_current_lineage_balance_seed",
+            "path": seed_training["checkpoint"]["path"],
+            "sha256": seed_training["checkpoint"]["sha256"],
+            "actor_observation_dim": source_width,
+            "source_milestone": contract.MILESTONE_ID,
+            "zero_initialized_actor_output_head": False,
+            "validation_path": str(seed_validation_path.relative_to(REPO_ROOT)),
+            "validation_sha256": contract.sha256(seed_validation_path),
+        }
+        zero_actor_output = False
+    elif args.resume_gate_checkpoint:
         resume_output = contract.DEFAULT_OUTPUT_DIR
         resume_training = contract.load_training_evidence(resume_output)
         resume_validation_path = resume_output / contract.component_artifact_name("forward")
@@ -231,7 +269,9 @@ def _train(args) -> dict:
             wrapped, runner_cfg.to_dict(), log_dir=os.fspath(run_dir), device=args.device
         )
         _stage(args, "checkpoint_method_change_transfer")
-        transfer = _transfer_checkpoint(runner, source_checkpoint)
+        transfer = _transfer_checkpoint(
+            runner, source_checkpoint, zero_actor_output=zero_actor_output
+        )
         _stage(args, "ppo_learning")
         runner.learn(num_learning_iterations=args.iterations, init_at_random_ep_len=False)
         checkpoints = list(run_dir.glob("model_*.pt"))
@@ -777,6 +817,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--num-envs", type=int, default=512)
     parser.add_argument("--iterations", type=int, default=600)
     parser.add_argument("--resume-gate-checkpoint", action="store_true")
+    parser.add_argument("--initialization-output-dir", type=Path)
     parser.add_argument("--steps", type=int)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--reuse-usd-cache", action="store_true")
@@ -801,6 +842,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("bound training with --iterations and --num-envs, not --smoke")
     if args.mode != "train" and args.resume_gate_checkpoint:
         raise SystemExit("--resume-gate-checkpoint is training-only")
+    if args.mode != "train" and args.initialization_output_dir is not None:
+        raise SystemExit("--initialization-output-dir is training-only")
+    if args.resume_gate_checkpoint and args.initialization_output_dir is not None:
+        raise SystemExit("choose only one forward-checkpoint initialization source")
     prior = training = None
     try:
         if args.mode != "train":
