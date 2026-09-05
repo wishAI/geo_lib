@@ -20,7 +20,8 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "command_gated_phase_reference_residual_v3"
+TRAINING_METHOD_ID = "zero_initialized_reference_residual_v4"
+REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
 REFERENCE_ACTION_SCALE_RAD = 0.20
 REFERENCE_SETTLE_S = 1.0
@@ -43,15 +44,15 @@ FORWARD_PROGRESS_VELOCITY_EPS_MPS = 0.01
 MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 
 NEXT_TRAINING_HYPOTHESIS = {
-    "id": "command_gated_phase_reference_residual_v3",
+    "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "phase observations and sparse contact rewards do not provide enough exploration from the "
-        "stable stand policy; a small command-gated, phase-conditioned leg reference can seed "
-        "alternating weight transfer while PPO learns bounded residuals"
+        "the transferred stand actor emits nonzero actions that destructively combine with the "
+        "short-probe-qualified phase reference; preserving its feature extractor and critic while "
+        "zeroing only the actor output head starts PPO from an exact zero residual"
     ),
     "first_experiment": (
-        "camera-free short open-loop reference probe before any PPO run, requiring bilateral "
-        "liftoff, positive +Y progress, no reset/fall, and bounded target error"
+        "two-iteration runtime smoke followed by a bounded training stage that covers the first "
+        "reference-induced instability interval"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -303,7 +304,7 @@ def load_reference_probe(parent_sha256: str) -> dict:
     if evidence.get("parent_checkpoint", {}).get("sha256") != parent_sha256:
         raise ValueError("the v3 reference probe used another stand checkpoint")
     reference = evidence.get("reference_contract", {})
-    if reference.get("method") != TRAINING_METHOD_ID:
+    if reference.get("method") != REFERENCE_PROBE_METHOD_ID:
         raise ValueError("the v3 reference probe used another method")
     if float(reference.get("action_scale_rad", -1.0)) != REFERENCE_ACTION_SCALE_RAD:
         raise ValueError("the v3 reference probe used another physical scale")
@@ -326,11 +327,12 @@ def training_contract(
     reference_probe = load_reference_probe(parent["sha256"])
     if initialization_source is None:
         initialization_source = {
-            "kind": "expanded_observation_transfer",
+            "kind": "zero_output_residual_transfer",
             "path": parent["path"],
             "sha256": parent["sha256"],
             "actor_observation_dim": 60,
             "source_milestone": PARENT_MILESTONE_ID,
+            "zero_initialized_actor_output_head": True,
         }
     source_width = int(initialization_source["actor_observation_dim"])
     if source_width not in {60, 63, ACTOR_OBSERVATION_DIM}:
@@ -364,7 +366,8 @@ def training_contract(
             "standing_environment_fraction": 0.25,
             "action_scale_rad": ACTION_SCALE_RAD,
             "reference_residual": {
-                "method": TRAINING_METHOD_ID,
+                "method": REFERENCE_PROBE_METHOD_ID,
+                "policy_method": TRAINING_METHOD_ID,
                 "physical_scale_rad": REFERENCE_ACTION_SCALE_RAD,
                 "zero_command_is_exactly_zero": True,
                 "pre_command_settle_s": REFERENCE_SETTLE_S,

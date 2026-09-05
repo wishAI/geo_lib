@@ -49,7 +49,7 @@ def _write_failure(args, error: Exception) -> None:
 
 
 def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
-    """Preserve a compatible actor/critic prefix and zero-init new inputs."""
+    """Preserve features/critic while starting the gait residual at exact zero."""
 
     import torch
 
@@ -91,6 +91,15 @@ def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
         raise RuntimeError(f"unexpected expanded transfer tensors: {expanded}")
     if int(source["critic.0.weight"].shape[1]) != source_width:
         raise RuntimeError("actor/critic source widths differ")
+    zeroed_output_tensors = []
+    residual_state = runner.alg.actor_critic.state_dict()
+    for name in ("actor.4.weight", "actor.4.bias"):
+        parameter = residual_state.get(name)
+        if parameter is None:
+            raise RuntimeError(f"actor output tensor is missing: {name}")
+        residual_state[name] = torch.zeros_like(parameter)
+        zeroed_output_tensors.append(name)
+    runner.alg.actor_critic.load_state_dict(residual_state, strict=True)
     return {
         "source_checkpoint_path": str(checkpoint_path.relative_to(REPO_ROOT)),
         "source_checkpoint_sha256": contract.sha256(checkpoint_path),
@@ -102,6 +111,8 @@ def _transfer_checkpoint(runner, checkpoint_path: Path) -> dict:
             if source_width < contract.ACTOR_OBSERVATION_DIM else []
         ),
         "optimizer_state_loaded": False,
+        "zero_initialized_actor_output_tensors": zeroed_output_tensors,
+        "initial_deterministic_residual": "exactly_zero",
     }
 
 
