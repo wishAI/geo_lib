@@ -78,10 +78,38 @@ class PassivePipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "missing proof"):
                 passive_pipeline.finalize(output_dir)
             (output_dir / "proof_validation.json").write_text(json.dumps(proof), encoding="utf-8")
-            final = passive_pipeline.finalize(output_dir)
+            milestones_path = output_dir / "milestones.json"
+            manifest_path = output_dir / "manifest.json"
+            milestones = json.loads(
+                (model_spec.ALGORITHM_ROOT / "milestones.json").read_text(encoding="utf-8")
+            )
+            for item in milestones["milestones"]:
+                if item["id"] == passive_stand.MILESTONE_ID:
+                    item["status"] = "in_progress"
+                elif item["id"] == "stand_30s_no_reset":
+                    item["status"] = "not_started"
+            milestones_path.write_text(json.dumps(milestones), encoding="utf-8")
+            manifest_path.write_text(
+                (model_spec.ALGORITHM_ROOT / "gui" / "manifest.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            final = passive_pipeline.finalize(
+                output_dir, milestones_path=milestones_path, manifest_path=manifest_path
+            )
             self.assertEqual(final["status"], "passed")
             self.assertTrue((output_dir / "validation.json").is_file())
             self.assertFalse(final["simulator"]["dynamics_rendering_enabled"])
+            recorded = json.loads(milestones_path.read_text(encoding="utf-8"))
+            by_id = {item["id"]: item for item in recorded["milestones"]}
+            self.assertEqual(by_id[passive_stand.MILESTONE_ID]["status"], "passed")
+            self.assertEqual(
+                by_id[passive_stand.MILESTONE_ID]["meshTreeSha256"],
+                model_spec.EXPECTED_MESH_TREE_SHA256,
+            )
+            self.assertEqual(by_id["stand_30s_no_reset"]["status"], "in_progress")
+            self.assertNotIn("checkpoint", by_id["stand_30s_no_reset"])
+            self.assertNotIn("evidence", by_id["stand_30s_no_reset"])
+            self.assertNotIn("previousStatus", by_id[passive_stand.MILESTONE_ID])
 
     def test_direct_script_entry_point_bootstraps_repository_package(self) -> None:
         script = model_spec.ALGORITHM_ROOT / "passive_pipeline.py"

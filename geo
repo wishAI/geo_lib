@@ -40,6 +40,7 @@ class LaunchSpec:
     success_artifact: Path | None = None
     failure_artifact: Path | None = None
     console_log: Path | None = None
+    required_artifact_status: str | None = None
 
 
 def _default_usd_path() -> Path:
@@ -550,6 +551,22 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
             )
             _write_launcher_failure(spec, cmd, returncode, "success artifact was not produced")
             return 1
+        if returncode == 0 and spec.required_artifact_status is not None:
+            try:
+                artifact = json.loads(spec.success_artifact.read_text(encoding="utf-8"))
+                status = artifact.get("status")
+            except (AttributeError, OSError, ValueError) as error:
+                print(f"Unable to audit component artifact status: {error}", file=sys.stderr)
+                _write_launcher_failure(spec, cmd, returncode, "component artifact status unreadable")
+                return 1
+            if status != spec.required_artifact_status:
+                print(
+                    f"Component artifact status is {status!r}, expected "
+                    f"{spec.required_artifact_status!r}: {spec.success_artifact}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return 1
         return returncode
     except KeyboardInterrupt:
         return 130
@@ -862,6 +879,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 success_artifact=output_dir.resolve() / "reference_probe.json",
                 failure_artifact=output_dir.resolve() / "reference_probe_failure.json",
                 console_log=output_dir.resolve() / "reference_probe_console.log",
+                required_artifact_status="passed",
             )
         if args.walk_cmd in {
             "train-forward-walk", "validate-forward-walk", "validate-forward-walk-stand",

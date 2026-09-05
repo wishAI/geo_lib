@@ -186,7 +186,7 @@ def load_prior_gate() -> dict:
         raise ValueError("prior passive validation belongs to another URDF")
     if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
         raise ValueError("prior passive validation belongs to another visual/collision mesh package")
-    if evidence.get("checkpoint", {}).get("identity") != prior.get("checkpoint"):
+    if evidence.get("checkpoint") != prior.get("checkpoint"):
         raise ValueError("prior passive validation robot specification differs from milestones")
     return {
         "order": 1,

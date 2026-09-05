@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import json
 import unittest
 
-from algorithms.urdf_learn_wasd_walk import forward_walk_contract as contract, model_spec
+from algorithms.urdf_learn_wasd_walk import forward_walk, forward_walk_contract as contract, model_spec
 
 
 def _forward_prerequisites_are_current() -> bool:
-    import json
-
     ledger = json.loads((model_spec.ALGORITHM_ROOT / "milestones.json").read_text())
     status = {item["id"]: item["status"] for item in ledger["milestones"]}
     return all(status.get(item) == "passed" for item in ("stand_zero_signal_30s_no_reset", contract.PARENT_MILESTONE_ID))
@@ -41,6 +40,49 @@ def passing_forward() -> dict:
 
 
 class ForwardWalkContractTests(unittest.TestCase):
+    def test_checkpoint_transfer_resets_loaded_scalar_exploration_std(self) -> None:
+        class Scalar:
+            def __init__(self, value):
+                self.value = value
+
+            def item(self):
+                return self.value
+
+        class Tensor:
+            ndim = 1
+
+            def __init__(self, values):
+                self.values = list(values)
+
+            def numel(self):
+                return len(self.values)
+
+            def detach(self):
+                return self
+
+            def clone(self):
+                return Tensor(self.values)
+
+            def fill_(self, value):
+                self.values = [value] * len(self.values)
+
+            def min(self):
+                return Scalar(min(self.values))
+
+            def max(self):
+                return Scalar(max(self.values))
+
+        state = {"std": Tensor([0.2] * len(model_spec.ACTION_JOINTS))}
+        audit = forward_walk._reset_scalar_exploration_std(state, 0.02)
+        self.assertEqual(state["std"].values, [0.02] * len(model_spec.ACTION_JOINTS))
+        self.assertAlmostEqual(audit["source_min"], 0.2)
+        self.assertAlmostEqual(audit["source_max"], 0.2)
+        self.assertEqual(audit["reset_value"], 0.02)
+
+    def test_checkpoint_transfer_rejects_unknown_noise_parameterization(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "log-std"):
+            forward_walk._reset_scalar_exploration_std({"log_std": object()}, 0.02)
+
     def test_gait_phase_clock_tolerates_manager_shape_probe_before_rl_buffer_exists(self) -> None:
         class ConstructionPhaseEnv:
             num_envs = 64
@@ -49,6 +91,20 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertIsNone(contract.episode_phase_step_buffer(env))
         env.episode_length_buf = [0, 7]
         self.assertEqual(contract.episode_phase_step_buffer(env), [0, 7])
+
+    def test_reference_phase_uses_settle_relative_clock_and_complementary_stance(self) -> None:
+        self.assertEqual(contract.reference_phase_cycle(0.0), 0.0)
+        self.assertEqual(contract.reference_phase_cycle(1.0), 0.0)
+        self.assertAlmostEqual(contract.reference_phase_cycle(1.25), 0.25)
+        self.assertAlmostEqual(contract.reference_phase_cycle(1.5), 0.5)
+        self.assertFalse(contract.left_stance_for_reference_phase(0.0))
+        self.assertFalse(contract.left_stance_for_reference_phase(0.499999))
+        self.assertTrue(contract.left_stance_for_reference_phase(0.5))
+        self.assertTrue(contract.left_stance_for_reference_phase(0.999999))
+        with self.assertRaises(ValueError):
+            contract.reference_phase_cycle(-0.01)
+        with self.assertRaises(ValueError):
+            contract.left_stance_for_reference_phase(1.0)
 
     def test_command_mapping_keeps_landau_body_plus_y_forward(self) -> None:
         self.assertEqual(contract.semantic_command_to_sim(0.4, -0.1, 0.2), (-0.1, 0.4, 0.2))
@@ -65,7 +121,9 @@ class ForwardWalkContractTests(unittest.TestCase):
             self.skipTest("latest-mesh stand gates are awaiting re-certification")
         prior, parent = contract.load_cumulative_prior()
         self.assertEqual([item["status"] for item in prior], ["passed", "passed"])
-        self.assertEqual(parent["sha256"], contract.PARENT_CHECKPOINT_SHA256)
+        ledger = json.loads((model_spec.ALGORITHM_ROOT / "milestones.json").read_text())
+        recorded = next(item for item in ledger["milestones"] if item["id"] == contract.PARENT_MILESTONE_ID)
+        self.assertEqual(parent["sha256"], recorded["checkpoint"]["sha256"])
 
     def test_forward_gate_requires_distance_gait_and_no_events(self) -> None:
         self.assertEqual(contract.evaluate_forward_gate(passing_forward()), [])
@@ -91,8 +149,39 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(requested["environment"]["sim_command_mapping"]["forward"], "linear_y")
         self.assertIsNone(requested["environment"]["curriculum"])
         self.assertFalse(requested["environment"]["rough_terrain"])
+        reference = requested["environment"]["reference_residual"]
+        self.assertEqual(reference["method"], "command_gated_phase_reference_residual_v3")
+        self.assertEqual(reference["policy_method"], "velocity_priority_reward_v14")
+        self.assertEqual(reference["physical_scale_rad"], 0.24)
+        self.assertEqual(reference["pre_command_settle_s"], 1.0)
+        self.assertTrue(reference["zero_command_is_exactly_zero"])
+        self.assertEqual(reference["source_probe_evidence"]["semantic_forward_displacement_m"], 0.04394642)
+        self.assertEqual(reference["source_probe_evidence"]["period_s"], 1.0)
+        self.assertEqual(reference["source_probe_evidence"]["action_scale_rad"], 0.24)
+        self.assertEqual(len(reference["source_probe_evidence"]["sha256"]), 64)
         self.assertEqual(requested["training_method"], contract.TRAINING_METHOD_ID)
-        self.assertEqual(requested["environment"]["gait_phase_period_s"], 0.8)
+        self.assertEqual(contract.TRAIN_STANDING_ENVIRONMENT_FRACTION, 0.25)
+        self.assertEqual(requested["environment"]["standing_environment_fraction"], 0.25)
+        alternating = next(
+            term for term in requested["environment"]["reward_terms"]
+            if term["name"] == "alternating_single_support"
+        )
+        self.assertEqual(alternating["weight"], 0.25)
+        self.assertEqual(requested["initialization"]["kind"], "zero_output_residual_transfer")
+        self.assertTrue(requested["initialization"]["zero_initialized_actor_output_head"])
+        self.assertEqual(requested["num_steps_per_env"], 112)
+        self.assertEqual(requested["sample_count"], 512 * 600 * 112)
+        self.assertEqual(requested["ppo"]["learning_rate"], 1.0e-4)
+        self.assertEqual(requested["ppo"]["initial_action_noise_std"], 0.02)
+        self.assertEqual(
+            set(requested["environment"]["training_reset_distribution"].values()),
+            {"exact_zero"},
+        )
+        self.assertGreater(
+            requested["num_steps_per_env"] * contract.CONTROL_DT_S,
+            contract.REFERENCE_SETTLE_S + contract.GAIT_PERIOD_S,
+        )
+        self.assertEqual(requested["environment"]["gait_phase_period_s"], 1.0)
         reward_names = [item["name"] for item in requested["environment"]["reward_terms"]]
         self.assertNotIn("track_linear_velocity", reward_names)
         self.assertIn("alternating_single_support", reward_names)
@@ -157,7 +246,7 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(len(failures), 4)
         self.assertEqual(
             contract.NEXT_TRAINING_HYPOTHESIS["id"],
-            "command_gated_phase_reference_residual_v3",
+            "velocity_priority_reward_v14",
         )
 
     def test_forward_velocity_diagnostics_distinguish_progress_and_reverse_motion(self) -> None:

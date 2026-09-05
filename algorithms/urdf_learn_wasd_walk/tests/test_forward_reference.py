@@ -2,10 +2,52 @@ from __future__ import annotations
 
 import unittest
 
-from algorithms.urdf_learn_wasd_walk import forward_reference, model_spec
+from algorithms.urdf_learn_wasd_walk import (
+    forward_reference,
+    forward_reference_probe,
+    model_spec,
+    policy_stand_contract,
+)
 
 
 class ForwardReferenceTests(unittest.TestCase):
+    def test_probe_disables_the_policy_action_terms_internal_reference(self) -> None:
+        class ReferenceResidual:
+            pass
+
+        class PlainJointPosition:
+            pass
+
+        class JointTerm:
+            class_type = ReferenceResidual
+
+        class Actions:
+            joint_pos = JointTerm()
+
+        class EnvCfg:
+            actions = Actions()
+
+        audit = forward_reference_probe.configure_single_reference_application(
+            EnvCfg(), PlainJointPosition
+        )
+        self.assertIs(EnvCfg.actions.joint_pos.class_type, PlainJointPosition)
+        self.assertEqual(audit["application_count"], 1)
+        self.assertEqual(audit["disabled_action_term"], "ReferenceResidual")
+
+    def test_probe_defaults_to_current_policy_stand_parent(self) -> None:
+        self.assertEqual(
+            forward_reference_probe.DEFAULT_PARENT_OUTPUT,
+            policy_stand_contract.DEFAULT_OUTPUT_DIR,
+        )
+
+    def test_probe_protocol_uses_command_onset_without_hiding_total_motion(self) -> None:
+        protocol = forward_reference_probe.probe_protocol(50, 250)
+        self.assertEqual(protocol["pre_command_zero_action_duration_s"], 1.0)
+        self.assertEqual(protocol["reference_duration_s"], 5.0)
+        self.assertTrue(protocol["total_displacement_also_recorded"])
+        with self.assertRaises(ValueError):
+            forward_reference_probe.probe_protocol(-1, 250)
+
     def test_zero_command_is_exact_stand_reference(self) -> None:
         for time_s in (0.0, 0.2, 1.7):
             self.assertEqual(
@@ -16,9 +58,9 @@ class ForwardReferenceTests(unittest.TestCase):
     def test_bilateral_phase_difference_and_soft_landing(self) -> None:
         config = forward_reference.ReferenceConfig(startup_ramp_s=0.0)
         start = forward_reference.reference_action(0.0, 0.4, config)
-        quarter = forward_reference.reference_action(0.2, 0.4, config)
-        half = forward_reference.reference_action(0.4, 0.4, config)
-        three_quarter = forward_reference.reference_action(0.6, 0.4, config)
+        quarter = forward_reference.reference_action(0.25, 0.4, config)
+        half = forward_reference.reference_action(0.5, 0.4, config)
+        three_quarter = forward_reference.reference_action(0.75, 0.4, config)
         index = {name: model_spec.ACTION_JOINTS.index(name) for name in model_spec.ACTION_JOINTS}
         self.assertAlmostEqual(start[index["left_knee_joint"]], 0.0)
         self.assertAlmostEqual(start[index["right_knee_joint"]], 0.0)
@@ -42,6 +84,109 @@ class ForwardReferenceTests(unittest.TestCase):
             for side in ("left", "right")
             for joint in ("hip_pitch", "knee", "ankle_pitch", "toe")
         })
+
+    def test_toe_amplitude_is_an_independent_recorded_probe_factor(self) -> None:
+        config = forward_reference.ReferenceConfig(startup_ramp_s=0.0, toe_amplitude=0.0)
+        action = forward_reference.reference_action(0.25, 0.4, config)
+        toe_indices = [
+            model_spec.ACTION_JOINTS.index(f"{side}_toe_joint")
+            for side in ("left", "right")
+        ]
+        self.assertEqual([action[index] for index in toe_indices], [0.0, 0.0])
+        reference = forward_reference.reference_contract(config, action_scale_rad=0.17)
+        self.assertEqual(reference["parameters"]["toe_amplitude"], 0.0)
+        self.assertEqual(reference["action_scale_rad"], 0.17)
+
+    def test_hip_pitch_amplitude_changes_only_bilateral_hip_pitch(self) -> None:
+        baseline = forward_reference.reference_action(
+            0.1,
+            0.4,
+            forward_reference.ReferenceConfig(startup_ramp_s=0.0),
+        )
+        longer_stride = forward_reference.reference_action(
+            0.1,
+            0.4,
+            forward_reference.ReferenceConfig(
+                startup_ramp_s=0.0, hip_pitch_amplitude=0.5
+            ),
+        )
+        changed = {
+            name
+            for name, before, after in zip(
+                model_spec.ACTION_JOINTS, baseline, longer_stride
+            )
+            if abs(before - after) > 1.0e-12
+        }
+        self.assertEqual(
+            changed,
+            {"left_hip_pitch_joint", "right_hip_pitch_joint"},
+        )
+        metadata = forward_reference.reference_contract(
+            forward_reference.ReferenceConfig(hip_pitch_amplitude=0.5)
+        )["parameters"]
+        self.assertEqual(metadata["hip_pitch_amplitude"], 0.5)
+
+    def test_short_swing_fraction_adds_double_support_windows(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0, swing_fraction=0.3, toe_amplitude=0.0
+        )
+        index = {name: model_spec.ACTION_JOINTS.index(name) for name in model_spec.ACTION_JOINTS}
+        left_mid_swing = forward_reference.reference_action(0.12, 0.4, config)
+        double_support = forward_reference.reference_action(0.32, 0.4, config)
+        self.assertGreater(left_mid_swing[index["left_knee_joint"]], 0.0)
+        self.assertEqual(double_support[index["left_knee_joint"]], 0.0)
+        self.assertEqual(double_support[index["right_knee_joint"]], 0.0)
+        self.assertEqual(
+            forward_reference.reference_contract(config)["parameters"]["swing_fraction"],
+            0.3,
+        )
+
+    def test_lateral_weight_transfer_is_phase_opposed_and_command_gated(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0, hip_roll_amplitude=0.5
+        )
+        action = forward_reference.reference_action(0.25, 0.4, config)
+        left = model_spec.ACTION_JOINTS.index("left_hip_roll_joint")
+        right = model_spec.ACTION_JOINTS.index("right_hip_roll_joint")
+        self.assertAlmostEqual(action[left], -action[right])
+        self.assertAlmostEqual(action[left], 0.5)
+        self.assertEqual(
+            forward_reference.reference_action(0.2, 0.0, config),
+            [0.0] * len(model_spec.ACTION_JOINTS),
+        )
+
+    def test_common_hip_roll_preloads_the_upcoming_stance_side(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0,
+            common_hip_roll_amplitude=1.0,
+            common_hip_roll_phase_offset_cycles=0.15,
+        )
+        left = model_spec.ACTION_JOINTS.index("left_hip_roll_joint")
+        right = model_spec.ACTION_JOINTS.index("right_hip_roll_joint")
+        left_swing_start = forward_reference.reference_action(0.0, 0.4, config)
+        right_swing_start = forward_reference.reference_action(0.4, 0.4, config)
+        self.assertAlmostEqual(left_swing_start[left], left_swing_start[right])
+        self.assertLess(left_swing_start[left], 0.0)
+        self.assertAlmostEqual(right_swing_start[left], right_swing_start[right])
+        self.assertGreater(right_swing_start[left], 0.0)
+        metadata = forward_reference.reference_contract(config)["parameters"]
+        self.assertEqual(metadata["common_hip_roll_amplitude"], 1.0)
+        self.assertEqual(metadata["common_hip_roll_phase_offset_cycles"], 0.15)
+        self.assertEqual(
+            forward_reference.reference_action(0.2, 0.0, config),
+            [0.0] * len(model_spec.ACTION_JOINTS),
+        )
+
+    def test_waist_weight_transfer_is_bounded_and_command_gated(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0, waist_roll_amplitude=0.5
+        )
+        waist = model_spec.ACTION_JOINTS.index("waist_roll_joint")
+        self.assertAlmostEqual(forward_reference.reference_action(0.25, 0.4, config)[waist], 0.5)
+        self.assertEqual(
+            forward_reference.reference_action(0.2, 0.0, config),
+            [0.0] * len(model_spec.ACTION_JOINTS),
+        )
 
     def test_probe_acceptance_uses_direct_air_runs_and_clearance(self) -> None:
         reference = forward_reference.reference_contract(forward_reference.ReferenceConfig())
@@ -68,6 +213,17 @@ class ForwardReferenceTests(unittest.TestCase):
     def test_invalid_single_factor_bounds_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "amplitude scale"):
             forward_reference.ReferenceConfig(amplitude_scale=1.01).validate()
+        with self.assertRaisesRegex(ValueError, "action scale"):
+            forward_reference.reference_contract(
+                forward_reference.ReferenceConfig(), action_scale_rad=0.31
+            )
+
+    def test_probe_action_scale_is_recorded_in_fk_audit(self) -> None:
+        reference = forward_reference.reference_contract(
+            forward_reference.ReferenceConfig(), action_scale_rad=0.24
+        )
+        self.assertEqual(reference["action_scale_rad"], 0.24)
+        self.assertEqual(reference["offline_kinematic_audit"]["action_scale_rad"], 0.24)
 
 
 if __name__ == "__main__":

@@ -58,7 +58,7 @@ class EvolutionTests(unittest.TestCase):
                 },
                 "failures": ["left side stayed planted"],
             }))
-            payload = evolution.build_evolution(output, ledger)
+            payload = evolution.build_evolution(root / "outputs", ledger)
             nodes = {item["id"]: item for item in payload["nodes"]}
             self.assertEqual(nodes["milestone:stand_zero_signal_30s_no_reset"]["checkpointPath"], "robot-spec")
             self.assertEqual(nodes["run:phase-run"]["parentIds"], ["milestone:stand_30s_no_reset"])
@@ -107,6 +107,80 @@ class EvolutionTests(unittest.TestCase):
             self.assertEqual(nodes["run:old-stand"]["status"], "failed")
             self.assertIn("invalidated asset lineage", nodes["run:old-stand"]["result"])
             self.assertEqual(nodes["run:old-stand"]["parentIds"], ["invalidated:old-mesh:stand_zero_signal_30s_no_reset"])
+
+            current_ledger = json.loads(ledger.read_text())
+            current_ledger["milestones"][0]["status"] = "passed"
+            current_ledger["milestones"][1] = {
+                "id": "stand_30s_no_reset", "status": "in_progress"
+            }
+            ledger.write_text(json.dumps(current_ledger))
+            payload = evolution.build_evolution(output, ledger)
+            nodes = {item["id"]: item for item in payload["nodes"]}
+            self.assertEqual(payload["currentNodeId"], "milestone:stand_30s_no_reset")
+            self.assertEqual(nodes["milestone:stand_30s_no_reset"]["status"], "running")
+            self.assertEqual(nodes["run:old-stand"]["status"], "failed")
+
+            current_ledger["milestones"][1]["status"] = "passed"
+            current_ledger["milestones"].append({
+                "id": "gate_5m_no_reset", "status": "in_progress"
+            })
+            ledger.write_text(json.dumps(current_ledger))
+            payload = evolution.build_evolution(output, ledger)
+            nodes = {item["id"]: item for item in payload["nodes"]}
+            self.assertEqual(payload["currentNodeId"], "milestone:gate_5m_no_reset")
+            self.assertEqual(nodes["milestone:gate_5m_no_reset"]["status"], "running")
+
+    def test_multiple_invalidated_meshes_form_auditable_ancestry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "rabbit-ear-mesh",
+                "assetContract": {"meshTreeSha256": "rabbit-ear-sha"},
+                "invalidatedLineages": [
+                    {"lineage": "old-mesh", "meshTreeSha256": "old-sha", "reason": "stale"},
+                    {"lineage": "false-latest", "meshTreeSha256": "false-sha", "reason": "ears absent"},
+                ],
+                "milestones": [
+                    {"id": "stand_zero_signal_30s_no_reset", "status": "in_progress"},
+                    {"id": "stand_30s_no_reset", "status": "not_started"},
+                ],
+            }))
+            payload = evolution.build_evolution(root / "outputs", ledger)
+            nodes = {item["id"]: item for item in payload["nodes"]}
+            first = "invalidated:old-mesh:stand_zero_signal_30s_no_reset"
+            second = "invalidated:false-latest:stand_zero_signal_30s_no_reset"
+            self.assertEqual(nodes[first]["parentIds"], [])
+            self.assertEqual(nodes[second]["parentIds"], [first])
+            self.assertEqual(nodes["milestone:stand_zero_signal_30s_no_reset"]["parentIds"], [second])
+            self.assertEqual(payload["currentNodeId"], "milestone:stand_zero_signal_30s_no_reset")
+
+    def test_current_node_uses_shared_run_chronology_not_artifact_kind(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs"
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "latest-mesh",
+                "milestones": [{"id": "gate_5m_no_reset", "status": "in_progress"}],
+            }))
+            probe_dir = output / "gate_5m_no_reset" / "reference_probe" / "passed"
+            probe_dir.mkdir(parents=True)
+            probe_dir.joinpath("reference_probe.json").write_text(json.dumps({
+                "lineage": "latest-mesh", "milestone": "gate_5m_no_reset",
+                "component": "open_loop_reference_probe", "run_identity": "20260905T010000Z",
+                "status": "passed", "ppo_eligible": True,
+            }))
+            stage = output / "gate_5m_no_reset" / "stage40"
+            stage.mkdir(parents=True)
+            stage.joinpath("training.json").write_text(json.dumps({
+                "lineage": "latest-mesh", "milestone": "gate_5m_no_reset",
+                "run_identity": "20260905T020000Z", "status": "completed_not_promoted",
+                "requested_contract": {"training_method": "v3"},
+                "checkpoint": {"sha256": "stage-sha", "path": "ignored.pt"},
+            }))
+            payload = evolution.build_evolution(output, ledger)
+            self.assertEqual(payload["currentNodeId"], "run:20260905T020000Z")
 
 
 if __name__ == "__main__":

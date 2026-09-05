@@ -8,6 +8,7 @@ from __future__ import annotations
 import torch
 
 from isaaclab.envs import ManagerBasedRLEnvCfg, mdp
+from isaaclab.envs.mdp.actions import JointPositionAction
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
@@ -31,6 +32,59 @@ from algorithms.urdf_learn_wasd_walk.policy_stand_env import (
 SUPPORT_BODIES = ["foot_l", "toes_01_l", "foot_r", "toes_01_r"]
 
 
+class ReferenceResidualJointPositionAction(JointPositionAction):
+    """Add the passed command-gated phase reference beneath actor residuals."""
+
+    def __init__(self, cfg, env):
+        super().__init__(cfg, env)
+        self._landau_env = env
+        self._action_index = {name: index for index, name in enumerate(self._joint_names)}
+
+    @staticmethod
+    def _smoothstep01(value: torch.Tensor) -> torch.Tensor:
+        value = torch.clamp(value, 0.0, 1.0)
+        return value * value * (3.0 - 2.0 * value)
+
+    def process_actions(self, actions: torch.Tensor):
+        super().process_actions(actions)
+        env = self._landau_env
+        steps = contract.episode_phase_step_buffer(env)
+        if steps is None:
+            steps = torch.zeros(env.num_envs, device=env.device)
+        elapsed = steps.to(dtype=torch.float32) * env.step_dt
+        reference_time = torch.clamp(elapsed - contract.REFERENCE_SETTLE_S, min=0.0)
+        active = (elapsed >= contract.REFERENCE_SETTLE_S).float()
+        command = env.command_manager.get_command("base_velocity")[:, 1]
+        gate = self._smoothstep01(
+            torch.abs(command) / contract.TRAIN_FORWARD_SPEED_RANGE_MPS[0]
+        )
+        ramp = self._smoothstep01(reference_time / contract.REFERENCE_STARTUP_RAMP_S)
+        scale = active * gate * ramp * contract.REFERENCE_ACTION_SCALE_RAD
+        base_phase = reference_time / contract.GAIT_PERIOD_S
+        reference = torch.zeros_like(self._raw_actions)
+        for side, offset in (("left", 0.0), ("right", 0.5)):
+            phase = torch.remainder(base_phase + offset, 1.0)
+            clearance = torch.where(
+                phase < 0.5,
+                torch.sin(torch.pi * phase / 0.5).square(),
+                torch.zeros_like(phase),
+            )
+            reference[:, self._action_index[f"{side}_hip_pitch_joint"]] = (
+                scale
+                * contract.REFERENCE_HIP_PITCH_AMPLITUDE
+                * torch.sin(2.0 * torch.pi * phase)
+                * torch.sign(command)
+            )
+            reference[:, self._action_index[f"{side}_knee_joint"]] = scale * clearance
+            reference[:, self._action_index[f"{side}_ankle_pitch_joint"]] = -scale * clearance
+            reference[:, self._action_index[f"{side}_toe_joint"]] = -0.5 * scale * clearance
+        self._processed_actions = self._processed_actions + reference
+        limits = self._asset.data.soft_joint_pos_limits[:, self._joint_ids]
+        self._processed_actions = torch.clamp(
+            self._processed_actions, min=limits[:, :, 0], max=limits[:, :, 1]
+        )
+
+
 def semantic_velocity_command(env) -> torch.Tensor:
     """Expose command values in semantic forward, strafe, yaw order."""
 
@@ -39,7 +93,7 @@ def semantic_velocity_command(env) -> torch.Tensor:
 
 
 def gait_phase(env) -> torch.Tensor:
-    """Deployable periodic phase that is shape-safe while managers initialize."""
+    """Deployable phase aligned exactly with the settle-relative leg reference."""
 
     episode_steps = contract.episode_phase_step_buffer(env)
     if episode_steps is None:
@@ -48,7 +102,9 @@ def gait_phase(env) -> torch.Tensor:
         episode_steps = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
     else:
         episode_steps = episode_steps.to(dtype=torch.float32)
-    phase = 2.0 * torch.pi * episode_steps * env.step_dt / contract.GAIT_PERIOD_S
+    elapsed = episode_steps * env.step_dt
+    reference_time = torch.clamp(elapsed - contract.REFERENCE_SETTLE_S, min=0.0)
+    phase = 2.0 * torch.pi * reference_time / contract.GAIT_PERIOD_S
     return torch.stack((torch.sin(phase), torch.cos(phase)), dim=-1)
 
 
@@ -84,11 +140,21 @@ def alternating_single_support(
     right_force = torch.linalg.vector_norm(force_history[:, :, right_cfg.body_ids], dim=-1)
     left_contact = torch.any(torch.any(left_force > 1.0, dim=1), dim=1)
     right_contact = torch.any(torch.any(right_force > 1.0, dim=1), dim=1)
-    left_stance = gait_phase(env)[:, 0] >= 0.0
+    # The reference lifts the left foot over phase [0, 0.5), so its stance
+    # schedule is the complementary half-cycle.  Use the same settle-relative
+    # clock as ReferenceResidualJointPositionAction and suppress this term
+    # before that reference becomes active.
+    left_stance = gait_phase(env)[:, 0] < 0.0
     stance_contact = torch.where(left_stance, left_contact, right_contact)
     swing_clear = torch.where(left_stance, ~right_contact, ~left_contact)
     moving = torch.abs(env.command_manager.get_command("base_velocity")[:, 1]) > 0.1
-    return 0.5 * (stance_contact.float() + swing_clear.float()) * moving
+    steps = contract.episode_phase_step_buffer(env)
+    gait_active = (
+        torch.zeros(env.num_envs, device=env.device, dtype=torch.bool)
+        if steps is None
+        else steps.to(dtype=torch.float32) * env.step_dt >= contract.REFERENCE_SETTLE_S
+    )
+    return 0.5 * (stance_contact.float() + swing_clear.float()) * moving * gait_active
 
 
 @configclass
@@ -96,7 +162,7 @@ class CommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(8.0, 12.0),
-        rel_standing_envs=0.25,
+        rel_standing_envs=contract.TRAIN_STANDING_ENVIRONMENT_FRACTION,
         rel_heading_envs=0.0,
         heading_command=False,
         debug_vis=False,
@@ -147,7 +213,7 @@ class RewardsCfg:
     )
     alternating_single_support = RewTerm(
         func=alternating_single_support,
-        weight=1.0,
+        weight=contract.ALTERNATING_SINGLE_SUPPORT_WEIGHT,
         params={
             "left_cfg": SceneEntityCfg(
                 "contact_forces", body_names=["foot_l", "toes_01_l"]
@@ -216,10 +282,20 @@ def build_env_cfg(
     if evaluation_command not in {None, "stand", "forward"}:
         raise ValueError(f"unsupported evaluation command: {evaluation_command}")
     cfg = LandauForwardEnvCfg()
+    cfg.actions.joint_pos.class_type = ReferenceResidualJointPositionAction
     cfg.scene.num_envs = num_envs
     cfg.scene.robot = make_landau_articulation_cfg(force_usd_conversion=force_usd_conversion)
     cfg.seed = seed
-    if not training:
+    if training:
+        cfg.events.reset_base.params["pose_range"] = {
+            name: (0.0, 0.0) for name in ("x", "y", "z", "roll", "pitch", "yaw")
+        }
+        cfg.events.reset_base.params["velocity_range"] = {
+            name: (0.0, 0.0) for name in ("x", "y", "z", "roll", "pitch", "yaw")
+        }
+        cfg.events.reset_action_joints.params["position_range"] = (0.0, 0.0)
+        cfg.events.reset_action_joints.params["velocity_range"] = (0.0, 0.0)
+    else:
         cfg.events.reset_base = None
         cfg.events.reset_action_joints = None
         cfg.episode_length_s = contract.MAX_GATE_DURATION_S + contract.CONTROL_DT_S * 2

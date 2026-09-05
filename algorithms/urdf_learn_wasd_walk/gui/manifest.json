@@ -3,11 +3,17 @@
   "icon": "walk",
   "name": "Learn WASD Walk",
   "eyebrow": "CLEAN TRAINING RESTART",
-  "summary": "Landau locomotion is being re-certified from the first hard gate after correcting a stale 68-link visual/collision mesh package.",
+  "summary": "Landau locomotion is being re-certified from the first hard gate against the exact 8,864-triangle rabbit-ear mesh package shown by USD → Parallel URDF.",
   "accent": "#cb6b42",
   "runtime": "tk2-clean",
-  "runtimeLabel": "TK2 · latest-mesh stand re-certification",
-  "capabilities": ["passive stand", "policy stand", "forward walk", "Isaac Lab", "clean room"],
+  "runtimeLabel": "TK2 · rabbit-ear asset re-certification",
+  "capabilities": [
+    "passive stand",
+    "policy stand",
+    "forward walk",
+    "Isaac Lab",
+    "clean room"
+  ],
   "inspector": {
     "type": "evolutionTree",
     "label": "Training evolution",
@@ -19,15 +25,42 @@
       "name": "Validate passive stand · 30 s",
       "description": "Run camera-free dynamics first, then a separate viewport proof replay; final evidence appears only when both exact components pass.",
       "target": "tk2",
-      "targets": ["tk2"],
+      "targets": [
+        "tk2"
+      ],
       "resource": "isaac",
-      "command": ["./geo", "walk", "validate-passive", "--headless"],
+      "command": [
+        "./geo",
+        "walk",
+        "validate-passive",
+        "--headless"
+      ],
       "artifacts": [
-        {"label": "Passive stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json", "kind": "json"},
-        {"label": "Camera-free dynamics evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json", "kind": "json"},
-        {"label": "Viewport proof evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json", "kind": "json"},
-        {"label": "Passive stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4", "kind": "video"},
-        {"label": "Start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png", "kind": "image"}
+        {
+          "label": "Passive stand validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Camera-free dynamics evidence",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Viewport proof evidence",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Passive stand proof video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4",
+          "kind": "video"
+        },
+        {
+          "label": "Start · middle · end contact sheet",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
+          "kind": "image"
+        }
       ]
     },
     {
@@ -35,11 +68,26 @@
       "name": "Train policy stand · PPO",
       "description": "Train the compact manager-based proprioceptive policy. Checkpoints stay on TK2 and Nextcloud; training never marks the gate passed.",
       "target": "tk2",
-      "targets": ["tk2"],
+      "targets": [
+        "tk2"
+      ],
       "resource": "isaac",
-      "command": ["./geo", "walk", "train-policy-stand", "--headless", "--num-envs", "512", "--iterations", "200"],
+      "command": [
+        "./geo",
+        "walk",
+        "train-policy-stand",
+        "--headless",
+        "--num-envs",
+        "512",
+        "--iterations",
+        "200"
+      ],
       "artifacts": [
-        {"label": "Policy training evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json", "kind": "json"}
+        {
+          "label": "Policy training evidence",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json",
+          "kind": "json"
+        }
       ]
     },
     {
@@ -47,15 +95,42 @@
       "name": "Validate policy stand · 30 s",
       "description": "Evaluate the same checkpoint camera-free, then record a separate deterministic viewport proof and finalize cumulatively.",
       "target": "tk2",
-      "targets": ["tk2"],
+      "targets": [
+        "tk2"
+      ],
       "resource": "isaac",
-      "command": ["./geo", "walk", "validate-policy-stand", "--headless"],
+      "command": [
+        "./geo",
+        "walk",
+        "validate-policy-stand",
+        "--headless"
+      ],
       "artifacts": [
-        {"label": "Policy stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json", "kind": "json"},
-        {"label": "Policy camera-free dynamics", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json", "kind": "json"},
-        {"label": "Policy viewport proof evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json", "kind": "json"},
-        {"label": "Policy stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4", "kind": "video"},
-        {"label": "Policy start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png", "kind": "image"}
+        {
+          "label": "Policy stand validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Policy camera-free dynamics",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Policy viewport proof evidence",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Policy stand proof video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4",
+          "kind": "video"
+        },
+        {
+          "label": "Policy start · middle · end contact sheet",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
+          "kind": "image"
+        }
       ]
     },
     {
@@ -63,11 +138,26 @@
       "name": "Train +Y forward walk · PPO",
       "description": "Expand the proven stand actor with semantic command inputs and fine-tune on flat standing and +Y forward commands.",
       "target": "tk2",
-      "targets": ["tk2"],
+      "targets": [
+        "tk2"
+      ],
       "resource": "isaac",
-      "command": ["./geo", "walk", "train-forward-walk", "--headless", "--num-envs", "512", "--iterations", "600"],
+      "command": [
+        "./geo",
+        "walk",
+        "train-forward-walk",
+        "--headless",
+        "--num-envs",
+        "512",
+        "--iterations",
+        "600"
+      ],
       "artifacts": [
-        {"label": "Forward training evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/training.json", "kind": "json"}
+        {
+          "label": "Forward training evidence",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/training.json",
+          "kind": "json"
+        }
       ]
     },
     {
@@ -75,37 +165,143 @@
       "name": "Validate cumulative forward gate · 5 m",
       "description": "Re-pass policy standing with the candidate, run camera-free +Y forward dynamics, render the full gate, and finalize only when all components pass.",
       "target": "tk2",
-      "targets": ["tk2"],
+      "targets": [
+        "tk2"
+      ],
       "resource": "isaac",
-      "command": ["./geo", "walk", "validate-forward-walk", "--headless"],
+      "command": [
+        "./geo",
+        "walk",
+        "validate-forward-walk",
+        "--headless"
+      ],
       "artifacts": [
-        {"label": "Cumulative 5 m validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/validation.json", "kind": "json"},
-        {"label": "Candidate stand re-pass", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/stand_dynamics_validation.json", "kind": "json"},
-        {"label": "5 m camera-free dynamics", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/forward_dynamics_validation.json", "kind": "json"},
-        {"label": "5 m proof inspection", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof_validation.json", "kind": "json"},
-        {"label": "5 m proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof.mp4", "kind": "video"},
-        {"label": "5 m start · middle · end", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/contact_sheet.png", "kind": "image"}
+        {
+          "label": "Cumulative 5 m validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Candidate stand re-pass",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/stand_dynamics_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "5 m camera-free dynamics",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/forward_dynamics_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "5 m proof inspection",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "5 m proof video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof.mp4",
+          "kind": "video"
+        },
+        {
+          "label": "5 m start · middle · end",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/contact_sheet.png",
+          "kind": "image"
+        }
       ]
     }
   ],
   "milestones": [
-    {"id": "stand_zero_signal_30s_no_reset", "name": "Passive stand · 30 s", "stage": "stand", "passWhen": "Zero actions, zero command, zero resets or done events.", "status": "in progress"},
-    {"id": "stand_30s_no_reset", "name": "Policy stand · 30 s", "stage": "stand", "passWhen": "Policy control with zero falls, resets, or done events.", "status": "not started"},
-    {"id": "gate_5m_no_reset", "name": "Forward gate · 5 m", "stage": "fwd_only", "passWhen": "Walking pose preserved with no reset.", "status": "not started"},
-    {"id": "gate_10m_no_reset", "name": "Forward gate · 10 m", "stage": "fwd_only", "passWhen": "Same checkpoint re-passes all earlier gates.", "status": "not started"},
-    {"id": "yaw_turn_90deg_hold", "name": "Turn 90° and hold", "stage": "fwd_yaw", "passWhen": "Turn, settle, and hold without reset.", "status": "not started"},
-    {"id": "teleop_60s_forward_turn", "name": "Teleop · 60 s", "stage": "fwd_yaw", "passWhen": "Forward and turn commands without reset or frozen joints.", "status": "not started"},
-    {"id": "gate_10m_four_directions_no_reset", "name": "Four directions · 10 m", "stage": "fwd_yaw", "passWhen": "One checkpoint clears forward, left, right, and backward.", "status": "not started"},
-    {"id": "triangle_path_follow_no_reset", "name": "Triangle path", "stage": "fwd_yaw", "passWhen": "Joystick-style waypoint commands with no reset.", "status": "not started"},
-    {"id": "square_path_follow_no_reset", "name": "Square path", "stage": "fwd_yaw", "passWhen": "Closed square within waypoint tolerance.", "status": "not started"},
-    {"id": "terrain_5m_no_reset", "name": "Rough terrain · 5 m", "stage": "game", "passWhen": "Cross the small map without reset.", "status": "not started"},
-    {"id": "obstacle_stop_before_collision", "name": "Obstacle braking", "stage": "game", "passWhen": "Stop before collision without reset.", "status": "not started"},
-    {"id": "game_10m_no_reset", "name": "Mixed game gate · 10 m", "stage": "game", "passWhen": "Terrain and obstacles with a preserved walking pose.", "status": "not started"}
+    {
+      "id": "stand_zero_signal_30s_no_reset",
+      "name": "Passive stand · 30 s",
+      "stage": "stand",
+      "passWhen": "Zero actions, zero command, zero resets or done events.",
+      "status": "in progress"
+    },
+    {
+      "id": "stand_30s_no_reset",
+      "name": "Policy stand · 30 s",
+      "stage": "stand",
+      "passWhen": "Policy control with zero falls, resets, or done events.",
+      "status": "not started"
+    },
+    {
+      "id": "gate_5m_no_reset",
+      "name": "Forward gate · 5 m",
+      "stage": "fwd_only",
+      "passWhen": "Walking pose preserved with no reset.",
+      "status": "not started"
+    },
+    {
+      "id": "gate_10m_no_reset",
+      "name": "Forward gate · 10 m",
+      "stage": "fwd_only",
+      "passWhen": "Same checkpoint re-passes all earlier gates.",
+      "status": "not started"
+    },
+    {
+      "id": "yaw_turn_90deg_hold",
+      "name": "Turn 90° and hold",
+      "stage": "fwd_yaw",
+      "passWhen": "Turn, settle, and hold without reset.",
+      "status": "not started"
+    },
+    {
+      "id": "teleop_60s_forward_turn",
+      "name": "Teleop · 60 s",
+      "stage": "fwd_yaw",
+      "passWhen": "Forward and turn commands without reset or frozen joints.",
+      "status": "not started"
+    },
+    {
+      "id": "gate_10m_four_directions_no_reset",
+      "name": "Four directions · 10 m",
+      "stage": "fwd_yaw",
+      "passWhen": "One checkpoint clears forward, left, right, and backward.",
+      "status": "not started"
+    },
+    {
+      "id": "triangle_path_follow_no_reset",
+      "name": "Triangle path",
+      "stage": "fwd_yaw",
+      "passWhen": "Joystick-style waypoint commands with no reset.",
+      "status": "not started"
+    },
+    {
+      "id": "square_path_follow_no_reset",
+      "name": "Square path",
+      "stage": "fwd_yaw",
+      "passWhen": "Closed square within waypoint tolerance.",
+      "status": "not started"
+    },
+    {
+      "id": "terrain_5m_no_reset",
+      "name": "Rough terrain · 5 m",
+      "stage": "game",
+      "passWhen": "Cross the small map without reset.",
+      "status": "not started"
+    },
+    {
+      "id": "obstacle_stop_before_collision",
+      "name": "Obstacle braking",
+      "stage": "game",
+      "passWhen": "Stop before collision without reset.",
+      "status": "not started"
+    },
+    {
+      "id": "game_10m_no_reset",
+      "name": "Mixed game gate · 10 m",
+      "stage": "game",
+      "passWhen": "Terrain and obstacles with a preserved walking pose.",
+      "status": "not started"
+    }
   ],
   "viewer": {
     "type": "urdf",
     "urdfCandidates": [
-      {"label": "Landau v10 · clean training input", "path": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/landau_v10_parallel_mesh.urdf"}
+      {
+        "label": "Landau v10 · clean training input",
+        "path": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/landau_v10_parallel_mesh.urdf"
+      }
     ]
   }
 }

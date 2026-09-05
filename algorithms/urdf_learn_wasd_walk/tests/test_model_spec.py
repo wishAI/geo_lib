@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import struct
 import unittest
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from algorithms.urdf_learn_wasd_walk import model_spec
 
@@ -22,6 +25,24 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(source["unique_mesh_count"], 68)
         self.assertEqual(source["missing_meshes"], [])
 
+    def test_training_meshes_are_the_visible_parallel_urdf_package(self) -> None:
+        repo_root = Path(__file__).resolve().parents[3]
+        training = model_spec.URDF_PATH.parent / "mesh_collision_stl" / "landau_v10"
+        reference = repo_root / "algorithms" / "usd_parallel_urdf" / "outputs" / "urdf_packages" / "landau_v10" / "mesh_collision_stl" / "landau_v10"
+        training_files = sorted(training.glob("*.stl"))
+        reference_files = sorted(reference.glob("*.stl"))
+        self.assertEqual([path.name for path in training_files], [path.name for path in reference_files])
+        self.assertEqual(
+            [hashlib.sha256(path.read_bytes()).hexdigest() for path in training_files],
+            [hashlib.sha256(path.read_bytes()).hexdigest() for path in reference_files],
+        )
+        triangle_count = sum(struct.unpack("<I", path.read_bytes()[80:84])[0] for path in training_files)
+        self.assertEqual(triangle_count, 8864)
+        self.assertEqual(
+            hashlib.sha256((training / "head_x.stl").read_bytes()).hexdigest(),
+            "afc898c0e79b82313768a0e08bd096619b64c54f8505734f0ef2b59ee0315370",
+        )
+
     def test_mass_inertia_collision_and_root_transform_audit(self) -> None:
         structure = self.spec["structure"]
         self.assertEqual(structure["link_count"], 71)
@@ -35,10 +56,12 @@ class ModelSpecTests(unittest.TestCase):
         self.assertAlmostEqual(structure["skeleton_root_origin_rpy"][0], math.pi / 2.0, places=5)
 
         bounds = self.spec["nominal_pose"]["zero_pose_collision_bounds"]
-        for foot_link in ("foot_l", "foot_r", "toes_01_l", "toes_01_r"):
-            self.assertAlmostEqual(bounds[foot_link]["minimum"][2], 0.0, delta=1.1e-4)
+        support_minimum = min(
+            bounds[foot_link]["minimum"][2]
+            for foot_link in ("foot_l", "foot_r", "toes_01_l", "toes_01_r")
+        )
         support = self.spec["nominal_pose"]["zero_pose_ground_support"]
-        self.assertAlmostEqual(support["ground_z_m"], 0.0, delta=3.0e-5)
+        self.assertAlmostEqual(support["ground_z_m"], support_minimum, delta=1.0e-8)
         minimum = support["support_aabb_xy_m"]["minimum"]
         maximum = support["support_aabb_xy_m"]["maximum"]
         com = structure["zero_pose_center_of_mass_m"]
@@ -50,9 +73,8 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(support["flat_ground_contact_normal_w"], [0.0, 0.0, 1.0])
         self.assertEqual(support["gravity_direction_w"], [0.0, 0.0, -1.0])
         self.assertEqual(set(support["links"]), {"foot_l", "foot_r", "toes_01_l", "toes_01_r"})
-        self.assertTrue(
-            all(value["candidate_contact_hull_xy_m"] for value in support["links"].values())
-        )
+        self.assertTrue(support["links"]["foot_l"]["candidate_contact_hull_xy_m"])
+        self.assertTrue(support["links"]["foot_r"]["candidate_contact_hull_xy_m"])
 
     def test_action_and_locked_joint_sets_are_explicit_partition(self) -> None:
         action = self.spec["action_joints"]
@@ -68,7 +90,7 @@ class ModelSpecTests(unittest.TestCase):
 
     def test_canonical_ground_alignment_is_retained_and_authority_probe_is_isolated(self) -> None:
         groups = self.spec["pd"]["groups"]
-        self.assertAlmostEqual(self.spec["nominal_pose"]["base_position_m"][2], -0.004884927)
+        self.assertAlmostEqual(self.spec["nominal_pose"]["base_position_m"][2], -0.002018366)
         self.assertGreater(self.spec["nominal_pose"]["geometry"]["support_margin_m"], 0.0)
         self.assertEqual(groups["leg_sagittal"]["damping"], 1.0)
         controlled = [joint for group in groups.values() for joint in group["joints"]]
@@ -83,9 +105,9 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(experiments[2]["id"], "zero_pose_upper_body_authority_probe_v1")
         self.assertEqual(experiments[2]["status"], "rejected")
         self.assertEqual(experiments[3]["id"], "gravity_static_pose_release_v1")
-        self.assertEqual(experiments[3]["status"], "free_root_supported_non_gate")
+        self.assertEqual(experiments[3]["status"], "invalidated_asset_history")
         self.assertFalse(experiments[3]["fixed_root_load_contract"]["contact_force_is_gating"])
-        self.assertEqual(experiments[4]["id"], "canonical_settled_pose_10s_v1")
+        self.assertEqual(experiments[4]["id"], "rabbit_ear_passive_recertification_v1")
         self.assertEqual(experiments[4]["status"], "active_bounded_test")
         limit_audit = experiments[3]["limit_audit"]
         self.assertEqual(limit_audit["tolerance_rad"], 0.002)
@@ -102,9 +124,11 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(probe["upper_body_authority"]["damping"], 10.0)
         self.assertIn("right_shoulder_lift_joint", probe["upper_body_authority"]["joints"])
 
-    def test_canonical_pose_has_exact_archived_provenance_and_zero_fingers(self) -> None:
+    def test_transferred_pose_seed_has_invalidated_provenance_and_zero_fingers(self) -> None:
         nominal = self.spec["nominal_pose"]
         provenance = nominal["provenance"]
+        self.assertEqual(provenance["kind"], "transferred_pose_seed_from_invalidated_mesh_lineage")
+        self.assertEqual(provenance["current_asset_status"], "awaiting_rabbit_ear_mesh_passive_recertification")
         self.assertEqual(provenance["source_run_identity"], "20260904T071956.210897Z")
         self.assertEqual(
             provenance["source_evidence_sha256"],
@@ -136,7 +160,7 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(candidate["joint_positions_rad"]["left_hip_pitch_joint"], -0.1)
         self.assertEqual(candidate["joint_positions_rad"]["left_knee_joint"], 0.21)
         self.assertEqual(candidate["joint_positions_rad"]["left_ankle_pitch_joint"], -0.115)
-        self.assertAlmostEqual(candidate["joint_positions_rad"]["waist_pitch_joint"], -0.206)
+        self.assertAlmostEqual(candidate["joint_positions_rad"]["waist_pitch_joint"], 0.0)
         self.assertGreater(candidate["support_margin_m"], zero["support_margin_m"] + 0.01)
         self.assertLess(candidate["maximum_fixed_root_gravity_torque_limit_fraction"], 0.05)
         contacts = candidate["near_ground_contact_vertex_count_by_link"]

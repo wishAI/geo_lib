@@ -25,6 +25,107 @@ from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand
 REPO_ROOT = model_spec.ALGORITHM_ROOT.parent.parent
 ISAACLAB_SH = Path("/home/wishai/vscode/IsaacLab/isaaclab.sh")
 ISAAC_SCRIPT = model_spec.ALGORITHM_ROOT / "passive_stand.py"
+MILESTONES_PATH = model_spec.ALGORITHM_ROOT / "milestones.json"
+GUI_MANIFEST_PATH = model_spec.ALGORITHM_ROOT / "gui" / "manifest.json"
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=False, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, path)
+
+
+def _record_canonical_pass(
+    final: dict,
+    final_path: Path,
+    dynamics_path: Path,
+    proof_path: Path,
+    video_path: Path,
+    sheet_path: Path,
+    *,
+    milestones_path: Path = MILESTONES_PATH,
+    manifest_path: Path = GUI_MANIFEST_PATH,
+) -> None:
+    """Replace invalidated gate-1 residue with the exact current-lineage pass."""
+
+    milestones = json.loads(milestones_path.read_text(encoding="utf-8"))
+    if milestones.get("lineage") != model_spec.LINEAGE:
+        raise ValueError("canonical milestone ledger belongs to another lineage")
+    if milestones.get("assetContract", {}).get("meshTreeSha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("canonical milestone ledger names another mesh tree")
+    records = {item["id"]: item for item in milestones.get("milestones", [])}
+    current = records.get(passive_stand.MILESTONE_ID)
+    following = records.get("stand_30s_no_reset")
+    if current is None or current.get("status") not in {"in_progress", "passed"}:
+        raise ValueError("passive stand is not the canonical active or passed milestone")
+    if following is None or following.get("status") not in {"not_started", "in_progress"}:
+        raise ValueError("policy stand has an incompatible canonical status")
+    if final["input"].get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("final passive evidence names another mesh tree")
+
+    def declared(kind: str, path: Path) -> dict:
+        return {
+            "kind": kind,
+            "path": str(path.resolve().relative_to(REPO_BOOTSTRAP_ROOT)),
+            "sha256": passive_stand._sha256(path),
+        }
+
+    metrics = final["metrics"]
+    current.clear()
+    current.update({
+        "order": 1,
+        "id": passive_stand.MILESTONE_ID,
+        "stage": "stand",
+        "status": "passed",
+        "passedAt": final["assembled_at"],
+        "checkpoint": final["checkpoint"],
+        "urdfSha256": final["input"]["urdf_sha256"],
+        "meshTreeSha256": final["input"]["mesh_tree_sha256"],
+        "seed": final["seed"],
+        "metrics": {
+            name: metrics[name] for name in (
+                "duration_s", "reset_count", "done_count", "fall_count",
+                "max_reference_tilt_rad", "root_height_drop_m", "horizontal_drift_m",
+                "minimum_support_polygon_margin_m",
+            )
+        },
+        "evidence": [
+            declared("validation", final_path),
+            declared("dynamics_validation", dynamics_path),
+            declared("proof_validation", proof_path),
+            declared("video", video_path),
+            declared("contact_sheet", sheet_path),
+        ],
+    })
+    # This record may still contain a checkpoint and evidence from the explicitly
+    # invalidated mesh lineage.  Activating gate 2 must not leave those fields
+    # looking resumable in the canonical current-lineage ledger.
+    following.clear()
+    following.update({
+        "order": 2,
+        "id": "stand_30s_no_reset",
+        "stage": "stand",
+        "status": "in_progress",
+    })
+    milestones["implementationStatus"] = "milestone_1_passed_milestone_2_in_progress"
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_records = {item["id"]: item for item in manifest.get("milestones", [])}
+    if set((passive_stand.MILESTONE_ID, "stand_30s_no_reset")) - set(manifest_records):
+        raise ValueError("GUI manifest lacks the passive or policy stand milestone")
+    manifest_records[passive_stand.MILESTONE_ID]["status"] = "passed"
+    manifest_records["stand_30s_no_reset"]["status"] = "in progress"
+    manifest["summary"] = (
+        "Latest-mesh Landau passive standing is proven for 30 seconds; policy standing "
+        "is now being rebuilt from the corrected visual/collision package."
+    )
+    manifest["runtimeLabel"] = "TK2 · latest-mesh policy stand"
+
+    _write_json(milestones_path, milestones)
+    _write_json(manifest_path, manifest)
 
 
 def _load_component(path: Path, phase: str, smoke: bool) -> dict:
@@ -51,7 +152,13 @@ def _artifact_path(output_dir: Path, relative_path: str, expected_name: str) -> 
     return path
 
 
-def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
+def finalize(
+    output_dir: Path,
+    *,
+    smoke: bool = False,
+    milestones_path: Path = MILESTONES_PATH,
+    manifest_path: Path = GUI_MANIFEST_PATH,
+) -> dict:
     """Write final evidence only after both independent components pass."""
     output_dir = passive_stand.safe_output_dir(output_dir)
     final_path = output_dir / ("smoke_validation.json" if smoke else "validation.json")
@@ -137,6 +244,15 @@ def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
         "cumulative_gates": [{"order": 1, "id": passive_stand.MILESTONE_ID, "status": status}],
     }
     final_path.write_text(json.dumps(final, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not smoke:
+        try:
+            _record_canonical_pass(
+                final, final_path, dynamics_path, proof_path, video_path, sheet_path,
+                milestones_path=milestones_path, manifest_path=manifest_path,
+            )
+        except Exception:
+            final_path.unlink(missing_ok=True)
+            raise
     print(json.dumps({
         "status": status,
         "milestone": passive_stand.MILESTONE_ID,

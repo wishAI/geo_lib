@@ -101,6 +101,26 @@ class GeoLauncherTests(unittest.TestCase):
             self.assertTrue(success.is_file())
             self.assertFalse(failure.exists())
 
+    def test_required_artifact_status_fails_closed_when_shell_masks_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifact = root / "probe.json"
+            script = (
+                "import json, pathlib, sys; "
+                "pathlib.Path(sys.argv[1]).write_text(json.dumps({'status':'failed'}))"
+            )
+            launch = self.geo.LaunchSpec(
+                "direct",
+                [sys.executable, "-c", script, str(artifact)],
+                success_artifact=artifact,
+                failure_artifact=root / "failure.json",
+                required_artifact_status="passed",
+            )
+            self.assertEqual(
+                self.geo._run_with_runner(launch, dry_run=False, verbose=False), 1
+            )
+            self.assertFalse((root / "failure.json").exists())
+
     def test_forward_gate_launchers_are_single_isaac_components_or_direct_pipeline(self) -> None:
         parser = self.geo._build_parser()
         args, extra = parser.parse_known_args(
@@ -131,6 +151,7 @@ class GeoLauncherTests(unittest.TestCase):
         self.assertEqual(probe.runner, "isaac")
         self.assertEqual(probe.argv[0], "algorithms/urdf_learn_wasd_walk/forward_reference_probe.py")
         self.assertEqual(probe.success_artifact.name, "reference_probe.json")
+        self.assertEqual(probe.required_artifact_status, "passed")
 
 
 if __name__ == "__main__":

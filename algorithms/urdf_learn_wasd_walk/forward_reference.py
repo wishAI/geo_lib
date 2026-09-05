@@ -24,6 +24,10 @@ class ReferenceConfig:
     knee_amplitude: float = 1.0
     ankle_pitch_amplitude: float = -1.0
     toe_amplitude: float = -0.5
+    hip_roll_amplitude: float = 0.0
+    common_hip_roll_amplitude: float = 0.0
+    common_hip_roll_phase_offset_cycles: float = 0.15
+    waist_roll_amplitude: float = 0.0
     hip_phase_offset_cycles: float = 0.0
     knee_phase_offset_cycles: float = 0.0
     ankle_phase_offset_cycles: float = 0.0
@@ -41,6 +45,9 @@ class ReferenceConfig:
         for name in (
             "hip_pitch_amplitude", "knee_amplitude", "ankle_pitch_amplitude",
             "toe_amplitude",
+            "hip_roll_amplitude",
+            "common_hip_roll_amplitude",
+            "waist_roll_amplitude",
         ):
             if abs(float(getattr(self, name))) > 1.0:
                 raise ValueError(f"{name} escapes the normalized action limit")
@@ -86,6 +93,9 @@ def reference_action(
     result = {name: 0.0 for name in model_spec.ACTION_JOINTS}
     direction = 1.0 if forward_command_mps >= 0.0 else -1.0
     base_phase = time_s / config.period_s
+    common_hip_roll = -scale * config.common_hip_roll_amplitude * math.sin(
+        2.0 * math.pi * (base_phase + config.common_hip_roll_phase_offset_cycles)
+    )
     for side, side_offset in (("left", 0.0), ("right", config.phase_difference_cycles)):
         phase = (base_phase + side_offset) % 1.0
         hip_phase = (phase + config.hip_phase_offset_cycles) % 1.0
@@ -94,6 +104,10 @@ def reference_action(
         toe_phase = (phase + config.toe_phase_offset_cycles) % 1.0
         result[f"{side}_hip_pitch_joint"] = (
             scale * direction * config.hip_pitch_amplitude * math.sin(2.0 * math.pi * hip_phase)
+        )
+        result[f"{side}_hip_roll_joint"] = (
+            scale * config.hip_roll_amplitude * math.sin(2.0 * math.pi * phase)
+            + common_hip_roll
         )
         result[f"{side}_knee_joint"] = (
             scale * config.knee_amplitude * _swing_clearance(knee_phase, config.swing_fraction)
@@ -104,14 +118,22 @@ def reference_action(
         result[f"{side}_toe_joint"] = (
             scale * config.toe_amplitude * _swing_clearance(toe_phase, config.swing_fraction)
         )
+    result["waist_roll_joint"] = (
+        scale * config.waist_roll_amplitude * math.sin(2.0 * math.pi * base_phase)
+    )
     actions = [result[name] for name in model_spec.ACTION_JOINTS]
     if max(map(abs, actions), default=0.0) > contract.ACTION_CLIP + 1.0e-12:
         raise ValueError("reference action escaped the canonical action clip")
     return actions
 
 
-def reference_contract(config: ReferenceConfig) -> dict:
+def reference_contract(
+    config: ReferenceConfig, *, action_scale_rad: float = contract.ACTION_SCALE_RAD
+) -> dict:
     """Machine-readable semantics for the first bounded v3 experiment."""
+
+    if not 0.0 < action_scale_rad <= 0.3:
+        raise ValueError("probe action scale must stay in (0, 0.3] rad")
 
     return {
         "method": METHOD_ID,
@@ -121,10 +143,16 @@ def reference_contract(config: ReferenceConfig) -> dict:
         "command_gating": "smoothstep(abs(forward_mps) / 0.25); exactly zero at zero command",
         "left_right_phase_difference_cycles": config.phase_difference_cycles,
         "swing_clearance_envelope": "sin(pi*u)^2 during swing; zero value and slope at toe-off/landing",
-        "action_scale_rad": contract.ACTION_SCALE_RAD,
+        "lateral_weight_transfer": (
+            "optional phase-opposed leg shaping plus common-mode bilateral hip-roll and waist-roll; "
+            "all remain exactly zero at zero command"
+        ),
+        "action_scale_rad": action_scale_rad,
         "action_order": list(model_spec.ACTION_JOINTS),
         "parameters": config.as_metadata(),
-        "offline_kinematic_audit": offline_kinematic_audit(config),
+        "offline_kinematic_audit": offline_kinematic_audit(
+            config, action_scale_rad=action_scale_rad
+        ),
         "acceptance": {
             "bilateral_direct_air_run_min_control_steps": 2,
             "bilateral_support_body_height_gain_min_m": 0.002,
@@ -137,7 +165,9 @@ def reference_contract(config: ReferenceConfig) -> dict:
     }
 
 
-def offline_kinematic_audit(config: ReferenceConfig) -> dict:
+def offline_kinematic_audit(
+    config: ReferenceConfig, *, action_scale_rad: float = contract.ACTION_SCALE_RAD
+) -> dict:
     """Measure theoretical swing clearance with exact URDF FK/collision meshes."""
 
     root = ET.parse(model_spec.URDF_PATH).getroot()
@@ -154,7 +184,7 @@ def offline_kinematic_audit(config: ReferenceConfig) -> dict:
         action = reference_action(time_s, contract.TARGET_FORWARD_SPEED_MPS, full_config)
         posed = dict(nominal)
         for name, normalized in zip(model_spec.ACTION_JOINTS, action):
-            posed[name] = posed.get(name, 0.0) + normalized * contract.ACTION_SCALE_RAD
+            posed[name] = posed.get(name, 0.0) + normalized * action_scale_rad
         posed_transforms, _ = model_spec._joint_world_transforms(root, posed)
         posed_points = model_spec._collision_world_points(
             root, model_spec.URDF_PATH, posed_transforms
@@ -176,7 +206,7 @@ def offline_kinematic_audit(config: ReferenceConfig) -> dict:
     return {
         "method": "exact current-URDF FK and collision-mesh vertices",
         "urdf_sha256": model_spec.EXPECTED_URDF_SHA256,
-        "action_scale_rad": contract.ACTION_SCALE_RAD,
+        "action_scale_rad": action_scale_rad,
         "full_amplitude_mid_swing": per_side,
         "note": "runtime contact and body-height observations remain authoritative",
     }

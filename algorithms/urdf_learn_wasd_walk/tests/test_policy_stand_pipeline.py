@@ -167,7 +167,13 @@ class PolicyStandPipelineTests(unittest.TestCase):
             recorded = json.loads(milestones_path.read_text(encoding="utf-8"))
             by_id = {item["id"]: item for item in recorded["milestones"]}
             self.assertEqual(by_id[contract.MILESTONE_ID]["status"], "passed")
+            self.assertEqual(
+                by_id[contract.MILESTONE_ID]["meshTreeSha256"],
+                model_spec.EXPECTED_MESH_TREE_SHA256,
+            )
             self.assertEqual(by_id["gate_5m_no_reset"]["status"], "in_progress")
+            self.assertNotIn("previousStatus", by_id["gate_5m_no_reset"])
+            self.assertNotIn("checkpoint", by_id["gate_5m_no_reset"])
             self.assertEqual(len(by_id[contract.MILESTONE_ID]["evidence"]), 7)
             self.assertTrue(all(len(item["sha256"]) == 64 for item in by_id[contract.MILESTONE_ID]["evidence"]))
             gui = json.loads(manifest_path.read_text(encoding="utf-8"))

@@ -80,6 +80,7 @@ def _record_canonical_pass(
         "passedAt": final["assembled_at"],
         "checkpoint": final["checkpoint"],
         "urdfSha256": final["input"]["urdf_sha256"],
+        "meshTreeSha256": final["input"]["mesh_tree_sha256"],
         "seed": final["seed"],
         "metrics": {
             name: metrics[name] for name in (
@@ -98,7 +99,15 @@ def _record_canonical_pass(
             declared("contact_sheet", sheet_path),
         ],
     })
-    following["status"] = "in_progress"
+    # Never leave the invalidated mesh lineage's status/checkpoint residue on
+    # the newly activated forward gate.
+    following.clear()
+    following.update({
+        "order": 3,
+        "id": "gate_5m_no_reset",
+        "stage": "fwd_only",
+        "status": "in_progress",
+    })
     milestones["implementationStatus"] = "milestone_2_passed_milestone_3_in_progress"
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

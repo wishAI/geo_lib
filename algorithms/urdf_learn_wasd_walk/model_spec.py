@@ -101,7 +101,9 @@ FINGER_JOINTS = tuple(
     ]
 )
 
-# Promoted from the clamped settled state of gravity_static_pose_release_v1.
+# Transferred only as the first bounded seed from the clamped settled state of
+# gravity_static_pose_release_v1. That run belongs to an invalidated mesh lineage;
+# the pose is not proven on the rabbit-ear package until milestone 1 passes again.
 # Finger states are intentionally zeroed; every other imported joint preserves
 # the diagnostic's recorded float value and corresponding released PD target.
 CANONICAL_NOMINAL_NONFINGER_POSITIONS_RAD = {
@@ -904,7 +906,8 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
             "joint_position_targets_rad": canonical_targets,
             "geometry": canonical_pose_geometry,
             "provenance": {
-                "kind": "promoted_derived_settled_pose_not_probe_status",
+                "kind": "transferred_pose_seed_from_invalidated_mesh_lineage",
+                "current_asset_status": "awaiting_rabbit_ear_mesh_passive_recertification",
                 "source_experiment": "gravity_static_pose_release_v1",
                 "source_run_identity": "20260904T071956.210897Z",
                 "source_evidence": (
@@ -942,6 +945,11 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 for name, group in PD_GROUPS.items()
             },
             "locked": {"stiffness": LOCKED_PD_STIFFNESS, "damping": LOCKED_PD_DAMPING},
+            "stability_experiment_history": {
+                "status": "invalidated_asset_history",
+                "mesh_tree_sha256": "e912ac2e7fcc16a52d726ef410c2b0eb860727d033e07b1728d63a3f906d4da0",
+                "use": "hypothesis history only; no recorded result promotes the current rabbit-ear lineage",
+            },
             "stability_experiments": [
                 {
                     "id": "ankle_pitch_contact_damping_v1",
@@ -1024,7 +1032,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 },
                 {
                     "id": "gravity_static_pose_release_v1",
-                    "status": "free_root_supported_non_gate",
+                    "status": "invalidated_asset_history",
                     "scope": "derive with pinned root and baseline low-authority PD, then release in the same Isaac process",
                     "hypothesis": (
                         "A small collision-compatible crouch with centered COM and measured PD preload will avoid "
@@ -1103,16 +1111,17 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                     "result": {
                         "physical_result": "free_root_supported_for_3_seconds",
                         "probe_status": "failed_only_by_invalid_fixed_root_contact_criterion",
-                        "pose_promoted": True,
+                        "pose_promoted": False,
+                        "current_asset_status": "not_evaluated_on_rabbit_ear_mesh",
                         "milestone_status_changed": False,
                     },
                 },
                 {
-                    "id": "canonical_settled_pose_10s_v1",
+                    "id": "rabbit_ear_passive_recertification_v1",
                     "status": "active_bounded_test",
-                    "scope": "canonical pose, free root, zero action/command, camera-free 10-second smoke",
+                    "scope": "transferred pose seed, exact rabbit-ear mesh, free root, zero action/command",
                     "predecessor": "gravity_static_pose_release_v1",
-                    "promotion_requirement": "pass free-root COM/support/load and ordinary passive gate checks",
+                    "promotion_requirement": "pass the exact 30-second passive gate and separate viewport proof with the 8,864-triangle asset",
                 },
             ],
             "zero_pose_static_authority_audit": {
@@ -1141,7 +1150,7 @@ def build_robot_spec(urdf_path: Path = URDF_PATH) -> dict:
                 movable_names, authority_probe=True
             ),
             "nominal_pose_selection": {
-                "selected": "promoted gravity-static settled pose with collision geometry aligned to ground",
+                "selected": "unproven transferred seed from invalidated gravity-static run, realigned to current collision geometry",
                 "installed_humanoid_comparison": {
                     "G1_CFG": {"hip_pitch_rad": -0.20, "knee_rad": 0.42, "ankle_pitch_rad": -0.23},
                     "H1_CFG": {"hip_pitch_rad": -0.28, "knee_rad": 0.79, "ankle_pitch_rad": -0.52},

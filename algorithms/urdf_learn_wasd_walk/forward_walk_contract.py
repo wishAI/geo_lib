@@ -16,15 +16,30 @@ OUTPUT_ROOT = model_spec.ALGORITHM_ROOT / "outputs"
 DEFAULT_OUTPUT_DIR = OUTPUT_ROOT / MILESTONE_ID
 TRAINING_EVIDENCE = "training.json"
 PARENT_MILESTONE_ID = "stand_30s_no_reset"
-PARENT_CHECKPOINT_SHA256 = "8fd649e9458caa02d4fb176cf3af5ad4da33d2974268e222210cd3080d54cb64"
 PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "phase_gait_l2_v2"
-GAIT_PERIOD_S = 0.8
+TRAINING_METHOD_ID = "velocity_priority_reward_v14"
+REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
+GAIT_PERIOD_S = 1.0
+ROLLOUT_STEPS_PER_ENV = 112
+PPO_LEARNING_RATE = 1.0e-4
+PPO_INITIAL_ACTION_NOISE_STD = 0.02
+REFERENCE_ACTION_SCALE_RAD = 0.24
+REFERENCE_HIP_PITCH_AMPLITUDE = 0.20
+REFERENCE_SETTLE_S = 1.0
+REFERENCE_STARTUP_RAMP_S = 0.4
+REFERENCE_PROBE_PATH = (
+    DEFAULT_OUTPUT_DIR
+    / "reference_probe_v3"
+    / "single_application_period_1p00_scale_0p24"
+    / "reference_probe.json"
+)
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
+TRAIN_STANDING_ENVIRONMENT_FRACTION = 0.25
+ALTERNATING_SINGLE_SUPPORT_WEIGHT = 0.25
 TARGET_DISTANCE_M = 5.0
 MAX_GATE_DURATION_S = 30.0
 STAND_DURATION_S = 30.0
@@ -38,15 +53,16 @@ FORWARD_PROGRESS_VELOCITY_EPS_MPS = 0.01
 MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 
 NEXT_TRAINING_HYPOTHESIS = {
-    "id": "command_gated_phase_reference_residual_v3",
+    "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "phase observations and sparse contact rewards do not provide enough exploration from the "
-        "stable stand policy; a small command-gated, phase-conditioned leg reference can seed "
-        "alternating weight transfer while PPO learns bounded residuals"
+        "the prior alternating-support reward (weight 1.0) is much larger than its observed "
+        "signed-progress reward and permits profitable in-place stepping; reducing only that "
+        "term to 0.25, consistent with the installed H1/G1 air-time task weight, should make "
+        "velocity tracking the dominant improvable behavior"
     ),
     "first_experiment": (
-        "camera-free short open-loop reference probe before any PPO run, requiring bilateral "
-        "liftoff, positive +Y progress, no reset/fall, and bounded target error"
+        "twenty iterations initialized from the best v12 stage20 checkpoint with only the "
+        "alternating-support weight changed from 1.0 to 0.25, followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -70,7 +86,7 @@ REWARD_CONTRACT = (
     {"name": "yaw_velocity_l2", "weight": -0.5},
     {"name": "upright_posture", "weight": -2.0},
     {"name": "base_height", "weight": -1.0},
-    {"name": "alternating_single_support", "weight": 1.0},
+    {"name": "alternating_single_support", "weight": ALTERNATING_SINGLE_SUPPORT_WEIGHT},
     {"name": "feet_air_time", "weight": 0.5},
     {"name": "foot_slip", "weight": -0.15},
     {"name": "natural_posture", "weight": -0.1},
@@ -104,6 +120,23 @@ def episode_phase_step_buffer(env):
     """Return the per-env episode clock only after Isaac Lab has created it."""
 
     return getattr(env, "episode_length_buf", None)
+
+
+def reference_phase_cycle(elapsed_s: float) -> float:
+    """Return the settle-relative reference phase used by actions and rewards."""
+
+    if elapsed_s < 0.0:
+        raise ValueError("elapsed_s must be non-negative")
+    reference_time = max(elapsed_s - REFERENCE_SETTLE_S, 0.0)
+    return (reference_time / GAIT_PERIOD_S) % 1.0
+
+
+def left_stance_for_reference_phase(phase_cycle: float) -> bool:
+    """The left foot is stance while the right-side reference is in swing."""
+
+    if not 0.0 <= phase_cycle < 1.0:
+        raise ValueError("phase_cycle must be in [0, 1)")
+    return phase_cycle >= 0.5
 
 
 def summarize_forward_velocity_samples(
@@ -235,6 +268,8 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
             raise ValueError(f"prior milestone {milestone_id} uses another URDF")
         if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
             raise ValueError(f"prior milestone {milestone_id} uses another visual/collision mesh package")
+        if milestone_id == PARENT_MILESTONE_ID and evidence.get("checkpoint") != record.get("checkpoint"):
+            raise ValueError("policy-stand validation checkpoint differs from the canonical ledger")
         prior.append({
             "order": order,
             "id": milestone_id,
@@ -245,13 +280,61 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
         })
     parent = records[PARENT_MILESTONE_ID]["checkpoint"]
     parent_path = (model_spec.ALGORITHM_ROOT.parent.parent / parent["path"]).resolve()
+    checkpoint_declaration = next(
+        (
+            item for item in records[PARENT_MILESTONE_ID].get("evidence", [])
+            if item.get("kind") == "checkpoint"
+        ),
+        None,
+    )
     if (
-        parent.get("sha256") != PARENT_CHECKPOINT_SHA256
+        checkpoint_declaration is None
+        or checkpoint_declaration.get("path") != parent.get("path")
+        or checkpoint_declaration.get("sha256") != parent.get("sha256")
         or not parent_path.is_file()
-        or sha256(parent_path) != PARENT_CHECKPOINT_SHA256
+        or sha256(parent_path) != parent.get("sha256")
     ):
         raise ValueError("canonical policy-stand checkpoint is absent or differs")
     return prior, {**parent, "resolved_path": str(parent_path)}
+
+
+def load_reference_probe(parent_sha256: str) -> dict:
+    """Require the exact current-mesh experiment that authorized PPO v3."""
+
+    if not REFERENCE_PROBE_PATH.is_file():
+        raise ValueError("the v3 reference probe evidence is missing")
+    evidence = json.loads(REFERENCE_PROBE_PATH.read_text(encoding="utf-8"))
+    if evidence.get("status") != "passed" or evidence.get("ppo_eligible") is not True:
+        raise ValueError("the v3 reference probe has not authorized PPO")
+    if evidence.get("lineage") != LINEAGE:
+        raise ValueError("the v3 reference probe belongs to another lineage")
+    source = evidence.get("input", {})
+    if source.get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("the v3 reference probe belongs to another mesh tree")
+    if evidence.get("parent_checkpoint", {}).get("sha256") != parent_sha256:
+        raise ValueError("the v3 reference probe used another stand checkpoint")
+    reference = evidence.get("reference_contract", {})
+    if reference.get("method") != REFERENCE_PROBE_METHOD_ID:
+        raise ValueError("the v3 reference probe used another method")
+    if float(reference.get("action_scale_rad", -1.0)) != REFERENCE_ACTION_SCALE_RAD:
+        raise ValueError("the v3 reference probe used another physical scale")
+    if evidence.get("reference_application", {}).get("application_count") != 1:
+        raise ValueError("the v3 reference probe did not prove exactly one reference application")
+    parameters = reference.get("parameters", {})
+    if float(parameters.get("period_s", -1.0)) != GAIT_PERIOD_S:
+        raise ValueError("the v3 reference probe used another gait period")
+    if float(parameters.get("hip_pitch_amplitude", -1.0)) != REFERENCE_HIP_PITCH_AMPLITUDE:
+        raise ValueError("the v3 reference probe used another hip-pitch amplitude")
+    return {
+        "path": str(REFERENCE_PROBE_PATH.relative_to(model_spec.ALGORITHM_ROOT.parent.parent)),
+        "sha256": sha256(REFERENCE_PROBE_PATH),
+        "run_identity": evidence.get("run_identity"),
+        "semantic_forward_displacement_m": evidence.get("metrics", {}).get(
+            "semantic_forward_displacement_m"
+        ),
+        "period_s": parameters["period_s"],
+        "action_scale_rad": reference["action_scale_rad"],
+    }
 
 
 def training_contract(
@@ -260,13 +343,15 @@ def training_contract(
     if seed < 0 or num_envs <= 0 or iterations <= 0:
         raise ValueError("seed must be non-negative and sizes positive")
     prior, parent = load_cumulative_prior()
+    reference_probe = load_reference_probe(parent["sha256"])
     if initialization_source is None:
         initialization_source = {
-            "kind": "expanded_observation_transfer",
+            "kind": "zero_output_residual_transfer",
             "path": parent["path"],
             "sha256": parent["sha256"],
             "actor_observation_dim": 60,
             "source_milestone": PARENT_MILESTONE_ID,
+            "zero_initialized_actor_output_head": True,
         }
     source_width = int(initialization_source["actor_observation_dim"])
     if source_width not in {60, 63, ACTOR_OBSERVATION_DIM}:
@@ -280,8 +365,8 @@ def training_contract(
         "seed": seed,
         "num_envs": num_envs,
         "iterations": iterations,
-        "num_steps_per_env": 24,
-        "sample_count": num_envs * iterations * 24,
+        "num_steps_per_env": ROLLOUT_STEPS_PER_ENV,
+        "sample_count": num_envs * iterations * ROLLOUT_STEPS_PER_ENV,
         "initialization": {
             **initialization_source,
             "preserved_observation_prefix_width": source_width,
@@ -297,8 +382,31 @@ def training_contract(
             "semantic_command_order": list(model_spec.SEMANTIC_COMMAND_ORDER),
             "sim_command_mapping": {"forward": "linear_y", "strafe": "linear_x", "yaw": "angular_z"},
             "training_forward_speed_range_mps": list(TRAIN_FORWARD_SPEED_RANGE_MPS),
-            "standing_environment_fraction": 0.25,
+            "standing_environment_fraction": TRAIN_STANDING_ENVIRONMENT_FRACTION,
+            "training_reset_distribution": {
+                "root_pose_offset": "exact_zero",
+                "root_velocity": "exact_zero",
+                "action_joint_position_offset": "exact_zero",
+                "action_joint_velocity": "exact_zero",
+            },
             "action_scale_rad": ACTION_SCALE_RAD,
+            "reference_residual": {
+                "method": REFERENCE_PROBE_METHOD_ID,
+                "policy_method": TRAINING_METHOD_ID,
+                "physical_scale_rad": REFERENCE_ACTION_SCALE_RAD,
+                "zero_command_is_exactly_zero": True,
+                "pre_command_settle_s": REFERENCE_SETTLE_S,
+                "startup_ramp_s": REFERENCE_STARTUP_RAMP_S,
+                "period_s": GAIT_PERIOD_S,
+                "hip_pitch_amplitude": REFERENCE_HIP_PITCH_AMPLITUDE,
+                "left_right_phase_difference_cycles": 0.5,
+                "source_probe": (
+                    "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/"
+                    "reference_probe_v3/single_application_period_1p00_scale_0p24/"
+                    "reference_probe.json"
+                ),
+                "source_probe_evidence": reference_probe,
+            },
             "action_joints": list(model_spec.ACTION_JOINTS),
             "actor_observations": [
                 {"name": name, "width": width} for name, width in ACTOR_OBSERVATION_TERMS
@@ -316,8 +424,8 @@ def training_contract(
             "actor_hidden_dims": [128, 128],
             "critic_hidden_dims": [128, 128],
             "activation": "elu",
-            "initial_action_noise_std": 0.2,
-            "learning_rate": 0.001,
+            "initial_action_noise_std": PPO_INITIAL_ACTION_NOISE_STD,
+            "learning_rate": PPO_LEARNING_RATE,
             "gamma": 0.99,
             "lambda": 0.95,
             "clip_parameter": 0.2,
