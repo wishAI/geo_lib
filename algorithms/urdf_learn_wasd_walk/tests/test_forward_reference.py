@@ -2,10 +2,21 @@ from __future__ import annotations
 
 import unittest
 
-from algorithms.urdf_learn_wasd_walk import forward_reference, model_spec
+from algorithms.urdf_learn_wasd_walk import (
+    forward_reference,
+    forward_reference_probe,
+    model_spec,
+    policy_stand_contract,
+)
 
 
 class ForwardReferenceTests(unittest.TestCase):
+    def test_probe_defaults_to_current_policy_stand_parent(self) -> None:
+        self.assertEqual(
+            forward_reference_probe.DEFAULT_PARENT_OUTPUT,
+            policy_stand_contract.DEFAULT_OUTPUT_DIR,
+        )
+
     def test_zero_command_is_exact_stand_reference(self) -> None:
         for time_s in (0.0, 0.2, 1.7):
             self.assertEqual(

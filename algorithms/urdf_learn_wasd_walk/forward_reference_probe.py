@@ -18,9 +18,10 @@ if str(REPO_ROOT) not in sys.path:
 from algorithms.urdf_learn_wasd_walk import forward_reference
 from algorithms.urdf_learn_wasd_walk import forward_walk_contract as contract
 from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand, policy_stand
+from algorithms.urdf_learn_wasd_walk import policy_stand_contract
 
 
-DEFAULT_PARENT_OUTPUT = contract.DEFAULT_OUTPUT_DIR / "phase_gait_v2"
+DEFAULT_PARENT_OUTPUT = policy_stand_contract.DEFAULT_OUTPUT_DIR
 DEFAULT_OUTPUT = contract.DEFAULT_OUTPUT_DIR / "reference_probe_v3" / "baseline"
 
 
@@ -243,7 +244,7 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
                 "path": str((args.parent_output_dir / contract.TRAINING_EVIDENCE).relative_to(REPO_ROOT)),
                 "sha256": contract.sha256(args.parent_output_dir / contract.TRAINING_EVIDENCE),
                 "run_identity": training["run_identity"],
-                "training_method": training["requested_contract"]["training_method"],
+                "training_method": "current_mesh_policy_stand_parent",
             },
             "reference_contract": reference,
             "joint_contract": {
@@ -310,10 +311,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.seed < 0 or args.steps <= 0:
         raise SystemExit("seed must be non-negative and steps positive")
     try:
-        prior, _ = contract.load_cumulative_prior()
-        training = contract.load_training_evidence(args.parent_output_dir)
-        if training["requested_contract"].get("training_method") != contract.TRAINING_METHOD_ID:
-            raise ValueError("reference probe parent is not the latest phase_gait_v2 method")
+        prior, parent = contract.load_cumulative_prior()
+        training = policy_stand_contract.load_training_evidence(args.parent_output_dir)
+        if training.get("checkpoint", {}).get("sha256") != parent.get("sha256"):
+            raise ValueError("reference probe parent is not the canonical current-mesh stand checkpoint")
         forward_reference.ReferenceConfig(
             period_s=args.period_s,
             amplitude_scale=args.amplitude_scale,
