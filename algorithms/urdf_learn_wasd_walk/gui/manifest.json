@@ -3,10 +3,10 @@
   "icon": "walk",
   "name": "Learn WASD Walk",
   "eyebrow": "CLEAN TRAINING RESTART",
-  "summary": "Latest-mesh Landau passive standing is proven for 30 seconds; policy standing is now being rebuilt from the corrected visual/collision package.",
+  "summary": "Clean-lineage Landau locomotion rebuilt one hard gate at a time. Passive and policy standing are proven; the 5 m flat forward gate is active.",
   "accent": "#cb6b42",
   "runtime": "tk2-clean",
-  "runtimeLabel": "TK2 · latest-mesh policy stand",
+  "runtimeLabel": "TK2 · 5 m forward gate",
   "capabilities": [
     "passive stand",
     "policy stand",
@@ -222,14 +222,14 @@
       "name": "Policy stand · 30 s",
       "stage": "stand",
       "passWhen": "Policy control with zero falls, resets, or done events.",
-      "status": "in progress"
+      "status": "passed"
     },
     {
       "id": "gate_5m_no_reset",
       "name": "Forward gate · 5 m",
       "stage": "fwd_only",
       "passWhen": "Walking pose preserved with no reset.",
-      "status": "not started"
+      "status": "in progress"
     },
     {
       "id": "gate_10m_no_reset",

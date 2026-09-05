@@ -171,6 +171,7 @@ def build_evolution(
         "step": 0,
         "status": "completed" if passive_status == "passed" else "running" if passive_status == "in_progress" else "failed",
         "kind": "root",
+        "milestoneId": "stand_zero_signal_30s_no_reset",
         "lineage": lineage,
         "approach": "URDF equilibrium pose + PD control",
         "result": "canonical zero-signal stand gate passed" if passive_status == "passed" else "latest visual/collision mesh awaits gate re-certification",
@@ -188,9 +189,27 @@ def build_evolution(
             "step": 1,
             "status": "running",
             "kind": "milestone",
+            "milestoneId": "stand_30s_no_reset",
             "lineage": lineage,
             "approach": "manager-based proprioceptive PPO",
             "result": "awaiting a fresh checkpoint on the corrected mesh package",
+            "metrics": {},
+            "important": True,
+            "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256"),
+        })
+    forward_record = milestone_records.get("gate_5m_no_reset", {})
+    if forward_record.get("status") == "in_progress":
+        nodes.append({
+            "id": "milestone:gate_5m_no_reset",
+            "parentIds": ["milestone:stand_30s_no_reset"],
+            "label": "Latest mesh · forward gate 5 m",
+            "step": 2,
+            "status": "running",
+            "kind": "milestone",
+            "milestoneId": "gate_5m_no_reset",
+            "lineage": lineage,
+            "approach": "flat +Y manager-based PPO",
+            "result": "awaiting a fresh walking checkpoint on the corrected mesh package",
             "metrics": {},
             "important": True,
             "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256"),
@@ -267,6 +286,7 @@ def build_evolution(
             "step": step,
             "status": status,
             "kind": "milestone" if canonical.get("status") == "passed" and canonical.get("checkpoint", {}).get("sha256") == sha else "checkpoint",
+            "milestoneId": milestone,
             "lineage": run_lineage,
             "approach": approach,
             "result": result,
@@ -327,6 +347,7 @@ def build_evolution(
             "step": step,
             "status": status,
             "kind": "experiment",
+            "milestoneId": "gate_5m_no_reset",
             "lineage": probe_lineage,
             "approach": str(probe.get("experiment", "open-loop reference probe")),
             "result": result,
@@ -358,7 +379,17 @@ def build_evolution(
             visible.append(node["id"])
     visible_set = set(visible[:VISIBLE_NODE_BUDGET])
     default_visible = [node["id"] for node in nodes if node["id"] in visible_set]
-    current_candidates = [node for node in nodes if node.get("lineage") == lineage]
+    active = next(
+        (item.get("id") for item in ledger.get("milestones", []) if item.get("status") == "in_progress"),
+        None,
+    )
+    current_candidates = [
+        node for node in nodes
+        if node.get("lineage") == lineage
+        and (active is None or node.get("milestoneId") == active)
+    ]
+    if not current_candidates:
+        current_candidates = [node for node in nodes if node.get("lineage") == lineage]
     current = max(current_candidates, key=lambda item: item.get("step", 0))["id"]
     return {
         "schemaVersion": 1,

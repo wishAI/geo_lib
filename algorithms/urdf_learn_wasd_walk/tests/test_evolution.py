@@ -119,6 +119,16 @@ class EvolutionTests(unittest.TestCase):
             self.assertEqual(nodes["milestone:stand_30s_no_reset"]["status"], "running")
             self.assertEqual(nodes["run:old-stand"]["status"], "failed")
 
+            current_ledger["milestones"][1]["status"] = "passed"
+            current_ledger["milestones"].append({
+                "id": "gate_5m_no_reset", "status": "in_progress"
+            })
+            ledger.write_text(json.dumps(current_ledger))
+            payload = evolution.build_evolution(output, ledger)
+            nodes = {item["id"]: item for item in payload["nodes"]}
+            self.assertEqual(payload["currentNodeId"], "milestone:gate_5m_no_reset")
+            self.assertEqual(nodes["milestone:gate_5m_no_reset"]["status"], "running")
+
 
 if __name__ == "__main__":
     unittest.main()

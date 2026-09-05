@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from algorithms.urdf_learn_wasd_walk import forward_walk_contract as contract, model_spec
 
 
 def _forward_prerequisites_are_current() -> bool:
-    import json
-
     ledger = json.loads((model_spec.ALGORITHM_ROOT / "milestones.json").read_text())
     status = {item["id"]: item["status"] for item in ledger["milestones"]}
     return all(status.get(item) == "passed" for item in ("stand_zero_signal_30s_no_reset", contract.PARENT_MILESTONE_ID))
@@ -65,7 +64,9 @@ class ForwardWalkContractTests(unittest.TestCase):
             self.skipTest("latest-mesh stand gates are awaiting re-certification")
         prior, parent = contract.load_cumulative_prior()
         self.assertEqual([item["status"] for item in prior], ["passed", "passed"])
-        self.assertEqual(parent["sha256"], contract.PARENT_CHECKPOINT_SHA256)
+        ledger = json.loads((model_spec.ALGORITHM_ROOT / "milestones.json").read_text())
+        recorded = next(item for item in ledger["milestones"] if item["id"] == contract.PARENT_MILESTONE_ID)
+        self.assertEqual(parent["sha256"], recorded["checkpoint"]["sha256"])
 
     def test_forward_gate_requires_distance_gait_and_no_events(self) -> None:
         self.assertEqual(contract.evaluate_forward_gate(passing_forward()), [])

@@ -16,7 +16,6 @@ OUTPUT_ROOT = model_spec.ALGORITHM_ROOT / "outputs"
 DEFAULT_OUTPUT_DIR = OUTPUT_ROOT / MILESTONE_ID
 TRAINING_EVIDENCE = "training.json"
 PARENT_MILESTONE_ID = "stand_30s_no_reset"
-PARENT_CHECKPOINT_SHA256 = "8fd649e9458caa02d4fb176cf3af5ad4da33d2974268e222210cd3080d54cb64"
 PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
@@ -235,6 +234,8 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
             raise ValueError(f"prior milestone {milestone_id} uses another URDF")
         if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
             raise ValueError(f"prior milestone {milestone_id} uses another visual/collision mesh package")
+        if milestone_id == PARENT_MILESTONE_ID and evidence.get("checkpoint") != record.get("checkpoint"):
+            raise ValueError("policy-stand validation checkpoint differs from the canonical ledger")
         prior.append({
             "order": order,
             "id": milestone_id,
@@ -245,10 +246,19 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
         })
     parent = records[PARENT_MILESTONE_ID]["checkpoint"]
     parent_path = (model_spec.ALGORITHM_ROOT.parent.parent / parent["path"]).resolve()
+    checkpoint_declaration = next(
+        (
+            item for item in records[PARENT_MILESTONE_ID].get("evidence", [])
+            if item.get("kind") == "checkpoint"
+        ),
+        None,
+    )
     if (
-        parent.get("sha256") != PARENT_CHECKPOINT_SHA256
+        checkpoint_declaration is None
+        or checkpoint_declaration.get("path") != parent.get("path")
+        or checkpoint_declaration.get("sha256") != parent.get("sha256")
         or not parent_path.is_file()
-        or sha256(parent_path) != PARENT_CHECKPOINT_SHA256
+        or sha256(parent_path) != parent.get("sha256")
     ):
         raise ValueError("canonical policy-stand checkpoint is absent or differs")
     return prior, {**parent, "resolved_path": str(parent_path)}
