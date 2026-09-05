@@ -213,7 +213,7 @@ class RewardsCfg:
     )
     alternating_single_support = RewTerm(
         func=alternating_single_support,
-        weight=1.0,
+        weight=contract.ALTERNATING_SINGLE_SUPPORT_WEIGHT,
         params={
             "left_cfg": SceneEntityCfg(
                 "contact_forces", body_names=["foot_l", "toes_01_l"]

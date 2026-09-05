@@ -20,7 +20,7 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "forward_only_command_curriculum_v13"
+TRAINING_METHOD_ID = "velocity_priority_reward_v14"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 1.0
 ROLLOUT_STEPS_PER_ENV = 112
@@ -38,7 +38,8 @@ REFERENCE_PROBE_PATH = (
 )
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
-TRAIN_STANDING_ENVIRONMENT_FRACTION = 0.0
+TRAIN_STANDING_ENVIRONMENT_FRACTION = 0.25
+ALTERNATING_SINGLE_SUPPORT_WEIGHT = 0.25
 TARGET_DISTANCE_M = 5.0
 MAX_GATE_DURATION_S = 30.0
 STAND_DURATION_S = 30.0
@@ -54,14 +55,14 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the exact gate command has no standing episodes, while the prior training distribution "
-        "spent 25 percent of samples standing; removing only that standing fraction should focus "
-        "the residual update on forward tracking without changing the passed gait reference, "
-        "reward set, speed range, or PPO parameters"
+        "the prior alternating-support reward (weight 1.0) is much larger than its observed "
+        "signed-progress reward and permits profitable in-place stepping; reducing only that "
+        "term to 0.25, consistent with the installed H1/G1 air-time task weight, should make "
+        "velocity tracking the dominant improvable behavior"
     ),
     "first_experiment": (
-        "twenty iterations initialized from the best v12 stage20 checkpoint with the training "
-        "standing fraction changed from 0.25 to 0.0, followed by a deterministic 10 s smoke"
+        "twenty iterations initialized from the best v12 stage20 checkpoint with only the "
+        "alternating-support weight changed from 1.0 to 0.25, followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -85,7 +86,7 @@ REWARD_CONTRACT = (
     {"name": "yaw_velocity_l2", "weight": -0.5},
     {"name": "upright_posture", "weight": -2.0},
     {"name": "base_height", "weight": -1.0},
-    {"name": "alternating_single_support", "weight": 1.0},
+    {"name": "alternating_single_support", "weight": ALTERNATING_SINGLE_SUPPORT_WEIGHT},
     {"name": "feet_air_time", "weight": 0.5},
     {"name": "foot_slip", "weight": -0.15},
     {"name": "natural_posture", "weight": -0.1},
