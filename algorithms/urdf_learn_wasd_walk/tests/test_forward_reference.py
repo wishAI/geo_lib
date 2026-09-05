@@ -62,6 +62,18 @@ class ForwardReferenceTests(unittest.TestCase):
             for joint in ("hip_pitch", "knee", "ankle_pitch", "toe")
         })
 
+    def test_toe_amplitude_is_an_independent_recorded_probe_factor(self) -> None:
+        config = forward_reference.ReferenceConfig(startup_ramp_s=0.0, toe_amplitude=0.0)
+        action = forward_reference.reference_action(0.2, 0.4, config)
+        toe_indices = [
+            model_spec.ACTION_JOINTS.index(f"{side}_toe_joint")
+            for side in ("left", "right")
+        ]
+        self.assertEqual([action[index] for index in toe_indices], [0.0, 0.0])
+        reference = forward_reference.reference_contract(config, action_scale_rad=0.17)
+        self.assertEqual(reference["parameters"]["toe_amplitude"], 0.0)
+        self.assertEqual(reference["action_scale_rad"], 0.17)
+
     def test_lateral_weight_transfer_is_phase_opposed_and_command_gated(self) -> None:
         config = forward_reference.ReferenceConfig(
             startup_ramp_s=0.0, hip_roll_amplitude=0.5
