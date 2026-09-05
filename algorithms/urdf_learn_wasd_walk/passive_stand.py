@@ -789,6 +789,7 @@ def _run(args, simulation_app) -> dict:
     viewport = None
     frame_context = None
     frame_dir = None
+    visual_local_corners = None
     if args.phase == "proof":
         from omni.kit.viewport.utility import get_active_viewport
         viewport = get_active_viewport()
@@ -801,6 +802,7 @@ def _run(args, simulation_app) -> dict:
             sim.render()
         if tuple(map(int, viewport.resolution)) != (args.video_width, args.video_height):
             raise RuntimeError(f"viewport resolution did not settle: {viewport.resolution}")
+        visual_local_corners = model_spec.visual_local_aabb_corners()
         frame_context = tempfile.TemporaryDirectory(prefix="landau_viewport_frames_", dir=output_dir)
         frame_dir = Path(frame_context.name)
 
@@ -1134,10 +1136,19 @@ def _run(args, simulation_app) -> dict:
                 index = len(frames)
                 path = frame_dir / f"frame_{index:04d}.png"
                 _capture_viewport_frame(viewport, sim, path)
-                bbox = _projected_link_bbox(
+                origin_bbox = _projected_link_bbox(
                     viewport, robot.data.body_pos_w[0].detach().cpu().tolist(),
                     args.video_width, args.video_height,
                 )
+                visual_corners = _visual_geometry_world_corners(robot, visual_local_corners)
+                bbox = {
+                    key: value for key, value in origin_bbox.items()
+                    if key != "character_visible"
+                }
+                bbox["link_origin_scale_proxy_passed"] = origin_bbox["character_visible"]
+                bbox.update(_projected_visual_geometry_bbox(
+                    viewport, visual_corners, args.video_width, args.video_height
+                ))
                 frames.append(_inspect_frame(path, bbox, index, (step + 1) * SIM_DT))
 
         if initial_position is None or initial_system_com is None:
@@ -1248,6 +1259,12 @@ def _run(args, simulation_app) -> dict:
                     "representative_mean_absolute_differences": differences,
                     "nonblank_frames_passed": all(item["nonblank"] for item in sampled),
                     "character_visibility_passed": all(item["character_visible"] for item in sampled),
+                    "visual_geometry_framing_passed": all(
+                        item["visual_geometry_framing_passed"] for item in sampled
+                    ),
+                    "discernible_scale_passed": all(
+                        item["discernible_scale_passed"] for item in sampled
+                    ),
                     "temporal_progression_visible": len(sampled) >= 3 and all(v > 0.005 for v in differences),
                     "behavior_visibility_note": "Stable pose motion is small; embedded time and start/middle/end frames establish full-duration progression.",
                 }

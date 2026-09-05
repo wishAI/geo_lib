@@ -22,8 +22,9 @@ Current clean implementation:
 - `robot_spec.json` records the 17 action joints, every explicitly locked joint, nominal pose, PD gains, and Landau's body-`+Y` semantic command mapping.
 - `passive_stand.py` implements only milestone 1 as two independent Isaac components: camera-free passive dynamics and a viewport-rendered proof replay.
 - `passive_pipeline.py` runs those components sequentially and creates final milestone evidence only when both pass.
-- Milestones 1 and 2 passed from the canonical derived pose and PPO checkpoint;
-  `milestones.json` pins every evidence hash. The 5 m flat forward gate is active.
+- The latest 68-mesh visual/collision package is being re-certified from milestone 1.
+  Earlier stand checkpoints and evidence live only under the invalidated mesh-tree branch and
+  cannot be resumed or promoted.
 - `policy_stand_env.py` is the milestone-2 flat manager-based environment, with the audited 17-joint residual action and a 60-value proprioceptive actor observation.
 - `policy_stand.py` trains RSL-RL PPO or evaluates one checkpoint, and `policy_stand_pipeline.py` keeps camera-free dynamics separate from viewport proof.
 
@@ -51,8 +52,10 @@ Commands:
 
 Each exact all-in-one validator runs its independent Isaac components sequentially; it never overlaps Isaac processes. Camera-free results remain available when proof rendering fails. A final `validation.json` appears only after every exact component passes. Policy training writes a durable `checkpoint.pt`, its originating run checkpoint, and `training.json` below the active milestone output; training completion alone cannot promote a milestone. Short smokes are never promotable.
 
-The bounded `phase_gait_l2_v2` experiment replaced the failed exponential velocity score with squared body-`+Y` tracking and signed progress, then added a deterministic gait phase. It removed the period-two action oscillation but its model-299 smoke produced only 0.004 m in 10 seconds and no bilateral liftoff. The contact reward granted half credit for double support, allowing a saturated asymmetric static solution. It is diagnostic evidence, not a gate candidate.
+The bounded `phase_gait_l2_v2` experiment belongs to the invalidated stale-mesh branch. Its
+checkpoint and diagnostics are retained for audit visibility only and are not gate candidates.
 
-The next hypothesis is `command_gated_phase_reference_residual_v3`: first test a small phase-conditioned leg reference in a short camera-free open-loop probe, then—only if it creates stable alternating liftoff and positive `+Y` progress—let PPO learn bounded residuals around it. The reference amplitude must be exactly zero under zero command so the passed stand behavior remains unchanged. No v3 training run is authorized by this note.
+No walking-policy hypothesis is active while latest-mesh passive and policy standing remain
+unresolved. The first current-lineage task is the exact 30-second passive zero-signal gate.
 
 Use the Geo Web GUI to launch TK2 commands and preview declared JSON, MP4, and contact-sheet artifacts. The active implementation transfers the proven stand actor into the 5 m flat forward gate while requiring the candidate checkpoint to re-pass standing.
