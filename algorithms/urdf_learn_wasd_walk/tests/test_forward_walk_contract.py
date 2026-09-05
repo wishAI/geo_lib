@@ -108,7 +108,7 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertFalse(requested["environment"]["rough_terrain"])
         reference = requested["environment"]["reference_residual"]
         self.assertEqual(reference["method"], "command_gated_phase_reference_residual_v3")
-        self.assertEqual(reference["policy_method"], "conservative_full_cycle_residual_v6")
+        self.assertEqual(reference["policy_method"], "low_noise_full_cycle_residual_v7")
         self.assertEqual(reference["physical_scale_rad"], 0.20)
         self.assertEqual(reference["pre_command_settle_s"], 1.0)
         self.assertTrue(reference["zero_command_is_exactly_zero"])
@@ -120,6 +120,7 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(requested["num_steps_per_env"], 96)
         self.assertEqual(requested["sample_count"], 512 * 600 * 96)
         self.assertEqual(requested["ppo"]["learning_rate"], 1.0e-4)
+        self.assertEqual(requested["ppo"]["initial_action_noise_std"], 0.02)
         self.assertGreater(
             requested["num_steps_per_env"] * contract.CONTROL_DT_S,
             contract.REFERENCE_SETTLE_S + contract.GAIT_PERIOD_S,
@@ -189,7 +190,7 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(len(failures), 4)
         self.assertEqual(
             contract.NEXT_TRAINING_HYPOTHESIS["id"],
-            "conservative_full_cycle_residual_v6",
+            "low_noise_full_cycle_residual_v7",
         )
 
     def test_forward_velocity_diagnostics_distinguish_progress_and_reverse_motion(self) -> None:

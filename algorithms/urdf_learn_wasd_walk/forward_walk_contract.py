@@ -20,11 +20,12 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "conservative_full_cycle_residual_v6"
+TRAINING_METHOD_ID = "low_noise_full_cycle_residual_v7"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
 ROLLOUT_STEPS_PER_ENV = 96
 PPO_LEARNING_RATE = 1.0e-4
+PPO_INITIAL_ACTION_NOISE_STD = 0.02
 REFERENCE_ACTION_SCALE_RAD = 0.20
 REFERENCE_SETTLE_S = 1.0
 REFERENCE_STARTUP_RAMP_S = 0.4
@@ -48,13 +49,14 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the 96-step rollout delayed support exit and increased forward displacement, but two "
-        "updates at the inherited 1e-3 learning rate produced large state-dependent residuals "
-        "and falls; reducing only the learning rate to 1e-4 should preserve the useful cycle data"
+        "both full-cycle runs terminated 62.5% of environments during the first pre-update "
+        "rollout, with mean episode length 0.96 s before the gait activates; reducing only the "
+        "Gaussian action noise from 0.2 to 0.02 should keep exploration inside the passive "
+        "standing basin while retaining full-cycle data"
     ),
     "first_experiment": (
-        "two iterations with the same 96-step rollout and a 1e-4 learning rate, followed by a "
-        "deterministic 10 s smoke"
+        "two iterations with the same 96-step rollout and 1e-4 learning rate at 0.02 action "
+        "noise, followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -399,7 +401,7 @@ def training_contract(
             "actor_hidden_dims": [128, 128],
             "critic_hidden_dims": [128, 128],
             "activation": "elu",
-            "initial_action_noise_std": 0.2,
+            "initial_action_noise_std": PPO_INITIAL_ACTION_NOISE_STD,
             "learning_rate": PPO_LEARNING_RATE,
             "gamma": 0.99,
             "lambda": 0.95,

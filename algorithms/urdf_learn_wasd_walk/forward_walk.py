@@ -199,6 +199,7 @@ def _train(args) -> dict:
         runner_cfg = policy_stand._runner_cfg(args.seed, args.iterations)
         runner_cfg.experiment_name = "landau_forward_5m"
         runner_cfg.num_steps_per_env = contract.ROLLOUT_STEPS_PER_ENV
+        runner_cfg.policy.init_noise_std = contract.PPO_INITIAL_ACTION_NOISE_STD
         runner_cfg.algorithm.learning_rate = contract.PPO_LEARNING_RATE
         runner = OnPolicyRunner(
             wrapped, runner_cfg.to_dict(), log_dir=os.fspath(run_dir), device=args.device
@@ -352,6 +353,9 @@ def _evaluate(args, training: dict, prior: list[dict]) -> dict:
         )
         runner_cfg.experiment_name = "landau_forward_5m"
         runner_cfg.num_steps_per_env = training["requested_contract"]["num_steps_per_env"]
+        runner_cfg.policy.init_noise_std = training["requested_contract"]["ppo"][
+            "initial_action_noise_std"
+        ]
         runner_cfg.algorithm.learning_rate = training["requested_contract"]["ppo"]["learning_rate"]
         runner = OnPolicyRunner(wrapped, runner_cfg.to_dict(), log_dir=None, device=args.device)
         _stage(args, "checkpoint_load")
