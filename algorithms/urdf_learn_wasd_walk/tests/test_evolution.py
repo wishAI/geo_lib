@@ -107,6 +107,18 @@ class EvolutionTests(unittest.TestCase):
             self.assertIn("invalidated asset lineage", nodes["run:old-stand"]["result"])
             self.assertEqual(nodes["run:old-stand"]["parentIds"], ["invalidated:old-mesh:stand_zero_signal_30s_no_reset"])
 
+            current_ledger = json.loads(ledger.read_text())
+            current_ledger["milestones"][0]["status"] = "passed"
+            current_ledger["milestones"][1] = {
+                "id": "stand_30s_no_reset", "status": "in_progress"
+            }
+            ledger.write_text(json.dumps(current_ledger))
+            payload = evolution.build_evolution(output, ledger)
+            nodes = {item["id"]: item for item in payload["nodes"]}
+            self.assertEqual(payload["currentNodeId"], "milestone:stand_30s_no_reset")
+            self.assertEqual(nodes["milestone:stand_30s_no_reset"]["status"], "running")
+            self.assertEqual(nodes["run:old-stand"]["status"], "failed")
+
 
 if __name__ == "__main__":
     unittest.main()

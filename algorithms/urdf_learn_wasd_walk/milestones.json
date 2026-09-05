@@ -1,7 +1,7 @@
 {
   "version": 1,
   "lineage": "latest_parallel_mesh_recertification_2026_09_05",
-  "implementationStatus": "asset_recertification_milestone_1_in_progress",
+  "implementationStatus": "milestone_1_passed_milestone_2_in_progress",
   "historyCarriedForward": false,
   "assetContract": {
     "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
@@ -19,47 +19,51 @@
       "order": 1,
       "id": "stand_zero_signal_30s_no_reset",
       "stage": "stand",
-      "status": "in_progress",
-      "previousStatus": "passed_on_invalidated_mesh_tree",
-      "passedAt": "20260904T080239.461579Z",
-      "checkpoint": "robot_spec_sha256:2d74554aa133d7d07b8d85dfaeac97d7425001fcd9ef45b8add6f1361801c64c",
+      "status": "passed",
+      "passedAt": "20260905T042108.482248Z",
+      "checkpoint": {
+        "identity": "robot_spec_sha256:50560b07e65b681a2e63fd406f0f9d575caa4d19e29477607f4072eeb9ade347",
+        "kind": "passive_pd_configuration",
+        "policy_checkpoint": null
+      },
       "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
+      "meshTreeSha256": "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435",
       "seed": 42,
       "metrics": {
         "duration_s": 30.0,
         "reset_count": 0,
         "done_count": 0,
         "fall_count": 0,
-        "max_reference_tilt_rad": 0.05205439,
-        "root_height_drop_m": 0.00456337,
-        "horizontal_drift_m": 0.01400711,
-        "minimum_support_polygon_margin_m": 0.02672317
+        "max_reference_tilt_rad": 0.11111805,
+        "root_height_drop_m": 0.00498825,
+        "horizontal_drift_m": 0.02794437,
+        "minimum_support_polygon_margin_m": 0.02829785
       },
       "evidence": [
         {
           "kind": "validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json",
-          "sha256": "d55c59c9df452a91f4f3a2cf23b9753f6b5dffad212c3a9823ae53d2270f7f70"
+          "sha256": "e6e32ea68c58d732361e3ab49aca69a34a5525d0c5fad83b43aca38fd19a8466"
         },
         {
           "kind": "dynamics_validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json",
-          "sha256": "e0f038ae116314581db9b034d024557b5b3d8c96832af333f9147e2eb4d9fecd"
+          "sha256": "1598b7742e723916987936507e0f36e9421bf9382658037cf888152a185c0772"
         },
         {
           "kind": "proof_validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json",
-          "sha256": "5d32cae6183ef33346a61b62fd68f26719a34e1c142601fd3913c764036246ff"
+          "sha256": "b859bc8030e3f56dc742814bd6e9c35112aa66ddaca3cfa43f0155476b41d792"
         },
         {
           "kind": "video",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4",
-          "sha256": "da3ea9060f4cdc0955303e92a34d5c1b57ce9e0847d67ff833eeac8f137b81e9"
+          "sha256": "a04fcc4190cb2dab1b9586e9781fd921064414a2569653339e327667363675d6"
         },
         {
           "kind": "contact_sheet",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
-          "sha256": "1cccd732baafa44c25701ead9239a0cb6dc81770cc3fac939d7712b04c476e16"
+          "sha256": "5239648d83476d12a148a243e91cfaf3656e407e9b700afb1daa0e8c00957f8b"
         }
       ]
     },
@@ -67,66 +71,7 @@
       "order": 2,
       "id": "stand_30s_no_reset",
       "stage": "stand",
-      "status": "not_started",
-      "previousStatus": "passed_on_invalidated_mesh_tree",
-      "passedAt": "20260904T092312.987361Z",
-      "checkpoint": {
-        "kind": "rsl_rl_ppo",
-        "learning_iteration": 199,
-        "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt",
-        "run_checkpoint_path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/runs/20260904T083458.303750Z/model_199.pt",
-        "sha256": "8fd649e9458caa02d4fb176cf3af5ad4da33d2974268e222210cd3080d54cb64",
-        "size_bytes": 627370
-      },
-      "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
-      "seed": 42,
-      "metrics": {
-        "duration_s": 30.0,
-        "reset_count": 0,
-        "done_count": 0,
-        "fall_count": 0,
-        "max_reference_tilt_rad": 0.11315401,
-        "root_height_drop_m": 0.00477642,
-        "horizontal_drift_m": 0.02126861,
-        "minimum_support_polygon_margin_m": 0.00626108
-      },
-      "evidence": [
-        {
-          "kind": "validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json",
-          "sha256": "99862c957c91943408ed690c73eb491cdbfbe795323c7caf3e98b8dd1d735d85"
-        },
-        {
-          "kind": "training",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json",
-          "sha256": "4b2aa7d809f0f6b046a69172dccd7cc8be92338e88df74e0e7f34318ab7e2be5"
-        },
-        {
-          "kind": "dynamics_validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json",
-          "sha256": "c2cce200a91063b6385cf593e1bc045ca05c8282ba2db42a12a34bb1a60d9843"
-        },
-        {
-          "kind": "proof_validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json",
-          "sha256": "e6f088471596ba1890ddbd9f101f15bca45b6975728c1788c289b0f35b51f33d"
-        },
-        {
-          "kind": "checkpoint",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt",
-          "sha256": "8fd649e9458caa02d4fb176cf3af5ad4da33d2974268e222210cd3080d54cb64"
-        },
-        {
-          "kind": "video",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4",
-          "sha256": "433770b296a9ee24c4303c75a9a3994134ea52464aec2fdb04ba96f6a95586a1"
-        },
-        {
-          "kind": "contact_sheet",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
-          "sha256": "3053a8fd71518279b86d4b6524792801ed22271cccd5758875843911e52cb0f1"
-        }
-      ]
+      "status": "in_progress"
     },
     {
       "order": 3,

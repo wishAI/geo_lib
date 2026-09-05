@@ -179,6 +179,22 @@ def build_evolution(
         "checkpointPath": passive.get("checkpoint"),
         "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256"),
     })
+    policy_record = milestone_records.get("stand_30s_no_reset", {})
+    if policy_record.get("status") == "in_progress":
+        nodes.append({
+            "id": "milestone:stand_30s_no_reset",
+            "parentIds": ["milestone:stand_zero_signal_30s_no_reset"],
+            "label": "Latest mesh · policy stand 30 s",
+            "step": 1,
+            "status": "running",
+            "kind": "milestone",
+            "lineage": lineage,
+            "approach": "manager-based proprioceptive PPO",
+            "result": "awaiting a fresh checkpoint on the corrected mesh package",
+            "metrics": {},
+            "important": True,
+            "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256"),
+        })
     checkpoint_nodes: dict[str, str] = {}
     runs: list[tuple[Path, dict, Path | None, dict | None]] = []
     for training_path in sorted(output_root.rglob("training.json")) if output_root.exists() else []:
@@ -191,7 +207,6 @@ def build_evolution(
         if sha:
             checkpoint_nodes[sha] = f"run:{training.get('run_identity') or sha[:16]}"
 
-    policy_record = milestone_records.get("stand_30s_no_reset", {})
     policy_checkpoint = policy_record.get("checkpoint", {})
     if isinstance(policy_checkpoint, dict) and policy_checkpoint.get("sha256"):
         checkpoint_nodes[str(policy_checkpoint["sha256"])] = "milestone:stand_30s_no_reset"
