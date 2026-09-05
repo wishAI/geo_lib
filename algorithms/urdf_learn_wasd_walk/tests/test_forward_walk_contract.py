@@ -92,6 +92,13 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(requested["environment"]["sim_command_mapping"]["forward"], "linear_y")
         self.assertIsNone(requested["environment"]["curriculum"])
         self.assertFalse(requested["environment"]["rough_terrain"])
+        reference = requested["environment"]["reference_residual"]
+        self.assertEqual(reference["method"], "command_gated_phase_reference_residual_v3")
+        self.assertEqual(reference["physical_scale_rad"], 0.20)
+        self.assertEqual(reference["pre_command_settle_s"], 1.0)
+        self.assertTrue(reference["zero_command_is_exactly_zero"])
+        self.assertEqual(reference["source_probe_evidence"]["semantic_forward_displacement_m"], 0.04850687)
+        self.assertEqual(len(reference["source_probe_evidence"]["sha256"]), 64)
         self.assertEqual(requested["training_method"], contract.TRAINING_METHOD_ID)
         self.assertEqual(requested["environment"]["gait_phase_period_s"], 0.8)
         reward_names = [item["name"] for item in requested["environment"]["reward_terms"]]

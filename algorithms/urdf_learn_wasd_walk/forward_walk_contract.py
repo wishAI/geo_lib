@@ -20,8 +20,14 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "phase_gait_l2_v2"
+TRAINING_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
+REFERENCE_ACTION_SCALE_RAD = 0.20
+REFERENCE_SETTLE_S = 1.0
+REFERENCE_STARTUP_RAMP_S = 0.4
+REFERENCE_PROBE_PATH = (
+    DEFAULT_OUTPUT_DIR / "reference_probe_v3" / "settled_scale_0p20" / "reference_probe.json"
+)
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
 TARGET_DISTANCE_M = 5.0
@@ -264,12 +270,43 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
     return prior, {**parent, "resolved_path": str(parent_path)}
 
 
+def load_reference_probe(parent_sha256: str) -> dict:
+    """Require the exact current-mesh experiment that authorized PPO v3."""
+
+    if not REFERENCE_PROBE_PATH.is_file():
+        raise ValueError("the v3 reference probe evidence is missing")
+    evidence = json.loads(REFERENCE_PROBE_PATH.read_text(encoding="utf-8"))
+    if evidence.get("status") != "passed" or evidence.get("ppo_eligible") is not True:
+        raise ValueError("the v3 reference probe has not authorized PPO")
+    if evidence.get("lineage") != LINEAGE:
+        raise ValueError("the v3 reference probe belongs to another lineage")
+    source = evidence.get("input", {})
+    if source.get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("the v3 reference probe belongs to another mesh tree")
+    if evidence.get("parent_checkpoint", {}).get("sha256") != parent_sha256:
+        raise ValueError("the v3 reference probe used another stand checkpoint")
+    reference = evidence.get("reference_contract", {})
+    if reference.get("method") != TRAINING_METHOD_ID:
+        raise ValueError("the v3 reference probe used another method")
+    if float(reference.get("action_scale_rad", -1.0)) != REFERENCE_ACTION_SCALE_RAD:
+        raise ValueError("the v3 reference probe used another physical scale")
+    return {
+        "path": str(REFERENCE_PROBE_PATH.relative_to(model_spec.ALGORITHM_ROOT.parent.parent)),
+        "sha256": sha256(REFERENCE_PROBE_PATH),
+        "run_identity": evidence.get("run_identity"),
+        "semantic_forward_displacement_m": evidence.get("metrics", {}).get(
+            "semantic_forward_displacement_m"
+        ),
+    }
+
+
 def training_contract(
     *, seed: int, num_envs: int, iterations: int, initialization_source: dict | None = None
 ) -> dict:
     if seed < 0 or num_envs <= 0 or iterations <= 0:
         raise ValueError("seed must be non-negative and sizes positive")
     prior, parent = load_cumulative_prior()
+    reference_probe = load_reference_probe(parent["sha256"])
     if initialization_source is None:
         initialization_source = {
             "kind": "expanded_observation_transfer",
@@ -309,6 +346,20 @@ def training_contract(
             "training_forward_speed_range_mps": list(TRAIN_FORWARD_SPEED_RANGE_MPS),
             "standing_environment_fraction": 0.25,
             "action_scale_rad": ACTION_SCALE_RAD,
+            "reference_residual": {
+                "method": TRAINING_METHOD_ID,
+                "physical_scale_rad": REFERENCE_ACTION_SCALE_RAD,
+                "zero_command_is_exactly_zero": True,
+                "pre_command_settle_s": REFERENCE_SETTLE_S,
+                "startup_ramp_s": REFERENCE_STARTUP_RAMP_S,
+                "period_s": GAIT_PERIOD_S,
+                "left_right_phase_difference_cycles": 0.5,
+                "source_probe": (
+                    "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/"
+                    "reference_probe_v3/settled_scale_0p20/reference_probe.json"
+                ),
+                "source_probe_evidence": reference_probe,
+            },
             "action_joints": list(model_spec.ACTION_JOINTS),
             "actor_observations": [
                 {"name": name, "width": width} for name, width in ACTOR_OBSERVATION_TERMS

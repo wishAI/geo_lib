@@ -193,7 +193,7 @@ def _train(args) -> dict:
         _stage(args, "checkpoint_method_change_transfer")
         transfer = _transfer_checkpoint(runner, source_checkpoint)
         _stage(args, "ppo_learning")
-        runner.learn(num_learning_iterations=args.iterations, init_at_random_ep_len=True)
+        runner.learn(num_learning_iterations=args.iterations, init_at_random_ep_len=False)
         checkpoints = list(run_dir.glob("model_*.pt"))
         if not checkpoints:
             raise RuntimeError("RSL-RL completed without a checkpoint")
