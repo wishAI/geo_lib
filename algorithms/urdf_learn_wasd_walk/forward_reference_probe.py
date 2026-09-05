@@ -85,6 +85,7 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         period_s=args.period_s,
         amplitude_scale=args.amplitude_scale,
         startup_ramp_s=args.startup_ramp_s,
+        swing_fraction=args.swing_fraction,
         hip_phase_offset_cycles=args.hip_phase_offset,
         knee_phase_offset_cycles=args.knee_phase_offset,
         ankle_phase_offset_cycles=args.ankle_phase_offset,
@@ -333,6 +334,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--period-s", type=float, default=contract.GAIT_PERIOD_S)
     parser.add_argument("--amplitude-scale", type=float, default=1.0)
     parser.add_argument("--startup-ramp-s", type=float, default=0.4)
+    parser.add_argument("--swing-fraction", type=float, default=0.5)
     parser.add_argument("--hip-phase-offset", type=float, default=0.0)
     parser.add_argument("--knee-phase-offset", type=float, default=0.0)
     parser.add_argument("--ankle-phase-offset", type=float, default=0.0)
@@ -363,6 +365,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             period_s=args.period_s,
             amplitude_scale=args.amplitude_scale,
             startup_ramp_s=args.startup_ramp_s,
+            swing_fraction=args.swing_fraction,
             hip_phase_offset_cycles=args.hip_phase_offset,
             knee_phase_offset_cycles=args.knee_phase_offset,
             ankle_phase_offset_cycles=args.ankle_phase_offset,

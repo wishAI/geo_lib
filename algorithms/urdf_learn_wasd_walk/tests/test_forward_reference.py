@@ -74,6 +74,21 @@ class ForwardReferenceTests(unittest.TestCase):
         self.assertEqual(reference["parameters"]["toe_amplitude"], 0.0)
         self.assertEqual(reference["action_scale_rad"], 0.17)
 
+    def test_short_swing_fraction_adds_double_support_windows(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0, swing_fraction=0.3, toe_amplitude=0.0
+        )
+        index = {name: model_spec.ACTION_JOINTS.index(name) for name in model_spec.ACTION_JOINTS}
+        left_mid_swing = forward_reference.reference_action(0.12, 0.4, config)
+        double_support = forward_reference.reference_action(0.32, 0.4, config)
+        self.assertGreater(left_mid_swing[index["left_knee_joint"]], 0.0)
+        self.assertEqual(double_support[index["left_knee_joint"]], 0.0)
+        self.assertEqual(double_support[index["right_knee_joint"]], 0.0)
+        self.assertEqual(
+            forward_reference.reference_contract(config)["parameters"]["swing_fraction"],
+            0.3,
+        )
+
     def test_lateral_weight_transfer_is_phase_opposed_and_command_gated(self) -> None:
         config = forward_reference.ReferenceConfig(
             startup_ramp_s=0.0, hip_roll_amplitude=0.5
