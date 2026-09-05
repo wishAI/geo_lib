@@ -151,13 +151,13 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertFalse(requested["environment"]["rough_terrain"])
         reference = requested["environment"]["reference_residual"]
         self.assertEqual(reference["method"], "command_gated_phase_reference_residual_v3")
-        self.assertEqual(reference["policy_method"], "slower_low_amplitude_zero_residual_v11")
-        self.assertEqual(reference["physical_scale_rad"], 0.12)
+        self.assertEqual(reference["policy_method"], "single_application_reference_zero_residual_v12")
+        self.assertEqual(reference["physical_scale_rad"], 0.24)
         self.assertEqual(reference["pre_command_settle_s"], 1.0)
         self.assertTrue(reference["zero_command_is_exactly_zero"])
-        self.assertEqual(reference["source_probe_evidence"]["semantic_forward_displacement_m"], 0.13045791)
+        self.assertEqual(reference["source_probe_evidence"]["semantic_forward_displacement_m"], 0.04394642)
         self.assertEqual(reference["source_probe_evidence"]["period_s"], 1.0)
-        self.assertEqual(reference["source_probe_evidence"]["action_scale_rad"], 0.12)
+        self.assertEqual(reference["source_probe_evidence"]["action_scale_rad"], 0.24)
         self.assertEqual(len(reference["source_probe_evidence"]["sha256"]), 64)
         self.assertEqual(requested["training_method"], contract.TRAINING_METHOD_ID)
         self.assertEqual(requested["initialization"]["kind"], "zero_output_residual_transfer")
@@ -239,7 +239,7 @@ class ForwardWalkContractTests(unittest.TestCase):
         self.assertEqual(len(failures), 4)
         self.assertEqual(
             contract.NEXT_TRAINING_HYPOTHESIS["id"],
-            "slower_low_amplitude_zero_residual_v11",
+            "single_application_reference_zero_residual_v12",
         )
 
     def test_forward_velocity_diagnostics_distinguish_progress_and_reverse_motion(self) -> None:

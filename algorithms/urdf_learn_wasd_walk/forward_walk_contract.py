@@ -20,18 +20,21 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "slower_low_amplitude_zero_residual_v11"
+TRAINING_METHOD_ID = "single_application_reference_zero_residual_v12"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 1.0
 ROLLOUT_STEPS_PER_ENV = 112
 PPO_LEARNING_RATE = 1.0e-4
 PPO_INITIAL_ACTION_NOISE_STD = 0.02
-REFERENCE_ACTION_SCALE_RAD = 0.12
+REFERENCE_ACTION_SCALE_RAD = 0.24
 REFERENCE_HIP_PITCH_AMPLITUDE = 0.20
 REFERENCE_SETTLE_S = 1.0
 REFERENCE_STARTUP_RAMP_S = 0.4
 REFERENCE_PROBE_PATH = (
-    DEFAULT_OUTPUT_DIR / "reference_probe_v3" / "period_1p00" / "reference_probe.json"
+    DEFAULT_OUTPUT_DIR
+    / "reference_probe_v3"
+    / "single_application_period_1p00_scale_0p24"
+    / "reference_probe.json"
 )
 TARGET_FORWARD_SPEED_MPS = 0.4
 TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
@@ -50,15 +53,15 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the 0.8-second 0.12-rad reference is stable but moves slightly backward, while changing "
-        "only its period to 1.0 second produces 0.1305 m forward motion with bilateral liftoff "
-        "and zero events; the v4 actor residual was learned against a 0.8-second phase and cancels "
-        "liftoff under the 1.0-second reference, so a zero-output residual transferred from the "
-        "passed stand actor should initially preserve the verified open-loop gait"
+        "the corrected probe applies its reference exactly once; at 1.0 second and 0.24 rad it "
+        "produces bilateral liftoff, 0.0439 m forward motion, and zero events, while smaller "
+        "single-application amplitudes do not lift either foot; a zero-output residual transferred "
+        "from the passed stand actor should initially preserve this verified gait"
     ),
     "first_experiment": (
         "two iterations initialized from the passed stand checkpoint with a zeroed actor output "
-        "head, canonical reset offsets, and the passed 1.0-second, 0.12-rad reference, "
+        "head, canonical reset offsets, and the passed single-application 1.0-second, 0.24-rad "
+        "reference, "
         "followed by a deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
@@ -315,6 +318,8 @@ def load_reference_probe(parent_sha256: str) -> dict:
         raise ValueError("the v3 reference probe used another method")
     if float(reference.get("action_scale_rad", -1.0)) != REFERENCE_ACTION_SCALE_RAD:
         raise ValueError("the v3 reference probe used another physical scale")
+    if evidence.get("reference_application", {}).get("application_count") != 1:
+        raise ValueError("the v3 reference probe did not prove exactly one reference application")
     parameters = reference.get("parameters", {})
     if float(parameters.get("period_s", -1.0)) != GAIT_PERIOD_S:
         raise ValueError("the v3 reference probe used another gait period")
@@ -397,7 +402,8 @@ def training_contract(
                 "left_right_phase_difference_cycles": 0.5,
                 "source_probe": (
                     "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/"
-                    "reference_probe_v3/period_1p00/reference_probe.json"
+                    "reference_probe_v3/single_application_period_1p00_scale_0p24/"
+                    "reference_probe.json"
                 ),
                 "source_probe_evidence": reference_probe,
             },
