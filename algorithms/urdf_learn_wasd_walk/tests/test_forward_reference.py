@@ -74,6 +74,35 @@ class ForwardReferenceTests(unittest.TestCase):
         self.assertEqual(reference["parameters"]["toe_amplitude"], 0.0)
         self.assertEqual(reference["action_scale_rad"], 0.17)
 
+    def test_hip_pitch_amplitude_changes_only_bilateral_hip_pitch(self) -> None:
+        baseline = forward_reference.reference_action(
+            0.1,
+            0.4,
+            forward_reference.ReferenceConfig(startup_ramp_s=0.0),
+        )
+        longer_stride = forward_reference.reference_action(
+            0.1,
+            0.4,
+            forward_reference.ReferenceConfig(
+                startup_ramp_s=0.0, hip_pitch_amplitude=0.5
+            ),
+        )
+        changed = {
+            name
+            for name, before, after in zip(
+                model_spec.ACTION_JOINTS, baseline, longer_stride
+            )
+            if abs(before - after) > 1.0e-12
+        }
+        self.assertEqual(
+            changed,
+            {"left_hip_pitch_joint", "right_hip_pitch_joint"},
+        )
+        metadata = forward_reference.reference_contract(
+            forward_reference.ReferenceConfig(hip_pitch_amplitude=0.5)
+        )["parameters"]
+        self.assertEqual(metadata["hip_pitch_amplitude"], 0.5)
+
     def test_short_swing_fraction_adds_double_support_windows(self) -> None:
         config = forward_reference.ReferenceConfig(
             startup_ramp_s=0.0, swing_fraction=0.3, toe_amplitude=0.0
