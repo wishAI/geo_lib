@@ -297,6 +297,10 @@ def _build_parser() -> argparse.ArgumentParser:
     walk_subparsers.add_parser(
         "finalize-forward-walk", help="Assemble existing cumulative 5 m component evidence."
     )
+    walk_subparsers.add_parser(
+        "probe-forward-reference",
+        help="Run one camera-free open-loop v3 phase-reference experiment.",
+    )
     walk_subparsers.add_parser("test", help="Run pure-Python walk contract tests.")
 
     avp_parser = subparsers.add_parser("avp", help="AVP presets.")
@@ -840,6 +844,24 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                     "--finalize-only", *extra_args,
                 ],
                 success_artifact=output_dir.resolve() / evidence_name,
+            )
+        if args.walk_cmd == "probe-forward-reference":
+            output_value = _extract_option_value(extra_args, "--output-dir")
+            output_dir = (
+                Path(output_value).expanduser()
+                if output_value
+                else REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs"
+                / "gate_5m_no_reset" / "reference_probe_v3" / "baseline"
+            )
+            if not output_dir.is_absolute():
+                output_dir = REPO_ROOT / output_dir
+            return LaunchSpec(
+                "isaac",
+                ["algorithms/urdf_learn_wasd_walk/forward_reference_probe.py", *extra_args],
+                env={"TERM": "xterm"},
+                success_artifact=output_dir.resolve() / "reference_probe.json",
+                failure_artifact=output_dir.resolve() / "reference_probe_failure.json",
+                console_log=output_dir.resolve() / "reference_probe_console.log",
             )
         if args.walk_cmd in {
             "train-forward-walk", "validate-forward-walk", "validate-forward-walk-stand",

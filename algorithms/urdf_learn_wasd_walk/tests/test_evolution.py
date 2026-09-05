@@ -40,11 +40,33 @@ class EvolutionTests(unittest.TestCase):
                 "status": "passed", "gate_eligible": False,
                 "metrics": {"semantic_forward_displacement_m": 0.004, "left_foot_liftoff_count": 0, "right_foot_liftoff_count": 0},
             }))
+            probe_dir = output / "gate_5m_no_reset" / "reference_probe_v3" / "baseline"
+            probe_dir.mkdir(parents=True)
+            probe_dir.joinpath("reference_probe.json").write_text(json.dumps({
+                "lineage": "clean_restart_2026_08_22",
+                "component": "open_loop_reference_probe",
+                "experiment": "command_gated_phase_reference_residual_v3",
+                "run_identity": "probe-run",
+                "status": "failed",
+                "ppo_eligible": False,
+                "parent_checkpoint": {"sha256": "phase-sha", "path": "secret/phase.pt"},
+                "reference_contract": {"parameters": {"amplitude_scale": 1.0}},
+                "metrics": {
+                    "semantic_forward_displacement_m": 0.01,
+                    "left_foot_liftoff_count": 0,
+                    "right_foot_liftoff_count": 0,
+                },
+                "failures": ["left side stayed planted"],
+            }))
             payload = evolution.build_evolution(output, ledger)
             nodes = {item["id"]: item for item in payload["nodes"]}
             self.assertEqual(nodes["run:phase-run"]["parentIds"], ["milestone:stand_30s_no_reset"])
             self.assertEqual(nodes["run:phase-run"]["status"], "failed")
             self.assertEqual(nodes["run:phase-run"]["checkpointStorage"]["macHydration"], "online-only")
+            self.assertEqual(nodes["experiment:probe-run"]["parentIds"], ["run:phase-run"])
+            self.assertEqual(nodes["experiment:probe-run"]["status"], "failed")
+            self.assertEqual(nodes["experiment:probe-run"]["experimentParameters"]["amplitude_scale"], 1.0)
+            self.assertEqual(payload["currentNodeId"], "experiment:probe-run")
             self.assertTrue(all(not artifact["path"].endswith(".pt") for node in nodes.values() for artifact in node.get("artifacts", [])))
             self.assertLessEqual(len(payload["defaultVisibleNodeIds"]), 40)
 
