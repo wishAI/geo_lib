@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -10,6 +12,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -34,6 +37,9 @@ class LaunchSpec:
     argv: list[str]
     env: dict[str, str] | None = None
     sidecars: tuple["LaunchSpec", ...] = ()
+    success_artifact: Path | None = None
+    failure_artifact: Path | None = None
+    console_log: Path | None = None
 
 
 def _default_usd_path() -> Path:
@@ -241,9 +247,56 @@ def _build_parser() -> argparse.ArgumentParser:
     usd_subparsers.add_parser("compare", help="Run offline FK comparison in ptenv.")
     usd_subparsers.add_parser("test", help="Run usd_parallel_urdf unit tests in ptenv.")
 
-    walk_parser = subparsers.add_parser("walk", help="Inspect the intentionally clean locomotion milestone ladder.")
+    walk_parser = subparsers.add_parser("walk", help="Build and validate Landau locomotion one milestone at a time.")
     walk_subparsers = walk_parser.add_subparsers(dest="walk_cmd", required=True)
     walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
+    walk_subparsers.add_parser("inspect", help="Audit the retained URDF and print the robot control contract.")
+    walk_subparsers.add_parser(
+        "validate-passive", help="Run camera-free dynamics, viewport proof, and final assembly sequentially."
+    )
+    walk_subparsers.add_parser(
+        "validate-passive-dynamics", help="Run only the camera-free passive dynamics component in Isaac Lab."
+    )
+    walk_subparsers.add_parser(
+        "render-passive-proof", help="Run only the separate viewport proof component in Isaac Lab."
+    )
+    walk_subparsers.add_parser(
+        "finalize-passive", help="Assemble final passive evidence from two already-passed components."
+    )
+    walk_subparsers.add_parser(
+        "train-policy-stand", help="Train the milestone-2 manager-based RSL-RL PPO standing policy."
+    )
+    walk_subparsers.add_parser(
+        "validate-policy-stand", help="Run policy dynamics, viewport proof, and final assembly sequentially."
+    )
+    walk_subparsers.add_parser(
+        "validate-policy-stand-dynamics", help="Run camera-free checkpoint inference for policy standing."
+    )
+    walk_subparsers.add_parser(
+        "render-policy-stand-proof", help="Render the passed policy checkpoint through the active viewport."
+    )
+    walk_subparsers.add_parser(
+        "finalize-policy-stand", help="Assemble policy stand evidence from already-passed components."
+    )
+    walk_subparsers.add_parser(
+        "train-forward-walk", help="Fine-tune the passed stand checkpoint for the flat 5 m +Y gate."
+    )
+    walk_subparsers.add_parser(
+        "validate-forward-walk", help="Sequentially re-pass stand, validate 5 m, render proof, and finalize."
+    )
+    walk_subparsers.add_parser(
+        "validate-forward-walk-stand", help="Re-pass the 30 s policy stand with the walking checkpoint."
+    )
+    walk_subparsers.add_parser(
+        "validate-forward-walk-dynamics", help="Run camera-free 5 m forward checkpoint inference."
+    )
+    walk_subparsers.add_parser(
+        "render-forward-walk-proof", help="Render the passed 5 m forward checkpoint behavior."
+    )
+    walk_subparsers.add_parser(
+        "finalize-forward-walk", help="Assemble existing cumulative 5 m component evidence."
+    )
+    walk_subparsers.add_parser("test", help="Run pure-Python walk contract tests.")
 
     avp_parser = subparsers.add_parser("avp", help="AVP presets.")
     avp_subparsers = avp_parser.add_subparsers(dest="avp_cmd", required=True)
@@ -365,6 +418,82 @@ def _display_command(spec: LaunchSpec, cmd: list[str]) -> str:
     return env_prefix + shlex.join(cmd)
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _run_logged(cmd: list[str], env: dict[str, str], console_log: Path | None) -> int:
+    if console_log is None:
+        return int(subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False).returncode)
+    console_log.parent.mkdir(parents=True, exist_ok=True)
+    with console_log.open("w", encoding="utf-8") as stream:
+        process = subprocess.Popen(
+            cmd,
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors="replace",
+            bufsize=1,
+        )
+        assert process.stdout is not None
+        try:
+            for line in process.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                stream.write(line)
+                stream.flush()
+            return int(process.wait())
+        except KeyboardInterrupt:
+            process.terminate()
+            try:
+                process.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3.0)
+            raise
+        finally:
+            process.stdout.close()
+
+
+def _write_launcher_failure(
+    spec: LaunchSpec, cmd: list[str], returncode: int, reason: str
+) -> None:
+    if spec.failure_artifact is None:
+        return
+    spec.failure_artifact.parent.mkdir(parents=True, exist_ok=True)
+    launcher = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason": reason,
+        "returncode": returncode,
+        "command": cmd,
+        "expected_success_artifact": (
+            str(spec.success_artifact) if spec.success_artifact is not None else None
+        ),
+        "console_log": str(spec.console_log) if spec.console_log is not None else None,
+        "console_log_sha256": (
+            _sha256(spec.console_log)
+            if spec.console_log is not None and spec.console_log.is_file() else None
+        ),
+    }
+    if spec.failure_artifact.exists():
+        try:
+            evidence = json.loads(spec.failure_artifact.read_text(encoding="utf-8"))
+            evidence["launcher"] = launcher
+        except (OSError, ValueError):
+            evidence = {"schema_version": 1, "status": "launcher_child_failed", **launcher}
+    else:
+        evidence = {"schema_version": 1, "status": "launcher_child_failed", **launcher}
+    spec.failure_artifact.write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
 def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
     cmd, env = _resolved_command(spec)
     sidecars: list[tuple[list[str], dict[str, str]]] = [_resolved_command(sidecar) for sidecar in spec.sidecars]
@@ -380,6 +509,13 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
     if dry_run:
         return 0
 
+    if spec.success_artifact is not None and spec.success_artifact.exists():
+        spec.success_artifact.unlink()
+    if spec.failure_artifact is not None and spec.failure_artifact.exists():
+        spec.failure_artifact.unlink()
+    if spec.console_log is not None and spec.console_log.exists():
+        spec.console_log.unlink()
+
     sidecar_processes: list[subprocess.Popen[str]] = []
     try:
         for sidecar_cmd, sidecar_env in sidecars:
@@ -393,8 +529,23 @@ def _run_with_runner(spec: LaunchSpec, *, dry_run: bool, verbose: bool) -> int:
             )
         if sidecar_processes:
             time.sleep(1.0)
-        completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=False)
-        return int(completed.returncode)
+        returncode = _run_logged(cmd, env, spec.console_log)
+        if returncode != 0:
+            # A validator may intentionally return non-zero after writing a
+            # complete failed-gate artifact. Reserve launcher failure evidence
+            # for exits that produced no component artifact.
+            if spec.success_artifact is None or not spec.success_artifact.is_file():
+                _write_launcher_failure(spec, cmd, returncode, "child process returned non-zero")
+            return returncode
+        if returncode == 0 and spec.success_artifact is not None and not spec.success_artifact.is_file():
+            print(
+                f"Expected success artifact was not produced: {spec.success_artifact}",
+                file=sys.stderr,
+                flush=True,
+            )
+            _write_launcher_failure(spec, cmd, returncode, "success artifact was not produced")
+            return 1
+        return returncode
     except KeyboardInterrupt:
         return 130
     finally:
@@ -568,12 +719,194 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             )
 
     if args.group == "walk":
-        if args.walk_cmd != "milestones" or extra_args:
-            raise SystemExit("The clean walk sandbox currently supports only: ./geo walk milestones")
-        return LaunchSpec(
-            "direct",
-            [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
-        )
+        if args.walk_cmd == "milestones":
+            if extra_args:
+                raise SystemExit(f"Unexpected milestone arguments: {shlex.join(extra_args)}")
+            return LaunchSpec(
+                "direct",
+                [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
+            )
+        if args.walk_cmd == "inspect":
+            return LaunchSpec(
+                "direct",
+                [sys.executable, "algorithms/urdf_learn_wasd_walk/model_spec.py", *extra_args],
+            )
+        if args.walk_cmd in {
+            "validate-passive", "validate-passive-dynamics", "render-passive-proof", "finalize-passive"
+        }:
+            output_value = _extract_option_value(extra_args, "--output-dir")
+            output_dir = Path(output_value).expanduser() if output_value else REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "stand_zero_signal_30s_no_reset"
+            if not output_dir.is_absolute():
+                output_dir = REPO_ROOT / output_dir
+            smoke = "--smoke" in extra_args
+            if args.walk_cmd == "validate-passive":
+                evidence_name = "smoke_validation.json" if smoke else "validation.json"
+                return LaunchSpec(
+                    "direct",
+                    [sys.executable, "algorithms/urdf_learn_wasd_walk/passive_pipeline.py", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            if args.walk_cmd == "validate-passive-dynamics":
+                stem = "dynamics_smoke" if smoke else "dynamics"
+                evidence_name = f"{stem}_validation.json"
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/passive_stand.py", "--phase", "dynamics", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                    failure_artifact=output_dir.resolve() / f"{stem}_failure.json",
+                    console_log=output_dir.resolve() / f"{stem}_console.log",
+                )
+            if args.walk_cmd == "render-passive-proof":
+                evidence_name = "proof_smoke_validation.json" if smoke else "proof_validation.json"
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/passive_stand.py", "--phase", "proof", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            evidence_name = "smoke_validation.json" if smoke else "validation.json"
+            return LaunchSpec(
+                "direct",
+                [
+                    sys.executable,
+                    "algorithms/urdf_learn_wasd_walk/passive_pipeline.py",
+                    "--finalize-only",
+                    *extra_args,
+                ],
+                success_artifact=output_dir.resolve() / evidence_name,
+            )
+        if args.walk_cmd in {
+            "train-policy-stand", "validate-policy-stand", "validate-policy-stand-dynamics",
+            "render-policy-stand-proof", "finalize-policy-stand",
+        }:
+            output_value = _extract_option_value(extra_args, "--output-dir")
+            output_dir = (
+                Path(output_value).expanduser()
+                if output_value
+                else REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "stand_30s_no_reset"
+            )
+            if not output_dir.is_absolute():
+                output_dir = REPO_ROOT / output_dir
+            smoke = "--smoke" in extra_args
+            if args.walk_cmd == "train-policy-stand":
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/policy_stand.py", "--mode", "train", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / "training.json",
+                    failure_artifact=output_dir.resolve() / "train_failure.json",
+                    console_log=output_dir.resolve() / "train_console.log",
+                )
+            if args.walk_cmd == "validate-policy-stand":
+                evidence_name = "smoke_validation.json" if smoke else "validation.json"
+                return LaunchSpec(
+                    "direct",
+                    [sys.executable, "algorithms/urdf_learn_wasd_walk/policy_stand_pipeline.py", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            if args.walk_cmd == "validate-policy-stand-dynamics":
+                stem = "dynamics_smoke" if smoke else "dynamics"
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/policy_stand.py", "--mode", "dynamics", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / f"{stem}_validation.json",
+                    failure_artifact=output_dir.resolve() / f"{stem}_failure.json",
+                    console_log=output_dir.resolve() / f"{stem}_console.log",
+                )
+            if args.walk_cmd == "render-policy-stand-proof":
+                evidence_name = "proof_smoke_validation.json" if smoke else "proof_validation.json"
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/policy_stand.py", "--mode", "proof", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            evidence_name = "smoke_validation.json" if smoke else "validation.json"
+            return LaunchSpec(
+                "direct",
+                [
+                    sys.executable, "algorithms/urdf_learn_wasd_walk/policy_stand_pipeline.py",
+                    "--finalize-only", *extra_args,
+                ],
+                success_artifact=output_dir.resolve() / evidence_name,
+            )
+        if args.walk_cmd in {
+            "train-forward-walk", "validate-forward-walk", "validate-forward-walk-stand",
+            "validate-forward-walk-dynamics", "render-forward-walk-proof", "finalize-forward-walk",
+        }:
+            output_value = _extract_option_value(extra_args, "--output-dir")
+            output_dir = (
+                Path(output_value).expanduser()
+                if output_value
+                else REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "gate_5m_no_reset"
+            )
+            if not output_dir.is_absolute():
+                output_dir = REPO_ROOT / output_dir
+            smoke = "--smoke" in extra_args
+            if args.walk_cmd == "train-forward-walk":
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/forward_walk.py", "--mode", "train", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / "training.json",
+                    failure_artifact=output_dir.resolve() / "train_failure.json",
+                    console_log=output_dir.resolve() / "train_console.log",
+                )
+            if args.walk_cmd == "validate-forward-walk":
+                evidence_name = "smoke_validation.json" if smoke else "validation.json"
+                return LaunchSpec(
+                    "direct",
+                    [sys.executable, "algorithms/urdf_learn_wasd_walk/forward_walk_pipeline.py", *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                )
+            modes = {
+                "validate-forward-walk-stand": "stand",
+                "validate-forward-walk-dynamics": "forward",
+                "render-forward-walk-proof": "proof",
+            }
+            if args.walk_cmd in modes:
+                mode = modes[args.walk_cmd]
+                evidence_name = {
+                    "stand": "stand_dynamics",
+                    "forward": "forward_dynamics",
+                    "proof": "proof",
+                }[mode] + ("_smoke_validation.json" if smoke else "_validation.json")
+                stem = evidence_name.removesuffix("_validation.json")
+                return LaunchSpec(
+                    "isaac",
+                    ["algorithms/urdf_learn_wasd_walk/forward_walk.py", "--mode", mode, *extra_args],
+                    env={"TERM": "xterm"},
+                    success_artifact=output_dir.resolve() / evidence_name,
+                    failure_artifact=output_dir.resolve() / f"{mode}{'_smoke' if smoke else ''}_failure.json",
+                    console_log=output_dir.resolve() / f"{stem}_console.log",
+                )
+            evidence_name = "smoke_validation.json" if smoke else "validation.json"
+            return LaunchSpec(
+                "direct",
+                [
+                    sys.executable, "algorithms/urdf_learn_wasd_walk/forward_walk_pipeline.py",
+                    "--finalize-only", *extra_args,
+                ],
+                success_artifact=output_dir.resolve() / evidence_name,
+            )
+        if args.walk_cmd == "test":
+            return LaunchSpec(
+                "direct",
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "algorithms/urdf_learn_wasd_walk/tests",
+                    *extra_args,
+                ],
+            )
 
     if args.group == "avp":
         snapshot_path = getattr(args, "snapshot_path", None) or _repo_arg(_default_avp_snapshot_path())

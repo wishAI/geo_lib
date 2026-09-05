@@ -61,3 +61,11 @@ algorithms/ikfast_urdf_solver/outputs/
 algorithms/urdf_learn_wasd_walk/generated_apps/
 algorithms/urdf_learn_wasd_walk/outputs/
 algorithms/urdf_learn_wasd_walk/inputs/landau_v10/asset_manifest.json
+
+# Trained model and inference binaries (store remotely, never in Git)
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.engine
+*.safetensors

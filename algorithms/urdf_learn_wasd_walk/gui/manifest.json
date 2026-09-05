@@ -3,81 +3,83 @@
   "icon": "walk",
   "name": "Learn WASD Walk",
   "eyebrow": "CLEAN TRAINING RESTART",
-  "summary": "A deliberately empty locomotion workspace. Previous training logic and experimental history are removed; only the strict cumulative milestone ladder and robot input remain for the next coding agent.",
+  "summary": "Clean-lineage Landau locomotion rebuilt one hard gate at a time. Passive and policy standing are proven; the 5 m flat forward gate is active.",
   "accent": "#cb6b42",
   "runtime": "tk2-clean",
-  "runtimeLabel": "TK2 · rebuild required",
-  "capabilities": ["milestones only", "Isaac Lab", "clean room"],
+  "runtimeLabel": "TK2 · 5 m forward gate",
+  "capabilities": ["passive stand", "policy stand", "forward walk", "Isaac Lab", "clean room"],
   "examples": [
     {
-      "id": "milestone_evidence",
-      "name": "Inspect milestone evidence",
-      "description": "Open synchronized validation records, contact sheets, and proof videos produced by the persistent TK2 training task.",
-      "target": "local",
-      "targets": [
-        "local"
-      ],
-      "command": [
-        "./geo",
-        "walk",
-        "milestones"
-      ],
+      "id": "validate_passive_stand",
+      "name": "Validate passive stand · 30 s",
+      "description": "Run camera-free dynamics first, then a separate viewport proof replay; final evidence appears only when both exact components pass.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "validate-passive", "--headless"],
       "artifacts": [
-        {
-          "label": "Passive stand · 30 s proof video",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4",
-          "kind": "video"
-        },
-        {
-          "label": "Passive stand · visual contact sheet",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
-          "kind": "image"
-        },
-        {
-          "label": "Passive stand · proof validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json",
-          "kind": "json"
-        },
-        {
-          "label": "Passive stand · finalized validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json",
-          "kind": "json"
-        },
-        {
-          "label": "Policy training evidence",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json",
-          "kind": "json"
-        },
-        {
-          "label": "Durable PPO checkpoint",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt",
-          "kind": "file"
-        },
-        {
-          "label": "Policy stand · finalized validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json",
-          "kind": "json"
-        },
-        {
-          "label": "Policy stand · camera-free dynamics",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json",
-          "kind": "json"
-        },
-        {
-          "label": "Policy stand · proof validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json",
-          "kind": "json"
-        },
-        {
-          "label": "Policy stand · 30 s proof video",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4",
-          "kind": "video"
-        },
-        {
-          "label": "Policy stand · visual contact sheet",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
-          "kind": "image"
-        }
+        {"label": "Passive stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json", "kind": "json"},
+        {"label": "Camera-free dynamics evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json", "kind": "json"},
+        {"label": "Viewport proof evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json", "kind": "json"},
+        {"label": "Passive stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4", "kind": "video"},
+        {"label": "Start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png", "kind": "image"}
+      ]
+    },
+    {
+      "id": "train_policy_stand",
+      "name": "Train policy stand · PPO",
+      "description": "Train the compact manager-based proprioceptive policy. Checkpoints stay on TK2 and Nextcloud; training never marks the gate passed.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "train-policy-stand", "--headless", "--num-envs", "512", "--iterations", "200"],
+      "artifacts": [
+        {"label": "Policy training evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json", "kind": "json"}
+      ]
+    },
+    {
+      "id": "validate_policy_stand",
+      "name": "Validate policy stand · 30 s",
+      "description": "Evaluate the same checkpoint camera-free, then record a separate deterministic viewport proof and finalize cumulatively.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "validate-policy-stand", "--headless"],
+      "artifacts": [
+        {"label": "Policy stand validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json", "kind": "json"},
+        {"label": "Policy camera-free dynamics", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json", "kind": "json"},
+        {"label": "Policy viewport proof evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json", "kind": "json"},
+        {"label": "Policy stand proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4", "kind": "video"},
+        {"label": "Policy start · middle · end contact sheet", "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png", "kind": "image"}
+      ]
+    },
+    {
+      "id": "train_forward_walk",
+      "name": "Train +Y forward walk · PPO",
+      "description": "Expand the proven stand actor with semantic command inputs and fine-tune on flat standing and +Y forward commands.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "train-forward-walk", "--headless", "--num-envs", "512", "--iterations", "600"],
+      "artifacts": [
+        {"label": "Forward training evidence", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/training.json", "kind": "json"}
+      ]
+    },
+    {
+      "id": "validate_forward_walk",
+      "name": "Validate cumulative forward gate · 5 m",
+      "description": "Re-pass policy standing with the candidate, run camera-free +Y forward dynamics, render the full gate, and finalize only when all components pass.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "validate-forward-walk", "--headless"],
+      "artifacts": [
+        {"label": "Cumulative 5 m validation", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/validation.json", "kind": "json"},
+        {"label": "Candidate stand re-pass", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/stand_dynamics_validation.json", "kind": "json"},
+        {"label": "5 m camera-free dynamics", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/forward_dynamics_validation.json", "kind": "json"},
+        {"label": "5 m proof inspection", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof_validation.json", "kind": "json"},
+        {"label": "5 m proof video", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/proof.mp4", "kind": "video"},
+        {"label": "5 m start · middle · end", "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/contact_sheet.png", "kind": "image"}
       ]
     }
   ],

@@ -51,14 +51,34 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unknown parameters"):
             server.build_example_command(manifest, example, {"resolution": 0.02, "command": "oops"})
 
-    def test_walk_sandbox_is_milestones_only(self) -> None:
+    def test_walk_sandbox_preserves_clean_lineage_and_exposes_current_gate(self) -> None:
         root = server.REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk"
-        expected = {"README.md", "TRAINING_RULES.md", "__init__.py", "gui", "inputs", "milestones.json"}
-        self.assertEqual({path.name for path in root.iterdir() if not path.name.startswith(".") and path.name != "__pycache__"}, expected)
         payload = json.loads((root / "milestones.json").read_text(encoding="utf-8"))
         self.assertEqual(len(payload["milestones"]), 12)
-        self.assertEqual({item["status"] for item in payload["milestones"]}, {"not_started"})
+        self.assertEqual(payload["milestones"][0]["status"], "passed")
+        self.assertEqual(payload["milestones"][1]["status"], "passed")
+        self.assertEqual(payload["milestones"][2]["status"], "in_progress")
+        self.assertEqual({item["status"] for item in payload["milestones"][3:]}, {"not_started"})
         self.assertFalse(payload["historyCarriedForward"])
+        manifest = server.manifest_map()["urdf_learn_wasd_walk"]
+        self.assertEqual(
+            [example["id"] for example in manifest["examples"]],
+            [
+                "validate_passive_stand", "train_policy_stand", "validate_policy_stand",
+                "train_forward_walk", "validate_forward_walk",
+            ],
+        )
+        example = manifest["examples"][0]
+        self.assertEqual(example["command"][:3], ["./geo", "walk", "validate-passive"])
+        self.assertEqual({artifact["kind"] for artifact in example["artifacts"]}, {"json", "video", "image"})
+        policy_validation = manifest["examples"][2]
+        self.assertEqual(policy_validation["command"][:3], ["./geo", "walk", "validate-policy-stand"])
+        self.assertIn("video", {artifact["kind"] for artifact in policy_validation["artifacts"]})
+        forward_validation = manifest["examples"][4]
+        self.assertEqual(
+            forward_validation["command"][:3], ["./geo", "walk", "validate-forward-walk"]
+        )
+        self.assertIn("video", {artifact["kind"] for artifact in forward_validation["artifacts"]})
 
 
 class StorageAndRobotTests(unittest.TestCase):
