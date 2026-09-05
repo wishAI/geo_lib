@@ -20,8 +20,8 @@ ALGORITHM_ROOT = Path(__file__).resolve().parent
 URDF_PATH = ALGORITHM_ROOT / "inputs" / "landau_v10" / "landau_v10_parallel_mesh.urdf"
 ROBOT_SPEC_PATH = ALGORITHM_ROOT / "robot_spec.json"
 EXPECTED_URDF_SHA256 = "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca"
-EXPECTED_MESH_TREE_SHA256 = "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435"
-LINEAGE = "latest_parallel_mesh_recertification_2026_09_05"
+EXPECTED_MESH_TREE_SHA256 = "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73"
+LINEAGE = "rabbit_ear_parallel_mesh_recertification_2026_09_05"
 
 SEMANTIC_COMMAND_ORDER = ("forward", "strafe", "yaw")
 SIM_COMMAND_ORDER = ("linear_x", "linear_y", "angular_z")

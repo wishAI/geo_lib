@@ -150,12 +150,47 @@
   }
 
   function visualToolsPanel(sandbox) {
-    if (sandbox.viewer?.type !== 'urdf' && !sandbox.meshWorkbench && sandbox.inspector?.type !== 'evolutionTree') return '';
+    if (sandbox.viewer?.type !== 'urdf' && !sandbox.meshWorkbench) return '';
     return `<section class="panel visual-tools-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('cube')}</span><div><p class="eyebrow">FLOATING WINDOWS</p><h2>3D visual tools</h2></div></div></header><div class="panel-body visual-tool-grid">
       ${sandbox.viewer?.type === 'urdf' ? `<button class="visual-tool" type="button" data-open-workbench="urdf"><span class="visual-tool-icon">${icon('robot')}</span><span><b>URDF workbench</b><small>Orbit the produced robot and tune grouped joints.</small></span>${icon('arrow')}</button>` : ''}
       ${sandbox.meshWorkbench ? `<button class="visual-tool" type="button" data-open-workbench="mesh"><span class="visual-tool-icon">${icon('layers')}</span><span><b>Mesh → STL lab</b><small>Compare each body-part mesh and generated STL, then apply a method.</small></span>${icon('arrow')}</button>` : ''}
-      ${sandbox.inspector?.type === 'evolutionTree' ? `<button class="visual-tool" type="button" data-open-workbench="evolution"><span class="visual-tool-icon">${icon('milestones')}</span><span><b>${escapeHtml(sandbox.inspector.label || 'Evolution tree')}</b><small>Inspect real checkpoint ancestry, failures, metrics, and cloud-only model metadata.</small></span>${icon('arrow')}</button>` : ''}
     </div></section>`;
+  }
+
+  function evolutionPreviewPanel(sandbox) {
+    if (sandbox.inspector?.type !== 'evolutionTree') return '';
+    return `<section class="panel evolution-preview-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('milestones')}</span><div><p class="eyebrow">REAL CHECKPOINT LINEAGE</p><h2>${escapeHtml(sandbox.inspector.label || 'Training evolution')}</h2></div></div><button class="button button-with-icon" type="button" data-open-workbench="evolution">${icon('arrow')}<span>Open interactive tree</span></button></header><div class="panel-body evolution-preview-body" data-evolution-preview><div class="evolution-preview-loading">${icon('milestones')}<span>Loading real lineage…</span></div></div></section>`;
+  }
+
+  function evolutionPreviewMarkup(data) {
+    const all = Array.isArray(data?.nodes) ? data.nodes : [];
+    const byId = new Map(all.map(node => [node.id, node]));
+    const current = byId.get(data?.currentNodeId) || all.at(-1);
+    const branch = [];
+    const seen = new Set();
+    let cursor = current;
+    while (cursor && !seen.has(cursor.id)) {
+      branch.push(cursor);
+      seen.add(cursor.id);
+      cursor = byId.get(cursor.parentIds?.[0]);
+    }
+    const visible = branch.reverse().slice(-4);
+    const nodeMarkup = visible.map(node => `<button class="evolution-preview-node ${escapeHtml(node.status || '')}${node.id === current?.id ? ' current' : ''}" type="button" data-open-workbench="evolution"><i aria-hidden="true"></i><span><small>${escapeHtml(node.kind || 'checkpoint')}</small><b>${escapeHtml(node.label || node.id)}</b></span><em>${escapeHtml(node.status || 'unknown')}</em></button>`).join('<span class="evolution-preview-edge" aria-hidden="true"></span>');
+    return `<div class="evolution-preview-summary"><div><span>Lineage</span><b>${escapeHtml(data?.lineage || 'unknown')}</b></div><div><span>Current</span><b>${escapeHtml(current?.label || 'No current node')}</b></div><div><span>Recorded</span><b>${all.length} nodes · ${Number(data?.summary?.failedCount || 0)} rejected</b></div></div><div class="evolution-preview-branch" aria-label="Current checkpoint ancestry">${nodeMarkup || '<p>No lineage nodes recorded.</p>'}</div>`;
+  }
+
+  async function loadEvolutionPreview(sandbox) {
+    const container = document.querySelector('[data-evolution-preview]');
+    if (!container) return;
+    try {
+      const path = sandbox.inspector?.path;
+      if (!path) throw new Error('Evolution artifact path is missing.');
+      const payload = state.evolution[sandbox.id] || await api(`/api/artifact?path=${encodeURIComponent(path)}`);
+      state.evolution[sandbox.id] = payload;
+      if (container.isConnected) container.innerHTML = evolutionPreviewMarkup(payload);
+    } catch (error) {
+      if (container.isConnected) container.innerHTML = `<div class="warning-box">Evolution lineage unavailable: ${escapeHtml(error.message)}</div>`;
+    }
   }
 
   function sandboxView(sandbox) {
@@ -173,6 +208,7 @@
       </section>
       <div class="workspace-grid">
         <div class="workspace-main">
+          ${evolutionPreviewPanel(sandbox)}
           ${visualToolsPanel(sandbox)}
           ${examples.length ? `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('play')}</span><div><p class="eyebrow">ALLOWLISTED</p><h2>Runnable examples</h2></div></div><span class="panel-count">${examples.length}</span></header><div class="panel-body example-list">${examples.map(example => exampleCard(sandbox, example)).join('')}</div></section>` : milestonePanel(sandbox)}
           ${examples.length && sandbox.milestones?.length ? milestonePanel(sandbox) : ''}
@@ -180,6 +216,7 @@
         <aside class="workspace-side">${consolePanel(sandbox)}${artifactPanel(sandbox)}</aside>
       </div>`;
     bindSandbox(sandbox);
+    void loadEvolutionPreview(sandbox);
     const consoleElement = document.querySelector('#job-console');
     if (consoleElement) consoleElement.scrollTop = consoleElement.scrollHeight;
   }
@@ -208,7 +245,7 @@
     document.querySelectorAll('[data-artifact]').forEach(button => button.addEventListener('click', () => void previewArtifact(button.dataset.artifact, button.dataset.kind)));
     document.querySelector('[data-open-workbench="urdf"]')?.addEventListener('click', () => void openRobotWorkbench(sandbox));
     document.querySelector('[data-open-workbench="mesh"]')?.addEventListener('click', () => void openMeshWorkbench(sandbox));
-    document.querySelector('[data-open-workbench="evolution"]')?.addEventListener('click', () => void openEvolutionTree(sandbox));
+    document.querySelectorAll('[data-open-workbench="evolution"]').forEach(button => button.addEventListener('click', () => void openEvolutionTree(sandbox)));
   }
 
   async function openEvolutionTree(sandbox) {
