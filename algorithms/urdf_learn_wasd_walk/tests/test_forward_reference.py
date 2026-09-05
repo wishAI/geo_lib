@@ -103,6 +103,28 @@ class ForwardReferenceTests(unittest.TestCase):
             [0.0] * len(model_spec.ACTION_JOINTS),
         )
 
+    def test_common_hip_roll_preloads_the_upcoming_stance_side(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0,
+            common_hip_roll_amplitude=1.0,
+            common_hip_roll_phase_offset_cycles=0.15,
+        )
+        left = model_spec.ACTION_JOINTS.index("left_hip_roll_joint")
+        right = model_spec.ACTION_JOINTS.index("right_hip_roll_joint")
+        left_swing_start = forward_reference.reference_action(0.0, 0.4, config)
+        right_swing_start = forward_reference.reference_action(0.4, 0.4, config)
+        self.assertAlmostEqual(left_swing_start[left], left_swing_start[right])
+        self.assertLess(left_swing_start[left], 0.0)
+        self.assertAlmostEqual(right_swing_start[left], right_swing_start[right])
+        self.assertGreater(right_swing_start[left], 0.0)
+        metadata = forward_reference.reference_contract(config)["parameters"]
+        self.assertEqual(metadata["common_hip_roll_amplitude"], 1.0)
+        self.assertEqual(metadata["common_hip_roll_phase_offset_cycles"], 0.15)
+        self.assertEqual(
+            forward_reference.reference_action(0.2, 0.0, config),
+            [0.0] * len(model_spec.ACTION_JOINTS),
+        )
+
     def test_waist_weight_transfer_is_bounded_and_command_gated(self) -> None:
         config = forward_reference.ReferenceConfig(
             startup_ramp_s=0.0, waist_roll_amplitude=0.5

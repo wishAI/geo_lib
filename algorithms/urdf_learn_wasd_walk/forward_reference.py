@@ -25,6 +25,8 @@ class ReferenceConfig:
     ankle_pitch_amplitude: float = -1.0
     toe_amplitude: float = -0.5
     hip_roll_amplitude: float = 0.0
+    common_hip_roll_amplitude: float = 0.0
+    common_hip_roll_phase_offset_cycles: float = 0.15
     waist_roll_amplitude: float = 0.0
     hip_phase_offset_cycles: float = 0.0
     knee_phase_offset_cycles: float = 0.0
@@ -44,6 +46,7 @@ class ReferenceConfig:
             "hip_pitch_amplitude", "knee_amplitude", "ankle_pitch_amplitude",
             "toe_amplitude",
             "hip_roll_amplitude",
+            "common_hip_roll_amplitude",
             "waist_roll_amplitude",
         ):
             if abs(float(getattr(self, name))) > 1.0:
@@ -90,6 +93,9 @@ def reference_action(
     result = {name: 0.0 for name in model_spec.ACTION_JOINTS}
     direction = 1.0 if forward_command_mps >= 0.0 else -1.0
     base_phase = time_s / config.period_s
+    common_hip_roll = -scale * config.common_hip_roll_amplitude * math.sin(
+        2.0 * math.pi * (base_phase + config.common_hip_roll_phase_offset_cycles)
+    )
     for side, side_offset in (("left", 0.0), ("right", config.phase_difference_cycles)):
         phase = (base_phase + side_offset) % 1.0
         hip_phase = (phase + config.hip_phase_offset_cycles) % 1.0
@@ -101,6 +107,7 @@ def reference_action(
         )
         result[f"{side}_hip_roll_joint"] = (
             scale * config.hip_roll_amplitude * math.sin(2.0 * math.pi * phase)
+            + common_hip_roll
         )
         result[f"{side}_knee_joint"] = (
             scale * config.knee_amplitude * _swing_clearance(knee_phase, config.swing_fraction)
@@ -137,8 +144,8 @@ def reference_contract(
         "left_right_phase_difference_cycles": config.phase_difference_cycles,
         "swing_clearance_envelope": "sin(pi*u)^2 during swing; zero value and slope at toe-off/landing",
         "lateral_weight_transfer": (
-            "optional phase-opposed bilateral hip-roll and waist-roll sinusoids; amplitudes are "
-            "zero in the baseline and the entire reference remains exactly zero at zero command"
+            "optional phase-opposed leg shaping plus common-mode bilateral hip-roll and waist-roll; "
+            "all remain exactly zero at zero command"
         ),
         "action_scale_rad": action_scale_rad,
         "action_order": list(model_spec.ACTION_JOINTS),

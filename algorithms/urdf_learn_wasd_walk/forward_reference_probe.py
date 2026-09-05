@@ -92,6 +92,8 @@ def _run(args, training: dict, prior: list[dict]) -> dict:
         toe_phase_offset_cycles=args.toe_phase_offset,
         toe_amplitude=args.toe_amplitude,
         hip_roll_amplitude=args.hip_roll_amplitude,
+        common_hip_roll_amplitude=args.common_hip_roll_amplitude,
+        common_hip_roll_phase_offset_cycles=args.common_hip_roll_phase_offset,
         waist_roll_amplitude=args.waist_roll_amplitude,
     )
     reference = forward_reference.reference_contract(
@@ -341,6 +343,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--toe-phase-offset", type=float, default=0.0)
     parser.add_argument("--toe-amplitude", type=float, default=-0.5)
     parser.add_argument("--hip-roll-amplitude", type=float, default=0.0)
+    parser.add_argument("--common-hip-roll-amplitude", type=float, default=0.0)
+    parser.add_argument("--common-hip-roll-phase-offset", type=float, default=0.15)
     parser.add_argument("--waist-roll-amplitude", type=float, default=0.0)
     parser.add_argument("--action-scale-rad", type=float, default=contract.ACTION_SCALE_RAD)
     parser.add_argument("--reuse-usd-cache", action="store_true")
@@ -371,6 +375,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             ankle_phase_offset_cycles=args.ankle_phase_offset,
             toe_phase_offset_cycles=args.toe_phase_offset,
             toe_amplitude=args.toe_amplitude,
+            common_hip_roll_amplitude=args.common_hip_roll_amplitude,
+            common_hip_roll_phase_offset_cycles=args.common_hip_roll_phase_offset,
         ).validate()
         forward_reference.reference_contract(
             forward_reference.ReferenceConfig(), action_scale_rad=args.action_scale_rad
