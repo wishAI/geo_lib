@@ -21,6 +21,11 @@ METRIC_KEYS = (
     "reverse_motion_step_fraction",
     "left_foot_liftoff_count",
     "right_foot_liftoff_count",
+    "left_max_consecutive_direct_air_steps",
+    "right_max_consecutive_direct_air_steps",
+    "left_max_support_body_height_gain_m",
+    "right_max_support_body_height_gain_m",
+    "max_joint_target_error_rad",
     "max_reference_tilt_rad",
     "reset_count",
     "done_count",
@@ -227,6 +232,52 @@ def build_evolution(
         }
         nodes = [item for item in nodes if item["id"] != node_id]
         nodes.append(node)
+
+    probes = []
+    for probe_path in sorted(output_root.rglob("reference_probe.json")) if output_root.exists() else []:
+        probe = _read_json(probe_path)
+        if (
+            probe is None
+            or probe.get("lineage") != lineage
+            or probe.get("component") != "open_loop_reference_probe"
+        ):
+            continue
+        probes.append((probe_path, probe))
+    probes.sort(key=lambda item: str(item[1].get("run_identity", item[0])))
+    for step, (probe_path, probe) in enumerate(probes, start=len(runs) + 1):
+        run_identity = str(probe.get("run_identity") or probe_path.parent.name)
+        node_id = f"experiment:{run_identity}"
+        parent_checkpoint = probe.get("parent_checkpoint", {})
+        parent_sha = parent_checkpoint.get("sha256") if isinstance(parent_checkpoint, dict) else None
+        parent_id = checkpoint_nodes.get(str(parent_sha or ""), "milestone:stand_30s_no_reset")
+        metrics = _metrics(probe)
+        passed = probe.get("status") == "passed" and probe.get("ppo_eligible") is True
+        if passed:
+            status = "completed"
+            result = "open-loop reference passed all PPO-entry checks"
+        else:
+            status = "failed"
+            failures = probe.get("failures") or ["reference probe did not pass"]
+            result = "; ".join(map(str, failures[:3]))
+        parameters = probe.get("reference_contract", {}).get("parameters", {})
+        nodes.append({
+            "id": node_id,
+            "parentIds": [parent_id],
+            "label": probe_path.parent.name.replace("_", " "),
+            "step": step,
+            "status": status,
+            "kind": "experiment",
+            "approach": str(probe.get("experiment", "open-loop reference probe")),
+            "result": result,
+            "metrics": metrics,
+            "checkpointPath": parent_checkpoint.get("path") if isinstance(parent_checkpoint, dict) else None,
+            "checkpointSha256": parent_sha,
+            "experimentParameters": parameters,
+            "startedAt": run_identity,
+            "sourceRevision": probe.get("source_commit"),
+            "artifacts": [_artifact(probe_path, node_id)],
+            "important": True,
+        })
 
     child_count = {item["id"]: 0 for item in nodes}
     for node in nodes:

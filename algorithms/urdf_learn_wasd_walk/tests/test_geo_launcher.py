@@ -124,6 +124,14 @@ class GeoLauncherTests(unittest.TestCase):
         self.assertEqual(gate.runner, "direct")
         self.assertEqual(gate.success_artifact.name, "validation.json")
 
+        args, extra = parser.parse_known_args([
+            "walk", "probe-forward-reference", "--steps", "250", "--headless"
+        ])
+        probe = self.geo._build_spec(args, extra)
+        self.assertEqual(probe.runner, "isaac")
+        self.assertEqual(probe.argv[0], "algorithms/urdf_learn_wasd_walk/forward_reference_probe.py")
+        self.assertEqual(probe.success_artifact.name, "reference_probe.json")
+
 
 if __name__ == "__main__":
     unittest.main()
