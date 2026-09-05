@@ -1,14 +1,26 @@
 {
   "version": 1,
-  "lineage": "clean_restart_2026_08_22",
-  "implementationStatus": "milestone_2_passed_milestone_3_in_progress",
+  "lineage": "latest_parallel_mesh_recertification_2026_09_05",
+  "implementationStatus": "asset_recertification_milestone_1_in_progress",
   "historyCarriedForward": false,
+  "assetContract": {
+    "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
+    "meshTreeSha256": "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435",
+    "source": "usd_parallel_urdf deployed landau_v10 lowpoly_surface package"
+  },
+  "invalidatedLineage": {
+    "lineage": "clean_restart_2026_08_22",
+    "meshTreeSha256": "e912ac2e7fcc16a52d726ef410c2b0eb860727d033e07b1728d63a3f906d4da0",
+    "invalidatedAt": "20260905T035000Z",
+    "reason": "The prior package used 68 stale visual/collision STL files; its checkpoints and gate evidence do not describe the latest usd_parallel_urdf robot."
+  },
   "milestones": [
     {
       "order": 1,
       "id": "stand_zero_signal_30s_no_reset",
       "stage": "stand",
-      "status": "passed",
+      "status": "in_progress",
+      "previousStatus": "passed_on_invalidated_mesh_tree",
       "passedAt": "20260904T080239.461579Z",
       "checkpoint": "robot_spec_sha256:2d74554aa133d7d07b8d85dfaeac97d7425001fcd9ef45b8add6f1361801c64c",
       "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
@@ -55,7 +67,8 @@
       "order": 2,
       "id": "stand_30s_no_reset",
       "stage": "stand",
-      "status": "passed",
+      "status": "not_started",
+      "previousStatus": "passed_on_invalidated_mesh_tree",
       "passedAt": "20260904T092312.987361Z",
       "checkpoint": {
         "kind": "rsl_rl_ppo",
@@ -119,7 +132,8 @@
       "order": 3,
       "id": "gate_5m_no_reset",
       "stage": "fwd_only",
-      "status": "in_progress"
+      "status": "not_started",
+      "previousStatus": "in_progress_on_invalidated_mesh_tree"
     },
     {
       "order": 4,

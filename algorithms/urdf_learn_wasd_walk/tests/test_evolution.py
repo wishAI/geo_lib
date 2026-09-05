@@ -70,6 +70,43 @@ class EvolutionTests(unittest.TestCase):
             self.assertTrue(all(not artifact["path"].endswith(".pt") for node in nodes.values() for artifact in node.get("artifacts", [])))
             self.assertLessEqual(len(payload["defaultVisibleNodeIds"]), 40)
 
+    def test_invalidated_asset_lineage_remains_visible_but_is_not_current(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs"
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "latest-mesh",
+                "assetContract": {"meshTreeSha256": "new-mesh"},
+                "invalidatedLineage": {
+                    "lineage": "old-mesh",
+                    "meshTreeSha256": "old-mesh-sha",
+                    "reason": "stale collision meshes",
+                },
+                "milestones": [
+                    {"id": "stand_zero_signal_30s_no_reset", "status": "in_progress"},
+                    {"id": "stand_30s_no_reset", "status": "not_started"},
+                ],
+            }))
+            old_run = output / "stand_30s_no_reset"
+            old_run.mkdir(parents=True)
+            old_run.joinpath("training.json").write_text(json.dumps({
+                "lineage": "old-mesh",
+                "milestone": "stand_30s_no_reset",
+                "run_identity": "old-stand",
+                "status": "completed_not_promoted",
+                "requested_contract": {"algorithm": "PPO"},
+                "checkpoint": {"sha256": "old-checkpoint", "path": "old.pt"},
+            }))
+
+            payload = evolution.build_evolution(output, ledger)
+            nodes = {item["id"]: item for item in payload["nodes"]}
+            self.assertEqual(payload["currentNodeId"], "milestone:stand_zero_signal_30s_no_reset")
+            self.assertEqual(nodes["milestone:stand_zero_signal_30s_no_reset"]["status"], "running")
+            self.assertEqual(nodes["run:old-stand"]["status"], "failed")
+            self.assertIn("invalidated asset lineage", nodes["run:old-stand"]["result"])
+            self.assertEqual(nodes["run:old-stand"]["parentIds"], ["invalidated:old-mesh:stand_zero_signal_30s_no_reset"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -322,6 +322,8 @@ def preflight_proof(output_dir: Path, *, smoke: bool, seed: int) -> dict:
         raise ValueError("proof seed must match dynamics evidence")
     if evidence.get("input", {}).get("urdf_sha256") != model_spec.EXPECTED_URDF_SHA256:
         raise ValueError("dynamics evidence does not use the required current URDF")
+    if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("dynamics evidence does not use the required visual/collision mesh package")
     if evidence.get("checkpoint", {}).get("identity") != expected_checkpoint:
         raise ValueError("dynamics evidence robot contract is stale")
     imported = evidence.get("joint_contract", {}).get("runtime_importer_axis_evidence")
@@ -1337,7 +1339,7 @@ def _run(args, simulation_app) -> dict:
             "gate_eligible": not args.smoke and not args.authority_probe and not args.static_pose_probe,
             "milestone_status_changed": False,
             "experiment": experiment,
-            "lineage": "clean_restart_2026_08_22",
+            "lineage": model_spec.LINEAGE,
             "run_identity": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ"),
             "seed": args.seed,
             "checkpoint": {

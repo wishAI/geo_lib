@@ -11,7 +11,7 @@ from algorithms.urdf_learn_wasd_walk import model_spec
 
 
 MILESTONE_ID = "gate_5m_no_reset"
-LINEAGE = "clean_restart_2026_08_22"
+LINEAGE = model_spec.LINEAGE
 OUTPUT_ROOT = model_spec.ALGORITHM_ROOT / "outputs"
 DEFAULT_OUTPUT_DIR = OUTPUT_ROOT / MILESTONE_ID
 TRAINING_EVIDENCE = "training.json"
@@ -233,6 +233,8 @@ def load_cumulative_prior() -> tuple[list[dict], dict]:
             raise ValueError(f"prior milestone {milestone_id} validation is not passing")
         if evidence.get("input", {}).get("urdf_sha256") != model_spec.EXPECTED_URDF_SHA256:
             raise ValueError(f"prior milestone {milestone_id} uses another URDF")
+        if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+            raise ValueError(f"prior milestone {milestone_id} uses another visual/collision mesh package")
         prior.append({
             "order": order,
             "id": milestone_id,
@@ -342,6 +344,8 @@ def load_training_evidence(output_dir: Path) -> dict:
         raise ValueError("forward training evidence has the wrong status or lineage")
     if evidence.get("input", {}).get("urdf_sha256") != model_spec.EXPECTED_URDF_SHA256:
         raise ValueError("forward training evidence belongs to another URDF")
+    if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("forward training evidence belongs to another visual/collision mesh package")
     if evidence.get("robot_spec_sha256") != sha256(model_spec.ROBOT_SPEC_PATH):
         raise ValueError("forward training evidence belongs to another robot contract")
     checkpoint_record = evidence.get("checkpoint", {})

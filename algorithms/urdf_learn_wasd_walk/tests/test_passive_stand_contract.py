@@ -251,7 +251,7 @@ class PassiveStandContractTests(unittest.TestCase):
                 "component": "dynamics",
                 "status": "passed",
                 "seed": 42,
-                "input": {"urdf_sha256": model_spec.EXPECTED_URDF_SHA256},
+                "input": {"urdf_sha256": model_spec.EXPECTED_URDF_SHA256, "mesh_tree_sha256": model_spec.EXPECTED_MESH_TREE_SHA256},
                 "checkpoint": {
                     "identity": f"robot_spec_sha256:{passive_stand._sha256(model_spec.ROBOT_SPEC_PATH)}"
                 },

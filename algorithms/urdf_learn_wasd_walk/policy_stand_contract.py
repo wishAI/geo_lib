@@ -12,7 +12,7 @@ from algorithms.urdf_learn_wasd_walk import model_spec
 
 MILESTONE_ID = "stand_30s_no_reset"
 PRIOR_MILESTONE_ID = "stand_zero_signal_30s_no_reset"
-LINEAGE = "clean_restart_2026_08_22"
+LINEAGE = model_spec.LINEAGE
 OUTPUT_ROOT = model_spec.ALGORITHM_ROOT / "outputs"
 DEFAULT_OUTPUT_DIR = OUTPUT_ROOT / MILESTONE_ID
 TRAINING_EVIDENCE = "training.json"
@@ -184,6 +184,8 @@ def load_prior_gate() -> dict:
         raise ValueError("prior passive validation is not a passing gate-1 artifact")
     if evidence.get("input", {}).get("urdf_sha256") != model_spec.EXPECTED_URDF_SHA256:
         raise ValueError("prior passive validation belongs to another URDF")
+    if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("prior passive validation belongs to another visual/collision mesh package")
     if evidence.get("checkpoint", {}).get("identity") != prior.get("checkpoint"):
         raise ValueError("prior passive validation robot specification differs from milestones")
     return {
@@ -209,6 +211,8 @@ def load_training_evidence(output_dir: Path) -> dict:
         raise ValueError("policy training evidence belongs to another lineage")
     if evidence.get("input", {}).get("urdf_sha256") != model_spec.EXPECTED_URDF_SHA256:
         raise ValueError("policy training evidence belongs to another URDF")
+    if evidence.get("input", {}).get("mesh_tree_sha256") != model_spec.EXPECTED_MESH_TREE_SHA256:
+        raise ValueError("policy training evidence belongs to another visual/collision mesh package")
     if evidence.get("robot_spec_sha256") != sha256(model_spec.ROBOT_SPEC_PATH):
         raise ValueError("policy training evidence belongs to another robot contract")
     checkpoint_record = evidence.get("checkpoint", {})

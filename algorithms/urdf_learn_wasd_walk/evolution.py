@@ -136,26 +136,54 @@ def build_evolution(
     if ledger is None:
         raise ValueError(f"Milestone ledger is unavailable: {milestones_path}")
     lineage = str(ledger.get("lineage", "unknown"))
+    invalidated = ledger.get("invalidatedLineage", {})
+    invalidated_lineage = (
+        str(invalidated.get("lineage"))
+        if isinstance(invalidated, dict) and invalidated.get("lineage")
+        else None
+    )
+    accepted_lineages = {lineage, invalidated_lineage} - {None}
     milestone_records = {item["id"]: item for item in ledger.get("milestones", [])}
     passive = milestone_records.get("stand_zero_signal_30s_no_reset", {})
-    nodes = [{
+    nodes = []
+    invalidated_root_id = None
+    if invalidated_lineage:
+        invalidated_root_id = f"invalidated:{invalidated_lineage}:stand_zero_signal_30s_no_reset"
+        nodes.append({
+            "id": invalidated_root_id,
+            "parentIds": [],
+            "label": "Previous mesh lineage · invalidated",
+            "step": -1,
+            "status": "failed",
+            "kind": "root",
+            "lineage": invalidated_lineage,
+            "approach": "superseded visual/collision mesh package",
+            "result": str(invalidated.get("reason", "asset lineage was invalidated")),
+            "metrics": {},
+            "important": True,
+            "meshTreeSha256": invalidated.get("meshTreeSha256"),
+        })
+    passive_status = str(passive.get("status", "not_started"))
+    nodes.append({
         "id": "milestone:stand_zero_signal_30s_no_reset",
-        "parentIds": [],
-        "label": "Passive stand · 30 s",
+        "parentIds": [invalidated_root_id] if invalidated_root_id else [],
+        "label": "Latest mesh · passive stand 30 s",
         "step": 0,
-        "status": "completed" if passive.get("status") == "passed" else "failed",
+        "status": "completed" if passive_status == "passed" else "running" if passive_status == "in_progress" else "failed",
         "kind": "root",
+        "lineage": lineage,
         "approach": "URDF equilibrium pose + PD control",
-        "result": "canonical zero-signal stand gate passed" if passive.get("status") == "passed" else "gate not passed",
+        "result": "canonical zero-signal stand gate passed" if passive_status == "passed" else "latest visual/collision mesh awaits gate re-certification",
         "metrics": passive.get("metrics", {}),
         "important": True,
         "checkpointPath": passive.get("checkpoint"),
-    }]
+        "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256"),
+    })
     checkpoint_nodes: dict[str, str] = {}
     runs: list[tuple[Path, dict, Path | None, dict | None]] = []
     for training_path in sorted(output_root.rglob("training.json")) if output_root.exists() else []:
         training = _read_json(training_path)
-        if training is None or training.get("lineage") != lineage:
+        if training is None or training.get("lineage") not in accepted_lineages:
             continue
         validation_path, validation = _validation_for(training_path)
         runs.append((training_path, training, validation_path, validation))
@@ -171,6 +199,8 @@ def build_evolution(
     runs.sort(key=lambda item: str(item[1].get("run_identity", item[0])))
     for step, (training_path, training, validation_path, validation) in enumerate(runs, start=1):
         checkpoint = training.get("checkpoint", {})
+        run_lineage = str(training.get("lineage", "unknown"))
+        is_invalidated = bool(invalidated_lineage and run_lineage == invalidated_lineage)
         sha = _checkpoint_sha(training)
         node_id = checkpoint_nodes.get(sha or "", f"run:{training.get('run_identity', step)}")
         milestone = str(training.get("milestone", "unknown"))
@@ -182,15 +212,24 @@ def build_evolution(
         parent_sha = _parent_checkpoint_sha(training)
         parent_id = checkpoint_nodes.get(parent_sha or "")
         if not parent_id:
-            parent_id = "milestone:stand_zero_signal_30s_no_reset" if milestone == "stand_30s_no_reset" else "milestone:stand_30s_no_reset"
+            if is_invalidated:
+                parent_id = invalidated_root_id
+            else:
+                parent_id = "milestone:stand_zero_signal_30s_no_reset" if milestone == "stand_30s_no_reset" else "milestone:stand_30s_no_reset"
         metrics = _metrics(validation)
         status, result, important = _run_status(training, validation, metrics)
+        if is_invalidated:
+            status = "failed"
+            result = f"invalidated asset lineage; {result}"
+            important = True
         if canonical.get("status") == "passed" and isinstance(canonical.get("checkpoint"), dict) and canonical["checkpoint"].get("sha256") == sha:
             status, result, important = "completed", "canonical milestone passed", True
         contract = training.get("requested_contract", {})
         approach = contract.get("training_method") or contract.get("algorithm") or "training run"
         run_name = training_path.parent.name
         label = "Policy stand · passed" if milestone == "stand_30s_no_reset" else run_name.replace("_", " ")
+        if is_invalidated:
+            label = f"Old mesh · {label}"
         artifacts = [_artifact(training_path, node_id)]
         if validation_path is not None:
             artifacts.append(_artifact(validation_path, node_id))
@@ -213,6 +252,7 @@ def build_evolution(
             "step": step,
             "status": status,
             "kind": "milestone" if canonical.get("status") == "passed" and canonical.get("checkpoint", {}).get("sha256") == sha else "checkpoint",
+            "lineage": run_lineage,
             "approach": approach,
             "result": result,
             "metrics": metrics,
@@ -238,7 +278,7 @@ def build_evolution(
         probe = _read_json(probe_path)
         if (
             probe is None
-            or probe.get("lineage") != lineage
+            or probe.get("lineage") not in accepted_lineages
             or probe.get("component") != "open_loop_reference_probe"
         ):
             continue
@@ -246,6 +286,8 @@ def build_evolution(
     probes.sort(key=lambda item: str(item[1].get("run_identity", item[0])))
     for step, (probe_path, probe) in enumerate(probes, start=len(runs) + 1):
         run_identity = str(probe.get("run_identity") or probe_path.parent.name)
+        probe_lineage = str(probe.get("lineage", "unknown"))
+        is_invalidated = bool(invalidated_lineage and probe_lineage == invalidated_lineage)
         node_id = f"experiment:{run_identity}"
         parent_checkpoint = probe.get("parent_checkpoint", {})
         parent_sha = parent_checkpoint.get("sha256") if isinstance(parent_checkpoint, dict) else None
@@ -259,6 +301,9 @@ def build_evolution(
             status = "failed"
             failures = probe.get("failures") or ["reference probe did not pass"]
             result = "; ".join(map(str, failures[:3]))
+        if is_invalidated:
+            status = "failed"
+            result = f"invalidated asset lineage; {result}"
         parameters = probe.get("reference_contract", {}).get("parameters", {})
         nodes.append({
             "id": node_id,
@@ -267,6 +312,7 @@ def build_evolution(
             "step": step,
             "status": status,
             "kind": "experiment",
+            "lineage": probe_lineage,
             "approach": str(probe.get("experiment", "open-loop reference probe")),
             "result": result,
             "metrics": metrics,
@@ -297,7 +343,8 @@ def build_evolution(
             visible.append(node["id"])
     visible_set = set(visible[:VISIBLE_NODE_BUDGET])
     default_visible = [node["id"] for node in nodes if node["id"] in visible_set]
-    current = max(nodes, key=lambda item: item.get("step", 0))["id"]
+    current_candidates = [node for node in nodes if node.get("lineage") == lineage]
+    current = max(current_candidates, key=lambda item: item.get("step", 0))["id"]
     return {
         "schemaVersion": 1,
         "type": "evolutionTree",

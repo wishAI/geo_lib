@@ -46,10 +46,10 @@ class PassivePipelineTests(unittest.TestCase):
                 "status": "passed",
                 "gate_eligible": True,
                 "failures": [],
-                "lineage": "clean_restart_2026_08_22",
+                "lineage": model_spec.LINEAGE,
                 "seed": 42,
                 "checkpoint": {"identity": "robot-spec", "policy_checkpoint": None},
-                "input": {"urdf_sha256": model_spec.EXPECTED_URDF_SHA256},
+                "input": {"urdf_sha256": model_spec.EXPECTED_URDF_SHA256, "mesh_tree_sha256": model_spec.EXPECTED_MESH_TREE_SHA256},
                 "command_contract": {"body_forward_axis": "+Y"},
                 "joint_contract": {
                     "action_joints": ["action"],

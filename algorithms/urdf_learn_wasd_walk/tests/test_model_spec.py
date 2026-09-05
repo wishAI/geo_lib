@@ -16,6 +16,7 @@ class ModelSpecTests(unittest.TestCase):
     def test_exact_current_urdf_and_mesh_package(self) -> None:
         source = self.spec["source"]
         self.assertEqual(source["urdf_sha256"], model_spec.EXPECTED_URDF_SHA256)
+        self.assertEqual(source["mesh_tree_sha256"], model_spec.EXPECTED_MESH_TREE_SHA256)
         self.assertFalse(source["derived_urdf_used"])
         self.assertEqual(source["mesh_reference_count"], 136)
         self.assertEqual(source["unique_mesh_count"], 68)
@@ -35,7 +36,7 @@ class ModelSpecTests(unittest.TestCase):
 
         bounds = self.spec["nominal_pose"]["zero_pose_collision_bounds"]
         for foot_link in ("foot_l", "foot_r", "toes_01_l", "toes_01_r"):
-            self.assertAlmostEqual(bounds[foot_link]["minimum"][2], 0.0, delta=3.0e-5)
+            self.assertAlmostEqual(bounds[foot_link]["minimum"][2], 0.0, delta=1.1e-4)
         support = self.spec["nominal_pose"]["zero_pose_ground_support"]
         self.assertAlmostEqual(support["ground_z_m"], 0.0, delta=3.0e-5)
         minimum = support["support_aabb_xy_m"]["minimum"]
@@ -67,7 +68,7 @@ class ModelSpecTests(unittest.TestCase):
 
     def test_canonical_ground_alignment_is_retained_and_authority_probe_is_isolated(self) -> None:
         groups = self.spec["pd"]["groups"]
-        self.assertAlmostEqual(self.spec["nominal_pose"]["base_position_m"][2], -0.004776894)
+        self.assertAlmostEqual(self.spec["nominal_pose"]["base_position_m"][2], -0.004884927)
         self.assertGreater(self.spec["nominal_pose"]["geometry"]["support_margin_m"], 0.0)
         self.assertEqual(groups["leg_sagittal"]["damping"], 1.0)
         controlled = [joint for group in groups.values() for joint in group["joints"]]
@@ -135,7 +136,7 @@ class ModelSpecTests(unittest.TestCase):
         self.assertEqual(candidate["joint_positions_rad"]["left_hip_pitch_joint"], -0.1)
         self.assertEqual(candidate["joint_positions_rad"]["left_knee_joint"], 0.21)
         self.assertEqual(candidate["joint_positions_rad"]["left_ankle_pitch_joint"], -0.115)
-        self.assertAlmostEqual(candidate["joint_positions_rad"]["waist_pitch_joint"], -0.197)
+        self.assertAlmostEqual(candidate["joint_positions_rad"]["waist_pitch_joint"], -0.206)
         self.assertGreater(candidate["support_margin_m"], zero["support_margin_m"] + 0.01)
         self.assertLess(candidate["maximum_fixed_root_gravity_torque_limit_fraction"], 0.05)
         contacts = candidate["near_ground_contact_vertex_count_by_link"]
