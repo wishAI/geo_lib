@@ -76,6 +76,17 @@ class ForwardReferenceTests(unittest.TestCase):
             [0.0] * len(model_spec.ACTION_JOINTS),
         )
 
+    def test_waist_weight_transfer_is_bounded_and_command_gated(self) -> None:
+        config = forward_reference.ReferenceConfig(
+            startup_ramp_s=0.0, waist_roll_amplitude=0.5
+        )
+        waist = model_spec.ACTION_JOINTS.index("waist_roll_joint")
+        self.assertAlmostEqual(forward_reference.reference_action(0.2, 0.4, config)[waist], 0.5)
+        self.assertEqual(
+            forward_reference.reference_action(0.2, 0.0, config),
+            [0.0] * len(model_spec.ACTION_JOINTS),
+        )
+
     def test_probe_acceptance_uses_direct_air_runs_and_clearance(self) -> None:
         reference = forward_reference.reference_contract(forward_reference.ReferenceConfig())
         audit = reference["offline_kinematic_audit"]["full_amplitude_mid_swing"]
