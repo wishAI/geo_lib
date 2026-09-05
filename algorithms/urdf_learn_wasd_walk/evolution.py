@@ -374,6 +374,71 @@ def build_evolution(
             "important": True,
         })
 
+    passive_diagnostics = []
+    for diagnostic_path in (
+        sorted(output_root.rglob("dynamics_smoke_validation.json"))
+        if output_root.exists()
+        else []
+    ):
+        diagnostic = _read_json(diagnostic_path)
+        if (
+            diagnostic is None
+            or diagnostic.get("lineage") not in accepted_lineages
+            or diagnostic.get("milestone") != "stand_zero_signal_30s_no_reset"
+            or diagnostic.get("component") != "dynamics"
+            or diagnostic.get("scope") != "diagnostic_experiment"
+        ):
+            continue
+        passive_diagnostics.append((diagnostic_path, diagnostic))
+    passive_diagnostics.sort(key=lambda item: str(item[1].get("run_identity", item[0])))
+    diagnostic_step = len(runs) + len(probes) + 1
+    for diagnostic_path, diagnostic in passive_diagnostics:
+        run_identity = str(diagnostic.get("run_identity") or diagnostic_path.parent.name)
+        diagnostic_lineage = str(diagnostic.get("lineage", "unknown"))
+        is_invalidated = diagnostic_lineage in invalidated_by_lineage
+        node_id = f"experiment:{run_identity}"
+        raw_metrics = diagnostic.get("metrics", {})
+        duration_s = float(raw_metrics.get("duration_s", 0.0))
+        status = "completed" if diagnostic.get("status") == "passed" else "failed"
+        failures = diagnostic.get("failures") or []
+        result = (
+            f"{duration_s:g} s static-pose diagnostic retained support without a fall or reset"
+            if status == "completed"
+            else "; ".join(map(str, failures[:3])) or "static-pose diagnostic failed"
+        )
+        if is_invalidated:
+            status = "failed"
+            result = f"invalidated asset lineage; {result}"
+        experiment = diagnostic.get("experiment", {})
+        parent_id = (
+            invalidated_root_ids[diagnostic_lineage]
+            if is_invalidated
+            else "milestone:stand_zero_signal_30s_no_reset"
+        )
+        nodes.append({
+            "id": node_id,
+            "parentIds": [parent_id],
+            "label": f"Static pose probe · {duration_s:g} s",
+            "step": diagnostic_step,
+            "status": status,
+            "kind": "experiment",
+            "milestoneId": "stand_zero_signal_30s_no_reset",
+            "lineage": diagnostic_lineage,
+            "approach": str(experiment.get("id", "static-pose diagnostic")),
+            "result": result,
+            "metrics": _metrics(diagnostic),
+            "experimentParameters": {
+                "duration_s": duration_s,
+                "physics_steps": raw_metrics.get("physics_steps"),
+                "diagnostic_only": bool(experiment.get("diagnostic_only", True)),
+                "gate_eligible": bool(diagnostic.get("gate_eligible")),
+            },
+            "startedAt": run_identity,
+            "artifacts": [_artifact(diagnostic_path, node_id)],
+            "important": True,
+        })
+        diagnostic_step += 1
+
     child_count = {item["id"]: 0 for item in nodes}
     for node in nodes:
         for parent_id in node.get("parentIds", []):

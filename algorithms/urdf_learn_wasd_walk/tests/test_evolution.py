@@ -182,6 +182,47 @@ class EvolutionTests(unittest.TestCase):
             payload = evolution.build_evolution(output, ledger)
             self.assertEqual(payload["currentNodeId"], "run:20260905T020000Z")
 
+    def test_current_passive_diagnostic_is_visible_without_promoting_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs"
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "rabbit-ear-mesh",
+                "milestones": [
+                    {"id": "stand_zero_signal_30s_no_reset", "status": "in_progress"},
+                    {"id": "stand_30s_no_reset", "status": "not_started"},
+                ],
+            }))
+            diagnostic_dir = output / "stand_zero_signal_30s_no_reset"
+            diagnostic_dir.mkdir(parents=True)
+            diagnostic_dir.joinpath("dynamics_smoke_validation.json").write_text(json.dumps({
+                "lineage": "rabbit-ear-mesh",
+                "milestone": "stand_zero_signal_30s_no_reset",
+                "component": "dynamics",
+                "scope": "diagnostic_experiment",
+                "run_identity": "20260905T091152Z",
+                "status": "passed",
+                "gate_eligible": False,
+                "experiment": {"id": "gravity_static_pose_release_v1", "diagnostic_only": True},
+                "metrics": {
+                    "duration_s": 5.0,
+                    "physics_steps": 2500,
+                    "reset_count": 0,
+                    "fall_count": 0,
+                    "max_reference_tilt_rad": 0.1,
+                },
+                "failures": [],
+            }))
+
+            payload = evolution.build_evolution(output, ledger)
+            node = next(item for item in payload["nodes"] if item["id"] == "experiment:20260905T091152Z")
+            self.assertEqual(node["parentIds"], ["milestone:stand_zero_signal_30s_no_reset"])
+            self.assertEqual(node["status"], "completed")
+            self.assertEqual(node["experimentParameters"]["duration_s"], 5.0)
+            self.assertFalse(node["experimentParameters"]["gate_eligible"])
+            self.assertEqual(payload["currentNodeId"], node["id"])
+
 
 if __name__ == "__main__":
     unittest.main()
