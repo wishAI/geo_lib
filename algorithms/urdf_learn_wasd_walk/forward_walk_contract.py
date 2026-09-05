@@ -20,10 +20,11 @@ PHYSICS_DT_S = 0.002
 CONTROL_DT_S = 0.02
 ACTION_SCALE_RAD = 0.12
 ACTION_CLIP = 1.0
-TRAINING_METHOD_ID = "full_cycle_rollout_zero_residual_v5"
+TRAINING_METHOD_ID = "conservative_full_cycle_residual_v6"
 REFERENCE_PROBE_METHOD_ID = "command_gated_phase_reference_residual_v3"
 GAIT_PERIOD_S = 0.8
 ROLLOUT_STEPS_PER_ENV = 96
+PPO_LEARNING_RATE = 1.0e-4
 REFERENCE_ACTION_SCALE_RAD = 0.20
 REFERENCE_SETTLE_S = 1.0
 REFERENCE_STARTUP_RAMP_S = 0.4
@@ -47,12 +48,13 @@ MIN_TRAINING_DIAGNOSTIC_PROGRESS_M = 0.1
 NEXT_TRAINING_HYPOTHESIS = {
     "id": TRAINING_METHOD_ID,
     "hypothesis": (
-        "the zero-output residual removed the early destructive policy response, but the prior "
-        "24-step rollout spans only 0.48 s and cannot contain the 1.0 s settle boundary plus a "
-        "complete 0.8 s gait cycle; a 96-step rollout exposes each PPO update to both"
+        "the 96-step rollout delayed support exit and increased forward displacement, but two "
+        "updates at the inherited 1e-3 learning rate produced large state-dependent residuals "
+        "and falls; reducing only the learning rate to 1e-4 should preserve the useful cycle data"
     ),
     "first_experiment": (
-        "two iterations with 96 steps per environment followed by a deterministic 10 s smoke"
+        "two iterations with the same 96-step rollout and a 1e-4 learning rate, followed by a "
+        "deterministic 10 s smoke"
     ),
     "stand_retention": "the phase reference amplitude is exactly zero for a zero command",
 }
@@ -398,7 +400,7 @@ def training_contract(
             "critic_hidden_dims": [128, 128],
             "activation": "elu",
             "initial_action_noise_std": 0.2,
-            "learning_rate": 0.001,
+            "learning_rate": PPO_LEARNING_RATE,
             "gamma": 0.99,
             "lambda": 0.95,
             "clip_parameter": 0.2,
