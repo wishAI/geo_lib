@@ -10,6 +10,18 @@ from algorithms.urdf_learn_wasd_walk.tests.test_geo_launcher import _load_geo_mo
 
 
 class ModelComparisonTests(unittest.TestCase):
+    def test_contact_noise_or_sliding_cannot_pass_g1_locomotion_diagnostic(self):
+        metrics = {"done_count": 0, "reset_count": 0, "fall_count": 0,
+                   "max_root_tilt_rad": .1, "root_height_drop_m": .01,
+                   "forward_axis_world_displacement_m": .4,
+                   "left_liftoffs": 3, "right_liftoffs": 3,
+                   "max_air_steps": [5, 4], "max_foot_height_gain_m": [.03, .02]}
+        self.assertEqual(comparison.evaluation_failures(metrics, "unitree_g1"), [])
+        for changed in ({"max_air_steps": [1, 1]}, {"max_foot_height_gain_m": [0., 0.]},
+                        {"max_root_tilt_rad": 1.}, {"done_count": 1},
+                        {"forward_axis_world_displacement_m": -.2}):
+            self.assertTrue(comparison.evaluation_failures({**metrics, **changed}, "unitree_g1"))
+
     def test_symlink_cannot_alias_another_models_output(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

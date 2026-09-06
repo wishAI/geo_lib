@@ -81,6 +81,21 @@ def observed_contact(previous, current, airborne_steps, liftoffs):
     return list(current)
 
 
+def evaluation_failures(metrics, model):
+    failures = []
+    if metrics["done_count"] or metrics["fall_count"] or metrics["reset_count"]:
+        failures.append("reset/done/fall occurred")
+    if metrics["max_root_tilt_rad"] > math.pi / 6 or metrics["root_height_drop_m"] > .1:
+        failures.append("root posture lost stability")
+    if model == "unitree_g1":
+        if (metrics.get("forward_axis_world_displacement_m") or 0) < .1:
+            failures.append("no demonstrated forward displacement")
+        if (min(metrics["left_liftoffs"], metrics["right_liftoffs"]) < 1
+                or min(metrics["max_air_steps"]) < 3 or min(metrics["max_foot_height_gain_m"]) < .01):
+            failures.append("no sustained bilateral foot clearance; transitions alone are insufficient")
+    return failures
+
+
 def safe_json(value):
     if isinstance(value, dict):
         return {str(k): safe_json(v) for k, v in value.items()}
@@ -291,6 +306,11 @@ def execute(args, directory):
             ids, names = sensor.find_bodies(expressions, preserve_order=True)
             if len(ids) != 2:
                 raise ValueError(f"bilateral contact mapping differs: {names}")
+            body_ids, body_names = robot.find_bodies(expressions, preserve_order=True)
+            if body_names != names:
+                raise ValueError("contact and articulation foot-body order differ")
+            initial_foot_z = robot.data.body_pos_w[0, body_ids, 2].clone()
+            max_foot_gain = [0., 0.]
             start = robot.data.root_pos_w[0].clone()
             forward = 0 if args.model == "unitree_g1" else 1
             trace, dones, falls = [], 0, 0
@@ -309,6 +329,9 @@ def execute(args, directory):
                 force = sensor.data.net_forces_w[0, ids].norm(dim=-1).tolist()
                 prior_contact = observed_contact(prior_contact, [f > 1.0 for f in force], air, liftoffs)
                 max_air = [max(a, b) for a, b in zip(max_air, air)]
+                foot_gain = (robot.data.body_pos_w[0, body_ids, 2] - initial_foot_z).tolist()
+                max_foot_gain = [max(old, gain if not contact else 0.)
+                                 for old, gain, contact in zip(max_foot_gain, foot_gain, prior_contact)]
                 max_error = max(max_error, float((robot.data.joint_pos_target-robot.data.joint_pos).abs().max()))
                 gravity = robot.data.projected_gravity_b[0]
                 max_tilt = max(max_tilt, math.acos(max(-1., min(1., -float(gravity[2])))))
@@ -317,6 +340,7 @@ def execute(args, directory):
                               "root_quaternion": robot.data.root_quat_w[0].tolist(),
                               "root_velocity_body": robot.data.root_lin_vel_b[0].tolist(),
                               "support_forces_n": force, "direct_contact": prior_contact,
+                              "foot_height_gain_m": foot_gain,
                               "projected_gravity": robot.data.projected_gravity_b[0].tolist()})
                 if dones:
                     break  # The installed RL env already reset; never count post-reset travel.
@@ -325,10 +349,9 @@ def execute(args, directory):
                        "fall_count": falls, "forward_axis_world_displacement_m": displacement if not dones else None,
                        "left_liftoffs": liftoffs[0], "right_liftoffs": liftoffs[1],
                        "max_air_steps": max_air, "max_joint_target_error_rad": max_error,
+                       "max_foot_height_gain_m": max_foot_gain,
                        "max_root_tilt_rad": max_tilt, "root_height_drop_m": max_drop}
-            failures = ["reset/done occurred"] if dones else []
-            if args.model == "unitree_g1" and (displacement < .1 or min(liftoffs) < 1):
-                failures.append("no demonstrated forward bilateral stepping")
+            failures = evaluation_failures(metrics, args.model)
             payload.update(status="failed" if failures else "diagnostic_passed", metrics=metrics,
                            failures=failures, trace=trace, checkpoint=training["checkpoint"])
             write(directory / "evaluation.json", payload)
