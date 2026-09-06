@@ -10,6 +10,14 @@ from algorithms.urdf_learn_wasd_walk.tests.test_geo_launcher import _load_geo_mo
 
 
 class ModelComparisonTests(unittest.TestCase):
+    def test_symlink_cannot_alias_another_models_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "landau_current").mkdir()
+            (root / "unitree_g1").symlink_to(root / "landau_current", target_is_directory=True)
+            with patch.object(comparison, "OUTPUT", root), self.assertRaisesRegex(ValueError, "another model"):
+                comparison.output_dir("unitree_g1", "smoke")
+
     def test_selection_is_allowlisted_and_output_roots_do_not_overlap(self):
         g1 = comparison.output_dir("unitree_g1", "smoke")
         landau = comparison.output_dir("landau_current", "smoke")

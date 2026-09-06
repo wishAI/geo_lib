@@ -43,7 +43,8 @@ def output_dir(model, experiment):
     if model not in MODELS or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", experiment):
         raise ValueError("model and experiment must be allowlisted identifiers")
     path = OUTPUT / model / experiment
-    path.resolve().relative_to(OUTPUT.resolve())
+    if path.resolve().relative_to(OUTPUT.resolve()).parts != (model, experiment):
+        raise ValueError("comparison output resolves into another model/experiment")
     return path
 
 
