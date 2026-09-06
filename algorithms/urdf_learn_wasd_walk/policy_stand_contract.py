@@ -81,6 +81,8 @@ def failure_artifact_name(mode: str, smoke: bool = False) -> str:
 
 
 def training_contract(*, seed: int, num_envs: int, iterations: int) -> dict:
+    from algorithms.urdf_learn_wasd_walk.policy_stand_initialization import protocol
+
     if num_envs <= 0 or iterations <= 0:
         raise ValueError("num_envs and iterations must be positive")
     spec = model_spec.build_robot_spec()
@@ -96,6 +98,7 @@ def training_contract(*, seed: int, num_envs: int, iterations: int) -> dict:
         "sample_count": num_envs * iterations * 24,
         "environment": {
             "kind": "Isaac Lab ManagerBasedRLEnv",
+            "initialization": protocol(),
             "terrain": "flat_plane",
             "physics_dt_s": PHYSICS_DT_S,
             "control_dt_s": CONTROL_DT_S,
@@ -163,10 +166,13 @@ def evaluate_policy_gate(metrics: dict, *, required_duration_s: float = MIN_GATE
     return failures
 
 
-def load_prior_gate() -> dict:
+def load_prior_gate(
+    *, milestones_path: Path | None = None, repo_root: Path | None = None,
+) -> dict:
     """Load and hash-check the exact passed gate-1 evidence declared in milestones."""
 
-    milestones_path = model_spec.ALGORITHM_ROOT / "milestones.json"
+    milestones_path = milestones_path or model_spec.ALGORITHM_ROOT / "milestones.json"
+    repo_root = repo_root or model_spec.ALGORITHM_ROOT.parent.parent
     milestones = json.loads(milestones_path.read_text(encoding="utf-8"))
     prior = next((item for item in milestones["milestones"] if item["id"] == PRIOR_MILESTONE_ID), None)
     if prior is None or prior.get("status") != "passed":
@@ -176,7 +182,7 @@ def load_prior_gate() -> dict:
     )
     if declaration is None:
         raise ValueError("prior passive gate lacks a declared validation artifact")
-    path = (model_spec.ALGORITHM_ROOT.parent.parent / declaration["path"]).resolve()
+    path = (repo_root / declaration["path"]).resolve()
     if not path.is_file() or sha256(path) != declaration["sha256"]:
         raise ValueError("prior passive validation is absent or differs from its declared hash")
     evidence = json.loads(path.read_text(encoding="utf-8"))
@@ -200,6 +206,8 @@ def load_prior_gate() -> dict:
 
 
 def load_training_evidence(output_dir: Path) -> dict:
+    from algorithms.urdf_learn_wasd_walk.policy_stand_initialization import validate_report
+
     output_dir = safe_output_dir(output_dir)
     path = output_dir / TRAINING_EVIDENCE
     if not path.is_file():
@@ -215,6 +223,11 @@ def load_training_evidence(output_dir: Path) -> dict:
         raise ValueError("policy training evidence belongs to another visual/collision mesh package")
     if evidence.get("robot_spec_sha256") != sha256(model_spec.ROBOT_SPEC_PATH):
         raise ValueError("policy training evidence belongs to another robot contract")
+    validate_report(
+        evidence.get("initialization", {}),
+        num_envs=evidence["requested_contract"]["num_envs"],
+        prior=load_prior_gate(), source=evidence["input"],
+    )
     checkpoint_record = evidence.get("checkpoint", {})
     checkpoint = (model_spec.ALGORITHM_ROOT.parent.parent / checkpoint_record.get("path", "")).resolve()
     try:

@@ -43,6 +43,13 @@ class PolicyStandPipelineTests(unittest.TestCase):
                 "run_identity": "training-run",
                 "source_commit": "test",
                 "requested_contract": requested,
+                "initialization": {
+                    **requested["environment"]["initialization"],
+                    "status": "initialized_not_validated", "policy_steps_during_settling": 0,
+                    "prior_gate": contract.load_prior_gate(),
+                    "input": model_spec.build_robot_spec()["source"],
+                    "environments": [{"env_id": i, "support_margin_m": .04} for i in range(8)],
+                },
                 "input": model_spec.build_robot_spec()["source"],
                 "robot_spec_sha256": contract.sha256(model_spec.ROBOT_SPEC_PATH),
                 "checkpoint": {
@@ -72,6 +79,8 @@ class PolicyStandPipelineTests(unittest.TestCase):
             prior = contract.load_prior_gate()
             checkpoint_record = training["checkpoint"]
             shared = {
+                "initialization": {**training["initialization"],
+                                   "environments": [{"env_id": 0, "support_margin_m": .04}]},
                 "schema_version": 1, "milestone": contract.MILESTONE_ID,
                 "scope": "component_only", "status": "passed", "gate_eligible": True,
                 "failures": [], "lineage": contract.LINEAGE, "seed": 42,
