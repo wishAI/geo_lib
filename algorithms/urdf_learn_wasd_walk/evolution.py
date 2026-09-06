@@ -469,7 +469,9 @@ def build_evolution(
 
     # Cross-model controls are independent roots, never Landau gate evidence.
     comparison_root = output_root / "model_comparison"
-    for path in sorted(comparison_root.glob("*/*/training.json")):
+    comparison_sources = list(comparison_root.glob("*/*/training.json"))
+    comparison_sources += list(comparison_root.glob("*/*/checkpoint_import.json"))
+    for path in sorted(comparison_sources):
         training = _read_json(path)
         if (training is None or training.get("model") not in {"unitree_g1", "landau_current"}
                 or training.get("protocol") != "installed_manager_rsl_rl_comparison_v1"

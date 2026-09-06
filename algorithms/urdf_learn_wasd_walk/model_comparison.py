@@ -112,6 +112,17 @@ def write(path, payload):
     path.write_text(json.dumps(safe_json(payload), indent=2, allow_nan=False) + "\n")
 
 
+def require_same_evaluation(current_config, reference_config, reference_evaluation, training):
+    """A checkpoint-only control must not silently change the prior evaluation."""
+    if safe_json(current_config) != reference_config:
+        raise ValueError("checkpoint-only control changed evaluation configuration")
+    for key in ("model", "protocol", "lineage", "checkpoint", "asset"):
+        if reference_evaluation.get(key) != training.get(key):
+            raise ValueError(f"reference evaluation differs from training: {key}")
+    if reference_evaluation.get("landau_gate_eligible") is not False:
+        raise ValueError("reference is not an isolated diagnostic")
+
+
 @contextmanager
 def exclusive_host():
     # A sandbox PID namespace cannot prove the host is idle.
@@ -264,12 +275,36 @@ def execute(args, directory):
     print(f"[model-comparison] {args.runtime_stage}", flush=True)
     cfg, agent, asset = configs(args)
     training = None
+    imported = None
+    configuration = {"environment": cfg.to_dict(), "ppo": agent.to_dict(), "asset": asset}
     if args.mode == "evaluate":
-        training = json.loads((directory / "training.json").read_text())
-        checkpoint = validate_checkpoint(training, args.model, directory)
+        reference_dir = output_dir(args.model, args.reference_experiment) if args.published_checkpoint else directory
+        training = json.loads((reference_dir / "training.json").read_text())
+        checkpoint = validate_checkpoint(training, args.model, reference_dir)
         if training["asset"] != asset:
             raise ValueError("evaluation asset dependencies differ from training")
-    write(directory / f"{args.mode}_config.json", {"environment": cfg.to_dict(), "ppo": agent.to_dict(), "asset": asset})
+        if args.published_checkpoint:
+            require_same_evaluation(configuration,
+                json.loads((reference_dir / "evaluate_config.json").read_text()),
+                json.loads((reference_dir / "evaluation.json").read_text()), training)
+            args.runtime_stage = "official_published_checkpoint_import"
+            from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint_path
+            from isaaclab.utils.assets import retrieve_file_path
+            uri = get_published_pretrained_checkpoint_path("rsl_rl", identity(args.model)["task"])
+            checkpoint = Path(retrieve_file_path(uri, str(directory / "published"), force_download=False)).resolve()
+            checkpoint.relative_to((directory / "published").resolve())
+            imported = {**identity(args.model), "status": "imported_not_trained_not_promoted",
+                        "asset": asset, "experiment": args.experiment,
+                        "run_identity": datetime.now().astimezone().isoformat(),
+                        "source": {"provider": "NVIDIA Isaac Lab published checkpoint", "uri": uri,
+                                   "storage_state": "TK2_local_only_not_hydrated_on_Mac"},
+                        "reference_experiment": args.reference_experiment,
+                        "reference_checkpoint": training["checkpoint"],
+                        "changed_factor": "checkpoint identity only",
+                        "checkpoint": {"path": str(checkpoint.relative_to(ROOT)), "sha256": digest(checkpoint),
+                                       "size_bytes": checkpoint.stat().st_size}}
+            write(directory / "checkpoint_import.json", imported)
+    write(directory / f"{args.mode}_config.json", configuration)
     args.runtime_stage = "manager_environment_construction"
     print(f"[model-comparison] {args.runtime_stage}", flush=True)
     env = ManagerBasedRLEnv(cfg=cfg, render_mode=None)
@@ -377,7 +412,12 @@ def execute(args, directory):
                        "max_root_tilt_rad": max_tilt, "root_height_drop_m": max_drop}
             failures = evaluation_failures(metrics, args.model)
             payload.update(status="failed" if failures else "diagnostic_passed", metrics=metrics,
-                           failures=failures, trace=trace, checkpoint=training["checkpoint"])
+                           failures=failures, trace=trace,
+                           checkpoint=(imported or training)["checkpoint"])
+            if imported:
+                payload.update(checkpoint_source=imported["source"],
+                               reference_checkpoint=training["checkpoint"],
+                               changed_factor="checkpoint identity only")
             write(directory / "evaluation.json", payload)
         return payload
     finally:
@@ -389,6 +429,8 @@ def main():
     parser.add_argument("--model", choices=MODELS, required=True)
     parser.add_argument("--experiment", default="official_smoke_20260906")
     parser.add_argument("--reference-experiment", default="official_smoke_20260906")
+    parser.add_argument("--published-checkpoint", action="store_true",
+                        help="G1-only checkpoint control; requires an existing identical local smoke evaluation.")
     parser.add_argument("--mode", choices=("train", "evaluate"), required=True)
     parser.add_argument("--num-envs", type=int, default=64)
     parser.add_argument("--iterations", type=int, default=2)
@@ -397,6 +439,8 @@ def main():
     from isaaclab.app import AppLauncher
     AppLauncher.add_app_launcher_args(parser)
     args = parser.parse_args()
+    if args.published_checkpoint and (args.model != "unitree_g1" or args.mode != "evaluate"):
+        raise ValueError("published checkpoint is only an isolated G1 evaluation control")
     directory = output_dir(args.model, args.experiment)
     if not (1 <= args.num_envs <= 512 and 1 <= args.iterations <= 200 and 1 <= args.steps <= 1500):
         raise ValueError("diagnostic exceeds bounded budget")

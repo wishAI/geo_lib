@@ -10,6 +10,18 @@ from algorithms.urdf_learn_wasd_walk.tests.test_geo_launcher import _load_geo_mo
 
 
 class ModelComparisonTests(unittest.TestCase):
+    def test_checkpoint_only_control_requires_identical_config_and_reference_identity(self):
+        training = {**comparison.identity("unitree_g1"), "asset": {"hash": "asset"},
+                    "checkpoint": {"sha256": "local-smoke"}}
+        evaluation = {**training, "status": "failed"}
+        config = {"environment": {"seed": 42, "command": .5}, "ppo": {"hidden": [256, 128, 128]}}
+        comparison.require_same_evaluation(config, config, evaluation, training)
+        with self.assertRaisesRegex(ValueError, "configuration"):
+            comparison.require_same_evaluation({**config, "seed": 7}, config, evaluation, training)
+        for key in ("model", "protocol", "lineage", "checkpoint", "asset", "landau_gate_eligible"):
+            with self.assertRaises(ValueError):
+                comparison.require_same_evaluation(config, config, {**evaluation, key: "different"}, training)
+
     def test_builtin_mdl_resolution_is_exact_hashed_and_not_a_geometry_exemption(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -107,6 +119,15 @@ class ModelComparisonTests(unittest.TestCase):
             node = next(n for n in tree["nodes"] if n.get("model") == "unitree_g1")
             self.assertEqual(node["parentIds"], [])
             self.assertEqual(node["assetTreeSha256"], "test-hash")
+            self.assertEqual(tree["currentNodeId"], "milestone:stand_30s_no_reset")
+
+            (folder / "training.json").rename(folder / "checkpoint_import.json")
+            training["status"] = "imported_not_trained_not_promoted"
+            (folder / "checkpoint_import.json").write_text(json.dumps(training))
+            tree = evolution.build_evolution(output, ledger)
+            node = next(n for n in tree["nodes"] if n.get("model") == "unitree_g1")
+            self.assertIn("imported_not_trained", node["result"])
+            self.assertEqual(node["parentIds"], [])
             self.assertEqual(tree["currentNodeId"], "milestone:stand_30s_no_reset")
 
 
