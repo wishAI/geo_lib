@@ -10,6 +10,25 @@ from algorithms.urdf_learn_wasd_walk.tests.test_geo_launcher import _load_geo_mo
 
 
 class ModelComparisonTests(unittest.TestCase):
+    def test_builtin_mdl_resolution_is_exact_hashed_and_not_a_geometry_exemption(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            module = root / "mdl/core/Base/OmniPBR.mdl"
+            module.parent.mkdir(parents=True)
+            module.write_bytes(b"mdl 1.7; // test only")
+            records = comparison.resolve_builtin_mdl(["OmniPBR.mdl"] * 3, root)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["sha256"], comparison.digest(module))
+            self.assertEqual(records[0]["authored_path"], "OmniPBR.mdl")
+            self.assertEqual(records[0]["kind"], "installed_kit_builtin_mdl")
+            for missing in ("foot.stl", "robot.usd", "Unknown.mdl", "./OmniPBR.mdl", "../OmniPBR.mdl"):
+                with self.assertRaisesRegex(ValueError, "unresolved dependency"):
+                    comparison.resolve_builtin_mdl(["OmniPBR.mdl", missing], root)
+            module.unlink()
+            with self.assertRaisesRegex(ValueError, "missing installed Kit"):
+                comparison.resolve_builtin_mdl(["OmniPBR.mdl"], root)
+            self.assertEqual(comparison.resolve_builtin_mdl([], root), [])
+
     def test_contact_noise_or_sliding_cannot_pass_g1_locomotion_diagnostic(self):
         metrics = {"done_count": 0, "reset_count": 0, "fall_count": 0,
                    "max_root_tilt_rad": .1, "root_height_drop_m": .01,

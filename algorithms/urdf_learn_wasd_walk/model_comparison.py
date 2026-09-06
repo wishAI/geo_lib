@@ -153,15 +153,38 @@ def exclusive_host():
         yield
 
 
+def resolve_builtin_mdl(unresolved, kit_root):
+    """Resolve only the observed bare core module, never missing robot geometry.
+
+    ComputeAllDependencies uses USD asset resolution; renderer MDL search paths
+    additionally supply Kit's core library. Record this distinction, not a blanket
+    exemption for .mdl files. This hashes the module, not its shader import closure.
+    """
+    records = []
+    for name in sorted(set(unresolved)):
+        if name != "OmniPBR.mdl":
+            raise ValueError(f"official G1 USD has unresolved dependency: {name}")
+        path = Path(kit_root) / "mdl/core/Base" / name
+        if not path.is_file():
+            raise ValueError(f"missing installed Kit core MDL: {path}")
+        records.append({"path": str(path), "kind": "installed_kit_builtin_mdl",
+                        "authored_path": name, "sha256": digest(path),
+                        "resolution_reason": "bare module in installed Kit core MDL library",
+                        "hash_scope": "direct module bytes; shader imports are renderer dependencies"})
+    return records
+
+
 def usd_asset_identity(uri):
     """Hash every composed USD layer and non-layer dependency; never just the root."""
     import omni.client
+    import carb.tokens
     from pxr import Sdf, UsdUtils
 
     layers, assets, unresolved = UsdUtils.ComputeAllDependencies(Sdf.AssetPath(uri))
-    if unresolved or not layers:
-        raise ValueError(f"official G1 USD has unresolved dependencies: {unresolved}")
-    records = []
+    if not layers:
+        raise ValueError("official G1 USD has no resolved layers")
+    builtins = resolve_builtin_mdl(unresolved, carb.tokens.get_tokens_interface().resolve("${kit}"))
+    records = list(builtins)
     for layer in layers:
         records.append({"path": layer.identifier, "kind": "canonical_usda",
                         "sha256": hashlib.sha256(layer.ExportToString().encode()).hexdigest()})
@@ -172,9 +195,10 @@ def usd_asset_identity(uri):
         records.append({"path": asset, "kind": "bytes",
                         "sha256": hashlib.sha256(bytes(content)).hexdigest()})
     records.sort(key=lambda x: x["path"])
-    return {"uri": uri, "hash_method": "sorted resolved USD layer text and external asset bytes",
+    return {"uri": uri, "hash_method": "sorted resolved USD layer text, external asset and direct Kit MDL bytes",
             "asset_tree_sha256": hashlib.sha256(json.dumps(records, sort_keys=True).encode()).hexdigest(),
-            "dependencies": records, "missing_dependencies": []}
+            "dependencies": records, "missing_dependencies": [],
+            "usd_resolver_unresolved_paths": list(unresolved), "builtin_mdl_resolutions": builtins}
 
 
 def configs(args):

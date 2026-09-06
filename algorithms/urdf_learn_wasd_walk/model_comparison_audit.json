@@ -2,10 +2,26 @@
   "schema_version": 1,
   "milestone": "stand_30s_no_reset",
   "purpose": "G1 control diagnostic, not a Landau milestone",
-  "status": "source_audited_host_baseline_pending",
+  "status": "official_smoke_failed_before_training_builtin_mdl_audit_retry_pending",
+  "dependency_audit_experiment": {
+    "prior_experiment": "official_smoke_20260906",
+    "prior_failure_stage": "official_configuration_and_asset_dependencies",
+    "prior_console_sha256": "5ba1f9745e02bfb82038286b75ef98de40f23743d530b64c24c1c4f5d62b9104",
+    "prior_checkpoint": null,
+    "next_experiment": "mdl_builtin_audit_smoke_20260906",
+    "single_factor": "resolve exact bare OmniPBR.mdl against installed Kit core library and hash it",
+    "hypothesis": "USD dependency enumeration misses a renderer-provided core MDL module; this is not missing G1 robot geometry",
+    "bounded_test": "same official G1 64-env x 2-iteration train, then 500-step evaluation, serial only",
+    "installed_module": "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/mdl/core/Base/OmniPBR.mdl",
+    "installed_module_sha256": "685a82c18b381f1cd29831490e4c356e61dbeac2d86803babc115cd6a4a845db",
+    "unknown_missing_dependencies": "remain fatal",
+    "landau_ledger_unchanged_sha256": "489f6f8941e4fbe9dac6f03a3e5459778c2be081accb2c764b1dcb7a1bc00454"
+  },
   "references": [
     "https://github.com/unitreerobotics/unitree_rl_lab",
-    "https://isaac-sim.github.io/IsaacLab/v2.0.0/source/overview/environments.html"
+    "https://isaac-sim.github.io/IsaacLab/v2.0.0/source/overview/environments.html",
+    "https://docs.omniverse.nvidia.com/kit/docs/usd_resolver/latest/docs/resolver-details.html",
+    "https://docs.omniverse.nvidia.com/kit/docs/omni.kit.material.library/1.5.11/Overview.html"
   ],
   "installed_sources": [
     {
