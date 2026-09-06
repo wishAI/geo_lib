@@ -274,7 +274,7 @@ def build_evolution(
         contract = training.get("requested_contract", {})
         approach = contract.get("training_method") or contract.get("algorithm") or "training run"
         run_name = training_path.parent.name
-        label = "Policy stand · passed" if milestone == "stand_30s_no_reset" else run_name.replace("_", " ")
+        label = f"Policy stand · {status}" if milestone == "stand_30s_no_reset" else run_name.replace("_", " ")
         if is_invalidated:
             label = f"Old mesh · {label}"
         artifacts = [_artifact(training_path, node_id)]
@@ -320,6 +320,34 @@ def build_evolution(
         }
         nodes = [item for item in nodes if item["id"] != node_id]
         nodes.append(node)
+
+    # A constructor/settling crash precedes training.json. Preserve that failed
+    # experiment without inventing a checkpoint, metrics, or a milestone pass.
+    for path in sorted(output_root.rglob("*_failure.json")) if output_root.exists() else []:
+        failure = _read_json(path)
+        if (failure is None or failure.get("lineage") not in accepted_lineages
+                or failure.get("milestone") != "stand_30s_no_reset"
+                or failure.get("status") != "failed_to_execute"):
+            continue
+        failure_lineage = failure["lineage"]
+        is_invalidated = failure_lineage in invalidated_by_lineage
+        node_id = f"failure:{_relative(path)}"
+        stage = str(failure.get("runtime_stage", "unknown"))
+        error = failure.get("exception", {})
+        result = f"{stage}: {error.get('type', 'error')}: {error.get('message', '')}"
+        nodes.append({
+            "id": node_id,
+            "parentIds": [invalidated_root_ids[failure_lineage] if is_invalidated
+                          else "milestone:stand_zero_signal_30s_no_reset"],
+            "label": "Policy stand · execution failed",
+            "step": len(nodes), "status": "failed", "kind": "experiment",
+            "milestoneId": "stand_30s_no_reset", "lineage": failure_lineage,
+            "approach": failure.get("initialization_protocol", {}).get("method", "policy stand"),
+            "result": f"invalidated asset lineage; {result}" if is_invalidated else result,
+            "metrics": {}, "startedAt": failure.get("run_identity"),
+            "sourceRevision": failure.get("source_commit"),
+            "artifacts": [_artifact(path, node_id)], "important": True,
+        })
 
     probes = []
     for probe_path in sorted(output_root.rglob("reference_probe.json")) if output_root.exists() else []:

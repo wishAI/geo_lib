@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import math
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -36,6 +39,27 @@ def tensor(values):
 
 
 class PolicyInitializationTests(unittest.TestCase):
+    def test_early_failure_preserves_identity_without_claiming_runtime_validation(self):
+        from algorithms.urdf_learn_wasd_walk import policy_stand
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            args = SimpleNamespace(output_dir=root, mode="train", smoke=False,
+                                   runtime_stage="fixed_root_gravity_settling")
+            with patch.object(policy_stand.contract, "safe_output_dir", return_value=root), \
+                 patch.object(policy_stand, "REPO_BOOTSTRAP_ROOT", root), \
+                 patch.object(policy_stand, "_source_commit", return_value="test-commit"):
+                policy_stand._write_failure(args, ValueError("unsettled joint"), "test traceback")
+            failure = json.loads((root / "train_failure.json").read_text())
+            self.assertEqual(failure["lineage"], policy_stand.contract.LINEAGE)
+            self.assertFalse(failure["gate_eligible"])
+            self.assertFalse(failure["input"]["identity_is_runtime_verified"])
+            self.assertEqual(failure["input"]["expected_mesh_tree_sha256"], model_spec.EXPECTED_MESH_TREE_SHA256)
+            self.assertEqual(failure["initialization_protocol"], init.protocol())
+            self.assertEqual(failure["runtime_stage"], args.runtime_stage)
+            self.assertNotIn("checkpoint", failure)
+            self.assertEqual((root / "train_traceback.log").read_text(), "test traceback")
+
     def test_missing_old_or_partial_initialization_cannot_authorize_checkpoint(self):
         prior, source = {"sha256": "parent"}, {"mesh_tree_sha256": "current"}
         report = {**init.protocol(), "status": "initialized_not_validated",

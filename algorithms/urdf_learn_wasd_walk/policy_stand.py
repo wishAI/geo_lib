@@ -110,7 +110,11 @@ def _write_failure(args, error: Exception, traceback_text: str) -> None:
     payload = {
         "schema_version": 1,
         "milestone": contract.MILESTONE_ID,
+        "lineage": contract.LINEAGE,
         "status": "failed_to_execute",
+        "gate_eligible": False,
+        "initialization_protocol": initialization.protocol(),
+        "source_commit": _source_commit(),
         "mode": args.mode,
         "runtime_stage": getattr(args, "runtime_stage", "unknown"),
         "run_identity": _timestamp(),
@@ -123,6 +127,8 @@ def _write_failure(args, error: Exception, traceback_text: str) -> None:
         "traceback_sha256": contract.sha256(trace_path),
         "input": {
             "urdf_sha256": model_spec.EXPECTED_URDF_SHA256,
+            "expected_mesh_tree_sha256": model_spec.EXPECTED_MESH_TREE_SHA256,
+            "identity_is_runtime_verified": False,
             "robot_spec_sha256": contract.sha256(model_spec.ROBOT_SPEC_PATH),
         },
         "argv": list(sys.argv),
