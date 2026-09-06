@@ -156,6 +156,7 @@ class Job:
     command: list[str]
     resource: str | None
     artifacts: list[dict]
+    preserve_runtime: bool = False
     status: str = "queued"
     createdAt: str = field(default_factory=utc_now)
     startedAt: str | None = None
@@ -220,6 +221,7 @@ class JobManager:
                 id=uuid.uuid4().hex[:12], sandbox=sandbox, example=example_id,
                 target=chosen_target, command=command, resource=resource,
                 artifacts=list(example.get("artifacts", [])),
+                preserve_runtime=example.get("sourceSync") == "preserve-runtime",
             )
             self.jobs[job.id] = job
         threading.Thread(target=self._run, args=(job,), daemon=True).start()
@@ -269,9 +271,11 @@ class JobManager:
             job.status = "running"
             job.startedAt = utc_now()
         if job.target == "tk2":
-            self._append(job, f"$ sync Mac source → {REMOTE_HOST}:{REMOTE_ROOT}\n")
+            self._append(job, ("$ use predeployed authoritative runtime\n" if job.preserve_runtime
+                               else f"$ sync Mac source → {REMOTE_HOST}:{REMOTE_ROOT}\n"))
             try:
-                synced = storage.sync_source_tk2(remote=REMOTE_HOST)
+                synced = ({"ok": True, "output": "Preserving authoritative runtime; source sync disabled by manifest.\n"}
+                          if job.preserve_runtime else storage.sync_source_tk2(remote=REMOTE_HOST))
             except Exception as error:  # noqa: BLE001
                 self._append(job, f"Source sync failed: {error}\n")
                 with self.lock:

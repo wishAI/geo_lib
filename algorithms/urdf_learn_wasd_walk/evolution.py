@@ -467,6 +467,52 @@ def build_evolution(
         })
         diagnostic_step += 1
 
+    # Cross-model controls are independent roots, never Landau gate evidence.
+    comparison_root = output_root / "model_comparison"
+    for path in sorted(comparison_root.glob("*/*/training.json")):
+        training = _read_json(path)
+        if (training is None or training.get("model") not in {"unitree_g1", "landau_current"}
+                or training.get("protocol") != "installed_manager_rsl_rl_comparison_v1"
+                or training.get("landau_gate_eligible") is not False):
+            continue
+        model = training["model"]
+        if path.parent.parent.name != model:
+            continue
+        node_id = f"comparison:{model}:{path.parent.name}"
+        evaluation_path = path.parent / "evaluation.json"
+        evaluation = _read_json(evaluation_path)
+        valid_evaluation = (evaluation and evaluation.get("model") == model
+                            and evaluation.get("lineage") == training.get("lineage")
+                            and evaluation.get("checkpoint") == training.get("checkpoint")
+                            and evaluation.get("asset") == training.get("asset"))
+        result = evaluation if valid_evaluation else training
+        assets = training.get("asset", {})
+        nodes.append({
+            "id": node_id, "parentIds": [], "label": f"{model} · M2 control diagnostic",
+            "kind": "experiment", "step": len(nodes), "model": model,
+            "lineage": training["lineage"], "status": "failed" if result.get("status") == "failed" else "completed",
+            "approach": training["task"], "result": result.get("status", "unknown") + "; not Landau gate evidence",
+            "metrics": result.get("metrics", {}), "important": True,
+            "assetTreeSha256": assets.get("asset_tree_sha256") or assets.get("mesh_tree_sha256"),
+            "checkpointSha256": training.get("checkpoint", {}).get("sha256"),
+            "artifacts": [_artifact(path, node_id)] + ([_artifact(evaluation_path, node_id)] if valid_evaluation else []),
+        })
+
+    for path in sorted(comparison_root.glob("*/*/*_failure.json")):
+        failure = _read_json(path)
+        if (not failure or failure.get("model") != path.parent.parent.name
+                or failure.get("model") not in {"unitree_g1", "landau_current"}
+                or failure.get("protocol") != "installed_manager_rsl_rl_comparison_v1"
+                or failure.get("landau_gate_eligible") is not False):
+            continue
+        node_id = f"comparison-failure:{failure['model']}:{path.parent.name}:{path.stem}"
+        nodes.append({"id": node_id, "parentIds": [], "label": f"{failure['model']} · execution failure",
+                      "kind": "experiment", "step": len(nodes), "model": failure["model"],
+                      "lineage": failure["lineage"], "status": "failed", "important": True,
+                      "result": str(failure.get("exception", "failed before evidence")),
+                      "approach": failure.get("runtime_stage", "initialization"), "metrics": {},
+                      "artifacts": [_artifact(path, node_id)]})
+
     child_count = {item["id"]: 0 for item in nodes}
     for node in nodes:
         for parent_id in node.get("parentIds", []):

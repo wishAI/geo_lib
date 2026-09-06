@@ -79,7 +79,7 @@
     queueMicrotask(() => document.querySelectorAll('[data-evolution-artifact]').forEach(button => button.addEventListener('click', () => onPreview(button.dataset.evolutionArtifact, button.dataset.kind))));
     return `<div class="evolution-properties">
       <div class="evolution-node-heading"><span class="evolution-status ${escapeHtml(node.status)}">${escapeHtml(node.status)}</span><p>${escapeHtml(node.kind)} · step ${escapeHtml(node.step)}</p><h3>${escapeHtml(node.label)}</h3></div>
-      <dl><div><dt>Observed result</dt><dd>${escapeHtml(node.result || 'No result recorded')}</dd></div><div><dt>Approach</dt><dd>${escapeHtml(node.approach || 'Not recorded')}</dd></div><div><dt>Parent</dt><dd>${escapeHtml(parentLabels)}</dd></div><div><dt>Source revision</dt><dd><code>${escapeHtml(node.sourceRevision || 'not recorded')}</code></dd></div></dl>
+      <dl><div><dt>Observed result</dt><dd>${escapeHtml(node.result || 'No result recorded')}</dd></div><div><dt>Model / asset hash</dt><dd>${escapeHtml(node.model || 'Landau')} · <code>${escapeHtml(node.assetTreeSha256 || node.meshTreeSha256 || 'see validation artifact')}</code></dd></div><div><dt>Approach</dt><dd>${escapeHtml(node.approach || 'Not recorded')}</dd></div><div><dt>Parent</dt><dd>${escapeHtml(parentLabels)}</dd></div><div><dt>Source revision</dt><dd><code>${escapeHtml(node.sourceRevision || 'not recorded')}</code></dd></div></dl>
       ${checkpoint}
       <section><h4>Observed metrics</h4><div class="evolution-metrics">${metrics || `<div><span>${escapeHtml(primaryMetric)}</span><b>—</b></div>`}</div></section>
       <section><h4>Artifacts</h4><div class="evolution-artifacts">${artifactRows || '<p>No artifacts recorded for this node.</p>'}</div></section>

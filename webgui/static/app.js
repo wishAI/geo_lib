@@ -115,7 +115,7 @@
       const attributes = `data-parameter="${escapeHtml(parameter.id)}"`;
       const label = `<label for="param-${escapeHtml(example.id)}-${escapeHtml(parameter.id)}">${escapeHtml(parameter.label || parameter.id)}</label>`;
       if (parameter.type === 'select') {
-        return `<div class="field">${label}<select id="param-${escapeHtml(example.id)}-${escapeHtml(parameter.id)}" ${attributes}>${parameter.choices.map(choice => `<option value="${escapeHtml(choice)}" ${String(choice) === String(parameter.default) ? 'selected' : ''}>${escapeHtml(choice)}</option>`).join('')}</select></div>`;
+        return `<div class="field">${label}<select id="param-${escapeHtml(example.id)}-${escapeHtml(parameter.id)}" ${attributes}>${parameter.choices.map(choice => `<option value="${escapeHtml(choice)}" data-detail="${escapeHtml(parameter.choiceDetails?.[choice] || '')}" ${String(choice) === String(parameter.default) ? 'selected' : ''}>${escapeHtml(parameter.choiceLabels?.[choice] || choice)}</option>`).join('')}</select><small data-choice-detail>${escapeHtml(parameter.choiceDetails?.[parameter.default] || '')}</small></div>`;
       }
       return `<div class="field">${label}<input id="param-${escapeHtml(example.id)}-${escapeHtml(parameter.id)}" ${attributes} type="${parameter.type === 'number' || parameter.type === 'integer' ? 'number' : 'text'}" value="${escapeHtml(parameter.default ?? '')}" ${parameter.min != null ? `min="${escapeHtml(parameter.min)}"` : ''} ${parameter.max != null ? `max="${escapeHtml(parameter.max)}"` : ''} ${parameter.step != null ? `step="${escapeHtml(parameter.step)}"` : ''}></div>`;
     }).join('');
@@ -222,6 +222,10 @@
   }
 
   function bindSandbox(sandbox) {
+    document.querySelectorAll('select[data-parameter]').forEach(select => select.addEventListener('change', () => {
+      const detail = select.closest('.field')?.querySelector('[data-choice-detail]');
+      if (detail) detail.textContent = select.selectedOptions[0]?.dataset.detail || '';
+    }));
     document.querySelectorAll('[data-run]').forEach(button => button.addEventListener('click', async () => {
       const card = button.closest('[data-example]');
       const exampleId = card.dataset.example;

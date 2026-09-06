@@ -3,11 +3,32 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from webgui import server, storage
 
 
 class ManifestTests(unittest.TestCase):
+    def test_model_selector_is_allowlisted_and_preserves_authoritative_runtime(self):
+        manifest = server.manifest_map()["urdf_learn_wasd_walk"]
+        example = next(e for e in manifest["examples"] if e["id"] == "comparison_train")
+        for model in ("unitree_g1", "landau_current"):
+            command = server.build_example_command(manifest, example, {"model": model}, "tk2")
+            self.assertEqual(command[command.index("--model") + 1], model)
+        with self.assertRaises(ValueError):
+            server.build_example_command(manifest, example, {"model": "../other"}, "tk2")
+        manager = server.JobManager()
+        with patch("webgui.server.threading.Thread.start"):
+            job = manager.start_example(manifest["id"], example["id"], "tk2", {"model": "unitree_g1"})
+        job = manager.get(job["id"])
+        self.assertTrue(job.preserve_runtime)
+        with patch("webgui.server.storage.sync_source_tk2") as sync, \
+             patch("webgui.server.subprocess.Popen", side_effect=OSError("test: no external process")):
+            manager._run(job)
+            sync.assert_not_called()
+        self.assertEqual(job.status, "failed")
+        self.assertTrue(all(not a["path"].endswith(".pt") for a in job.artifacts))
+
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
         icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest"}
@@ -57,24 +78,25 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(len(payload["milestones"]), 12)
         self.assertEqual(payload["milestones"][0]["status"], "in_progress")
         self.assertEqual({item["status"] for item in payload["milestones"][1:]}, {"not_started"})
-        self.assertEqual(payload["assetContract"]["meshTreeSha256"], "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435")
-        self.assertEqual(payload["invalidatedLineage"]["meshTreeSha256"], "e912ac2e7fcc16a52d726ef410c2b0eb860727d033e07b1728d63a3f906d4da0")
+        self.assertEqual(payload["assetContract"]["meshTreeSha256"], "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73")
+        self.assertEqual(payload["invalidatedLineage"]["meshTreeSha256"], "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435")
         self.assertFalse(payload["historyCarriedForward"])
         manifest = server.manifest_map()["urdf_learn_wasd_walk"]
         self.assertEqual(
-            [example["id"] for example in manifest["examples"]],
+            [example["id"] for example in manifest["examples"] if not example["id"].startswith("comparison_")],
             [
                 "validate_passive_stand", "train_policy_stand", "validate_policy_stand",
                 "train_forward_walk", "validate_forward_walk",
             ],
         )
-        example = manifest["examples"][0]
+        examples = [e for e in manifest["examples"] if not e["id"].startswith("comparison_")]
+        example = examples[0]
         self.assertEqual(example["command"][:3], ["./geo", "walk", "validate-passive"])
         self.assertEqual({artifact["kind"] for artifact in example["artifacts"]}, {"json", "video", "image"})
-        policy_validation = manifest["examples"][2]
+        policy_validation = examples[2]
         self.assertEqual(policy_validation["command"][:3], ["./geo", "walk", "validate-policy-stand"])
         self.assertIn("video", {artifact["kind"] for artifact in policy_validation["artifacts"]})
-        forward_validation = manifest["examples"][4]
+        forward_validation = examples[4]
         self.assertEqual(
             forward_validation["command"][:3], ["./geo", "walk", "validate-forward-walk"]
         )
