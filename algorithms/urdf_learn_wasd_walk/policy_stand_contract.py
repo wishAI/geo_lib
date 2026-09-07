@@ -163,10 +163,13 @@ def evaluate_policy_gate(metrics: dict, *, required_duration_s: float = MIN_GATE
     return failures
 
 
-def load_prior_gate() -> dict:
+def load_prior_gate(
+    *, milestones_path: Path | None = None, repo_root: Path | None = None,
+) -> dict:
     """Load and hash-check the exact passed gate-1 evidence declared in milestones."""
 
-    milestones_path = model_spec.ALGORITHM_ROOT / "milestones.json"
+    milestones_path = milestones_path or model_spec.ALGORITHM_ROOT / "milestones.json"
+    repo_root = repo_root or model_spec.ALGORITHM_ROOT.parent.parent
     milestones = json.loads(milestones_path.read_text(encoding="utf-8"))
     prior = next((item for item in milestones["milestones"] if item["id"] == PRIOR_MILESTONE_ID), None)
     if prior is None or prior.get("status") != "passed":
@@ -176,7 +179,7 @@ def load_prior_gate() -> dict:
     )
     if declaration is None:
         raise ValueError("prior passive gate lacks a declared validation artifact")
-    path = (model_spec.ALGORITHM_ROOT.parent.parent / declaration["path"]).resolve()
+    path = (repo_root / declaration["path"]).resolve()
     if not path.is_file() or sha256(path) != declaration["sha256"]:
         raise ValueError("prior passive validation is absent or differs from its declared hash")
     evidence = json.loads(path.read_text(encoding="utf-8"))

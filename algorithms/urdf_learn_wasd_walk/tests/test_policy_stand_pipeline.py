@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand
 from algorithms.urdf_learn_wasd_walk import policy_stand_contract as contract
@@ -69,7 +70,23 @@ class PolicyStandPipelineTests(unittest.TestCase):
                 "peak_support_force_body_weight_ratio": 1.2,
                 "mean_support_force_body_weight_ratio": 1.0,
             }
-            prior = contract.load_prior_gate()
+            prior_milestone = next(
+                item for item in ledger["milestones"]
+                if item["id"] == contract.PRIOR_MILESTONE_ID
+            )
+            prior_declaration = next(
+                item for item in prior_milestone["evidence"]
+                if item["kind"] == "validation"
+            )
+            prior = {
+                "order": 1,
+                "id": contract.PRIOR_MILESTONE_ID,
+                "status": "passed",
+                "path": prior_declaration["path"],
+                "sha256": prior_declaration["sha256"],
+                "checkpoint": prior_milestone["checkpoint"],
+                "urdf_sha256": model_spec.EXPECTED_URDF_SHA256,
+            }
             checkpoint_record = training["checkpoint"]
             shared = {
                 "schema_version": 1, "milestone": contract.MILESTONE_ID,
@@ -111,7 +128,8 @@ class PolicyStandPipelineTests(unittest.TestCase):
             (output / contract.component_artifact_name("proof")).write_text(
                 json.dumps(proof), encoding="utf-8"
             )
-            final = pipeline.finalize(output)
+            with mock.patch.object(contract, "load_prior_gate", return_value=prior):
+                final = pipeline.finalize(output)
             self.assertEqual(final["status"], "passed")
             self.assertEqual([item["status"] for item in final["cumulative_gates"]], ["passed", "passed"])
             self.assertEqual(final["checkpoint"]["sha256"], contract.sha256(checkpoint))

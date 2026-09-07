@@ -40,6 +40,12 @@ MIN_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO = 0.5
 MAX_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO = 1.5
 
 
+def uses_derived_static_pose(args) -> bool:
+    """Use the promoted equilibrium pose except for the isolated authority probe."""
+
+    return not bool(getattr(args, "authority_probe", False))
+
+
 def safe_output_dir(path: Path) -> Path:
     resolved = path.expanduser().resolve()
     try:
@@ -703,13 +709,14 @@ def _run(args, simulation_app) -> dict:
         for group in configured_groups.values()
         for name in group["joints"]
     }
+    use_static_pose = uses_derived_static_pose(args)
     static_pose_seed = None
     initial_joint_positions = robot.data.default_joint_pos.clone()
     targets = robot.data.default_joint_pos.clone()
     for index, name in enumerate(robot.joint_names):
         targets[0, index] = float(contract["nominal_pose"]["joint_position_targets_rad"][name])
     initial_root_state = robot.data.default_root_state.clone()
-    if args.static_pose_probe:
+    if use_static_pose:
         static_pose_seed = model_spec.derive_static_pose()
         for index, name in enumerate(robot.joint_names):
             desired = float(static_pose_seed["joint_positions_rad"].get(name, 0.0))
@@ -807,7 +814,7 @@ def _run(args, simulation_app) -> dict:
         frame_dir = Path(frame_context.name)
 
     static_pose_derivation = None
-    if args.static_pose_probe:
+    if use_static_pose:
         _set_runtime_stage(args, "fixed_root_gravity_settling")
         settle_window_steps = min(args.settle_steps, max(1, round(0.5 / SIM_DT)))
         position_sum = torch.zeros_like(targets[0])
@@ -1338,9 +1345,10 @@ def _run(args, simulation_app) -> dict:
             }
         elif args.smoke:
             experiment = {
-                "id": "canonical_settled_pose_free_root_smoke",
+                "id": "promoted_static_pose_free_root_smoke",
                 "diagnostic_only": True,
                 "duration_s": metrics["duration_s"],
+                "control_configuration": "gravity_static_pose_release_v1",
                 "nominal_pose_provenance": contract["nominal_pose"]["provenance"],
                 "result_supports_longer_validation": passed,
                 "next_duration_s": 30.0 if metrics["duration_s"] >= 10.0 and passed else None,
@@ -1363,7 +1371,7 @@ def _run(args, simulation_app) -> dict:
                 "kind": (
                     "derived_static_pose_diagnostic"
                     if args.static_pose_probe
-                    else "passive_pd_configuration"
+                    else "derived_static_pose_passive_pd_configuration"
                 ),
                 "identity": f"robot_spec_sha256:{_sha256(model_spec.ROBOT_SPEC_PATH)}",
                 "policy_checkpoint": None,
@@ -1376,7 +1384,7 @@ def _run(args, simulation_app) -> dict:
                 "solver_position_iterations": 8, "solver_velocity_iterations": 4,
                 "single_process": True, "num_envs": 1, "rendering_enabled": args.phase == "proof",
                 "camera_sensor_created": False, "usd_cache_reused": args.phase == "proof" or args.reuse_usd_cache,
-                "fixed_root_settling_steps": args.settle_steps if args.static_pose_probe else 0,
+                "fixed_root_settling_steps": args.settle_steps if use_static_pose else 0,
                 "free_root_validation_steps": steps,
             },
             "input": contract["source"],

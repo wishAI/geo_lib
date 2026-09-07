@@ -1,7 +1,7 @@
 {
   "version": 1,
   "lineage": "rabbit_ear_parallel_mesh_recertification_2026_09_05",
-  "implementationStatus": "asset_recertification_milestone_1_in_progress",
+  "implementationStatus": "milestone_1_passed_milestone_2_in_progress",
   "historyCarriedForward": false,
   "assetContract": {
     "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
@@ -38,52 +38,51 @@
       "order": 1,
       "id": "stand_zero_signal_30s_no_reset",
       "stage": "stand",
-      "status": "in_progress",
-      "previousStatus": "passed_on_invalidated_mesh_tree",
-      "previousPassedAt": "20260905T042108.482248Z",
-      "previousCheckpoint": {
-        "identity": "robot_spec_sha256:50560b07e65b681a2e63fd406f0f9d575caa4d19e29477607f4072eeb9ade347",
-        "kind": "passive_pd_configuration",
+      "status": "passed",
+      "passedAt": "20260906T040937.552748Z",
+      "checkpoint": {
+        "identity": "robot_spec_sha256:c1add53ff396a73e8d052dba4811f310f54ee73fd82364c401f17cb0620b330a",
+        "kind": "derived_static_pose_passive_pd_configuration",
         "policy_checkpoint": null
       },
       "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
       "meshTreeSha256": "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73",
       "seed": 42,
-      "previousMetrics": {
+      "metrics": {
         "duration_s": 30.0,
         "reset_count": 0,
         "done_count": 0,
         "fall_count": 0,
-        "max_reference_tilt_rad": 0.11111805,
-        "root_height_drop_m": 0.00498825,
-        "horizontal_drift_m": 0.02794437,
-        "minimum_support_polygon_margin_m": 0.02829785
+        "max_reference_tilt_rad": 0.15107966,
+        "root_height_drop_m": 0.0032107,
+        "horizontal_drift_m": 0.01844052,
+        "minimum_support_polygon_margin_m": 0.00694931
       },
-      "previousEvidence": [
+      "evidence": [
         {
           "kind": "validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json",
-          "sha256": "e6e32ea68c58d732361e3ab49aca69a34a5525d0c5fad83b43aca38fd19a8466"
+          "sha256": "e78ac85460c17900a1ee3b781774a31466900c14a9e806869064c61fc54a80c0"
         },
         {
           "kind": "dynamics_validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json",
-          "sha256": "1598b7742e723916987936507e0f36e9421bf9382658037cf888152a185c0772"
+          "sha256": "77d38a1f2e698fdeb4b14a17b918d41bea53be5fc12e976336e756454b88a8ee"
         },
         {
           "kind": "proof_validation",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json",
-          "sha256": "b859bc8030e3f56dc742814bd6e9c35112aa66ddaca3cfa43f0155476b41d792"
+          "sha256": "876bcaad4284d3d69989f2bf024099af545c8e1c38c1dd1713b3d60e608b539b"
         },
         {
           "kind": "video",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4",
-          "sha256": "a04fcc4190cb2dab1b9586e9781fd921064414a2569653339e327667363675d6"
+          "sha256": "e8d78b721750d68334aa1024d5c3de84a3a5d68f785a0c237e7d4a95e14047c9"
         },
         {
           "kind": "contact_sheet",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
-          "sha256": "5239648d83476d12a148a243e91cfaf3656e407e9b700afb1daa0e8c00957f8b"
+          "sha256": "0f6c6e7259f7adc59e46b7cce7129dcf215c4ec6172d44d5ea77b12bdc94768e"
         }
       ]
     },
@@ -91,67 +90,7 @@
       "order": 2,
       "id": "stand_30s_no_reset",
       "stage": "stand",
-      "status": "not_started",
-      "previousStatus": "passed_on_invalidated_mesh_tree",
-      "previousPassedAt": "20260905T042954.635795Z",
-      "previousCheckpoint": {
-        "kind": "rsl_rl_ppo",
-        "learning_iteration": 1,
-        "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt",
-        "run_checkpoint_path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/runs/20260905T042419.220505Z/model_1.pt",
-        "sha256": "909578654e531588c1fac16297ffab15678bccb0c4a4a35065f45cc825efa5ce",
-        "size_bytes": 627002
-      },
-      "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
-      "meshTreeSha256": "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73",
-      "seed": 42,
-      "previousMetrics": {
-        "duration_s": 30.0,
-        "reset_count": 0,
-        "done_count": 0,
-        "fall_count": 0,
-        "max_reference_tilt_rad": 0.06663644,
-        "root_height_drop_m": 0.00380743,
-        "horizontal_drift_m": 0.01143593,
-        "minimum_support_polygon_margin_m": 0.03466157
-      },
-      "previousEvidence": [
-        {
-          "kind": "validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/validation.json",
-          "sha256": "7157dddf30c2ef90a617ae9524170a1b899790b7ecd388ae101b10e2992693f0"
-        },
-        {
-          "kind": "training",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json",
-          "sha256": "9cb68e3527e66515cd7b0a503872425cf62d854343bafd89909644761f5f868f"
-        },
-        {
-          "kind": "dynamics_validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/dynamics_validation.json",
-          "sha256": "a1bdb1417a7d7ed804f189cab1887bb8c77508c110aeac35f674deffa092fcdb"
-        },
-        {
-          "kind": "proof_validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof_validation.json",
-          "sha256": "4e79d1223c8cd2e127d6cc3179ecf93633312c7d7f694648cea63b162d50d5bc"
-        },
-        {
-          "kind": "checkpoint",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/checkpoint.pt",
-          "sha256": "909578654e531588c1fac16297ffab15678bccb0c4a4a35065f45cc825efa5ce"
-        },
-        {
-          "kind": "video",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/proof.mp4",
-          "sha256": "a6506a431bc325a94bb0d6bc27e6a7fcc03c52731d0799b036041540bfee2ac9"
-        },
-        {
-          "kind": "contact_sheet",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
-          "sha256": "a2000173019362458371e58184a126286188bdd3a6379de0db4b8dd09e158fd8"
-        }
-      ]
+      "status": "in_progress"
     },
     {
       "order": 3,

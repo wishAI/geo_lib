@@ -20,7 +20,7 @@ Current clean implementation:
 - `model_spec.py` audits the exact retained URDF, inertia, collision package, root transform, limits, and zero-pose joint axes.
 - The 68 STL files under `inputs/landau_v10/mesh_collision_stl/` are versioned source assets because the URDF uses them for both visual and collision geometry. The audit fails closed unless their tree hash matches the repository `usd_parallel_urdf` package (8,864 triangles, including the rabbit-ear head silhouette).
 - `robot_spec.json` records the 17 action joints, every explicitly locked joint, nominal pose, PD gains, and Landau's body-`+Y` semantic command mapping.
-- `passive_stand.py` implements only milestone 1 as two independent Isaac components: camera-free passive dynamics and a viewport-rendered proof replay.
+- `passive_stand.py` implements only milestone 1 as two independent Isaac components: camera-free passive dynamics and a viewport-rendered proof replay. The 5 s `gravity_static_pose_release_v1` candidate is promoted as the shared dynamics/proof control configuration; exact validation changes only the free-root duration to 30 s.
 - `passive_pipeline.py` runs those components sequentially and creates final milestone evidence only when both pass.
 - The repository 68-mesh visual/collision package is being re-certified from milestone 1.
   Earlier stand checkpoints and evidence live only under invalidated mesh-tree branches and

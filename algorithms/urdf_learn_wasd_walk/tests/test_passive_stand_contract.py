@@ -87,6 +87,11 @@ class PassiveStandContractTests(unittest.TestCase):
         self.assertIn('"hands_and_fingers_use_baseline_locked_pd": True', source)
         self.assertIn('"high_authority_profile_used": False', source)
 
+    def test_promoted_gate_and_proof_use_the_derived_static_pose(self) -> None:
+        self.assertTrue(passive_stand.uses_derived_static_pose(SimpleNamespace(authority_probe=False)))
+        self.assertTrue(passive_stand.uses_derived_static_pose(SimpleNamespace()))
+        self.assertFalse(passive_stand.uses_derived_static_pose(SimpleNamespace(authority_probe=True)))
+
     def test_finger_limit_tolerance_at_within_and_beyond_boundary(self) -> None:
         tolerance = model_spec.DERIVED_POSE_FINGER_LIMIT_TOLERANCE_RAD
         finger = "left_index_proximal_joint"

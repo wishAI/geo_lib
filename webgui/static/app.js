@@ -175,8 +175,16 @@
       cursor = byId.get(cursor.parentIds?.[0]);
     }
     const visible = branch.reverse().slice(-4);
-    const nodeMarkup = visible.map(node => `<button class="evolution-preview-node ${escapeHtml(node.status || '')}${node.id === current?.id ? ' current' : ''}" type="button" data-open-workbench="evolution"><i aria-hidden="true"></i><span><small>${escapeHtml(node.kind || 'checkpoint')}</small><b>${escapeHtml(node.label || node.id)}</b></span><em>${escapeHtml(node.status || 'unknown')}</em></button>`).join('<span class="evolution-preview-edge" aria-hidden="true"></span>');
-    return `<div class="evolution-preview-summary"><div><span>Lineage</span><b>${escapeHtml(data?.lineage || 'unknown')}</b></div><div><span>Current</span><b>${escapeHtml(current?.label || 'No current node')}</b></div><div><span>Recorded</span><b>${all.length} nodes · ${Number(data?.summary?.failedCount || 0)} rejected</b></div></div><div class="evolution-preview-branch" aria-label="Current checkpoint ancestry">${nodeMarkup || '<p>No lineage nodes recorded.</p>'}</div>`;
+    const progress = node => {
+      const value = node?.trainingProgress || {};
+      if (value.kind === 'training') return `iter ${value.completedIterations ?? '—'}/${value.requestedIterations ?? '—'} · ${Number(value.sampleCount || 0).toLocaleString()} samples`;
+      if (value.kind === 'diagnostic') return `${Number(value.physicsSteps || value.controlSteps || 0).toLocaleString()} steps · ${value.durationSeconds ?? '—'} s`;
+      if (value.kind === 'merged') return `${value.runCount || node.collapsedCount || 0} runs merged`;
+      return node?.status || 'unknown';
+    };
+    const nodeMarkup = visible.map(node => `<button class="evolution-preview-node ${escapeHtml(node.status || '')}${node.id === current?.id ? ' current' : ''}" type="button" data-open-workbench="evolution"><i aria-hidden="true"></i><span><small>${escapeHtml(node.kind || 'checkpoint')}</small><b>${escapeHtml(node.label || node.id)}</b></span><em>${escapeHtml(progress(node))}</em></button>`).join('<span class="evolution-preview-edge" aria-hidden="true"></span>');
+    const overviewCount = Number(data?.summary?.overviewNodeCount || data?.overviewNodes?.length || all.length);
+    return `<div class="evolution-preview-summary"><div><span>Current change</span><b>${escapeHtml(current?.changeSummary || current?.approach || 'No change recorded')}</b></div><div><span>Current result</span><b>${escapeHtml(current?.result || current?.label || 'No current node')}</b></div><div><span>Smart overview</span><b>${overviewCount} visible · ${all.length} recorded</b></div></div><div class="evolution-preview-branch" aria-label="Current checkpoint ancestry">${nodeMarkup || '<p>No lineage nodes recorded.</p>'}</div>`;
   }
 
   async function loadEvolutionPreview(sandbox) {

@@ -33,8 +33,15 @@ class EvolutionTests(unittest.TestCase):
             branch.joinpath("training.json").write_text(json.dumps({
                 "lineage": "clean_restart_2026_08_22", "milestone": "gate_5m_no_reset",
                 "run_identity": "phase-run", "status": "completed_not_promoted",
-                "requested_contract": {"training_method": "phase", "initialization": {"sha256": "stand-sha"}},
-                "checkpoint": {"sha256": "phase-sha", "path": "secret/phase.pt", "size_bytes": 20},
+                "requested_contract": {
+                    "training_method": "phase", "initialization": {"sha256": "stand-sha"},
+                    "iterations": 20, "num_envs": 64, "num_steps_per_env": 112,
+                    "sample_count": 143360,
+                },
+                "checkpoint": {
+                    "learning_iteration": 19, "sha256": "phase-sha",
+                    "path": "secret/phase.pt", "size_bytes": 20,
+                },
             }))
             branch.joinpath("forward_dynamics_validation.json").write_text(json.dumps({
                 "status": "passed", "gate_eligible": False,
@@ -64,12 +71,16 @@ class EvolutionTests(unittest.TestCase):
             self.assertEqual(nodes["run:phase-run"]["parentIds"], ["milestone:stand_30s_no_reset"])
             self.assertEqual(nodes["run:phase-run"]["status"], "failed")
             self.assertEqual(nodes["run:phase-run"]["checkpointStorage"]["macHydration"], "online-only")
+            self.assertEqual(nodes["run:phase-run"]["trainingProgress"]["completedIterations"], 20)
+            self.assertEqual(nodes["run:phase-run"]["trainingProgress"]["sampleCount"], 143360)
+            self.assertEqual(nodes["run:phase-run"]["experimentParameters"]["environments"], 64)
             self.assertEqual(nodes["experiment:probe-run"]["parentIds"], ["run:phase-run"])
             self.assertEqual(nodes["experiment:probe-run"]["status"], "failed")
             self.assertEqual(nodes["experiment:probe-run"]["experimentParameters"]["amplitude_scale"], 1.0)
             self.assertEqual(payload["currentNodeId"], "experiment:probe-run")
             self.assertTrue(all(not artifact["path"].endswith(".pt") for node in nodes.values() for artifact in node.get("artifacts", [])))
             self.assertLessEqual(len(payload["defaultVisibleNodeIds"]), 40)
+            self.assertEqual(payload["summary"]["milestoneCount"], 3)
 
     def test_invalidated_asset_lineage_remains_visible_but_is_not_current(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -129,6 +140,40 @@ class EvolutionTests(unittest.TestCase):
             nodes = {item["id"]: item for item in payload["nodes"]}
             self.assertEqual(payload["currentNodeId"], "milestone:gate_5m_no_reset")
             self.assertEqual(nodes["milestone:gate_5m_no_reset"]["status"], "running")
+
+    def test_passive_exact_dynamics_attempt_is_retained_in_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs" / "stand_zero_signal_30s_no_reset" / "attempts" / "gate-1"
+            output.mkdir(parents=True)
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "latest-mesh",
+                "milestones": [
+                    {"id": "stand_zero_signal_30s_no_reset", "status": "in_progress"},
+                    {"id": "stand_30s_no_reset", "status": "not_started"},
+                ],
+            }))
+            output.joinpath("dynamics_validation.json").write_text(json.dumps({
+                "lineage": "latest-mesh",
+                "milestone": "stand_zero_signal_30s_no_reset",
+                "component": "dynamics",
+                "scope": "component_only",
+                "status": "failed",
+                "gate_eligible": True,
+                "run_identity": "20260906T035835Z",
+                "experiment": None,
+                "checkpoint": {"kind": "passive_pd_configuration", "identity": "robot-spec"},
+                "metrics": {"duration_s": 30.0, "reset_count": 0, "done_count": 0, "fall_count": 0},
+                "failures": ["support hull exit"],
+            }))
+            payload = evolution.build_evolution(root / "outputs", ledger)
+            node = {item["id"]: item for item in payload["nodes"]}["experiment:20260906T035835Z"]
+            self.assertEqual(node["kind"], "validation")
+            self.assertEqual(node["label"], "Passive dynamics gate · 30 s")
+            self.assertEqual(node["status"], "failed")
+            self.assertEqual(node["result"], "support hull exit")
+            self.assertEqual(payload["currentNodeId"], node["id"])
 
     def test_multiple_invalidated_meshes_form_auditable_ancestry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -221,7 +266,50 @@ class EvolutionTests(unittest.TestCase):
             self.assertEqual(node["status"], "completed")
             self.assertEqual(node["experimentParameters"]["duration_s"], 5.0)
             self.assertFalse(node["experimentParameters"]["gate_eligible"])
+            self.assertEqual(node["trainingProgress"]["physicsSteps"], 2500)
             self.assertEqual(payload["currentNodeId"], node["id"])
+
+    def test_rejected_siblings_are_merged_in_overview_but_preserved_in_raw_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs"
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "current",
+                "invalidatedLineages": [{"lineage": "old", "reason": "superseded"}],
+                "milestones": [
+                    {"order": 1, "id": "stand_zero_signal_30s_no_reset", "status": "in_progress"},
+                    {"order": 2, "id": "stand_30s_no_reset", "status": "not_started"},
+                    {"order": 3, "id": "gate_5m_no_reset", "status": "not_started"},
+                ],
+            }))
+            for index in range(3):
+                run = output / "gate_5m_no_reset" / f"failed_{index}"
+                run.mkdir(parents=True)
+                run.joinpath("training.json").write_text(json.dumps({
+                    "lineage": "old", "milestone": "gate_5m_no_reset",
+                    "run_identity": f"old-{index}", "status": "completed_not_promoted",
+                    "requested_contract": {"training_method": f"method_{index}", "iterations": 20},
+                    "checkpoint": {
+                        "learning_iteration": 19, "sha256": f"sha-{index}",
+                        "path": f"models/{index}.pt", "size_bytes": 100 + index,
+                    },
+                }))
+                run.joinpath("forward_dynamics_validation.json").write_text(json.dumps({
+                    "status": "failed", "failures": ["no forward progress"], "metrics": {},
+                }))
+
+            payload = evolution.build_evolution(output, ledger)
+            raw_ids = {node["id"] for node in payload["nodes"]}
+            overview = {node["id"]: node for node in payload["overviewNodes"]}
+            group = overview["group:old"]
+            self.assertTrue({"run:old-0", "run:old-1", "run:old-2"}.issubset(raw_ids))
+            self.assertEqual(group["collapsedCount"], 3)
+            self.assertEqual(group["diskBytes"], 303)
+            self.assertEqual(group["checkpointPath"], "models/2.pt")
+            self.assertEqual(group["trainingProgress"]["fromSequence"], 1)
+            self.assertEqual(payload["summary"]["failedGroupCount"], 1)
+            self.assertLess(len(payload["overviewNodes"]), len(payload["nodes"]))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from algorithms.urdf_learn_wasd_walk import model_spec, policy_stand_contract as contract
 
@@ -52,11 +55,48 @@ class PolicyStandContractTests(unittest.TestCase):
         self.assertIn("clip contract", " ".join(contract.evaluate_policy_gate(metrics)))
 
     def test_prior_passive_gate_is_hash_checked(self) -> None:
-        if not _passive_gate_is_current():
-            self.skipTest("latest-mesh passive gate is awaiting re-certification")
-        prior = contract.load_prior_gate()
-        self.assertEqual(prior["status"], "passed")
-        self.assertEqual(prior["urdf_sha256"], model_spec.EXPECTED_URDF_SHA256)
+        checkpoint = {
+            "identity": "robot_spec_sha256:test",
+            "kind": "derived_static_pose_passive_pd_configuration",
+            "policy_checkpoint": None,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            evidence_path = root / "passive_validation.json"
+            evidence_path.write_text(json.dumps({
+                "status": "passed",
+                "milestone": contract.PRIOR_MILESTONE_ID,
+                "input": {
+                    "urdf_sha256": model_spec.EXPECTED_URDF_SHA256,
+                    "mesh_tree_sha256": model_spec.EXPECTED_MESH_TREE_SHA256,
+                },
+                "checkpoint": checkpoint,
+            }), encoding="utf-8")
+            milestones_path = root / "milestones.json"
+            milestones_path.write_text(json.dumps({
+                "milestones": [{
+                    "id": contract.PRIOR_MILESTONE_ID,
+                    "status": "passed",
+                    "checkpoint": checkpoint,
+                    "evidence": [{
+                        "kind": "validation",
+                        "path": evidence_path.name,
+                        "sha256": contract.sha256(evidence_path),
+                    }],
+                }],
+            }), encoding="utf-8")
+
+            prior = contract.load_prior_gate(
+                milestones_path=milestones_path, repo_root=root,
+            )
+            self.assertEqual(prior["status"], "passed")
+            self.assertEqual(prior["urdf_sha256"], model_spec.EXPECTED_URDF_SHA256)
+
+            evidence_path.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "declared hash"):
+                contract.load_prior_gate(
+                    milestones_path=milestones_path, repo_root=root,
+                )
 
 
 if __name__ == "__main__":
