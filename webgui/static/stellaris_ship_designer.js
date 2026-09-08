@@ -38,6 +38,7 @@
       this.actions = new Map();
       this.playing = true;
       this.showMarkers = true;
+      this.showLabels = true;
       this.showSkeleton = false;
       this.selected = null;
       this.frameRequest = 0;
@@ -129,34 +130,142 @@
 
     rebuildMarkers() {
       if (!this.scene) return;
-      if (this.markerGroup) this.scene.remove(this.markerGroup);
+      if (this.markerGroup) {
+        this.scene.remove(this.markerGroup);
+        this.markerGroup.traverse(object => {
+          object.geometry?.dispose?.();
+          if (object.material?.map) object.material.map.dispose();
+          object.material?.dispose?.();
+        });
+      }
       this.markerGroup = new this.THREE.Group();
       this.markerGroup.name = 'Editable locator markers';
       for (const locator of this.design.locators || []) {
         if (locator.visible === false) continue;
-        const helper = new this.THREE.AxesHelper(Number(locator.markerScale || .6));
-        helper.name = locator.id;
-        helper.userData.locatorId = locator.id;
-        helper.userData.source = locator.sourceNode ? this.model?.getObjectByName(locator.sourceNode) : null;
-        if (!helper.userData.source) {
-          helper.position.fromArray(locator.position);
-          helper.rotation.set(radians(locator.rotation?.[0]), radians(locator.rotation?.[1]), radians(locator.rotation?.[2]));
+        const scale = Number(locator.markerScale || .6);
+        const marker = new this.THREE.Group();
+        marker.name = locator.id;
+        marker.userData.locatorId = locator.id;
+        marker.userData.source = locator.sourceNode ? this.model?.getObjectByName(locator.sourceNode) : null;
+        const helper = new this.THREE.AxesHelper(scale);
+        helper.material.depthTest = false;
+        helper.material.transparent = true;
+        helper.material.opacity = .98;
+        helper.renderOrder = 8;
+        marker.add(helper);
+        if (locator.kind === 'fire_origin') {
+          const dot = new this.THREE.Mesh(
+            new this.THREE.SphereGeometry(scale * .13, 10, 8),
+            new this.THREE.MeshBasicMaterial({ color: 0xffd05a, depthTest: false }),
+          );
+          dot.renderOrder = 9;
+          marker.add(dot);
+          const halo = new this.THREE.Mesh(
+            new this.THREE.SphereGeometry(scale * .24, 12, 8),
+            new this.THREE.MeshBasicMaterial({ color: 0xffd05a, wireframe: true, transparent: true, opacity: .75, depthTest: false }),
+          );
+          halo.userData.fireOriginPulse = true;
+          halo.renderOrder = 9;
+          marker.add(halo);
         }
-        helper.renderOrder = 5;
-        this.markerGroup.add(helper);
+        if (locator.fireAxis) marker.add(this.createFireGuide(locator, scale));
+        const selected = this.selected?.kind === 'locator' && this.selected.id === locator.id;
+        if (locator.labelVisible !== false && (selected || ['weapon', 'fire_origin'].includes(locator.kind))) {
+          marker.add(this.createMarkerLabel(locator, scale));
+        }
+        if (!marker.userData.source) {
+          marker.position.fromArray(locator.position || [0, 0, 0]);
+          marker.rotation.set(radians(locator.rotation?.[0]), radians(locator.rotation?.[1]), radians(locator.rotation?.[2]));
+        }
+        this.markerGroup.add(marker);
       }
       this.markerGroup.visible = this.showMarkers;
       this.scene.add(this.markerGroup);
       this.updateMarkerTransforms();
     }
 
+    createMarkerLabel(locator, scale) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 768;
+      canvas.height = 152;
+      const context = canvas.getContext('2d');
+      const official = locator.usage === 'official_slot_binding';
+      context.fillStyle = official ? 'rgba(65,45,5,.94)' : 'rgba(5,17,39,.92)';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = official ? '#ffd66b' : '#f3f7ff';
+      context.font = '700 42px ui-monospace, SFMono-Regular, Menlo, monospace';
+      context.fillText(String(locator.name || locator.id).slice(0, 31), 28, 58);
+      const detail = official
+        ? locator.fireAxis ? `OFFICIAL SLOT · FIRING GUIDE ${locator.fireAxis}` : `OFFICIAL SLOT ORIGIN · DYNAMIC AIM`
+        : locator.usage === 'embedded_unbound'
+          ? 'EMBEDDED LOCATOR · NOT BOUND BY THIS SECTION'
+          : `${String(locator.kind || 'LOCATOR').toUpperCase()} · ${locator.linkedSlot || 'NO SLOT BINDING'}`;
+      context.fillStyle = official ? '#e9bd51' : '#91a9d8';
+      context.font = '700 22px ui-monospace, SFMono-Regular, Menlo, monospace';
+      context.fillText(detail.slice(0, 58), 28, 105);
+      context.fillStyle = '#ff554d'; context.fillText('+X', 28, 137);
+      context.fillStyle = '#54e987'; context.fillText('+Y', 78, 137);
+      context.fillStyle = '#5793ff'; context.fillText('+Z', 128, 137);
+      context.fillStyle = '#9eafd0'; context.fillText('LOCAL POSE', 190, 137);
+      const texture = new this.THREE.CanvasTexture(canvas);
+      texture.colorSpace = this.THREE.SRGBColorSpace;
+      texture.minFilter = this.THREE.LinearFilter;
+      texture.generateMipmaps = false;
+      const sprite = new this.THREE.Sprite(new this.THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, sizeAttenuation: true }));
+      sprite.userData.markerLabel = true;
+      sprite.visible = this.showLabels;
+      sprite.position.set(0, scale * 1.35, 0);
+      sprite.scale.set(scale * 5.8, scale * 1.15, 1);
+      sprite.renderOrder = 10;
+      return sprite;
+    }
+
+    createFireGuide(locator, scale) {
+      const axes = {
+        '+X': [1, 0, 0], '-X': [-1, 0, 0], '+Y': [0, 1, 0], '-Y': [0, -1, 0], '+Z': [0, 0, 1], '-Z': [0, 0, -1],
+      };
+      const direction = new this.THREE.Vector3(...(axes[locator.fireAxis] || axes['+Z']));
+      const length = scale * 2.7;
+      const guide = new this.THREE.Group();
+      guide.userData.fireGuide = true;
+      const geometry = new this.THREE.BufferGeometry().setFromPoints([new this.THREE.Vector3(), direction.clone().multiplyScalar(length)]);
+      const line = new this.THREE.Line(geometry, new this.THREE.LineDashedMaterial({ color: 0xffd05a, dashSize: scale * .16, gapSize: scale * .12, transparent: true, opacity: .78, depthTest: false }));
+      line.computeLineDistances();
+      line.renderOrder = 9;
+      guide.add(line);
+      const pulse = new this.THREE.Mesh(
+        new this.THREE.SphereGeometry(scale * .1, 10, 8),
+        new this.THREE.MeshBasicMaterial({ color: 0xffe7a1, transparent: true, opacity: .95, depthTest: false }),
+      );
+      pulse.userData.firePulse = { direction, length, phase: Math.random() };
+      pulse.renderOrder = 10;
+      guide.add(pulse);
+      return guide;
+    }
+
+    updateFireGuides(now) {
+      this.markerGroup?.traverse(object => {
+        if (object.userData.firePulse) {
+          const { direction, length, phase } = object.userData.firePulse;
+          const progress = ((now * .00058) + phase) % 1;
+          object.position.copy(direction).multiplyScalar(length * progress);
+          object.material.opacity = Math.sin(progress * Math.PI) * .9;
+        }
+        if (object.userData.fireOriginPulse) {
+          const progress = (now * .0007) % 1;
+          object.scale.setScalar(.7 + progress * 1.8);
+          object.material.opacity = (1 - progress) * .72;
+        }
+      });
+    }
+
     updateMarkerTransforms() {
       if (!this.markerGroup) return;
-      for (const helper of this.markerGroup.children) {
-        const source = helper.userData.source;
+      for (const marker of this.markerGroup.children) {
+        const source = marker.userData.source;
         if (!source) continue;
-        source.getWorldPosition(helper.position);
-        source.getWorldQuaternion(helper.quaternion);
+        source.getWorldPosition(marker.position);
+        source.getWorldQuaternion(marker.quaternion);
       }
     }
 
@@ -172,6 +281,7 @@
     setSelection(selection) { this.selected = selection; this.rebuildMarkers(); const object = selection?.kind === 'locator' ? this.markerGroup?.getObjectByName(selection.id) : null; if (object) object.scale.setScalar(1.65); this.invalidate(); }
     setPlaying(value) { this.playing = Boolean(value); for (const action of this.actions.values()) action.paused = !this.playing; this.last = performance.now(); this.invalidate(); }
     setMarkers(value) { this.showMarkers = Boolean(value); if (this.markerGroup) this.markerGroup.visible = this.showMarkers; this.invalidate(); }
+    setLabels(value) { this.showLabels = Boolean(value); this.markerGroup?.traverse(object => { if (object.userData.markerLabel) object.visible = this.showLabels; }); this.invalidate(); }
     setSkeleton(value) { this.showSkeleton = Boolean(value); if (this.skeletonHelper) this.skeletonHelper.visible = this.showSkeleton; this.invalidate(); }
     resetView() { this.fitView(); this.invalidate(); }
 
@@ -188,6 +298,7 @@
       this.last = now;
       if (this.playing && this.mixer) this.mixer.update(delta * Number(this.design.animation.speed || 1));
       this.updateMarkerTransforms();
+      this.updateFireGuides(now);
       this.renderer.render(this.scene, this.camera);
       this.frames += 1;
       if (now - this.fpsStarted > 700) {
@@ -217,6 +328,9 @@
   };
 
   const vectorFields = (label, path, values) => `<fieldset class="ship-vector"><legend>${escapeHtml(label)}</legend>${['X', 'Y', 'Z'].map((axis, index) => field(axis, `${path}.${index}`, values[index], { step: .05 })).join('')}</fieldset>`;
+  const panelGroup = (title, hint, content) => `<section class="ship-property-group"><header><div><b>${escapeHtml(title)}</b>${hint ? `<small>${escapeHtml(hint)}</small>` : ''}</div></header><div class="ship-property-group-body">${content}</div></section>`;
+  const factGrid = facts => `<dl class="ship-fact-grid">${facts.filter(([, value]) => value !== undefined && value !== null && value !== '').map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(Array.isArray(value) ? value.join(' · ') : value)}</dd></div>`).join('')}</dl>`;
+  const sourceBadge = (label, tone = '') => `<span class="ship-source-badge ${escapeHtml(tone)}">${escapeHtml(label)}</span>`;
 
   class Designer {
     constructor(root, options) {
@@ -263,7 +377,7 @@
       this.root.innerHTML = `<div class="ship-designer">
         <header class="ship-designer-bar"><div><span class="ship-kicker">ORIGINAL GAME ASSET · ${escapeHtml(this.design.source?.dlc || 'VANILLA')}</span><h2>${escapeHtml(this.design.ship.name)}</h2></div><div class="ship-actions"><label class="ship-example-select"><span>Example</span><select data-design>${this.designs.map(item => `<option value="${escapeHtml(item.id)}" ${item.id === this.designId ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><span class="ship-save-state" data-save-state>${this.dirty ? 'Unsaved changes' : 'Saved on Mac'}</span><button class="button button-light" type="button" data-ship-reset>Reload</button><button class="button" type="button" data-ship-save>Save + sync TK2</button></div></header>
         <div class="ship-workspace">
-          <section class="ship-stage"><canvas data-ship-canvas aria-label="Interactive three-dimensional original Stellaris ship preview"></canvas><div class="ship-stage-tools"><label><span>Animation</span><select data-clip>${clips.map(clip => `<option value="${escapeHtml(clip.id)}" ${clip.id === this.design.animation.selected ? 'selected' : ''}>${escapeHtml(clip.name)}</option>`).join('')}</select></label><button class="ship-icon-button" type="button" data-play aria-label="Pause animation">Ⅱ</button><button class="ship-icon-button" type="button" data-camera aria-label="Reset camera">⌖</button><label class="ship-marker-toggle"><input type="checkbox" data-markers checked><span>XYZ markers</span></label><label class="ship-marker-toggle"><input type="checkbox" data-skeleton><span>Skeleton</span></label></div><div class="ship-stage-readout"><span data-render-stats>Preparing GPU…</span><span>${escapeHtml(section?.name || '')}</span></div><div class="ship-axis-key"><i class="x"></i>X <i class="y"></i>Y <i class="z"></i>Z</div></section>
+          <section class="ship-stage"><canvas data-ship-canvas aria-label="Interactive three-dimensional original Stellaris ship preview"></canvas><div class="ship-stage-tools"><label><span>Animation</span><select data-clip>${clips.map(clip => `<option value="${escapeHtml(clip.id)}" ${clip.id === this.design.animation.selected ? 'selected' : ''}>${escapeHtml(clip.name)}</option>`).join('')}</select></label><button class="ship-icon-button" type="button" data-play aria-label="Pause animation">Ⅱ</button><button class="ship-icon-button" type="button" data-camera aria-label="Reset camera">⌖</button><div class="ship-view-toggles"><label class="ship-marker-toggle"><input type="checkbox" data-markers checked><span>Axes</span></label><label class="ship-marker-toggle"><input type="checkbox" data-labels checked><span>Labels</span></label><label class="ship-marker-toggle"><input type="checkbox" data-skeleton><span>Rig</span></label></div></div><div class="ship-marker-help"><b>What the marker means</b><span>RGB is the animated local pose. A yellow travelling pulse is a pose-derived muzzle/rest direction. A yellow expanding pulse means the game defines only the origin and its turret resolves aim dynamically.</span></div><div class="ship-stage-readout"><span data-render-stats>Preparing GPU…</span><span>${escapeHtml(section?.name || '')}</span></div><div class="ship-axis-key"><i class="x"></i>+X red <i class="y"></i>+Y green <i class="z"></i>+Z blue <strong>local pose</strong></div></section>
           <aside class="ship-properties"><nav class="ship-tabs" aria-label="Ship properties">${[['ship', 'Ship'], ['sections', 'Sections'], ['parts', 'Parts'], ['slots', 'Slots'], ['locators', 'Locators'], ['rig', 'Rig'], ['motion', 'Motion'], ['json', 'JSON']].map(([id, name]) => `<button type="button" data-tab="${id}" class="${this.tab === id ? 'active' : ''}">${name}</button>`).join('')}</nav><div class="ship-property-body" data-property-body>${this.propertyMarkup()}</div></aside>
         </div>
       </div>`;
@@ -299,23 +413,23 @@
     currentLocator() { return this.design.locators[this.selection.locator] || this.design.locators[0]; }
 
     itemList(kind, items, selected, addLabel) {
-      return `<div class="ship-object-list">${items.map((item, index) => `<button type="button" data-select-kind="${kind}" data-select-index="${index}" class="${index === selected ? 'active' : ''}"><b>${escapeHtml(item.name || item.id)}</b><small>${escapeHtml(item.key || item.size || item.kind || item.primitive || item.id)}</small></button>`).join('')}<button type="button" class="ship-add" data-add="${kind}">+ ${escapeHtml(addLabel)}</button></div>`;
+      return `<div class="ship-item-browser"><label><span>Selected ${escapeHtml(kind)}</span><select data-select-list="${escapeHtml(kind)}">${items.map((item, index) => `<option value="${index}" ${index === selected ? 'selected' : ''}>${escapeHtml(item.name || item.id)} · ${escapeHtml(item.key || item.size || item.kind || item.primitive || item.id)}</option>`).join('')}</select></label><button type="button" class="ship-add" data-add="${kind}">+ ${escapeHtml(addLabel)}</button></div>`;
     }
 
     propertyMarkup() {
       const ship = this.design.ship;
+      const rules = this.design.officialRules || {};
       const section = this.currentSection();
       const part = this.currentPart();
       const slot = this.currentSlot();
       const locator = this.currentLocator();
-      if (this.tab === 'ship') return `<div class="ship-pane-heading"><p>Design variables</p><h3>${escapeHtml(ship.name)}</h3></div><div class="ship-source-proof"><b>${escapeHtml(this.design.source?.status || '')}</b><small>${escapeHtml((this.design.model?.sourceFiles || []).join(' · '))}</small></div><div class="ship-form-grid">${[
-        field('Design id', 'ship.id', ship.id), field('Name', 'ship.name', ship.name), field('Hull size', 'ship.size', ship.size, { choices: ['corvette', 'frigate', 'destroyer', 'cruiser', 'battleship', 'titan', 'juggernaut', 'custom'] }), field('Role', 'ship.role', ship.role, { choices: ['artillery', 'carrier', 'brawler', 'screen', 'torpedo', 'custom'] }),
-        field('Entity scale', 'ship.entityScale', ship.entityScale, { step: .05 }), field('Hull points', 'ship.hullPoints', ship.hullPoints, { step: 10 }), field('Armor', 'ship.armor', ship.armor, { step: 10 }), field('Shields', 'ship.shields', ship.shields, { step: 10 }), field('Power', 'ship.power', ship.power, { step: 10 }), field('Power use', 'ship.powerUse', ship.powerUse, { step: 10 }), field('Alloy cost', 'ship.alloyCost', ship.alloyCost, { step: 10 }), field('Combat speed', 'ship.combatSpeed', ship.combatSpeed), field('Rotation speed', 'ship.rotationSpeed', ship.rotationSpeed), field('Evasion', 'ship.evasion', ship.evasion), field('Fleet size', 'ship.fleetSize', ship.fleetSize), field('Combat computer', 'ship.computer', ship.computer), field('Reactor', 'ship.reactor', ship.reactor), field('Thrusters', 'ship.thrusters', ship.thrusters), field('Sensor', 'ship.sensor', ship.sensor), field('FTL drive', 'ship.ftlDrive', ship.ftlDrive),
-      ].join('')}</div>`;
-      if (this.tab === 'sections') return `${this.itemList('section', this.design.sections, this.selection.section, 'Add section')}<div class="ship-editor-card">${section ? `<div class="ship-pane-heading"><p>Hull section</p><h3>${escapeHtml(section.name)}</h3></div>${field('ID', `sections.${this.selection.section}.id`, section.id)}${field('Name', `sections.${this.selection.section}.name`, section.name)}${field('Game key', `sections.${this.selection.section}.key`, section.key)}${vectorFields('Position', `sections.${this.selection.section}.position`, section.position)}${vectorFields('Rotation · degrees', `sections.${this.selection.section}.rotation`, section.rotation)}<button class="ship-delete" type="button" data-delete="section" ${this.design.sections.length <= 1 ? 'disabled' : ''}>Delete section</button>` : ''}</div>`;
-      if (this.tab === 'parts') return `${this.itemList('part', section.parts || [], this.selection.part, 'Add source part')}<div class="ship-editor-card">${part ? `<div class="ship-pane-heading"><p>${escapeHtml(section.name)}</p><h3>${escapeHtml(part.name)}</h3></div>${field('ID', `sections.${this.selection.section}.parts.${this.selection.part}.id`, part.id)}${field('Name', `sections.${this.selection.section}.parts.${this.selection.part}.name`, part.name)}${field('Original GLB node', `sections.${this.selection.section}.parts.${this.selection.part}.sourceNode`, part.sourceNode || '')}${field('Original game file', `sections.${this.selection.section}.parts.${this.selection.part}.sourceFile`, part.sourceFile || '')}${field('Visible', `sections.${this.selection.section}.parts.${this.selection.part}.visible`, part.visible, { type: 'checkbox' })}${field('Override source transform', `sections.${this.selection.section}.parts.${this.selection.part}.editTransform`, part.editTransform, { type: 'checkbox' })}${vectorFields('Position', `sections.${this.selection.section}.parts.${this.selection.part}.position`, part.position)}${vectorFields('Rotation · degrees', `sections.${this.selection.section}.parts.${this.selection.part}.rotation`, part.rotation)}${vectorFields('Scale', `sections.${this.selection.section}.parts.${this.selection.part}.scale`, part.scale)}<button class="ship-delete" type="button" data-delete="part">Delete part</button>` : '<p class="ship-empty">No original source part has been imported for this section.</p>'}</div>`;
-      if (this.tab === 'slots') return `${this.itemList('slot', section.slots || [], this.selection.slot, 'Add slot')}<div class="ship-editor-card">${slot ? `<div class="ship-pane-heading"><p>${escapeHtml(section.name)}</p><h3>${escapeHtml(slot.name)}</h3></div>${field('ID', `sections.${this.selection.section}.slots.${this.selection.slot}.id`, slot.id)}${field('Name', `sections.${this.selection.section}.slots.${this.selection.slot}.name`, slot.name)}${field('Type', `sections.${this.selection.section}.slots.${this.selection.slot}.type`, slot.type, { choices: ['weapon', 'utility', 'auxiliary', 'strike_craft', 'point_defense', 'guided', 'custom'] })}${field('Size', `sections.${this.selection.section}.slots.${this.selection.slot}.size`, slot.size, { choices: ['S', 'M', 'L', 'X', 'T', 'G', 'H', 'P', 'A', 'W'] })}${field('Component', `sections.${this.selection.section}.slots.${this.selection.slot}.component`, slot.component)}${field('Locator id', `sections.${this.selection.section}.slots.${this.selection.slot}.locatorId`, slot.locatorId || '')}${field('Enabled', `sections.${this.selection.section}.slots.${this.selection.slot}.enabled`, slot.enabled, { type: 'checkbox' })}<button class="ship-delete" type="button" data-delete="slot">Delete slot</button>` : '<p class="ship-empty">Add the first slot.</p>'}</div>`;
-      if (this.tab === 'locators') return `${this.itemList('locator', this.design.locators, this.selection.locator, 'Add locator')}<div class="ship-editor-card">${locator ? `<div class="ship-pane-heading"><p>Original pose · live XYZ marker</p><h3>${escapeHtml(locator.name)}</h3></div>${field('ID / locator key', `locators.${this.selection.locator}.id`, locator.id)}${field('Name', `locators.${this.selection.locator}.name`, locator.name)}${field('Original GLB node', `locators.${this.selection.locator}.sourceNode`, locator.sourceNode || '')}${field('Original game file', `locators.${this.selection.locator}.sourceFile`, locator.sourceFile || '')}${field('Parent bone', `locators.${this.selection.locator}.parentBone`, locator.parentBone || '')}${field('Kind', `locators.${this.selection.locator}.kind`, locator.kind, { choices: ['weapon', 'engine', 'effect', 'light', 'camera', 'custom'] })}${field('Linked slot', `locators.${this.selection.locator}.linkedSlot`, locator.linkedSlot || '')}${field('Override original transform', `locators.${this.selection.locator}.editTransform`, locator.editTransform, { type: 'checkbox' })}${field('Marker scale', `locators.${this.selection.locator}.markerScale`, locator.markerScale, { step: .05 })}${field('Visible', `locators.${this.selection.locator}.visible`, locator.visible, { type: 'checkbox' })}${vectorFields('Position · bone-local', `locators.${this.selection.locator}.position`, locator.position)}${vectorFields('Rotation · degrees', `locators.${this.selection.locator}.rotation`, locator.rotation)}<button class="ship-delete" type="button" data-delete="locator">Delete locator</button>` : '<p class="ship-empty">Add the first locator.</p>'}</div>`;
+      if (this.tab === 'ship') return `<div class="ship-pane-heading"><p>Ship definition</p><h3>${escapeHtml(ship.name)}</h3></div><div class="ship-source-proof"><b>${escapeHtml(this.design.source?.status || '')}</b><small>${escapeHtml(rules.sourceFile || '')} · ${escapeHtml(rules.variablesFile || '')}</small></div>${panelGroup('Installed game rules', 'Read directly from ship_size and scripted-variable files', `${sourceBadge('SOURCE VERIFIED', 'verified')}${factGrid([
+        ['Max hitpoints', rules.maxHitpoints], ['Max speed', rules.maxSpeed], ['Acceleration', rules.acceleration], ['Rotation speed', rules.rotationSpeed], ['Evasion', rules.evasion], ['Collision radius', rules.collisionRadius], ['Visual size multiplier', rules.sizeMultiplier], ['Fleet slots', rules.fleetSlotSize], ['Target locators', rules.targetLocators], ['Build time', rules.baseBuildTime], ['Default behavior', rules.defaultBehavior], ['Allowed roles', rules.roles], ['Ship category', rules.shipCategory], ['Bio-ship', rules.isBioShip ? 'yes' : 'no'], ['Growth threshold', rules.growthThreshold], ['Upgrades to', rules.upgradesTo], ['Native ship-browser 3D', rules.inGame3dView ? 'enabled' : 'disabled'], ['Section base cost', rules.sectionBaseCost], ['Base upkeep', rules.upkeep], ['Logistics', rules.logistics],
+      ])}`)}${panelGroup('Editable preview identity', 'Changes here belong to this sandbox design', `<div class="ship-form-grid">${[field('Design id', 'ship.id', ship.id), field('Name', 'ship.name', ship.name), field('Hull size', 'ship.size', ship.size, { choices: ['corvette', 'frigate', 'destroyer', 'cruiser', 'battleship', 'titan', 'juggernaut', 'mauler_stage_1', 'custom'] }), field('Role', 'ship.role', ship.role, { choices: ['artillery', 'carrier', 'brawler', 'screen', 'torpedo', 'custom'] }), field('Entity scale', 'ship.entityScale', ship.entityScale, { step: .05 })].join('')}</div>`)}${panelGroup('Ship-size overrides', 'Initialized from the installed rules above; edit these when building a modded variant', `<div class="ship-form-grid">${[field('Hull points', 'ship.hullPoints', ship.hullPoints, { step: 10 }), field('Max speed', 'ship.combatSpeed', ship.combatSpeed), field('Rotation speed', 'ship.rotationSpeed', ship.rotationSpeed), field('Evasion', 'ship.evasion', ship.evasion), field('Fleet slots', 'ship.fleetSize', ship.fleetSize), field('Alloy cost field', 'ship.alloyCost', ship.alloyCost, { step: 10 })].join('')}</div>`)}${panelGroup('Loadout-dependent values', 'Zero means no component has been selected in this example; these are not base ship-size rules', `<div class="ship-form-grid">${[field('Armor', 'ship.armor', ship.armor, { step: 10 }), field('Shields', 'ship.shields', ship.shields, { step: 10 }), field('Power', 'ship.power', ship.power, { step: 10 }), field('Power use', 'ship.powerUse', ship.powerUse, { step: 10 }), field('Combat computer', 'ship.computer', ship.computer), field('Reactor / set', 'ship.reactor', ship.reactor), field('Thrusters / set', 'ship.thrusters', ship.thrusters), field('Sensor / set', 'ship.sensor', ship.sensor), field('FTL drive / set', 'ship.ftlDrive', ship.ftlDrive)].join('')}</div>`)}`;
+      if (this.tab === 'sections') return `${this.itemList('section', this.design.sections, this.selection.section, 'Add section')}${section ? `<div class="ship-pane-heading"><p>Hull section</p><h3>${escapeHtml(section.name)}</h3></div>${panelGroup('Game template', this.design.source?.sectionTemplateFile || '', `${sourceBadge('SECTION SOURCE', 'verified')}${field('ID', `sections.${this.selection.section}.id`, section.id)}${field('Name', `sections.${this.selection.section}.name`, section.name)}${field('Game key', `sections.${this.selection.section}.key`, section.key)}${section.assetVariant ? field('Entity / asset variant', `sections.${this.selection.section}.assetVariant`, section.assetVariant) : ''}`)}${panelGroup('Assembly transform', 'Sandbox placement of this section', `${vectorFields('Position', `sections.${this.selection.section}.position`, section.position)}${vectorFields('Rotation · degrees', `sections.${this.selection.section}.rotation`, section.rotation)}`)}<button class="ship-delete" type="button" data-delete="section" ${this.design.sections.length <= 1 ? 'disabled' : ''}>Delete section</button>` : ''}`;
+      if (this.tab === 'parts') return `${this.itemList('part', section.parts || [], this.selection.part, 'Add source part')}${part ? `<div class="ship-pane-heading"><p>${escapeHtml(section.name)}</p><h3>${escapeHtml(part.name)}</h3></div>${panelGroup('Original asset link', 'The GLB node is mapped back to the decoded game mesh', `${sourceBadge('ORIGINAL ASSET', 'verified')}${field('ID', `sections.${this.selection.section}.parts.${this.selection.part}.id`, part.id)}${field('Name', `sections.${this.selection.section}.parts.${this.selection.part}.name`, part.name)}${field('Original GLB node', `sections.${this.selection.section}.parts.${this.selection.part}.sourceNode`, part.sourceNode || '')}${field('Original game file', `sections.${this.selection.section}.parts.${this.selection.part}.sourceFile`, part.sourceFile || '')}`)}${panelGroup('Preview controls', 'Enable transform override only when intentionally changing the source pose', `${field('Visible', `sections.${this.selection.section}.parts.${this.selection.part}.visible`, part.visible, { type: 'checkbox' })}${field('Override source transform', `sections.${this.selection.section}.parts.${this.selection.part}.editTransform`, part.editTransform, { type: 'checkbox' })}${vectorFields('Position', `sections.${this.selection.section}.parts.${this.selection.part}.position`, part.position)}${vectorFields('Rotation · degrees', `sections.${this.selection.section}.parts.${this.selection.part}.rotation`, part.rotation)}${vectorFields('Scale', `sections.${this.selection.section}.parts.${this.selection.part}.scale`, part.scale)}`)}<button class="ship-delete" type="button" data-delete="part">Delete part</button>` : '<p class="ship-empty">No original source part has been imported for this section.</p>'}`;
+      if (this.tab === 'slots') return `${this.itemList('slot', section.slots || [], this.selection.slot, 'Add slot')}${slot ? `<div class="ship-pane-heading"><p>${escapeHtml(section.name)}</p><h3>${escapeHtml(slot.name)}</h3></div>${slot.sourceTemplateLocator ? `<div class="ship-binding-proof">${sourceBadge('GAME BINDING', 'verified')}<b>Fires/spawns at “${escapeHtml(slot.sourceTemplateLocator)}”</b><small>${escapeHtml(slot.sourceTemplate || 'component template')} · ${escapeHtml(this.design.source?.sectionTemplateFile || '')}</small>${slot.embeddedLocatorCandidate ? `<small>The nearby mesh candidate ${escapeHtml(slot.embeddedLocatorCandidate)} exists but is not the shipped section binding.</small>` : ''}</div>` : ''}${panelGroup('Slot definition', 'Section-template and current component selection', `${field('ID', `sections.${this.selection.section}.slots.${this.selection.slot}.id`, slot.id)}${field('Name', `sections.${this.selection.section}.slots.${this.selection.slot}.name`, slot.name)}${field('Type', `sections.${this.selection.section}.slots.${this.selection.slot}.type`, slot.type, { choices: ['weapon', 'utility', 'auxiliary', 'strike_craft', 'point_defense', 'guided', 'custom'] })}${field('Size', `sections.${this.selection.section}.slots.${this.selection.slot}.size`, slot.size, { choices: ['S', 'M', 'L', 'X', 'T', 'G', 'H', 'P', 'A', 'W'] })}${field('Selected component', `sections.${this.selection.section}.slots.${this.selection.slot}.component`, slot.component)}${field('3D marker id', `sections.${this.selection.section}.slots.${this.selection.slot}.locatorId`, slot.locatorId || '')}${slot.sourceTemplate !== undefined ? field('Game turret template', `sections.${this.selection.section}.slots.${this.selection.slot}.sourceTemplate`, slot.sourceTemplate) : ''}${slot.sourceTemplateLocator !== undefined ? field('Game locatorname', `sections.${this.selection.section}.slots.${this.selection.slot}.sourceTemplateLocator`, slot.sourceTemplateLocator) : ''}${field('Enabled', `sections.${this.selection.section}.slots.${this.selection.slot}.enabled`, slot.enabled, { type: 'checkbox' })}`)}<button class="ship-delete" type="button" data-delete="slot">Delete slot</button>` : '<p class="ship-empty">Add the first slot.</p>'}`;
+      if (this.tab === 'locators') return `${this.itemList('locator', this.design.locators, this.selection.locator, 'Add locator')}${locator ? `<div class="ship-pane-heading"><p>3D locator inspection</p><h3>${escapeHtml(locator.name)}</h3></div><div class="ship-binding-proof ${locator.usage === 'embedded_unbound' ? 'caution' : ''}">${sourceBadge(locator.usage === 'official_slot_binding' ? 'OFFICIAL SLOT ORIGIN' : locator.usage === 'embedded_unbound' ? 'EMBEDDED · UNBOUND' : 'MESH LOCATOR', locator.usage === 'embedded_unbound' ? 'caution' : 'verified')}<b>${locator.usage === 'official_slot_binding' ? 'Used by the installed section template' : locator.usage === 'embedded_unbound' ? 'Present in the mesh, not used by this section' : (locator.linkedSlot ? `Linked to ${escapeHtml(locator.linkedSlot)}` : 'No component-slot binding')}</b><small>${escapeHtml(locator.description || 'The RGB lines show this node’s animated local coordinate frame.')}</small></div>${panelGroup('Source and binding', 'Names preserved from the decoded game data', `${field('ID / marker key', `locators.${this.selection.locator}.id`, locator.id)}${field('Display name', `locators.${this.selection.locator}.name`, locator.name)}${field('Original GLB node', `locators.${this.selection.locator}.sourceNode`, locator.sourceNode || '')}${field('Original game file', `locators.${this.selection.locator}.sourceFile`, locator.sourceFile || '')}${field('Parent bone', `locators.${this.selection.locator}.parentBone`, locator.parentBone || '')}${field('Kind', `locators.${this.selection.locator}.kind`, locator.kind, { choices: ['fire_origin', 'weapon', 'engine', 'effect', 'light', 'camera', 'custom'] })}${field('Linked slot(s)', `locators.${this.selection.locator}.linkedSlot`, locator.linkedSlot || '')}`)}${panelGroup('3D marker and pose', 'Origin plus local +X red, +Y green, +Z blue; the yellow firing guide is separately declared', `${field('Visible', `locators.${this.selection.locator}.visible`, locator.visible, { type: 'checkbox' })}${field('Show 3D label', `locators.${this.selection.locator}.labelVisible`, locator.labelVisible !== false, { type: 'checkbox' })}${field('Marker scale', `locators.${this.selection.locator}.markerScale`, locator.markerScale, { step: .05 })}${field('Firing guide axis', `locators.${this.selection.locator}.fireAxis`, locator.fireAxis || '', { choices: ['', '+X', '-X', '+Y', '-Y', '+Z', '-Z'] })}${locator.fireAxisEvidence ? field('Direction evidence', `locators.${this.selection.locator}.fireAxisEvidence`, locator.fireAxisEvidence) : ''}${field('Override original transform', `locators.${this.selection.locator}.editTransform`, locator.editTransform, { type: 'checkbox' })}${vectorFields('Position · parent-local', `locators.${this.selection.locator}.position`, locator.position)}${vectorFields('Rotation · degrees', `locators.${this.selection.locator}.rotation`, locator.rotation)}`)}<button class="ship-delete" type="button" data-delete="locator">Delete locator</button>` : '<p class="ship-empty">Add the first locator.</p>'}`;
       if (this.tab === 'rig') return `<div class="ship-pane-heading"><p>Original decoded hierarchy</p><h3>${(this.design.model.bones || []).length} bones · ${(this.design.model.nodes || []).length} nodes</h3></div><div class="ship-clip-list">${(this.design.model.bones || []).map(bone => `<article><b>${escapeHtml(bone.name || bone.id)}</b><small>parent: ${escapeHtml(bone.parent || 'root')}</small></article>`).join('')}${(this.design.model.nodes || []).map(node => `<article><b>${escapeHtml(node.name || node.id)}</b><small>${escapeHtml(node.type || 'node')} · parent: ${escapeHtml(node.parent || 'root')}</small></article>`).join('') || '<p class="ship-empty">The source hierarchy will appear after the vanilla import.</p>'}</div>`;
       if (this.tab === 'motion') return `<div class="ship-pane-heading"><p>Animation player</p><h3>${escapeHtml(this.design.animation.selected)}</h3></div>${field('Playback speed', 'animation.speed', this.design.animation.speed, { step: .1 })}${field('Loop', 'animation.loop', this.design.animation.loop, { type: 'checkbox' })}<div class="ship-clip-list">${this.design.animation.clips.map((clip, index) => `<article class="${clip.officialBinding === false ? 'source-disabled' : ''}"><b>${escapeHtml(clip.name)}</b><em>${clip.officialBinding === false ? 'SOURCE FILE · BINDING DISABLED' : 'BOUND BY GAME ENTITY'}</em><small>${escapeHtml(clip.description)}</small><small>${escapeHtml(clip.sourceFile || '')} · ${escapeHtml(clip.frames || '?')} frames @ ${escapeHtml(clip.fps || '?')} fps</small>${field('Duration', `animation.clips.${index}.duration`, clip.duration, { step: .1 })}</article>`).join('')}</div>`;
       if (this.tab === 'json') return `<div class="ship-pane-heading"><p>Complete document</p><h3>Raw JSON</h3></div><textarea class="ship-json" data-json>${escapeHtml(JSON.stringify(this.design, null, 2))}</textarea><button class="button" type="button" data-apply-json>Apply JSON to preview</button>`;
@@ -332,6 +446,7 @@
       this.root.querySelector('[data-play]')?.addEventListener('click', event => { const playing = event.currentTarget.textContent !== '▶'; event.currentTarget.textContent = playing ? '▶' : 'Ⅱ'; event.currentTarget.setAttribute('aria-label', playing ? 'Play animation' : 'Pause animation'); this.renderer?.setPlaying(!playing); });
       this.root.querySelector('[data-camera]')?.addEventListener('click', () => this.renderer?.resetView());
       this.root.querySelector('[data-markers]')?.addEventListener('change', event => this.renderer?.setMarkers(event.target.checked));
+      this.root.querySelector('[data-labels]')?.addEventListener('change', event => this.renderer?.setLabels(event.target.checked));
       this.root.querySelector('[data-skeleton]')?.addEventListener('change', event => this.renderer?.setSkeleton(event.target.checked));
       this.root.querySelector('[data-ship-save]')?.addEventListener('click', event => void this.save(event.currentTarget));
       this.root.querySelector('[data-ship-reset]')?.addEventListener('click', () => { this.design = clone(this.cleanDesign); this.dirty = false; this.render(); });
@@ -339,6 +454,12 @@
     }
 
     bindPropertyEvents() {
+      this.root.querySelectorAll('[data-select-list]').forEach(select => select.addEventListener('change', () => {
+        const kind = select.dataset.selectList;
+        if (kind === 'section') { this.selection.section = Number(select.value); this.selection.part = 0; this.selection.slot = 0; }
+        else this.selection[kind] = Number(select.value);
+        this.updateProperties();
+      }));
       this.root.querySelectorAll('[data-select-kind]').forEach(button => button.addEventListener('click', () => {
         const kind = button.dataset.selectKind;
         if (kind === 'section') { this.selection.section = Number(button.dataset.selectIndex); this.selection.part = 0; this.selection.slot = 0; }

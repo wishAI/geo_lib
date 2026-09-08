@@ -5,7 +5,9 @@ This local-only sandbox previews editable browser conversions of assets from the
 ## Included source examples
 
 - **Mammalian Battleship** — the original XL1 bow, L3 core, L1 stern, five-bone frame, 39 locators, and the shipped `idle`, `death`, `death2`, and `death3` actions.
-- **BioGenesis Mauler, growth stage 1** — the original skinned mesh, 16-bone hierarchy, 10 locators, and the shipped `idle`, `combat_moving`, and `attack` action files. The installed `biogenesis_01_ships.gfx` binds idle and combat movement. Its attack binding is commented out, so the designer labels that clip **shipped but disabled**.
+- **BioGenesis Mauler, growth stage 1** — the original skinned mesh, 16-bone hierarchy, 10 embedded locators, one source-defined `root` slot-origin marker, and the shipped `idle`, `combat_moving`, and `attack` action files. The installed `biogenesis_01_ships.gfx` binds idle and combat movement. Its attack binding is commented out, so the designer labels that clip **shipped but disabled**.
+
+The Mauler mesh contains `weapon_01` and `weapon_02`, but the installed `MAULER_STAGE_1_swarm` section binds both weapon components to `locatorname = "root"` through invisible turret templates. The designer therefore shows `root` as the official slot origin and labels the two mesh weapon locators as embedded but unbound. Locator XYZ lines are local transform axes, not projectile paths; the turret and projectile definitions determine firing direction.
 
 The BioGenesis size definition identifies the Mauler stage 1 as a `bio_ship`, gives it `fleet_slot_size = 1`, and upgrades it to stage 2. The swarm section template has torpedo and small-gun component slots, two small utility slots, and one auxiliary slot.
 

@@ -9,6 +9,7 @@
     "installRoot": "/home/wishai/.local/share/Steam/steamapps/common/Stellaris",
     "shipSizeFile": "common/ship_sizes/00_biogenesis.txt",
     "sectionTemplateFile": "common/section_templates/biogenesis_mauler.txt",
+    "scriptedVariablesFile": "common/scripted_variables/03_scripted_variables_ships.txt",
     "entityFile": "gfx/models/ships/biogenesis_01/biogenesis_01_ships.gfx",
     "importer": "io_pdx_mesh 170a4cba0c272c3825e79bbba244796fdc746e92",
     "sourceVariables": {"ship_category":"bio_ship","growth_stage_descriptor":"ship_growth_stage_1","size_multiplier":4,"fleet_slot_size":1,"default_behavior":"torpedo","is_bio_ship":true,"upgrades_to":"mauler_stage_2"}
@@ -30,17 +31,24 @@
     "animationMap": {"idle":"idle","combat_moving":"combat_moving","attack_source_disabled":"attack_source_disabled"}
   },
   "ship": {
-    "id":"biogenesis_mauler_stage_1","name":"BioGenesis Mauler · Growth Stage 1","size":"custom","role":"brawler","entityScale":1.0,
-    "hullPoints":0,"armor":0,"shields":0,"power":0,"powerUse":0,"alloyCost":0,"combatSpeed":0,"rotationSpeed":0.1,"evasion":0,"fleetSize":1,
+    "id":"biogenesis_mauler_stage_1","name":"BioGenesis Mauler · Growth Stage 1","size":"mauler_stage_1","role":"brawler","entityScale":1.0,
+    "hullPoints":300,"armor":0,"shields":0,"power":0,"powerUse":0,"alloyCost":0,"combatSpeed":160,"rotationSpeed":0.1,"evasion":40,"fleetSize":1,
     "computer":"","reactor":"power_core","thrusters":"thruster_components","sensor":"sensor_components","ftlDrive":"ftl_components"
+  },
+  "officialRules": {
+    "sourceFile":"common/ship_sizes/00_biogenesis.txt",
+    "variablesFile":"common/scripted_variables/03_scripted_variables_ships.txt",
+    "maxHitpoints":300,"maxSpeed":160,"acceleration":0.25,"rotationSpeed":0.1,"evasion":40,"collisionRadius":2,"sizeMultiplier":4,"fleetSlotSize":1,"targetLocators":2,"baseBuildTime":75,
+    "defaultBehavior":"torpedo","roles":["brawler","screen"],"shipCategory":"bio_ship","isBioShip":true,"growthThreshold":60,"upgradesTo":"mauler_stage_2","inGame3dView":false,
+    "sectionBaseCost":"140 food (40 × 3.5 alloy-to-food ratio)","upkeep":"0.25 alloys + 1 food","logistics":"0.8 trade"
   },
   "sections": [
     {
       "id":"mauler_body","name":"Mauler Stage 1 · Swarm","key":"MAULER_STAGE_1_swarm","position":[0,0,0],"rotation":[0,0,0],
       "parts":[{"id":"mauler_original_mesh","name":"Original Mauler Stage 1 body","sourceNode":"mauler::g_biogenesis_01_mauler_ship_stage_1","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"visible":true,"editTransform":false}],
       "slots":[
-        {"id":"mauler_torpedo_01","name":"TORPEDO_01","type":"guided","size":"G","component":"","locatorId":"loc_weapon_01","sourceTemplateLocator":"root","enabled":true},
-        {"id":"mauler_small_gun_01","name":"SMALL_GUN_01","type":"weapon","size":"S","component":"","locatorId":"loc_weapon_02","sourceTemplateLocator":"root","enabled":true},
+        {"id":"mauler_torpedo_01","name":"TORPEDO_01","type":"guided","size":"G","component":"","locatorId":"loc_official_fire_root","sourceTemplate":"invisible_missile_turret","sourceTemplateLocator":"root","embeddedLocatorCandidate":"loc_weapon_01","enabled":true},
+        {"id":"mauler_small_gun_01","name":"SMALL_GUN_01","type":"weapon","size":"S","component":"","locatorId":"loc_official_fire_root","sourceTemplate":"invisible_small_turret","sourceTemplateLocator":"root","embeddedLocatorCandidate":"loc_weapon_02","enabled":true},
         {"id":"mauler_utility_01","name":"Small utility 1","type":"utility","size":"S","component":"","locatorId":"","enabled":true},
         {"id":"mauler_utility_02","name":"Small utility 2","type":"utility","size":"S","component":"","locatorId":"","enabled":true},
         {"id":"mauler_aux_01","name":"Auxiliary","type":"auxiliary","size":"A","component":"","locatorId":"","enabled":true}
@@ -48,8 +56,9 @@
     }
   ],
   "locators": [
-    {"id":"loc_weapon_01","name":"weapon_01","sourceNode":"weapon_01","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"head","kind":"weapon","linkedSlot":"mauler_torpedo_01","position":[0.00208,-0.47498,0.06381],"rotation":[90,0,0],"markerScale":0.35,"visible":true,"editTransform":true},
-    {"id":"loc_weapon_02","name":"weapon_02","sourceNode":"weapon_02","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"head","kind":"weapon","linkedSlot":"mauler_small_gun_01","position":[0.00208,-0.60112,-0.55389],"rotation":[90,0,0],"markerScale":0.35,"visible":true,"editTransform":true},
+    {"id":"loc_official_fire_root","name":"root · official slot origin","sourceNode":"root","sourceFile":"common/section_templates/biogenesis_mauler.txt","parentBone":"root","kind":"fire_origin","usage":"official_slot_binding","description":"The shipped MAULER_STAGE_1_swarm section binds TORPEDO_01 and SMALL_GUN_01 to locatorname = root. The invisible turret/projectile controls firing direction; this root axis is the animated local pose, not a projectile ray.","linkedSlot":"mauler_torpedo_01, mauler_small_gun_01","position":[0,0,0],"rotation":[0,0,0],"markerScale":0.85,"visible":true,"labelVisible":true,"editTransform":false},
+    {"id":"loc_weapon_01","name":"weapon_01 · embedded","sourceNode":"weapon_01","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"head","kind":"weapon","usage":"embedded_unbound","description":"An original locator embedded in the Mauler mesh. It is present and animated with the head, but the shipped stage-1 swarm section does not bind a component slot to it.","linkedSlot":"","position":[0.00208,-0.47498,0.06381],"rotation":[90,0,0],"markerScale":0.58,"visible":true,"labelVisible":true,"editTransform":true},
+    {"id":"loc_weapon_02","name":"weapon_02 · embedded","sourceNode":"weapon_02","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"head","kind":"weapon","usage":"embedded_unbound","description":"An original locator embedded in the Mauler mesh. It is present and animated with the head, but the shipped stage-1 swarm section does not bind a component slot to it.","linkedSlot":"","position":[0.00208,-0.60112,-0.55389],"rotation":[90,0,0],"markerScale":0.58,"visible":true,"labelVisible":true,"editTransform":true},
     {"id":"loc_explosion_01","name":"explosion_locator_01","sourceNode":"explosion_locator_01","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"hip","kind":"effect","linkedSlot":"","position":[1.04281,-3.48829,-0.50029],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
     {"id":"loc_explosion_02","name":"explosion_locator_02","sourceNode":"explosion_locator_02","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"hip","kind":"effect","linkedSlot":"","position":[0,-2.02958,0.90828],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
     {"id":"loc_explosion_03","name":"explosion_locator_03","sourceNode":"explosion_locator_03","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"rear_wing_1_L","kind":"effect","linkedSlot":"","position":[-0.64855,-0.14949,-0.25334],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},

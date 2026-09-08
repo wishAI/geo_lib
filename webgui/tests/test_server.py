@@ -72,6 +72,25 @@ class ManifestTests(unittest.TestCase):
             "idle", "combat_moving", "attack_source_disabled",
         ])
         self.assertFalse(mauler["animation"]["clips"][-1]["officialBinding"])
+        self.assertEqual(mauler["officialRules"]["maxHitpoints"], 300)
+        self.assertEqual(mauler["officialRules"]["maxSpeed"], 160)
+        self.assertEqual(mauler["officialRules"]["fleetSlotSize"], 1)
+        mauler_weapon_slots = [
+            slot for slot in mauler["sections"][0]["slots"]
+            if slot["type"] in {"weapon", "guided"}
+        ]
+        self.assertEqual({slot["sourceTemplateLocator"] for slot in mauler_weapon_slots}, {"root"})
+        self.assertEqual({slot["locatorId"] for slot in mauler_weapon_slots}, {"loc_official_fire_root"})
+        locator_map = {locator["id"]: locator for locator in mauler["locators"]}
+        self.assertEqual(locator_map["loc_official_fire_root"]["usage"], "official_slot_binding")
+        self.assertEqual(locator_map["loc_weapon_01"]["usage"], "embedded_unbound")
+        self.assertEqual(locator_map["loc_weapon_02"]["usage"], "embedded_unbound")
+        self.assertNotIn("fireAxis", locator_map["loc_official_fire_root"])
+        self.assertEqual(design["officialRules"]["fleetSlotSize"], 4)
+        self.assertEqual(design["officialRules"]["rotationSpeed"], 0.15)
+        self.assertEqual(design["sections"][0]["key"], "BATTLESHIP_BOW_M2S4")
+        battle_locators = {locator["id"]: locator for locator in design["locators"]}
+        self.assertEqual(battle_locators["loc_bow_xl_gun_01"]["fireAxis"], "+Z")
         self.assertEqual(server._designer_model("stellaris_ship_designer", "mammalian_battleship").stat().st_size, 9218152)
         self.assertEqual(server._designer_model("stellaris_ship_designer", "biogenesis_mauler_stage_1").stat().st_size, 10079592)
         with self.assertRaisesRegex(ValueError, "Unknown ship design"):
