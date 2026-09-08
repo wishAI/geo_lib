@@ -39,6 +39,7 @@
       this.playing = true;
       this.showMarkers = true;
       this.showLabels = true;
+      this.showFireTest = false;
       this.showSkeleton = false;
       this.selected = null;
       this.frameRequest = 0;
@@ -141,7 +142,8 @@
       this.markerGroup = new this.THREE.Group();
       this.markerGroup.name = 'Editable locator markers';
       for (const locator of this.design.locators || []) {
-        if (locator.visible === false) continue;
+        const selected = this.selected?.kind === 'locator' && this.selected.id === locator.id;
+        if (locator.visible === false && !selected) continue;
         const scale = Number(locator.markerScale || .6);
         const marker = new this.THREE.Group();
         marker.name = locator.id;
@@ -151,6 +153,8 @@
         helper.material.depthTest = false;
         helper.material.transparent = true;
         helper.material.opacity = .98;
+        helper.userData.markerAxes = true;
+        helper.visible = this.showMarkers;
         helper.renderOrder = 8;
         marker.add(helper);
         if (locator.kind === 'fire_origin') {
@@ -158,6 +162,8 @@
             new this.THREE.SphereGeometry(scale * .13, 10, 8),
             new this.THREE.MeshBasicMaterial({ color: 0xffd05a, depthTest: false }),
           );
+          dot.userData.markerAxes = true;
+          dot.visible = this.showMarkers;
           dot.renderOrder = 9;
           marker.add(dot);
           const halo = new this.THREE.Mesh(
@@ -165,11 +171,12 @@
             new this.THREE.MeshBasicMaterial({ color: 0xffd05a, wireframe: true, transparent: true, opacity: .75, depthTest: false }),
           );
           halo.userData.fireOriginPulse = true;
+          halo.userData.fireTestObject = true;
+          halo.visible = this.showFireTest;
           halo.renderOrder = 9;
           marker.add(halo);
         }
         if (locator.fireAxis) marker.add(this.createFireGuide(locator, scale));
-        const selected = this.selected?.kind === 'locator' && this.selected.id === locator.id;
         if (locator.labelVisible !== false && (selected || ['weapon', 'fire_origin'].includes(locator.kind))) {
           marker.add(this.createMarkerLabel(locator, scale));
         }
@@ -179,7 +186,6 @@
         }
         this.markerGroup.add(marker);
       }
-      this.markerGroup.visible = this.showMarkers;
       this.scene.add(this.markerGroup);
       this.updateMarkerTransforms();
     }
@@ -225,19 +231,29 @@
         '+X': [1, 0, 0], '-X': [-1, 0, 0], '+Y': [0, 1, 0], '-Y': [0, -1, 0], '+Z': [0, 0, 1], '-Z': [0, 0, -1],
       };
       const direction = new this.THREE.Vector3(...(axes[locator.fireAxis] || axes['+Z']));
-      const length = scale * 2.7;
+      const length = Math.max(scale * 7.5, 3);
       const guide = new this.THREE.Group();
       guide.userData.fireGuide = true;
+      guide.userData.fireTestObject = true;
+      guide.visible = this.showFireTest;
       const geometry = new this.THREE.BufferGeometry().setFromPoints([new this.THREE.Vector3(), direction.clone().multiplyScalar(length)]);
-      const line = new this.THREE.Line(geometry, new this.THREE.LineDashedMaterial({ color: 0xffd05a, dashSize: scale * .16, gapSize: scale * .12, transparent: true, opacity: .78, depthTest: false }));
+      const line = new this.THREE.Line(geometry, new this.THREE.LineDashedMaterial({ color: 0x74ebff, dashSize: scale * .16, gapSize: scale * .12, transparent: true, opacity: .34, depthTest: false }));
       line.computeLineDistances();
       line.renderOrder = 9;
       guide.add(line);
+      const beam = new this.THREE.Mesh(
+        new this.THREE.CylinderGeometry(scale * .045, scale * .045, 1, 8, 1, true),
+        new this.THREE.MeshBasicMaterial({ color: 0xbaf8ff, transparent: true, opacity: 1, depthTest: false, blending: this.THREE.AdditiveBlending }),
+      );
+      beam.quaternion.setFromUnitVectors(new this.THREE.Vector3(0, 1, 0), direction);
+      beam.userData.fireBeam = { direction, length, phase: Math.random() };
+      beam.renderOrder = 11;
+      guide.add(beam);
       const pulse = new this.THREE.Mesh(
         new this.THREE.SphereGeometry(scale * .1, 10, 8),
-        new this.THREE.MeshBasicMaterial({ color: 0xffe7a1, transparent: true, opacity: .95, depthTest: false }),
+        new this.THREE.MeshBasicMaterial({ color: 0xd7fbff, transparent: true, opacity: .95, depthTest: false }),
       );
-      pulse.userData.firePulse = { direction, length, phase: Math.random() };
+      pulse.userData.firePulse = { direction, length, phase: beam.userData.fireBeam.phase };
       pulse.renderOrder = 10;
       guide.add(pulse);
       return guide;
@@ -247,9 +263,20 @@
       this.markerGroup?.traverse(object => {
         if (object.userData.firePulse) {
           const { direction, length, phase } = object.userData.firePulse;
-          const progress = ((now * .00058) + phase) % 1;
+          const cycle = ((now * .00072) + phase) % 1;
+          const progress = Math.min(1, cycle / .68);
           object.position.copy(direction).multiplyScalar(length * progress);
-          object.material.opacity = Math.sin(progress * Math.PI) * .9;
+          object.material.opacity = cycle < .68 ? Math.sin(progress * Math.PI) * .95 : 0;
+        }
+        if (object.userData.fireBeam) {
+          const { direction, length, phase } = object.userData.fireBeam;
+          const cycle = ((now * .00072) + phase) % 1;
+          const progress = Math.min(1, cycle / .68);
+          const head = length * progress;
+          const tail = Math.max(0, head - length * .22);
+          object.position.copy(direction).multiplyScalar((tail + head) * .5);
+          object.scale.set(1, Math.max(.001, head - tail), 1);
+          object.material.opacity = cycle < .68 ? Math.sin(progress * Math.PI) : 0;
         }
         if (object.userData.fireOriginPulse) {
           const progress = (now * .0007) % 1;
@@ -280,8 +307,9 @@
     setDesign(design) { this.design = design; this.applyDesignTransforms(); this.rebuildMarkers(); this.selectClip(design.animation.selected); this.invalidate(); }
     setSelection(selection) { this.selected = selection; this.rebuildMarkers(); const object = selection?.kind === 'locator' ? this.markerGroup?.getObjectByName(selection.id) : null; if (object) object.scale.setScalar(1.65); this.invalidate(); }
     setPlaying(value) { this.playing = Boolean(value); for (const action of this.actions.values()) action.paused = !this.playing; this.last = performance.now(); this.invalidate(); }
-    setMarkers(value) { this.showMarkers = Boolean(value); if (this.markerGroup) this.markerGroup.visible = this.showMarkers; this.invalidate(); }
+    setMarkers(value) { this.showMarkers = Boolean(value); this.markerGroup?.traverse(object => { if (object.userData.markerAxes) object.visible = this.showMarkers; }); this.invalidate(); }
     setLabels(value) { this.showLabels = Boolean(value); this.markerGroup?.traverse(object => { if (object.userData.markerLabel) object.visible = this.showLabels; }); this.invalidate(); }
+    setFireTest(value) { this.showFireTest = Boolean(value); this.markerGroup?.traverse(object => { if (object.userData.fireTestObject) object.visible = this.showFireTest; }); this.invalidate(); }
     setSkeleton(value) { this.showSkeleton = Boolean(value); if (this.skeletonHelper) this.skeletonHelper.visible = this.showSkeleton; this.invalidate(); }
     resetView() { this.fitView(); this.invalidate(); }
 
@@ -307,7 +335,7 @@
         this.stats.textContent = `${Math.round(this.frames * 1000 / (now - this.fpsStarted))} fps · ${Math.round(triangles).toLocaleString()} tris · ${draws} meshes`;
         this.frames = 0; this.fpsStarted = now;
       }
-      if (this.playing && this.mixer && document.visibilityState === 'visible') this.invalidate();
+      if (((this.playing && this.mixer) || this.showFireTest) && document.visibilityState === 'visible') this.invalidate();
     }
 
     destroy() {
@@ -377,7 +405,7 @@
       this.root.innerHTML = `<div class="ship-designer">
         <header class="ship-designer-bar"><div><span class="ship-kicker">ORIGINAL GAME ASSET · ${escapeHtml(this.design.source?.dlc || 'VANILLA')}</span><h2>${escapeHtml(this.design.ship.name)}</h2></div><div class="ship-actions"><label class="ship-example-select"><span>Example</span><select data-design>${this.designs.map(item => `<option value="${escapeHtml(item.id)}" ${item.id === this.designId ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><span class="ship-save-state" data-save-state>${this.dirty ? 'Unsaved changes' : 'Saved on Mac'}</span><button class="button button-light" type="button" data-ship-reset>Reload</button><button class="button" type="button" data-ship-save>Save + sync TK2</button></div></header>
         <div class="ship-workspace">
-          <section class="ship-stage"><canvas data-ship-canvas aria-label="Interactive three-dimensional original Stellaris ship preview"></canvas><div class="ship-stage-tools"><label><span>Animation</span><select data-clip>${clips.map(clip => `<option value="${escapeHtml(clip.id)}" ${clip.id === this.design.animation.selected ? 'selected' : ''}>${escapeHtml(clip.name)}</option>`).join('')}</select></label><button class="ship-icon-button" type="button" data-play aria-label="Pause animation">Ⅱ</button><button class="ship-icon-button" type="button" data-camera aria-label="Reset camera">⌖</button><div class="ship-view-toggles"><label class="ship-marker-toggle"><input type="checkbox" data-markers checked><span>Axes</span></label><label class="ship-marker-toggle"><input type="checkbox" data-labels checked><span>Labels</span></label><label class="ship-marker-toggle"><input type="checkbox" data-skeleton><span>Rig</span></label></div></div><div class="ship-marker-help"><b>What the marker means</b><span>RGB is the animated local pose. A yellow travelling pulse is a pose-derived muzzle/rest direction. A yellow expanding pulse means the game defines only the origin and its turret resolves aim dynamically.</span></div><div class="ship-stage-readout"><span data-render-stats>Preparing GPU…</span><span>${escapeHtml(section?.name || '')}</span></div><div class="ship-axis-key"><i class="x"></i>+X red <i class="y"></i>+Y green <i class="z"></i>+Z blue <strong>local pose</strong></div></section>
+          <section class="ship-stage"><canvas data-ship-canvas aria-label="Interactive three-dimensional original Stellaris ship preview"></canvas><div class="ship-stage-tools"><label><span>Animation</span><select data-clip>${clips.map(clip => `<option value="${escapeHtml(clip.id)}" ${clip.id === this.design.animation.selected ? 'selected' : ''}>${escapeHtml(clip.name)}</option>`).join('')}</select></label><button class="ship-icon-button" type="button" data-play aria-label="Pause animation">Ⅱ</button><button class="ship-icon-button" type="button" data-camera aria-label="Reset camera">⌖</button><div class="ship-view-toggles"><label class="ship-marker-toggle"><input type="checkbox" data-markers checked><span>Axes</span></label><label class="ship-marker-toggle"><input type="checkbox" data-labels checked><span>Labels</span></label><label class="ship-marker-toggle ship-laser-toggle"><input type="checkbox" data-fire-test><span>Laser test</span></label><label class="ship-marker-toggle"><input type="checkbox" data-skeleton><span>Rig</span></label></div></div><div class="ship-marker-help"><b>What the marker means</b><span>RGB is the animated local pose. Turn on Laser test for a cyan shot along a pose-derived muzzle/rest axis. An expanding yellow pulse means only the origin is defined and turret aim is dynamic.</span></div><div class="ship-stage-readout"><span data-render-stats>Preparing GPU…</span><span>${escapeHtml(section?.name || '')}</span></div><div class="ship-axis-key"><i class="x"></i>+X red <i class="y"></i>+Y green <i class="z"></i>+Z blue <strong>local pose</strong></div></section>
           <aside class="ship-properties"><nav class="ship-tabs" aria-label="Ship properties">${[['ship', 'Ship'], ['sections', 'Sections'], ['parts', 'Parts'], ['slots', 'Slots'], ['locators', 'Locators'], ['rig', 'Rig'], ['motion', 'Motion'], ['json', 'JSON']].map(([id, name]) => `<button type="button" data-tab="${id}" class="${this.tab === id ? 'active' : ''}">${name}</button>`).join('')}</nav><div class="ship-property-body" data-property-body>${this.propertyMarkup()}</div></aside>
         </div>
       </div>`;
@@ -447,6 +475,7 @@
       this.root.querySelector('[data-camera]')?.addEventListener('click', () => this.renderer?.resetView());
       this.root.querySelector('[data-markers]')?.addEventListener('change', event => this.renderer?.setMarkers(event.target.checked));
       this.root.querySelector('[data-labels]')?.addEventListener('change', event => this.renderer?.setLabels(event.target.checked));
+      this.root.querySelector('[data-fire-test]')?.addEventListener('change', event => this.renderer?.setFireTest(event.target.checked));
       this.root.querySelector('[data-skeleton]')?.addEventListener('change', event => this.renderer?.setSkeleton(event.target.checked));
       this.root.querySelector('[data-ship-save]')?.addEventListener('click', event => void this.save(event.currentTarget));
       this.root.querySelector('[data-ship-reset]')?.addEventListener('click', () => { this.design = clone(this.cleanDesign); this.dirty = false; this.render(); });

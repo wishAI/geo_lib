@@ -9,6 +9,8 @@ This local-only sandbox previews editable browser conversions of assets from the
 
 The Mauler mesh contains `weapon_01` and `weapon_02`, but the installed `MAULER_STAGE_1_swarm` section binds both weapon components to `locatorname = "root"` through invisible turret templates. The designer therefore shows `root` as the official slot origin and labels the two mesh weapon locators as embedded but unbound. Locator XYZ lines are local transform axes, not projectile paths; the turret and projectile definitions determine firing direction.
 
+The optional **Laser test** is a sandbox visualization, not an extracted game action. Battleship muzzle markers animate a cyan shot along their pose-derived local `+Z` rest direction. The Mauler stage-1 `root` binding has no fixed direction in the section source, so its test displays an expanding origin pulse until a firing axis is explicitly chosen. Distant target, engine, exhaust, and XL wind-up markers remain preserved but are hidden by default; selecting any locator temporarily reveals its exact source pose.
+
 The BioGenesis size definition identifies the Mauler stage 1 as a `bio_ship`, gives it `fleet_slot_size = 1`, and upgrades it to stage 2. The swarm section template has torpedo and small-gun component slots, two small utility slots, and one auxiliary slot.
 
 ## Provenance and storage

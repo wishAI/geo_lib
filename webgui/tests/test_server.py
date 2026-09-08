@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import math
+import struct
 import unittest
 from pathlib import Path
 
@@ -91,6 +93,32 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(design["sections"][0]["key"], "BATTLESHIP_BOW_M2S4")
         battle_locators = {locator["id"]: locator for locator in design["locators"]}
         self.assertEqual(battle_locators["loc_bow_xl_gun_01"]["fireAxis"], "+Z")
+        visible_battle_locators = [locator for locator in design["locators"] if locator["visible"]]
+        self.assertEqual(len(visible_battle_locators), 5)
+        self.assertTrue(all(locator.get("usage") == "official_slot_binding" for locator in visible_battle_locators))
+        model_bytes = server._designer_model("stellaris_ship_designer", "mammalian_battleship").read_bytes()
+        json_length, = struct.unpack_from("<I", model_bytes, 12)
+        glb = json.loads(model_bytes[20:20 + json_length].decode("utf-8").rstrip(" \x00"))
+        glb_nodes = {node.get("name"): node for node in glb["nodes"]}
+        for locator in design["locators"]:
+            source_node = glb_nodes.get(locator.get("sourceNode"))
+            if not source_node or "translation" not in source_node:
+                continue
+            for configured, embedded in zip(locator["position"], source_node["translation"]):
+                self.assertAlmostEqual(configured, embedded, places=4, msg=locator["id"])
+            x, y, z = [math.radians(value) / 2 for value in locator["rotation"]]
+            sx, cx = math.sin(x), math.cos(x)
+            sy, cy = math.sin(y), math.cos(y)
+            sz, cz = math.sin(z), math.cos(z)
+            configured_quaternion = (
+                sx * cy * cz + cx * sy * sz,
+                cx * sy * cz - sx * cy * sz,
+                cx * cy * sz + sx * sy * cz,
+                cx * cy * cz - sx * sy * sz,
+            )
+            embedded_quaternion = source_node.get("rotation", [0, 0, 0, 1])
+            quaternion_dot = sum(a * b for a, b in zip(configured_quaternion, embedded_quaternion))
+            self.assertAlmostEqual(abs(quaternion_dot), 1, places=4, msg=locator["id"])
         self.assertEqual(server._designer_model("stellaris_ship_designer", "mammalian_battleship").stat().st_size, 9218152)
         self.assertEqual(server._designer_model("stellaris_ship_designer", "biogenesis_mauler_stage_1").stat().st_size, 10079592)
         with self.assertRaisesRegex(ValueError, "Unknown ship design"):

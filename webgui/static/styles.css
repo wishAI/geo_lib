@@ -531,6 +531,8 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(28px, 4vw, 58px)
 .ship-marker-toggle { min-height: 31px; padding: 0 6px; display: flex; align-items: center; gap: 5px; border-radius: 7px; }
 .ship-marker-toggle:hover { background: rgba(115,147,211,.13); }
 .ship-marker-toggle input { accent-color: #89a7f2; }
+.ship-laser-toggle { color: #a9f5ff; }
+.ship-laser-toggle input { accent-color: #5de9fb; }
 .ship-marker-help { position: absolute; z-index: 2; top: 70px; left: 14px; width: min(390px,calc(100% - 28px)); padding: 9px 11px; color: #aebfe1; background: rgba(5,14,32,.77); border-left: 3px solid #ffd05a; border-radius: 8px; pointer-events: none; backdrop-filter: blur(8px); }
 .ship-marker-help b, .ship-marker-help span { display: block; }
 .ship-marker-help b { color: #edf3ff; font: 700 9px/1.2 var(--mono); text-transform: uppercase; }
