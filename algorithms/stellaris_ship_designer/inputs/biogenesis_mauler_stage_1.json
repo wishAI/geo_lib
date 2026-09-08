@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "game": "Stellaris",
+    "dlc": "BioGenesis (dlc036_biogenesis)",
+    "template": "MAULER_STAGE_1_swarm",
+    "reference": "installed game files on TK2",
+    "status": "Extracted from the installed BioGenesis files; no replacement geometry, bones, or animation was generated.",
+    "installRoot": "/home/wishai/.local/share/Steam/steamapps/common/Stellaris",
+    "shipSizeFile": "common/ship_sizes/00_biogenesis.txt",
+    "sectionTemplateFile": "common/section_templates/biogenesis_mauler.txt",
+    "entityFile": "gfx/models/ships/biogenesis_01/biogenesis_01_ships.gfx",
+    "importer": "io_pdx_mesh 170a4cba0c272c3825e79bbba244796fdc746e92",
+    "sourceVariables": {"ship_category":"bio_ship","growth_stage_descriptor":"ship_growth_stage_1","size_multiplier":4,"fleet_slot_size":1,"default_behavior":"torpedo","is_bio_ship":true,"upgrades_to":"mauler_stage_2"}
+  },
+  "model": {
+    "available": true,
+    "label": "Original BioGenesis Mauler · Stage 1",
+    "sha256": "eb9950df3a3cde200b3bcf2277af3c86970de9c148501a77d6635738a5ff2095",
+    "bytes": 10079592,
+    "sourceFiles": ["biogenesis_01_mauler_ship_stage_1.mesh", "biogenesis_01_mauler_ship_diffuse.dds", "biogenesis_01_mauler_ship_normal.dds", "biogenesis_01_mauler_ship_specular.dds", "biogenesis_01_mauler_ship_stage_1_idle.anim", "biogenesis_01_mauler_ship_stage_1_combat_moving.anim", "biogenesis_01_mauler_ship_stage_1_attack.anim"],
+    "nodes": [{"name":"mauler::g_biogenesis_01_mauler_ship_stage_1","type":"skinned mesh","parent":"16-bone skin","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh"}],
+    "bones": [
+      {"name":"root","parent":null},{"name":"body","parent":"root"},{"name":"hip","parent":"body"},{"name":"tail","parent":"hip"},
+      {"name":"rear_wing_1_L","parent":"tail"},{"name":"rear_wing_2_L","parent":"rear_wing_1_L"},{"name":"rear_wing_1_R","parent":"tail"},{"name":"rear_wing_2_R","parent":"rear_wing_1_R"},
+      {"name":"torso","parent":"hip"},{"name":"head","parent":"torso"},{"name":"tooth_L","parent":"head"},{"name":"tooth_R","parent":"head"},
+      {"name":"shoulder_L","parent":"torso"},{"name":"front_wing_L","parent":"shoulder_L"},{"name":"shoulder_R","parent":"torso"},{"name":"front_wing_R","parent":"shoulder_R"}
+    ],
+    "animations": ["idle", "combat_moving", "attack_source_disabled"],
+    "animationMap": {"idle":"idle","combat_moving":"combat_moving","attack_source_disabled":"attack_source_disabled"}
+  },
+  "ship": {
+    "id":"biogenesis_mauler_stage_1","name":"BioGenesis Mauler · Growth Stage 1","size":"custom","role":"brawler","entityScale":1.0,
+    "hullPoints":0,"armor":0,"shields":0,"power":0,"powerUse":0,"alloyCost":0,"combatSpeed":0,"rotationSpeed":0.1,"evasion":0,"fleetSize":1,
+    "computer":"","reactor":"power_core","thrusters":"thruster_components","sensor":"sensor_components","ftlDrive":"ftl_components"
+  },
+  "sections": [
+    {
+      "id":"mauler_body","name":"Mauler Stage 1 · Swarm","key":"MAULER_STAGE_1_swarm","position":[0,0,0],"rotation":[0,0,0],
+      "parts":[{"id":"mauler_original_mesh","name":"Original Mauler Stage 1 body","sourceNode":"mauler::g_biogenesis_01_mauler_ship_stage_1","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"visible":true,"editTransform":false}],
+      "slots":[
+        {"id":"mauler_torpedo_01","name":"TORPEDO_01","type":"guided","size":"G","component":"","locatorId":"loc_weapon_01","sourceTemplateLocator":"root","enabled":true},
+        {"id":"mauler_small_gun_01","name":"SMALL_GUN_01","type":"weapon","size":"S","component":"","locatorId":"loc_weapon_02","sourceTemplateLocator":"root","enabled":true},
+        {"id":"mauler_utility_01","name":"Small utility 1","type":"utility","size":"S","component":"","locatorId":"","enabled":true},
+        {"id":"mauler_utility_02","name":"Small utility 2","type":"utility","size":"S","component":"","locatorId":"","enabled":true},
+        {"id":"mauler_aux_01","name":"Auxiliary","type":"auxiliary","size":"A","component":"","locatorId":"","enabled":true}
+      ]
+    }
+  ],
+  "locators": [
+    {"id":"loc_weapon_01","name":"weapon_01","sourceNode":"weapon_01","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"head","kind":"weapon","linkedSlot":"mauler_torpedo_01","position":[0.00208,-0.47498,0.06381],"rotation":[90,0,0],"markerScale":0.35,"visible":true,"editTransform":true},
+    {"id":"loc_weapon_02","name":"weapon_02","sourceNode":"weapon_02","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"head","kind":"weapon","linkedSlot":"mauler_small_gun_01","position":[0.00208,-0.60112,-0.55389],"rotation":[90,0,0],"markerScale":0.35,"visible":true,"editTransform":true},
+    {"id":"loc_explosion_01","name":"explosion_locator_01","sourceNode":"explosion_locator_01","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"hip","kind":"effect","linkedSlot":"","position":[1.04281,-3.48829,-0.50029],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_02","name":"explosion_locator_02","sourceNode":"explosion_locator_02","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"hip","kind":"effect","linkedSlot":"","position":[0,-2.02958,0.90828],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_03","name":"explosion_locator_03","sourceNode":"explosion_locator_03","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"rear_wing_1_L","kind":"effect","linkedSlot":"","position":[-0.64855,-0.14949,-0.25334],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_04","name":"explosion_locator_04","sourceNode":"explosion_locator_04","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"rear_wing_1_R","kind":"effect","linkedSlot":"","position":[0.13934,0.30365,-0.25334],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_05","name":"explosion_locator_05","sourceNode":"explosion_locator_05","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"front_wing_R","kind":"effect","linkedSlot":"","position":[-0.75885,0.07315,0.36115],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_06","name":"explosion_locator_06","sourceNode":"explosion_locator_06","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"front_wing_R","kind":"effect","linkedSlot":"","position":[-0.73926,-1.42038,-0.7168],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_07","name":"explosion_locator_07","sourceNode":"explosion_locator_07","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"front_wing_L","kind":"effect","linkedSlot":"","position":[0.70235,0.95267,-0.16195],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_08","name":"explosion_locator_08","sourceNode":"explosion_locator_08","sourceFile":"biogenesis_01_mauler_ship_stage_1.mesh","parentBone":"front_wing_L","kind":"effect","linkedSlot":"","position":[2.66679,-0.35578,-1.18649],"rotation":[90,0,0],"markerScale":0.3,"visible":false,"editTransform":true}
+  ],
+  "animation": {
+    "selected":"idle","speed":1.0,"loop":true,
+    "clips":[
+      {"id":"idle","name":"Idle","duration":6.6,"fps":30,"frames":199,"sourceFile":"biogenesis_01_mauler_ship_stage_1_idle.anim","officialBinding":true,"description":"Original BioGenesis idle action, enabled by biogenesis_01_ships.gfx."},
+      {"id":"combat_moving","name":"Combat moving","duration":15.37,"fps":30,"frames":462,"sourceFile":"biogenesis_01_mauler_ship_stage_1_combat_moving.anim","officialBinding":true,"description":"Original BioGenesis combat-movement action, enabled by biogenesis_01_ships.gfx."},
+      {"id":"attack_source_disabled","name":"Attack · shipped but disabled","duration":6.67,"fps":30,"frames":201,"sourceFile":"biogenesis_01_mauler_ship_stage_1_attack.anim","officialBinding":false,"description":"The original attack file ships with Stellaris, but its binding line is commented out in the installed .gfx definition."}
+    ]
+  }
+}

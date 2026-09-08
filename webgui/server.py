@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import math
 import mimetypes
 import os
 import re
@@ -36,6 +37,7 @@ SSH_ARGS = [
 ]
 MAX_LOG_CHARS = 180_000
 PARAMETER_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+DESIGN_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,79}$")
 
 
 def utc_now() -> str:
@@ -94,6 +96,129 @@ def declared_artifact_paths() -> set[str]:
         if inspector.get("path"):
             paths.add(inspector["path"])
     return paths
+
+
+def _designer_config(sandbox: str, design_id: str = "") -> tuple[dict, Path]:
+    manifest = manifest_map().get(sandbox)
+    designer = manifest.get("designer", {}) if manifest else {}
+    if designer.get("type") != "stellarisShipDesigner":
+        raise ValueError("Sandbox does not declare a ship designer")
+    designs = designer.get("designs", [])
+    if designs:
+        selected = design_id or str(designer.get("defaultDesign", "")) or str(designs[0].get("id", ""))
+        config = next((item for item in designs if item.get("id") == selected), None)
+        if config is None:
+            raise ValueError("Unknown ship design")
+    else:
+        config = designer
+    relative = str(config.get("configPath", ""))
+    expected = f"algorithms/{sandbox}/inputs/"
+    if not relative.startswith(expected) or not relative.endswith(".json"):
+        raise ValueError("Ship design path must stay inside the sandbox inputs folder")
+    return config, _safe_under(REPO_ROOT, relative)
+
+
+def _designer_model(sandbox: str, design_id: str = "") -> Path:
+    config, _ = _designer_config(sandbox, design_id)
+    relative = str(config.get("modelPath", ""))
+    expected = f"algorithms/{sandbox}/inputs/"
+    if not relative.startswith(expected) or not relative.endswith(".glb"):
+        raise ValueError("Ship model path must stay inside the sandbox inputs folder")
+    return storage._safe_repo_path(relative)
+
+
+def _require_finite(value: object, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        raise ValueError(f"{label} must be a finite number")
+    if abs(float(value)) > 1_000_000:
+        raise ValueError(f"{label} is outside the supported range")
+    return float(value)
+
+
+def _validate_vector(value: object, label: str) -> None:
+    if not isinstance(value, list) or len(value) != 3:
+        raise ValueError(f"{label} must have exactly three numbers")
+    for index, item in enumerate(value):
+        _require_finite(item, f"{label}[{index}]")
+
+
+def validate_ship_design(design: object) -> dict:
+    if not isinstance(design, dict):
+        raise ValueError("Ship design must be a JSON object")
+    encoded = json.dumps(design, ensure_ascii=False).encode("utf-8")
+    if len(encoded) > 512_000:
+        raise ValueError("Ship design exceeds the 512 KB editor limit")
+    ship = design.get("ship")
+    sections = design.get("sections")
+    locators = design.get("locators")
+    animation = design.get("animation")
+    if not isinstance(ship, dict) or not isinstance(sections, list) or not isinstance(locators, list) or not isinstance(animation, dict):
+        raise ValueError("Ship design requires ship, sections, locators, and animation fields")
+    if not 1 <= len(sections) <= 24:
+        raise ValueError("Ship design must contain between 1 and 24 sections")
+    if len(locators) > 256:
+        raise ValueError("Ship design supports at most 256 locators")
+    identifiers: set[str] = set()
+    for collection_name, collection in (("sections", sections), ("locators", locators)):
+        for index, item in enumerate(collection):
+            if not isinstance(item, dict):
+                raise ValueError(f"{collection_name}[{index}] must be an object")
+            identifier = str(item.get("id", ""))
+            if not DESIGN_ID.fullmatch(identifier) or identifier in identifiers:
+                raise ValueError(f"{collection_name}[{index}] has an invalid or duplicate id")
+            identifiers.add(identifier)
+            if "position" in item:
+                _validate_vector(item["position"], f"{collection_name}[{index}].position")
+            if "rotation" in item:
+                _validate_vector(item["rotation"], f"{collection_name}[{index}].rotation")
+            if collection_name == "sections":
+                for child_name in ("parts", "slots"):
+                    children = item.get(child_name, [])
+                    if not isinstance(children, list) or len(children) > 256:
+                        raise ValueError(f"{collection_name}[{index}].{child_name} is invalid")
+                    for child_index, child in enumerate(children):
+                        if not isinstance(child, dict):
+                            raise ValueError(f"{child_name}[{child_index}] must be an object")
+                        child_id = str(child.get("id", ""))
+                        if not DESIGN_ID.fullmatch(child_id) or child_id in identifiers:
+                            raise ValueError(f"{child_name}[{child_index}] has an invalid or duplicate id")
+                        identifiers.add(child_id)
+                        if child_name == "parts":
+                            _validate_vector(child.get("position"), f"{child_name}[{child_index}].position")
+                            _validate_vector(child.get("scale"), f"{child_name}[{child_index}].scale")
+    return design
+
+
+def designer_catalog(sandbox: str) -> list[dict]:
+    manifest = manifest_map().get(sandbox)
+    designer = manifest.get("designer", {}) if manifest else {}
+    if designer.get("type") != "stellarisShipDesigner":
+        raise ValueError("Sandbox does not declare a ship designer")
+    designs = designer.get("designs", [])
+    if not designs:
+        designs = [{"id": "default", "label": designer.get("label", "Ship design")}]
+    return [
+        {"id": str(item["id"]), "label": str(item.get("label", item["id"])), "description": str(item.get("description", ""))}
+        for item in designs
+    ]
+
+
+def load_ship_design(sandbox: str, design_id: str = "") -> dict:
+    _, path = _designer_config(sandbox, design_id)
+    return validate_ship_design(json.loads(path.read_text(encoding="utf-8")))
+
+
+def save_ship_design(sandbox: str, design: object, *, design_id: str = "", sync_tk2: bool = False) -> dict:
+    _, path = _designer_config(sandbox, design_id)
+    validated = validate_ship_design(design)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(validated, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    temporary.replace(path)
+    result = {"ok": True, "path": str(path.relative_to(REPO_ROOT)), "savedAt": utc_now(), "sync": None}
+    if sync_tk2:
+        result["sync"] = storage.sync_source_tk2(remote=REMOTE_HOST)
+    return result
 
 
 def _parameter_values(example: dict, supplied: dict) -> dict[str, str]:
@@ -663,6 +788,22 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/storage":
                 self._json({"storage": storage.status(), "audit": storage.audit_tracked_files()})
                 return
+            if parsed.path == "/api/designer/config":
+                sandbox = query.get("sandbox", [""])[0]
+                design_id = query.get("design", [""])[0]
+                config, _ = _designer_config(sandbox, design_id)
+                selected = str(config.get("id", design_id or "default"))
+                self._json({"design": load_ship_design(sandbox, design_id), "designId": selected, "designs": designer_catalog(sandbox), "sandbox": sandbox})
+                return
+            if parsed.path == "/api/designer/model":
+                sandbox = query.get("sandbox", [""])[0]
+                design_id = query.get("design", [""])[0]
+                model = _designer_model(sandbox, design_id)
+                if not model.is_file():
+                    self._error("Original Stellaris model is not hydrated yet", HTTPStatus.NOT_FOUND)
+                    return
+                self._file(model, cache="no-cache")
+                return
             if parsed.path == "/api/robot/catalog":
                 self._json({"robots": robot_candidates()})
                 return
@@ -740,6 +881,14 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path.startswith("/api/storage/"):
                 action = parsed.path.rsplit("/", 1)[-1]
                 self._json(JOBS.start_storage(action), HTTPStatus.ACCEPTED)
+                return
+            if parsed.path == "/api/designer/config":
+                sandbox = str(body.get("sandbox", ""))
+                result = save_ship_design(
+                    sandbox, body.get("design"), design_id=str(body.get("designId", "")),
+                    sync_tk2=body.get("syncTk2") is True,
+                )
+                self._json(result)
                 return
             self._error("Not found", HTTPStatus.NOT_FOUND)
         except KeyError:

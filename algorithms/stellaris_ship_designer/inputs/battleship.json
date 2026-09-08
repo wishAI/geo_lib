@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "game": "Stellaris",
+    "template": "Mammalian Battleship: Spinal Mount Bow + Artillery Core + Artillery Stern",
+    "reference": "installed game files on TK2",
+    "status": "Extracted from the installed Stellaris build; no replacement geometry was generated.",
+    "installRoot": "/home/wishai/.local/share/Steam/steamapps/common/Stellaris",
+    "importer": "io_pdx_mesh 170a4cba0c272c3825e79bbba244796fdc746e92"
+  },
+  "model": {
+    "available": true,
+    "label": "Original Mammalian Battleship",
+    "sha256": "4bf48348731a11c9ba9cdf6dc08f2bf97c56cdb7350eef4eac5cce974fdd8a92",
+    "bytes": 9218152,
+    "sourceFiles": ["mammalian_01_battleship_frame.mesh", "mammalian_01_battleship_bow_XL1.mesh", "mammalian_01_battleship_mid_L3.mesh", "mammalian_01_battleship_stern_L1.mesh", "mammalian_01_battleship_diffuse.dds", "mammalian_01_battleship_normal.dds", "mammalian_01_battleship_specular.dds", "mammalian_01_battleship_frame_idle.anim", "mammalian_01_battleship_frame_death.anim", "mammalian_01_battleship_frame_death2.anim", "mammalian_01_battleship_frame_death3.anim"],
+    "nodes": [
+      {"name": "bow::polySurface13031304", "type": "skinned mesh", "parent": "part1", "sourceFile": "mammalian_01_battleship_bow_XL1.mesh"},
+      {"name": "core::polySurface1290", "type": "skinned mesh", "parent": "part2", "sourceFile": "mammalian_01_battleship_mid_L3.mesh"},
+      {"name": "stern::mammalian_battleshio_stern_01", "type": "skinned mesh", "parent": "part3", "sourceFile": "mammalian_01_battleship_stern_L1.mesh"}
+    ],
+    "bones": [{"name":"root","parent":null},{"name":"ship_main","parent":"root"},{"name":"part1","parent":"ship_main"},{"name":"part2","parent":"ship_main"},{"name":"part3","parent":"ship_main"}],
+    "animations": ["idle", "death", "death2", "death3"],
+    "animationMap": {"idle":"idle","death":"death","death2":"death2","death3":"death3"}
+  },
+  "ship": {
+    "id": "vanilla_artillery_battleship", "name": "Original Mammalian Battleship", "size": "battleship", "role": "artillery", "entityScale": 1.0,
+    "hullPoints": 4800, "armor": 0, "shields": 0, "power": 0, "powerUse": 0, "alloyCost": 1920, "combatSpeed": 100, "rotationSpeed": 5, "evasion": 5, "fleetSize": 8,
+    "computer": "", "reactor": "", "thrusters": "", "sensor": "", "ftlDrive": ""
+  },
+  "sections": [
+    {
+      "id":"bow","name":"Spinal Mount Bow","key":"BATTLESHIP_BOW_XL1","position":[0,0,0],"rotation":[0,0,0],
+      "parts":[{"id":"bow_original_mesh","name":"Original XL1 bow","sourceNode":"bow::polySurface13031304","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"visible":true,"editTransform":false}],
+      "slots":[{"id":"bow_x_01","name":"X weapon","type":"weapon","size":"X","component":"","locatorId":"loc_bow_xl_gun_01","enabled":true},{"id":"bow_u_01","name":"Large utility 1","type":"utility","size":"L","component":"","locatorId":"","enabled":true},{"id":"bow_u_02","name":"Large utility 2","type":"utility","size":"L","component":"","locatorId":"","enabled":true},{"id":"bow_u_03","name":"Large utility 3","type":"utility","size":"L","component":"","locatorId":"","enabled":true}]
+    },
+    {
+      "id":"core","name":"Artillery Core","key":"BATTLESHIP_MID_L3","position":[0,0,0],"rotation":[0,0,0],
+      "parts":[{"id":"core_original_mesh","name":"Original L3 core","sourceNode":"core::polySurface1290","sourceFile":"mammalian_01_battleship_mid_L3.mesh","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"visible":true,"editTransform":false}],
+      "slots":[{"id":"core_l_01","name":"Large weapon 1","type":"weapon","size":"L","component":"","locatorId":"loc_core_large_gun_01","enabled":true},{"id":"core_l_02","name":"Large weapon 2","type":"weapon","size":"L","component":"","locatorId":"loc_core_large_gun_02","enabled":true},{"id":"core_l_03","name":"Large weapon 3","type":"weapon","size":"L","component":"","locatorId":"loc_core_large_gun_03","enabled":true},{"id":"core_u_01","name":"Large utility 1","type":"utility","size":"L","component":"","locatorId":"","enabled":true},{"id":"core_u_02","name":"Large utility 2","type":"utility","size":"L","component":"","locatorId":"","enabled":true},{"id":"core_u_03","name":"Large utility 3","type":"utility","size":"L","component":"","locatorId":"","enabled":true}]
+    },
+    {
+      "id":"stern","name":"Artillery Stern","key":"BATTLESHIP_STERN_L1","position":[0,0,0],"rotation":[0,0,0],
+      "parts":[{"id":"stern_original_mesh","name":"Original L1 stern","sourceNode":"stern::mammalian_battleshio_stern_01","sourceFile":"mammalian_01_battleship_stern_L1.mesh","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"visible":true,"editTransform":false}],
+      "slots":[{"id":"stern_l_01","name":"Large weapon","type":"weapon","size":"L","component":"","locatorId":"loc_stern_large_gun_01","enabled":true},{"id":"stern_a_01","name":"Auxiliary 1","type":"auxiliary","size":"A","component":"","locatorId":"","enabled":true},{"id":"stern_a_02","name":"Auxiliary 2","type":"auxiliary","size":"A","component":"","locatorId":"","enabled":true}]
+    }
+  ],
+  "locators": [
+    {"id":"loc_bow_xl_gun_01","name":"bow::xl_gun_01","sourceNode":"bow::xl_gun_01","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"weapon","linkedSlot":"bow_x_01","position":[0,-7.54214,-1.00105],"rotation":[90,0,0],"markerScale":0.8,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_1","name":"bow::xl_windup_1","sourceNode":"bow::xl_windup_1","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[6.61354,-0.11192,-1.00105],"rotation":[90,90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_2","name":"bow::xl_windup_2","sourceNode":"bow::xl_windup_2","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[-6.61831,-0.11192,-1.00105],"rotation":[90,-90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_3","name":"bow::xl_windup_3","sourceNode":"bow::xl_windup_3","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[-6.61831,-2.61481,-1.00105],"rotation":[90,-90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_4","name":"bow::xl_windup_4","sourceNode":"bow::xl_windup_4","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[6.61354,-2.61481,-1.00105],"rotation":[90,90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_5","name":"bow::xl_windup_5","sourceNode":"bow::xl_windup_5","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[-6.61831,-5.07533,-1.00105],"rotation":[90,-90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_6","name":"bow::xl_windup_6","sourceNode":"bow::xl_windup_6","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[6.61354,-5.07533,-1.00105],"rotation":[90,90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_7","name":"bow::xl_windup_7","sourceNode":"bow::xl_windup_7","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[-6.61831,-7.54214,-1.00105],"rotation":[90,-90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_8","name":"bow::xl_windup_8","sourceNode":"bow::xl_windup_8","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[6.61354,-7.54214,-1.00105],"rotation":[90,90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_9","name":"bow::xl_windup_9","sourceNode":"bow::xl_windup_9","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[-2.84556,-7.54214,-1.00105],"rotation":[90,90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_bow_xl_windup_10","name":"bow::xl_windup_10","sourceNode":"bow::xl_windup_10","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"effect","linkedSlot":"bow_x_01","position":[2.84079,-7.54214,-1.00105],"rotation":[90,-90,0],"markerScale":0.45,"visible":true,"editTransform":true},
+    {"id":"loc_core_large_gun_01","name":"core::large_gun_01","sourceNode":"core::large_gun_01","sourceFile":"mammalian_01_battleship_mid_L3.mesh","parentBone":"part2","kind":"weapon","linkedSlot":"core_l_01","position":[2.21586,1.75801,2.82458],"rotation":[90,0,0],"markerScale":0.7,"visible":true,"editTransform":true},
+    {"id":"loc_core_large_gun_02","name":"core::large_gun_02","sourceNode":"core::large_gun_02","sourceFile":"mammalian_01_battleship_mid_L3.mesh","parentBone":"part2","kind":"weapon","linkedSlot":"core_l_02","position":[-2.21586,1.75801,2.82457],"rotation":[90,0,0],"markerScale":0.7,"visible":true,"editTransform":true},
+    {"id":"loc_core_large_gun_03","name":"core::large_gun_03","sourceNode":"core::large_gun_03","sourceFile":"mammalian_01_battleship_mid_L3.mesh","parentBone":"part2","kind":"weapon","linkedSlot":"core_l_03","position":[0,-3.136,2.82457],"rotation":[90,0,0],"markerScale":0.7,"visible":true,"editTransform":true},
+    {"id":"loc_stern_large_gun_01","name":"stern::large_gun_01","sourceNode":"stern::large_gun_01","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"weapon","linkedSlot":"stern_l_01","position":[0,-0.05128,2.03357],"rotation":[90,0,0],"markerScale":0.7,"visible":true,"editTransform":true},
+    {"id":"loc_engine_01","name":"stern::engine_medium_01","sourceNode":"stern::engine_medium_01","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"engine","linkedSlot":"","position":[3.08209,10.01408,0.71288],"rotation":[-90,0,180],"markerScale":0.55,"visible":true,"editTransform":true},
+    {"id":"loc_engine_02","name":"stern::engine_medium_02","sourceNode":"stern::engine_medium_02","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"engine","linkedSlot":"","position":[-3.0821,10.01408,0.71288],"rotation":[-90,0,180],"markerScale":0.55,"visible":true,"editTransform":true},
+    {"id":"loc_engine_03","name":"stern::engine_medium_03","sourceNode":"stern::engine_medium_03","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"engine","linkedSlot":"","position":[0,11.45377,1.63237],"rotation":[-90,0,180],"markerScale":0.55,"visible":true,"editTransform":true},
+    {"id":"loc_engine_04","name":"stern::engine_medium_04","sourceNode":"stern::engine_medium_04","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"engine","linkedSlot":"","position":[0,11.45377,-0.53994],"rotation":[-90,0,180],"markerScale":0.55,"visible":true,"editTransform":true},
+    {"id":"loc_exhaust_01","name":"stern::exhaust_01","sourceNode":"stern::exhaust_01","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"effect","linkedSlot":"","position":[0,11.45377,1.63237],"rotation":[-90,0,180],"markerScale":0.55,"visible":true,"editTransform":true},
+    {"id":"loc_target_01","name":"target_locator_1","sourceNode":"target_locator_1","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"","kind":"camera","linkedSlot":"","position":[0,0,11.77965],"rotation":[0,0,0],"markerScale":0.6,"visible":true,"editTransform":true},
+    {"id":"loc_target_02","name":"target_locator_2","sourceNode":"target_locator_2","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"","kind":"camera","linkedSlot":"","position":[0,0,4.69211],"rotation":[0,0,0],"markerScale":0.6,"visible":true,"editTransform":true},
+    {"id":"loc_target_03","name":"target_locator_3","sourceNode":"target_locator_3","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"","kind":"camera","linkedSlot":"","position":[0,0,-5.8199],"rotation":[0,0,0],"markerScale":0.6,"visible":true,"editTransform":true},
+    {"id":"loc_target_04","name":"target_locator_4","sourceNode":"target_locator_4","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"","kind":"camera","linkedSlot":"","position":[0,0,-17.08899],"rotation":[0,0,0],"markerScale":0.6,"visible":true,"editTransform":true},
+    {"id":"loc_explosion_01","name":"explosion_locator1","sourceNode":"explosion_locator1","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part2","kind":"effect","linkedSlot":"","position":[-3.56192,0,-0.30957],"rotation":[90,0,0],"markerScale":0.5,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_02","name":"explosion_locator2","sourceNode":"explosion_locator2","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part2","kind":"effect","linkedSlot":"","position":[4.43197,4.92651,-0.30957],"rotation":[90,0,0],"markerScale":0.5,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_03","name":"explosion_locator3","sourceNode":"explosion_locator3","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part3","kind":"effect","linkedSlot":"","position":[0.58697,2.40138,2.67792],"rotation":[90,0,0],"markerScale":0.5,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_04","name":"explosion_locator4","sourceNode":"explosion_locator4","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part3","kind":"effect","linkedSlot":"","position":[-4.38932,2.97647,0.28589],"rotation":[90,0,0],"markerScale":0.5,"visible":false,"editTransform":true},
+    {"id":"loc_explosion_05","name":"explosion_locator5","sourceNode":"explosion_locator5","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part1","kind":"effect","linkedSlot":"","position":[0,-3.5057,2.17255],"rotation":[90,0,0],"markerScale":0.5,"visible":false,"editTransform":true},
+    {"id":"loc_part1","name":"part1_locator","sourceNode":"part1_locator","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part1","kind":"custom","linkedSlot":"","position":[0,0,0],"rotation":[-90,0,180],"markerScale":0.6,"visible":false,"editTransform":true},
+    {"id":"loc_part2_back","name":"part2_back_locator","sourceNode":"part2_back_locator","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part2","kind":"custom","linkedSlot":"","position":[0,5.50844,0],"rotation":[-90,0,180],"markerScale":0.6,"visible":false,"editTransform":true},
+    {"id":"loc_part2_front","name":"part2_front_locator","sourceNode":"part2_front_locator","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part2","kind":"custom","linkedSlot":"","position":[0,-5.95687,0],"rotation":[90,0,0],"markerScale":0.6,"visible":false,"editTransform":true},
+    {"id":"loc_part3","name":"part3_locator","sourceNode":"part3_locator","sourceFile":"mammalian_01_battleship_frame.mesh","parentBone":"part3","kind":"custom","linkedSlot":"","position":[0,0,0],"rotation":[90,0,0],"markerScale":0.6,"visible":false,"editTransform":true},
+    {"id":"loc_bow_light_01","name":"bow::light_01","sourceNode":"bow::light_01","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"light","linkedSlot":"","position":[-5.26216,1.02956,-1.50772],"rotation":[90,0,0],"markerScale":0.35,"visible":false,"editTransform":true},
+    {"id":"loc_bow_light_02","name":"bow::light_02","sourceNode":"bow::light_02","sourceFile":"mammalian_01_battleship_bow_XL1.mesh","parentBone":"part1","kind":"light","linkedSlot":"","position":[5.24766,1.02956,-1.50772],"rotation":[90,0,0],"markerScale":0.35,"visible":false,"editTransform":true},
+    {"id":"loc_core_light_01","name":"core::light_01","sourceNode":"core::light_01","sourceFile":"mammalian_01_battleship_mid_L3.mesh","parentBone":"part2","kind":"light","linkedSlot":"","position":[0.03682,2.55431,-5.4484],"rotation":[90,0,0],"markerScale":0.35,"visible":false,"editTransform":true},
+    {"id":"loc_core_light_02","name":"core::light_02","sourceNode":"core::light_02","sourceFile":"mammalian_01_battleship_mid_L3.mesh","parentBone":"part2","kind":"light","linkedSlot":"","position":[0.03682,-3.78846,-5.4484],"rotation":[90,0,0],"markerScale":0.35,"visible":false,"editTransform":true},
+    {"id":"loc_stern_light_01","name":"stern::light_01","sourceNode":"stern::light_01","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"light","linkedSlot":"","position":[-7.4618,-4.91481,-2.29316],"rotation":[90,0,0],"markerScale":0.35,"visible":false,"editTransform":true},
+    {"id":"loc_stern_light_02","name":"stern::light_02","sourceNode":"stern::light_02","sourceFile":"mammalian_01_battleship_stern_L1.mesh","parentBone":"part3","kind":"light","linkedSlot":"","position":[7.46179,-4.91481,-2.29316],"rotation":[90,0,0],"markerScale":0.35,"visible":false,"editTransform":true}
+  ],
+  "animation": {
+    "selected":"idle","speed":1.0,"loop":true,
+    "clips":[
+      {"id":"idle","name":"Idle","duration":7.93,"fps":15,"frames":120,"sourceFile":"mammalian_01_battleship_frame_idle.anim","officialBinding":true,"description":"Original frame idle action bound by mammalian_01_ships.gfx."},
+      {"id":"death","name":"Death 1","duration":14.67,"fps":15,"frames":221,"sourceFile":"mammalian_01_battleship_frame_death.anim","officialBinding":true,"description":"Original section-break death action."},
+      {"id":"death2","name":"Death 2","duration":22.6,"fps":15,"frames":340,"sourceFile":"mammalian_01_battleship_frame_death2.anim","officialBinding":true,"description":"Original alternate section-break death action."},
+      {"id":"death3","name":"Death 3","duration":16.07,"fps":15,"frames":242,"sourceFile":"mammalian_01_battleship_frame_death3.anim","officialBinding":true,"description":"Original alternate whole-frame death action."}
+    ]
+  }
+}

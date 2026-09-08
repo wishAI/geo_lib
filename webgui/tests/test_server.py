@@ -10,7 +10,7 @@ from webgui import server, storage
 class ManifestTests(unittest.TestCase):
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
-        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest"}
+        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship"}
         algorithm_names = {
             path.name
             for path in (server.REPO_ROOT / "algorithms").iterdir()
@@ -50,6 +50,39 @@ class ManifestTests(unittest.TestCase):
             server.build_example_command(manifest, example, {"resolution": 0.0001})
         with self.assertRaisesRegex(ValueError, "Unknown parameters"):
             server.build_example_command(manifest, example, {"resolution": 0.02, "command": "oops"})
+
+    def test_stellaris_designer_uses_a_valid_editable_input_contract(self) -> None:
+        manifest = server.manifest_map()["stellaris_ship_designer"]
+        self.assertEqual(manifest["designer"]["type"], "stellarisShipDesigner")
+        self.assertEqual([item["id"] for item in manifest["designer"]["designs"]], [
+            "mammalian_battleship", "biogenesis_mauler_stage_1",
+        ])
+        design = server.load_ship_design("stellaris_ship_designer", "mammalian_battleship")
+        self.assertEqual([section["name"] for section in design["sections"]], [
+            "Spinal Mount Bow", "Artillery Core", "Artillery Stern",
+        ])
+        self.assertEqual(
+            [slot["size"] for section in design["sections"] for slot in section["slots"] if slot["type"] == "weapon"],
+            ["X", "L", "L", "L", "L"],
+        )
+        self.assertTrue(all(len(locator["position"]) == 3 for locator in design["locators"]))
+        mauler = server.load_ship_design("stellaris_ship_designer", "biogenesis_mauler_stage_1")
+        self.assertEqual(len(mauler["model"]["bones"]), 16)
+        self.assertEqual([clip["id"] for clip in mauler["animation"]["clips"]], [
+            "idle", "combat_moving", "attack_source_disabled",
+        ])
+        self.assertFalse(mauler["animation"]["clips"][-1]["officialBinding"])
+        self.assertEqual(server._designer_model("stellaris_ship_designer", "mammalian_battleship").stat().st_size, 9218152)
+        self.assertEqual(server._designer_model("stellaris_ship_designer", "biogenesis_mauler_stage_1").stat().st_size, 10079592)
+        with self.assertRaisesRegex(ValueError, "Unknown ship design"):
+            server.load_ship_design("stellaris_ship_designer", "not_declared")
+        with self.assertRaisesRegex(ValueError, "duplicate id"):
+            invalid = json.loads(json.dumps(design))
+            invalid["locators"] = [
+                {"id": "duplicate", "position": [0, 0, 0], "rotation": [0, 0, 0]},
+                {"id": "duplicate", "position": [1, 0, 0], "rotation": [0, 0, 0]},
+            ]
+            server.validate_ship_design(invalid)
 
     def test_walk_sandbox_exposes_current_latest_mesh_gate(self) -> None:
         root = server.REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk"
@@ -92,8 +125,8 @@ class StorageAndRobotTests(unittest.TestCase):
     def test_large_file_manifest_is_deduplicated_and_complete(self) -> None:
         manifest = storage.load_manifest()
         self.assertEqual(manifest["thresholdBytes"], 5 * 1024 * 1024)
-        self.assertEqual(len(manifest["files"]), 12)
-        self.assertEqual(len({item["cloudPath"] for item in manifest["files"]}), 3)
+        self.assertEqual(len(manifest["files"]), 14)
+        self.assertEqual(len({item["cloudPath"] for item in manifest["files"]}), 5)
         self.assertTrue(all(len(item["sha256"]) == 64 for item in manifest["files"]))
 
     def test_repo_has_no_tracked_file_over_threshold(self) -> None:

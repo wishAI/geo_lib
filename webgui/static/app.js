@@ -13,12 +13,12 @@
   const meshDialogContent = document.querySelector('#mesh-dialog-content');
   const evolutionDialog = document.querySelector('#evolution-dialog');
   const evolutionDialogContent = document.querySelector('#evolution-dialog-content');
-  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', pollTimer: null };
+  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', shipDesigner: null, pollTimer: null };
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatBytes = value => value == null ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) + 'B';
   const statusWord = value => value ? 'online' : 'offline';
-  const ICON_NAMES = new Set(['logo', 'mac', 'tk2', 'cloud', 'refresh', 'sync', 'search', 'arrow', 'back', 'close', 'play', 'stop', 'terminal', 'result', 'file', 'check', 'warning', 'layers', 'cube', 'robot', 'joint', 'focus', 'sliders', 'milestones', 'headset', 'point-cloud', 'arm', 'route', 'map', 'vector', 'walk', 'nest']);
+  const ICON_NAMES = new Set(['logo', 'mac', 'tk2', 'cloud', 'refresh', 'sync', 'search', 'arrow', 'back', 'close', 'play', 'stop', 'terminal', 'result', 'file', 'check', 'warning', 'layers', 'cube', 'robot', 'joint', 'focus', 'sliders', 'milestones', 'headset', 'point-cloud', 'arm', 'route', 'map', 'vector', 'walk', 'nest', 'ship']);
   const icon = (name, className = '') => {
     const resolved = ICON_NAMES.has(name) ? name : 'cube';
     return `<svg class="icon ${escapeHtml(className)}" aria-hidden="true"><use href="/icons.svg?v=2#icon-${resolved}"></use></svg>`;
@@ -84,7 +84,7 @@
         <div class="hero-copy-block">
           <p class="eyebrow">LOCAL MAC · REMOTE TK2 · NEXTCLOUD</p>
           <h1>Build. Run.<br><em>See it.</em></h1>
-          <p class="hero-copy">Nine visual workbenches for geometry, robot assets, simulation, and remote compute.</p>
+          <p class="hero-copy">Local visual workbenches for geometry, robot assets, simulation, game modding, and remote compute.</p>
         </div>
         <div class="hero-visual" aria-label="Geo Lab runtime map">
           <span class="hero-grid" aria-hidden="true"></span>
@@ -162,6 +162,11 @@
     return `<section class="panel evolution-preview-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('milestones')}</span><div><p class="eyebrow">REAL CHECKPOINT LINEAGE</p><h2>${escapeHtml(sandbox.inspector.label || 'Training evolution')}</h2></div></div><button class="button button-with-icon" type="button" data-open-workbench="evolution">${icon('arrow')}<span>Open interactive tree</span></button></header><div class="panel-body evolution-preview-body" data-evolution-preview><div class="evolution-preview-loading">${icon('milestones')}<span>Loading real lineage…</span></div></div></section>`;
   }
 
+  function designerPanel(sandbox) {
+    if (sandbox.designer?.type !== 'stellarisShipDesigner') return '';
+    return `<section class="panel ship-designer-panel"><div id="stellaris-ship-designer" aria-live="polite"></div></section>`;
+  }
+
   function evolutionPreviewMarkup(data) {
     const all = Array.isArray(data?.nodes) ? data.nodes : [];
     const byId = new Map(all.map(node => [node.id, node]));
@@ -202,19 +207,21 @@
   }
 
   function sandboxView(sandbox) {
+    state.shipDesigner?.destroy?.();
+    state.shipDesigner = null;
     const resultCount = declaredArtifactCount(sandbox);
     const examples = visibleExamples(sandbox);
     app.innerHTML = `
       <a href="#/" class="back-link">${icon('back')}<span>All sandboxes</span></a>
-      <section class="sandbox-hero" style="--accent:${escapeHtml(sandbox.accent || '#1f5b4b')}">
+      <section class="sandbox-hero${sandbox.designer ? ' designer-hero' : ''}" style="--accent:${escapeHtml(sandbox.accent || '#1f5b4b')}">
         <div class="sandbox-identity"><span class="sandbox-identity-icon">${icon(sandbox.icon || 'cube')}</span><div><p class="eyebrow">${escapeHtml(sandbox.eyebrow || 'ALGORITHM SANDBOX')}</p><h1>${escapeHtml(sandbox.name)}</h1><p class="sandbox-summary">${escapeHtml(sandbox.summary)}</p></div></div>
         <div class="sandbox-stats">
           <div>${icon(targetIcon(sandbox.runtime))}<span>Runtime</span><b>${escapeHtml(sandbox.runtimeLabel || sandbox.runtime || 'Local Mac')}</b></div>
-          <div>${icon('play')}<span>Examples</span><b>${examples.length}</b></div>
-          <div>${icon('result')}<span>Results</span><b>${resultCount}</b></div>
+          ${sandbox.designer ? `<div>${icon('layers')}<span>Models</span><b>${sandbox.designer.designs?.length || 1} originals</b></div><div>${icon('focus')}<span>Markers</span><b>Live XYZ</b></div>` : `<div>${icon('play')}<span>Examples</span><b>${examples.length}</b></div><div>${icon('result')}<span>Results</span><b>${resultCount}</b></div>`}
         </div>
       </section>
-      <div class="workspace-grid">
+      ${designerPanel(sandbox)}
+      ${sandbox.designer ? '' : `<div class="workspace-grid">
         <div class="workspace-main">
           ${evolutionPreviewPanel(sandbox)}
           ${visualToolsPanel(sandbox)}
@@ -222,8 +229,12 @@
           ${examples.length && sandbox.milestones?.length ? milestonePanel(sandbox) : ''}
         </div>
         <aside class="workspace-side">${consolePanel(sandbox)}${artifactPanel(sandbox)}</aside>
-      </div>`;
+      </div>`}`;
     bindSandbox(sandbox);
+    if (sandbox.designer?.type === 'stellarisShipDesigner') {
+      const designerRoot = document.querySelector('#stellaris-ship-designer');
+      if (designerRoot && window.StellarisShipDesigner) state.shipDesigner = window.StellarisShipDesigner.mount(designerRoot, { sandbox: sandbox.id });
+    }
     void loadEvolutionPreview(sandbox);
     const consoleElement = document.querySelector('#job-console');
     if (consoleElement) consoleElement.scrollTop = consoleElement.scrollHeight;
@@ -542,8 +553,10 @@
     const sandbox = currentSandbox();
     state.robotViewer?.destroy?.();
     state.meshViewers.forEach(viewer => viewer.destroy?.());
+    state.shipDesigner?.destroy?.();
     state.robotViewer = null;
     state.meshViewers = [];
+    state.shipDesigner = null;
     if (urdfDialog.open && urdfDialog.dataset.sandbox !== sandbox?.id) urdfDialog.close();
     if (meshDialog.open && meshDialog.dataset.sandbox !== sandbox?.id) meshDialog.close();
     if (evolutionDialog.open && evolutionDialog.dataset.sandbox !== sandbox?.id) evolutionDialog.close();

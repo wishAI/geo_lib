@@ -1,0 +1,38 @@
+{
+  "id": "stellaris_ship_designer",
+  "icon": "ship",
+  "name": "Stellaris Ship Designer",
+  "eyebrow": "LIVE 3D MOD WORKBENCH",
+  "summary": "Inspect original Stellaris ship assets in a performant browser 3D view, including a modular battleship and an animated BioGenesis Mauler.",
+  "accent": "#5b74c9",
+  "runtime": "local+tk2",
+  "runtimeLabel": "Safari · synced to TK2",
+  "capabilities": [
+    "WebGL 3D",
+    "ship sections",
+    "weapon locators",
+    "animation preview"
+  ],
+  "designer": {
+    "type": "stellarisShipDesigner",
+    "defaultDesign": "mammalian_battleship",
+    "label": "Original-asset ship editor",
+    "designs": [
+      {
+        "id": "mammalian_battleship",
+        "label": "Mammalian Battleship",
+        "description": "Original modular bow, core, stern, five-bone frame, locators, and four shipped actions.",
+        "configPath": "algorithms/stellaris_ship_designer/inputs/battleship.json",
+        "modelPath": "algorithms/stellaris_ship_designer/inputs/vanilla_battleship.glb"
+      },
+      {
+        "id": "biogenesis_mauler_stage_1",
+        "label": "BioGenesis Mauler · Stage 1",
+        "description": "Small original BioGenesis ship with a 16-bone skin and its shipped idle, combat-moving, and disabled attack source clips.",
+        "configPath": "algorithms/stellaris_ship_designer/inputs/biogenesis_mauler_stage_1.json",
+        "modelPath": "algorithms/stellaris_ship_designer/inputs/biogenesis_mauler_stage_1.glb"
+      }
+    ]
+  },
+  "examples": []
+}

@@ -75,6 +75,18 @@
       "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_normal.png",
       "size": 5369223,
       "sha256": "307af4b0d43a6e66254ef171290d53bf0de51cd015475a9090473cccd7df2479"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/inputs/vanilla_battleship.glb",
+      "cloudPath": "assets/stellaris_ship_designer/vanilla_battleship.glb",
+      "size": 9218152,
+      "sha256": "4bf48348731a11c9ba9cdf6dc08f2bf97c56cdb7350eef4eac5cce974fdd8a92"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/inputs/biogenesis_mauler_stage_1.glb",
+      "cloudPath": "assets/stellaris_ship_designer/biogenesis_mauler_stage_1.glb",
+      "size": 10079592,
+      "sha256": "eb9950df3a3cde200b3bcf2277af3c86970de9c148501a77d6635738a5ff2095"
     }
   ]
 }
