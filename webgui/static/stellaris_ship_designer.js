@@ -94,10 +94,11 @@
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       const radius = Math.max(size.x, size.y, size.z, 1);
+      const viewDirection = this.design.model?.cameraDirection || [.9, .58, 1.15];
       this.controls.target.copy(center);
       this.camera.near = Math.max(.001, radius / 1000);
       this.camera.far = radius * 100;
-      this.camera.position.copy(center).add(new THREE.Vector3(radius * .9, radius * .58, radius * 1.15));
+      this.camera.position.copy(center).add(new THREE.Vector3(radius * viewDirection[0], radius * viewDirection[1], radius * viewDirection[2]));
       this.camera.updateProjectionMatrix();
       this.controls.update();
     }
@@ -149,7 +150,8 @@
         marker.name = locator.id;
         marker.userData.locatorId = locator.id;
         marker.userData.source = locator.sourceNode ? this.model?.getObjectByName(locator.sourceNode) : null;
-        const helper = new this.THREE.AxesHelper(scale);
+        const axisLength = Math.max(scale * 2.25, 1.35);
+        const helper = new this.THREE.AxesHelper(axisLength);
         helper.material.depthTest = false;
         helper.material.transparent = true;
         helper.material.opacity = .98;
@@ -157,6 +159,31 @@
         helper.visible = this.showMarkers;
         helper.renderOrder = 8;
         marker.add(helper);
+        const axisDirections = [
+          [new this.THREE.Vector3(1, 0, 0), 0xff4b43],
+          [new this.THREE.Vector3(0, 1, 0), 0x48e77f],
+          [new this.THREE.Vector3(0, 0, 1), 0x488cff],
+        ];
+        for (const [direction, color] of axisDirections) {
+          const tip = new this.THREE.Mesh(
+            new this.THREE.ConeGeometry(axisLength * .075, axisLength * .24, 9),
+            new this.THREE.MeshBasicMaterial({ color, depthTest: false }),
+          );
+          tip.quaternion.setFromUnitVectors(new this.THREE.Vector3(0, 1, 0), direction);
+          tip.position.copy(direction).multiplyScalar(axisLength * .94);
+          tip.userData.markerAxes = true;
+          tip.visible = this.showMarkers;
+          tip.renderOrder = 9;
+          marker.add(tip);
+        }
+        const origin = new this.THREE.Mesh(
+          new this.THREE.SphereGeometry(axisLength * .055, 10, 8),
+          new this.THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }),
+        );
+        origin.userData.markerAxes = true;
+        origin.visible = this.showMarkers;
+        origin.renderOrder = 9;
+        marker.add(origin);
         if (locator.kind === 'fire_origin') {
           const dot = new this.THREE.Mesh(
             new this.THREE.SphereGeometry(scale * .13, 10, 8),
@@ -220,8 +247,9 @@
       const sprite = new this.THREE.Sprite(new this.THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, sizeAttenuation: true }));
       sprite.userData.markerLabel = true;
       sprite.visible = this.showLabels;
-      sprite.position.set(0, scale * 1.35, 0);
-      sprite.scale.set(scale * 5.8, scale * 1.15, 1);
+      const labelScale = clamp(scale, .55, .82);
+      sprite.position.set(0, Math.max(scale * 1.35, 1.05), 0);
+      sprite.scale.set(labelScale * 5.8, labelScale * 1.15, 1);
       sprite.renderOrder = 10;
       return sprite;
     }
@@ -405,7 +433,7 @@
       this.root.innerHTML = `<div class="ship-designer">
         <header class="ship-designer-bar"><div><span class="ship-kicker">ORIGINAL GAME ASSET · ${escapeHtml(this.design.source?.dlc || 'VANILLA')}</span><h2>${escapeHtml(this.design.ship.name)}</h2></div><div class="ship-actions"><label class="ship-example-select"><span>Example</span><select data-design>${this.designs.map(item => `<option value="${escapeHtml(item.id)}" ${item.id === this.designId ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><span class="ship-save-state" data-save-state>${this.dirty ? 'Unsaved changes' : 'Saved on Mac'}</span><button class="button button-light" type="button" data-ship-reset>Reload</button><button class="button" type="button" data-ship-save>Save + sync TK2</button></div></header>
         <div class="ship-workspace">
-          <section class="ship-stage"><canvas data-ship-canvas aria-label="Interactive three-dimensional original Stellaris ship preview"></canvas><div class="ship-stage-tools"><label><span>Animation</span><select data-clip>${clips.map(clip => `<option value="${escapeHtml(clip.id)}" ${clip.id === this.design.animation.selected ? 'selected' : ''}>${escapeHtml(clip.name)}</option>`).join('')}</select></label><button class="ship-icon-button" type="button" data-play aria-label="Pause animation">Ⅱ</button><button class="ship-icon-button" type="button" data-camera aria-label="Reset camera">⌖</button><div class="ship-view-toggles"><label class="ship-marker-toggle"><input type="checkbox" data-markers checked><span>Axes</span></label><label class="ship-marker-toggle"><input type="checkbox" data-labels checked><span>Labels</span></label><label class="ship-marker-toggle ship-laser-toggle"><input type="checkbox" data-fire-test><span>Laser test</span></label><label class="ship-marker-toggle"><input type="checkbox" data-skeleton><span>Rig</span></label></div></div><div class="ship-marker-help"><b>What the marker means</b><span>RGB is the animated local pose. Turn on Laser test for a cyan shot along a pose-derived muzzle/rest axis. An expanding yellow pulse means only the origin is defined and turret aim is dynamic.</span></div><div class="ship-stage-readout"><span data-render-stats>Preparing GPU…</span><span>${escapeHtml(section?.name || '')}</span></div><div class="ship-axis-key"><i class="x"></i>+X red <i class="y"></i>+Y green <i class="z"></i>+Z blue <strong>local pose</strong></div></section>
+          <section class="ship-stage"><canvas data-ship-canvas aria-label="Interactive three-dimensional original Stellaris ship preview"></canvas><div class="ship-stage-tools"><label><span>Animation</span><select data-clip>${clips.map(clip => `<option value="${escapeHtml(clip.id)}" ${clip.id === this.design.animation.selected ? 'selected' : ''}>${escapeHtml(clip.name)}</option>`).join('')}</select></label><button class="ship-icon-button" type="button" data-play aria-label="Pause animation">Ⅱ</button><button class="ship-icon-button" type="button" data-camera aria-label="Reset camera">⌖</button><div class="ship-view-toggles"><label class="ship-marker-toggle"><input type="checkbox" data-markers checked><span>Axes</span></label><label class="ship-marker-toggle"><input type="checkbox" data-labels checked><span>Labels</span></label><label class="ship-marker-toggle ship-laser-toggle"><input type="checkbox" data-fire-test><span>Laser test</span></label><label class="ship-marker-toggle"><input type="checkbox" data-skeleton><span>Rig</span></label></div></div><div class="ship-marker-help"><b>What the marker means</b><span>RGB is the animated local pose. Turn on Laser test for a cyan shot along a pose-derived muzzle/rest axis. An expanding yellow pulse means only the origin is defined and turret aim is dynamic.</span></div><div class="ship-stage-readout"><span data-render-stats>Preparing GPU…</span><span>${escapeHtml(section?.name || '')}</span></div><div class="ship-axis-key"><i class="x"></i>+X red <i class="y"></i>+Y green <i class="z"></i>+Z blue <strong>${escapeHtml(this.design.ship.forwardAxis ? `ship front ${this.design.ship.forwardAxis}` : 'local pose')}</strong></div></section>
           <aside class="ship-properties"><nav class="ship-tabs" aria-label="Ship properties">${[['ship', 'Ship'], ['sections', 'Sections'], ['parts', 'Parts'], ['slots', 'Slots'], ['locators', 'Locators'], ['rig', 'Rig'], ['motion', 'Motion'], ['json', 'JSON']].map(([id, name]) => `<button type="button" data-tab="${id}" class="${this.tab === id ? 'active' : ''}">${name}</button>`).join('')}</nav><div class="ship-property-body" data-property-body>${this.propertyMarkup()}</div></aside>
         </div>
       </div>`;

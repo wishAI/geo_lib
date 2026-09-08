@@ -91,8 +91,14 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(design["officialRules"]["fleetSlotSize"], 4)
         self.assertEqual(design["officialRules"]["rotationSpeed"], 0.15)
         self.assertEqual(design["sections"][0]["key"], "BATTLESHIP_BOW_M2S4")
-        battle_locators = {locator["id"]: locator for locator in design["locators"]}
-        self.assertEqual(battle_locators["loc_bow_xl_gun_01"]["fireAxis"], "+Z")
+        self.assertEqual(design["ship"]["forwardAxis"], "+Z")
+        self.assertEqual(design["model"]["cameraDirection"], [1.05, 0.62, 0.18])
+        weapon_locators = [
+            locator for locator in design["locators"]
+            if locator.get("usage") == "official_slot_binding"
+        ]
+        self.assertEqual({locator["fireAxis"] for locator in weapon_locators}, {"+Y"})
+        self.assertTrue(all("ship +Z/bow" in locator["fireAxisEvidence"] for locator in weapon_locators))
         visible_battle_locators = [locator for locator in design["locators"] if locator["visible"]]
         self.assertEqual(len(visible_battle_locators), 5)
         self.assertTrue(all(locator.get("usage") == "official_slot_binding" for locator in visible_battle_locators))
