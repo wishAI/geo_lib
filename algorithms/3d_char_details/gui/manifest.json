@@ -1,0 +1,148 @@
+{
+  "id": "3d_char_details",
+  "icon": "sliders",
+  "name": "3d char details",
+  "eyebrow": "CHARACTER SANDBOX",
+  "summary": "Landau character workshop: inspect the white structure against three references, edit facial shapes and body poses, separate clothing, and export GLB.",
+  "accent": "#8b699d",
+  "runtime": "local",
+  "runtimeLabel": "Local 3D editor",
+  "capabilities": [
+    "Clay structure",
+    "Reference comparison",
+    "Face morphs",
+    "Clothing separation",
+    "Skin + morph export"
+  ],
+  "examples": [
+    {
+      "id": "validate_landau",
+      "name": "Validate Landau asset",
+      "description": "Validate exported skin weights, morphs, source geometry preservation and embedded assets.",
+      "target": "local",
+      "targets": [
+        "local"
+      ],
+      "command": [
+        "python3",
+        "algorithms/3d_char_details/validate_asset.py"
+      ],
+      "artifacts": [
+        {
+          "label": "Character GLB",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/landau_character.glb",
+          "kind": "model"
+        },
+        {
+          "label": "Blender master",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/landau_character.blend",
+          "kind": "file"
+        },
+        {
+          "label": "Asset report",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/asset_report.json",
+          "kind": "json"
+        },
+        {
+          "label": "reference.png",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/reference.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "landau_test.png",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/landau_test.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "landau_test2.png",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/landau_test2.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "editor.js",
+          "path": "algorithms/3d_char_details/gui/editor.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "editor.css",
+          "path": "algorithms/3d_char_details/gui/editor.css",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "vendor/GLTFExporter.js",
+          "path": "algorithms/3d_char_details/gui/vendor/GLTFExporter.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "vendor/TextureUtils.js",
+          "path": "algorithms/3d_char_details/gui/vendor/TextureUtils.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "Closed-eye expression reference",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/closed_eyes_reference.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "closed_eyes_reference2.png",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/closed_eyes_reference2.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "half_closed_reference.png",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/half_closed_reference.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "Open \u00b7 original lashes",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/geometry_open.png",
+          "kind": "image"
+        },
+        {
+          "label": "Half blink \u00b7 original lashes",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/geometry_half.png",
+          "kind": "image"
+        },
+        {
+          "label": "Closed \u00b7 upper lid only",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/geometry_closed.png",
+          "kind": "image"
+        },
+        {
+          "label": "Three-quarter face",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/geometry_threequarter.png",
+          "kind": "image"
+        },
+        {
+          "label": "Full character",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/geometry_full.png",
+          "kind": "image"
+        },
+        {
+          "label": "Blink geometry validation",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/likeness_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Half-closed reference 2",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/half_closed_reference2.png",
+          "kind": "image",
+          "syncOnly": true
+        }
+      ]
+    }
+  ],
+  "designer": {
+    "type": "charDetails"
+  }
+}

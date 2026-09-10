@@ -15,7 +15,7 @@ from webgui import server, storage
 class ManifestTests(unittest.TestCase):
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
-        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship", "pawn"}
+        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship", "sliders", "pawn"}
         algorithm_names = {
             path.name
             for path in (server.REPO_ROOT / "algorithms").iterdir()
@@ -236,8 +236,12 @@ class StorageAndRobotTests(unittest.TestCase):
     def test_large_file_manifest_is_deduplicated_and_complete(self) -> None:
         manifest = storage.load_manifest()
         self.assertEqual(manifest["thresholdBytes"], 5 * 1024 * 1024)
-        self.assertEqual(len(manifest["files"]), 14)
-        self.assertEqual(len({item["cloudPath"] for item in manifest["files"]}), 5)
+        paths = [item["repoPath"] for item in manifest["files"]]
+        self.assertEqual(len(paths), len(set(paths)))
+        by_cloud = {}
+        for item in manifest["files"]:
+            signature = (item["size"], item["sha256"])
+            self.assertEqual(by_cloud.setdefault(item["cloudPath"], signature), signature)
         self.assertTrue(all(len(item["sha256"]) == 64 for item in manifest["files"]))
 
     def test_repo_has_no_tracked_file_over_threshold(self) -> None:

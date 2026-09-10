@@ -87,6 +87,48 @@
       "cloudPath": "assets/stellaris_ship_designer/biogenesis_mauler_stage_1.glb",
       "size": 10079592,
       "sha256": "eb9950df3a3cde200b3bcf2277af3c86970de9c148501a77d6635738a5ff2095"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/outputs/landau_v10/landau_character.blend",
+      "cloudPath": "assets/3d_char_details/landau_v10/landau_original_lashes_20260910_188477748065.blend",
+      "size": 29879001,
+      "sha256": "18847774806515ad92be70a6168b0006de30ff37c210a5872a16b8762c5d8a97"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/outputs/landau_v10/landau_character.glb",
+      "cloudPath": "assets/3d_char_details/landau_v10/landau_original_lashes_20260910_38d776c1bc1f.glb",
+      "size": 34231408,
+      "sha256": "38d776c1bc1f12a5b79c83f34bf2ad3daa1e72022efdcc89947c1d4290a19c6e"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/inputs/landau_v10/textures/texture_pbr_20250901.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901.png",
+      "size": 11900899,
+      "sha256": "89830690792ed61809fb6e7b2a6231554dc5c21897041c42be90fe762ddd1a4e"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/inputs/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_metallic-texture_pbr_20250901_roughness.png",
+      "size": 8310944,
+      "sha256": "4a10b43e322f7f3028596403480da1c6f69375befacd944147746a6ed62fb183"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/inputs/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "cloudPath": "assets/landau_v10/textures/texture_pbr_20250901_normal.png",
+      "size": 5369223,
+      "sha256": "307af4b0d43a6e66254ef171290d53bf0de51cd015475a9090473cccd7df2479"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/inputs/landau_v10/source.usdc",
+      "cloudPath": "assets/3d_char_details/landau_v10/source_506f3dc9a79d.usdc",
+      "size": 4156349,
+      "sha256": "506f3dc9a79d5a91d7a8bd6dd3474b638bc7adfa236a591ac5b6d4f6ff5449ed"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/outputs/landau_v10/asset_report.json",
+      "cloudPath": "assets/3d_char_details/landau_v10/asset_report_ce1f6b0c2b35.json",
+      "size": 8409,
+      "sha256": "ce1f6b0c2b35e803560402e3c0ca48c04f093831742234622cd4a34085496f4c"
     }
   ]
 }
