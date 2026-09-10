@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "mod": {
+    "name": "Dragon Yuran",
+    "packageId": "wishai.dragonyuran",
+    "author": "Hao Wang",
+    "selectedApparel": [
+      "YR_AP_MiKo",
+      "YR_AP_White",
+      "YR_AP_RedWhite"
+    ]
+  },
+  "selectedCharacterId": "dragon-yuran-01",
+  "characters": [
+    {
+      "id": "dragon-yuran-01",
+      "name": {
+        "first": "Rin",
+        "nick": "Rin",
+        "last": "Yuran"
+      },
+      "gender": "Female",
+      "biologicalAge": 21,
+      "chronologicalAge": 21,
+      "bodyType": "Thin",
+      "headType": "DragonYuran_Female_AverageNormal",
+      "direction": "south",
+      "hairVariant": 0,
+      "earVariant": 0,
+      "skinColor": "#fafafa",
+      "hairColor": "#ffffff",
+      "dragonSkinInstalled": false,
+      "apparel": [
+        "YR_AP_MiKo"
+      ],
+      "traits": [
+        {
+          "def": "Industrious",
+          "degree": 0
+        }
+      ],
+      "skills": {
+        "Animals": {"level": 6, "passion": "Minor"},
+        "Artistic": {"level": 4, "passion": "None"},
+        "Construction": {"level": 5, "passion": "None"},
+        "Cooking": {"level": 8, "passion": "Major"},
+        "Crafting": {"level": 7, "passion": "Minor"},
+        "Intellectual": {"level": 5, "passion": "None"},
+        "Medical": {"level": 6, "passion": "Minor"},
+        "Melee": {"level": 4, "passion": "None"},
+        "Mining": {"level": 2, "passion": "None"},
+        "Plants": {"level": 7, "passion": "Minor"},
+        "Shooting": {"level": 6, "passion": "None"},
+        "Social": {"level": 9, "passion": "Major"}
+      }
+    }
+  ]
+}

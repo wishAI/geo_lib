@@ -13,12 +13,12 @@
   const meshDialogContent = document.querySelector('#mesh-dialog-content');
   const evolutionDialog = document.querySelector('#evolution-dialog');
   const evolutionDialogContent = document.querySelector('#evolution-dialog-content');
-  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', shipDesigner: null, pollTimer: null };
+  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', shipDesigner: null, rimworldPrepare: null, pollTimer: null };
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatBytes = value => value == null ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) + 'B';
   const statusWord = value => value ? 'online' : 'offline';
-  const ICON_NAMES = new Set(['logo', 'mac', 'tk2', 'cloud', 'refresh', 'sync', 'search', 'arrow', 'back', 'close', 'play', 'stop', 'terminal', 'result', 'file', 'check', 'warning', 'layers', 'cube', 'robot', 'joint', 'focus', 'sliders', 'milestones', 'headset', 'point-cloud', 'arm', 'route', 'map', 'vector', 'walk', 'nest', 'ship']);
+  const ICON_NAMES = new Set(['logo', 'mac', 'tk2', 'cloud', 'refresh', 'sync', 'search', 'arrow', 'back', 'close', 'play', 'stop', 'terminal', 'result', 'file', 'check', 'warning', 'layers', 'cube', 'robot', 'joint', 'focus', 'sliders', 'milestones', 'headset', 'point-cloud', 'arm', 'route', 'map', 'vector', 'walk', 'nest', 'ship', 'pawn']);
   const icon = (name, className = '') => {
     const resolved = ICON_NAMES.has(name) ? name : 'cube';
     return `<svg class="icon ${escapeHtml(className)}" aria-hidden="true"><use href="/icons.svg?v=2#icon-${resolved}"></use></svg>`;
@@ -163,8 +163,9 @@
   }
 
   function designerPanel(sandbox) {
-    if (sandbox.designer?.type !== 'stellarisShipDesigner') return '';
-    return `<section class="panel ship-designer-panel"><div id="stellaris-ship-designer" aria-live="polite"></div></section>`;
+    if (sandbox.designer?.type === 'stellarisShipDesigner') return `<section class="panel ship-designer-panel"><div id="stellaris-ship-designer" aria-live="polite"></div></section>`;
+    if (sandbox.designer?.type === 'rimworldPrepare') return `<section class="panel rimworld-prepare-panel"><div id="rimworld-prepare" aria-live="polite"></div></section>`;
+    return '';
   }
 
   function evolutionPreviewMarkup(data) {
@@ -208,7 +209,9 @@
 
   function sandboxView(sandbox) {
     state.shipDesigner?.destroy?.();
+    state.rimworldPrepare?.destroy?.();
     state.shipDesigner = null;
+    state.rimworldPrepare = null;
     const resultCount = declaredArtifactCount(sandbox);
     const examples = visibleExamples(sandbox);
     app.innerHTML = `
@@ -217,7 +220,7 @@
         <div class="sandbox-identity"><span class="sandbox-identity-icon">${icon(sandbox.icon || 'cube')}</span><div><p class="eyebrow">${escapeHtml(sandbox.eyebrow || 'ALGORITHM SANDBOX')}</p><h1>${escapeHtml(sandbox.name)}</h1><p class="sandbox-summary">${escapeHtml(sandbox.summary)}</p></div></div>
         <div class="sandbox-stats">
           <div>${icon(targetIcon(sandbox.runtime))}<span>Runtime</span><b>${escapeHtml(sandbox.runtimeLabel || sandbox.runtime || 'Local Mac')}</b></div>
-          ${sandbox.designer ? `<div>${icon('layers')}<span>Models</span><b>${sandbox.designer.designs?.length || 1} originals</b></div><div>${icon('focus')}<span>Markers</span><b>Live XYZ</b></div>` : `<div>${icon('play')}<span>Examples</span><b>${examples.length}</b></div><div>${icon('result')}<span>Results</span><b>${resultCount}</b></div>`}
+          ${sandbox.designer?.type === 'rimworldPrepare' ? `<div>${icon('layers')}<span>Source</span><b>Yuran core</b></div><div>${icon('pawn')}<span>Output</span><b>Playable pawn</b></div>` : sandbox.designer ? `<div>${icon('layers')}<span>Models</span><b>${sandbox.designer.designs?.length || 1} originals</b></div><div>${icon('focus')}<span>Markers</span><b>Live XYZ</b></div>` : `<div>${icon('play')}<span>Examples</span><b>${examples.length}</b></div><div>${icon('result')}<span>Results</span><b>${resultCount}</b></div>`}
         </div>
       </section>
       ${designerPanel(sandbox)}
@@ -234,6 +237,10 @@
     if (sandbox.designer?.type === 'stellarisShipDesigner') {
       const designerRoot = document.querySelector('#stellaris-ship-designer');
       if (designerRoot && window.StellarisShipDesigner) state.shipDesigner = window.StellarisShipDesigner.mount(designerRoot, { sandbox: sandbox.id });
+    }
+    if (sandbox.designer?.type === 'rimworldPrepare') {
+      const prepareRoot = document.querySelector('#rimworld-prepare');
+      if (prepareRoot && window.RimWorldPrepare) state.rimworldPrepare = window.RimWorldPrepare.mount(prepareRoot, { sandbox: sandbox.id, designer: sandbox.designer });
     }
     void loadEvolutionPreview(sandbox);
     const consoleElement = document.querySelector('#job-console');
@@ -554,9 +561,11 @@
     state.robotViewer?.destroy?.();
     state.meshViewers.forEach(viewer => viewer.destroy?.());
     state.shipDesigner?.destroy?.();
+    state.rimworldPrepare?.destroy?.();
     state.robotViewer = null;
     state.meshViewers = [];
     state.shipDesigner = null;
+    state.rimworldPrepare = null;
     if (urdfDialog.open && urdfDialog.dataset.sandbox !== sandbox?.id) urdfDialog.close();
     if (meshDialog.open && meshDialog.dataset.sandbox !== sandbox?.id) meshDialog.close();
     if (evolutionDialog.open && evolutionDialog.dataset.sandbox !== sandbox?.id) evolutionDialog.close();

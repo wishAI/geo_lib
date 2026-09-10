@@ -1,0 +1,74 @@
+{
+  "id": "rimworld_prepare",
+  "icon": "pawn",
+  "name": "RimWorld Prepare",
+  "eyebrow": "RIMWORLD 1.6 · MOD WORKBENCH",
+  "summary": "Extract the Yuran race core, choose craftable clothing, prepare Dragon Yuran skin textures, edit colonists, and deploy the mod and Prepare Carefully files to TK2.",
+  "accent": "#9f573d",
+  "runtime": "tk2",
+  "runtimeLabel": "Mac editor · TK2 RimWorld 1.6",
+  "capabilities": [
+    "Yuran race assets",
+    "Dragon Yuran mod",
+    "Prepare Carefully characters",
+    "TK2 deploy"
+  ],
+  "designer": {
+    "type": "rimworldPrepare",
+    "configPath": "algorithms/rimworld_prepare/inputs/workspace.json",
+    "catalogPath": "algorithms/rimworld_prepare/outputs/catalog.json",
+    "assetRoots": [
+      "algorithms/rimworld_prepare/outputs/source/yuran/cont/Textures/Yuran/Yuranlike",
+      "algorithms/rimworld_prepare/outputs/previews",
+      "algorithms/rimworld_prepare/outputs/DragonYuran/Textures/DragonYuran",
+      "algorithms/rimworld_prepare/outputs/imports"
+    ],
+    "sourceWorkshopId": "2844129100",
+    "gameVersion": "1.6.4871",
+    "buildExample": "build_dragon_yuran",
+    "deployExample": "deploy_dragon_yuran",
+    "syncExample": "sync_yuran_source"
+  },
+  "examples": [
+    {
+      "id": "sync_yuran_source",
+      "name": "Refresh Yuran source from TK2",
+      "description": "Read the installed Workshop 2844129100 files, copy the 1.6 definitions and art into this sandbox's generated cache, and rebuild the real asset catalog.",
+      "target": "local",
+      "targets": ["local"],
+      "resource": "rimworld-prepare",
+      "command": ["python3", "algorithms/rimworld_prepare/builder.py", "sync"],
+      "artifacts": [
+        {"label": "Yuran asset catalog", "path": "algorithms/rimworld_prepare/outputs/catalog.json", "kind": "json"},
+        {"label": "Whole Yuran · four views", "path": "algorithms/rimworld_prepare/outputs/previews/yuran_whole_four_views.png", "kind": "image"},
+        {"label": "Img2img body + hairless-face sheet", "path": "algorithms/rimworld_prepare/outputs/previews/yuran_skin_img2img.png", "kind": "image"}
+      ]
+    },
+    {
+      "id": "build_dragon_yuran",
+      "name": "Build Dragon Yuran mod",
+      "description": "Build the clean HAR race, selected default-tailoring apparel, dragon-skin implant swap, and Prepare Carefully v5 character files without opening RimWorld.",
+      "target": "local",
+      "targets": ["local"],
+      "resource": "rimworld-prepare",
+      "command": ["python3", "algorithms/rimworld_prepare/builder.py", "build"],
+      "artifacts": [
+        {"label": "Build report", "path": "algorithms/rimworld_prepare/outputs/build_report.json", "kind": "json"},
+        {"label": "Dragon Yuran mod", "path": "algorithms/rimworld_prepare/outputs/DragonYuran", "kind": "directory"},
+        {"label": "Prepare Carefully characters", "path": "algorithms/rimworld_prepare/outputs/PrepareCarefully", "kind": "directory"}
+      ]
+    },
+    {
+      "id": "deploy_dragon_yuran",
+      "name": "Deploy mod + characters to TK2",
+      "description": "Build locally, then copy DragonYuran into RimWorld/Mods and .pcc characters into TK2 SaveData/PrepareCarefully. It never launches the game or edits the active mod list.",
+      "target": "local",
+      "targets": ["local"],
+      "resource": "rimworld-prepare",
+      "command": ["python3", "algorithms/rimworld_prepare/builder.py", "deploy"],
+      "artifacts": [
+        {"label": "Deployment report", "path": "algorithms/rimworld_prepare/outputs/deploy_report.json", "kind": "json"}
+      ]
+    }
+  ]
+}

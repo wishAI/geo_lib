@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import sys
 import io
 import json
 import math
@@ -219,6 +222,151 @@ def save_ship_design(sandbox: str, design: object, *, design_id: str = "", sync_
     if sync_tk2:
         result["sync"] = storage.sync_source_tk2(remote=REMOTE_HOST)
     return result
+
+
+def _rimworld_prepare_config(sandbox: str) -> tuple[dict, Path, Path]:
+    manifest = manifest_map().get(sandbox)
+    designer = manifest.get("designer", {}) if manifest else {}
+    if designer.get("type") != "rimworldPrepare":
+        raise ValueError("Sandbox does not declare a RimWorld Prepare editor")
+    algorithm_root = _safe_under(REPO_ROOT, f"algorithms/{sandbox}")
+    config_path = _safe_under(REPO_ROOT, str(designer.get("configPath", "")))
+    catalog_path = _safe_under(REPO_ROOT, str(designer.get("catalogPath", "")))
+    config_path.relative_to(algorithm_root / "inputs")
+    catalog_path.relative_to(algorithm_root / "outputs")
+    return designer, config_path, catalog_path
+
+
+def rimworld_prepare_workspace(sandbox: str) -> dict:
+    designer, config_path, catalog_path = _rimworld_prepare_config(sandbox)
+    if not catalog_path.is_file():
+        raise ValueError("Yuran catalog is missing; run Refresh Yuran source from TK2")
+    payload = {
+        "sandbox": sandbox,
+        "designer": designer,
+        "workspace": json.loads(config_path.read_text(encoding="utf-8")),
+        "catalog": json.loads(catalog_path.read_text(encoding="utf-8")),
+    }
+    import_report = config_path.parents[1] / "outputs" / "imports" / "dragon_skin_import.json"
+    if import_report.is_file():
+        imported = json.loads(import_report.read_text(encoding="utf-8"))
+        if imported.get("version") == 3:
+            payload["skinImport"] = imported
+    return payload
+
+
+def save_rimworld_prepare_workspace(sandbox: str, workspace: object) -> dict:
+    _, config_path, _ = _rimworld_prepare_config(sandbox)
+    algorithm_root = config_path.parents[1]
+    encoded = json.dumps(workspace, ensure_ascii=False).encode("utf-8")
+    if len(encoded) > 512_000:
+        raise ValueError("RimWorld workspace exceeds 512 KB")
+    temporary = config_path.with_suffix(".json.tmp")
+    temporary.write_bytes(encoded + b"\n")
+    try:
+        checked = subprocess.run(
+            [sys.executable, str(algorithm_root / "builder.py"), "validate-config", "--config", str(temporary)],
+            cwd=REPO_ROOT, capture_output=True, text=True, timeout=30, check=False,
+        )
+        if checked.returncode:
+            raise ValueError(checked.stderr.strip() or checked.stdout.strip() or "RimWorld workspace is invalid")
+        temporary.replace(config_path)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+    return {"ok": True, "path": str(config_path.relative_to(REPO_ROOT)), "savedAt": utc_now()}
+
+
+def rimworld_prepare_asset(sandbox: str, relative: str) -> Path:
+    designer, _, _ = _rimworld_prepare_config(sandbox)
+    if not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+        raise ValueError("Invalid RimWorld asset path")
+    algorithm_root = _safe_under(REPO_ROOT, f"algorithms/{sandbox}")
+    candidate = _safe_under(algorithm_root, relative)
+    roots = [_safe_under(REPO_ROOT, str(value)) for value in designer.get("assetRoots", [])]
+    if not any(_is_relative_to(candidate, root) for root in roots):
+        raise ValueError("RimWorld asset is outside declared roots")
+    if candidate.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+        raise ValueError("Only RimWorld image assets can be served")
+    return candidate
+
+
+def import_rimworld_skin(sandbox: str, name: str, encoded: str) -> dict:
+    from PIL import Image
+
+    _, config_path, _ = _rimworld_prepare_config(sandbox)
+    if Path(name).suffix.lower() != ".png":
+        raise ValueError("Upload the edited PNG skin sheet")
+    if len(encoded) > 22_000_000:
+        raise ValueError("Skin sheet exceeds 16 MiB")
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except ValueError as error:
+        raise ValueError("Skin sheet is not valid base64") from error
+    if len(data) > 16 * 1024 * 1024:
+        raise ValueError("Skin sheet exceeds 16 MiB")
+    algorithm_root = config_path.parents[1]
+    metadata_path = algorithm_root / "outputs" / "previews" / "yuran_skin_img2img.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    expected_size = tuple(metadata.get("canvasSize", []))
+    if metadata.get("version") != 3 or len(expected_size) != 2:
+        raise ValueError("Dragon skin template metadata is missing or outdated; refresh the Yuran inventory")
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != "PNG":
+                raise ValueError("Skin sheet must be a PNG")
+            original_size = image.size
+            image.load()
+    except OSError as error:
+        raise ValueError(f"Invalid skin sheet: {error}") from error
+    expected_ratio = expected_size[0] / expected_size[1]
+    actual_ratio = original_size[0] / original_size[1]
+    aspect_error = abs(actual_ratio - expected_ratio) / expected_ratio
+    scale_error = max(abs(original_size[index] / expected_size[index] - 1) for index in (0, 1))
+    if original_size != expected_size and (aspect_error > 0.01 or scale_error > 0.15):
+        raise ValueError(
+            f"Skin sheet is {original_size[0]}x{original_size[1]}; expected {expected_size[0]}x{expected_size[1]} "
+            "or a near-proportional img2img export within 15%"
+        )
+    normalized_data = data
+    normalized = original_size != expected_size
+    if normalized:
+        with Image.open(io.BytesIO(data)) as image:
+            resized = image.convert("RGBA").resize(expected_size, Image.Resampling.LANCZOS)
+            normalized_buffer = io.BytesIO()
+            resized.save(normalized_buffer, format="PNG")
+            normalized_data = normalized_buffer.getvalue()
+    import_root = algorithm_root / "outputs" / "imports"
+    run_id = hashlib.sha256(data).hexdigest()[:12]
+    run_root = import_root / "runs" / run_id
+    run_root.mkdir(parents=True, exist_ok=True)
+    original_sheet = run_root / "uploaded_original.png"
+    sheet = run_root / "dragon_skin_sheet.png"
+    original_sheet.write_bytes(data)
+    sheet.write_bytes(normalized_data)
+    split = subprocess.run(
+        [sys.executable, str(algorithm_root / "builder.py"), "split-skin", str(sheet)],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=45, check=False,
+    )
+    if split.returncode:
+        raise ValueError(split.stderr.strip() or split.stdout.strip() or "Skin split failed")
+    result = json.loads(split.stdout)
+    result["upload"] = {
+        "name": Path(name).name, "original": str(original_sheet.relative_to(algorithm_root)),
+        "sha256": hashlib.sha256(data).hexdigest(), "originalSize": list(original_size),
+        "normalizedSize": list(expected_size), "normalizationApplied": normalized,
+        "aspectErrorPercent": round(aspect_error * 100, 4),
+    }
+    if normalized:
+        stages = result.get("stages", [])
+        stages.insert(1, {"id": "normalize", "order": 2,
+                          "label": f"Normalized {original_size[0]}×{original_size[1]} → {expected_size[0]}×{expected_size[1]}",
+                          "status": "success"})
+        for order, stage in enumerate(stages, 1):
+            stage["order"] = order
+    report_path = import_root / "dragon_skin_import.json"
+    report_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"ok": True, "path": str(sheet.relative_to(algorithm_root)), "sha256": hashlib.sha256(data).hexdigest(), "result": result}
 
 
 def _parameter_values(example: dict, supplied: dict) -> dict[str, str]:
@@ -722,7 +870,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
-        if length > 1_000_000:
+        large_upload = self.path == "/api/rimworld/import-skin"
+        if length > (22_100_000 if large_upload else 1_000_000):
             raise ValueError("Request body is too large")
         return json.loads(self.rfile.read(length) or b"{}")
 
@@ -803,6 +952,12 @@ class Handler(BaseHTTPRequestHandler):
                     self._error("Original Stellaris model is not hydrated yet", HTTPStatus.NOT_FOUND)
                     return
                 self._file(model, cache="no-cache")
+                return
+            if parsed.path == "/api/rimworld/workspace":
+                self._json(rimworld_prepare_workspace(query.get("sandbox", [""])[0]))
+                return
+            if parsed.path == "/api/rimworld/asset":
+                self._file(rimworld_prepare_asset(query.get("sandbox", [""])[0], query.get("path", [""])[0]), cache="public, max-age=60")
                 return
             if parsed.path == "/api/robot/catalog":
                 self._json({"robots": robot_candidates()})
@@ -889,6 +1044,12 @@ class Handler(BaseHTTPRequestHandler):
                     sync_tk2=body.get("syncTk2") is True,
                 )
                 self._json(result)
+                return
+            if parsed.path == "/api/rimworld/workspace":
+                self._json(save_rimworld_prepare_workspace(str(body.get("sandbox", "")), body.get("workspace")))
+                return
+            if parsed.path == "/api/rimworld/import-skin":
+                self._json(import_rimworld_skin(str(body.get("sandbox", "")), str(body.get("name", "")), str(body.get("data", ""))))
                 return
             self._error("Not found", HTTPStatus.NOT_FOUND)
         except KeyError:

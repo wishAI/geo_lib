@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import struct
+import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from webgui import server, storage
@@ -12,7 +15,7 @@ from webgui import server, storage
 class ManifestTests(unittest.TestCase):
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
-        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship"}
+        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship", "pawn"}
         algorithm_names = {
             path.name
             for path in (server.REPO_ROOT / "algorithms").iterdir()
@@ -136,6 +139,61 @@ class ManifestTests(unittest.TestCase):
                 {"id": "duplicate", "position": [1, 0, 0], "rotation": [0, 0, 0]},
             ]
             server.validate_ship_design(invalid)
+
+    def test_rimworld_prepare_contract_and_asset_guard(self) -> None:
+        manifest = server.manifest_map()["rimworld_prepare"]
+        self.assertEqual(manifest["designer"]["type"], "rimworldPrepare")
+        payload = server.rimworld_prepare_workspace("rimworld_prepare")
+        self.assertEqual(payload["catalog"]["source"]["workshopId"], "2844129100")
+        self.assertGreaterEqual(len(payload["catalog"]["assets"]), 200)
+        self.assertGreaterEqual(len(payload["catalog"]["apparel"]), 30)
+        preview = payload["catalog"]["sheets"]["whole"]
+        self.assertTrue(server.rimworld_prepare_asset("rimworld_prepare", preview).is_file())
+        metadata_path = server.REPO_ROOT / "algorithms" / "rimworld_prepare" / payload["catalog"]["sheets"]["skinMetadata"]
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        self.assertEqual(metadata["version"], 3)
+        self.assertEqual(metadata["canvasSize"], [2048, 736])
+        self.assertEqual({item["direction"] for item in metadata["assets"]}, {"south", "east", "north"})
+        self.assertEqual(len(metadata["assets"]), 3)
+        self.assertEqual(
+            {(layer["kind"], item["direction"]) for item in metadata["assets"] for layer in item["layers"]},
+            {(kind, direction) for kind in ("body", "face") for direction in ("south", "east", "north")},
+        )
+        for relative in ("../builder.py", "inputs/workspace.json", "outputs/catalog.json"):
+            with self.assertRaises(ValueError):
+                server.rimworld_prepare_asset("rimworld_prepare", relative)
+
+    def test_rimworld_skin_roundtrip_preserves_masks_and_has_zero_baseline_diff(self) -> None:
+        from PIL import Image, ImageChops
+        from algorithms.rimworld_prepare import builder
+
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            (output / "previews").mkdir()
+            for name in ("yuran_skin_img2img.json", "yuran_skin_img2img.png"):
+                shutil.copy2(builder.OUTPUTS / "previews" / name, output / "previews" / name)
+            with patch.object(builder, "OUTPUTS", output):
+                result = builder.split_skin(builder.ROOT / "outputs" / "previews" / "yuran_skin_img2img.png")
+            self.assertEqual(result["summary"]["assetCount"], 6)
+            self.assertEqual(result["summary"]["changedPercent"], 0)
+            self.assertEqual([stage["id"] for stage in result["stages"]], ["upload", "restore", "mask", "compare"])
+            for item in result["files"]:
+                original = Image.open(builder.ROOT / item["original"]).convert("RGBA")
+                generated = Image.open(item["generated"]).convert("RGBA")
+                alpha_diff = ImageChops.difference(original.getchannel("A"), generated.getchannel("A"))
+                self.assertIsNone(alpha_diff.getbbox())
+
+    def test_rimworld_skin_upload_rejects_outdated_sheet_dimensions(self) -> None:
+        import base64
+        import io
+        from PIL import Image
+
+        encoded = io.BytesIO()
+        Image.new("RGBA", (1152, 326)).save(encoded, format="PNG")
+        with self.assertRaisesRegex(ValueError, "2048x736"):
+            server.import_rimworld_skin(
+                "rimworld_prepare", "old-template.png", base64.b64encode(encoded.getvalue()).decode("ascii")
+            )
 
     def test_walk_sandbox_exposes_current_latest_mesh_gate(self) -> None:
         root = server.REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk"
