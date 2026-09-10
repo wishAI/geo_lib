@@ -1,0 +1,443 @@
+{
+  "components": [
+    {
+      "id": "horn_s",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_s.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_s.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.1119,
+      "sha256": "d3ac7446ec4601bc2dd08f186acbd221963fb592cb6a641c7a23f63244664701"
+    },
+    {
+      "id": "horn_m",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_m.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_m.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.2867,
+      "sha256": "3a4d77ab6a773bf6a008e2550ab70ba07f2159a10b7c847997f2a0897797ca61"
+    },
+    {
+      "id": "horn_l",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_l.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_l.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.1593,
+      "sha256": "63d98de82364f68e4276e02963e55217ef99c692e6193859ce9c8254a24226d0"
+    },
+    {
+      "id": "horn_x",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_x.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_x.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.2199,
+      "sha256": "f4a7a15219ea61d0e55e7f6024a7523953a675fa84cc7b95f6ff1120d28e5ace"
+    },
+    {
+      "id": "horn_t",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_t.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_t.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.4305,
+      "sha256": "7c5cf115181e97300a1c75ea06118e79006d349ab912532a1822836597fc1167"
+    },
+    {
+      "id": "horn_p",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_p.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_p.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.2632,
+      "sha256": "81d3967314beb3439fd1a05c0fca34e23b55e94c19c350c2d08eb1c3535f6038"
+    },
+    {
+      "id": "horn_g",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_g.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_g.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.1931,
+      "sha256": "285fc950382ee9735b1b0b59bddb2c608579471f10a24dd2a6dfc621056d454e"
+    },
+    {
+      "id": "horn_w",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_w.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/horn_w.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.2574,
+      "sha256": "ef4d7597e918973ae2168647f517db7656b955cb32038982c0041c6997af6c84"
+    },
+    {
+      "id": "crystal_core",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/crystal_core.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/crystal_core.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.4545,
+      "sha256": "6d586fbbb26e15d7b808bfb208c59a1ce06f8374810b267bf19e80813b55bb61"
+    },
+    {
+      "id": "royal_mind",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/royal_mind.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/royal_mind.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.467,
+      "sha256": "325edf4f325adb03c5e831ba5026e67dd8dc5571d6cef20a5272075ad2f5676e"
+    },
+    {
+      "id": "crystal_wings",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/crystal_wings.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/components/crystal_wings.dds",
+      "size": [
+        58,
+        58
+      ],
+      "visibleFraction": 0.2937,
+      "sha256": "b3ba6f41262f6fc3d3a79042ef0d5f27d6e592d45bb1aea8c9fef987bfdb4c06"
+    }
+  ],
+  "technologies": [
+    {
+      "id": "tech_guardian",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_guardian.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_guardian.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.4622,
+      "sha256": "91535b4fd206be9ab0ec42e777a61ad9a75583aa4d1a9ed7aa5378630f272f8b"
+    },
+    {
+      "id": "tech_crown",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_crown.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_crown.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.4674,
+      "sha256": "f943cdd324c5a915add70101fbd76c2ef4d979063afe6d36719fba7f0a251a56"
+    },
+    {
+      "id": "tech_sovereign",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_sovereign.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_sovereign.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.3939,
+      "sha256": "1bd162c4741fee87ecb505b6d02829ef0bcb91019707b672c880afc13290c7d1"
+    },
+    {
+      "id": "tech_ascendant",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_ascendant.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_ascendant.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.2378,
+      "sha256": "cc16d4d6b46071108abdbbad9b0d311783ad94895581dae0a7b97e5668e5c834"
+    },
+    {
+      "id": "tech_delta",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_delta.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_delta.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.3879,
+      "sha256": "e67fabbf62b2ca90a2d3ffd5b441554f0b2990630f75f0142f37024779434388"
+    },
+    {
+      "id": "tech_alpha",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_alpha.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_alpha.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.3867,
+      "sha256": "5a433b6b53af6818be66b87f18ff6d0e10b1868dfd50cf7c81c01b0a94e1305e"
+    },
+    {
+      "id": "tech_sigma",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_sigma.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_sigma.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.2507,
+      "sha256": "e72ae83b1ff78f242deae8edf7aa97d43ea71ee97c4b9f3b6540e6aaf204d453"
+    },
+    {
+      "id": "tech_phi",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_phi.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_phi.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.1968,
+      "sha256": "858444b2e0b6fdf82001a558129b1e83baa78b39b7d3db4600c8865c317903a2"
+    },
+    {
+      "id": "tech_omega",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_omega.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_omega.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.4072,
+      "sha256": "6b40e8538310c85813d8033999a465002896f7869721f0b1f6cb9fc78e35fe1e"
+    },
+    {
+      "id": "tech_eternal",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_eternal.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_eternal.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.3213,
+      "sha256": "075aeb9449f3d55006b60c5b6bddd18b1cb10f27fbd9c870578a778dab0111b0"
+    },
+    {
+      "id": "tech_body_2",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_body_2.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_body_2.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.4331,
+      "sha256": "2fc4c727b9fcbe86bbeb541b2bb7b7755b9086ed5b6398a657c6a09d2ef4a260"
+    },
+    {
+      "id": "tech_body_3",
+      "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_body_3.png",
+      "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/technologies/tech_body_3.dds",
+      "size": [
+        52,
+        52
+      ],
+      "visibleFraction": 0.3848,
+      "sha256": "d91aa9f8d22abf2cca24f70cb3fc963fe5f26ca93118976c53af626267017cc6"
+    }
+  ],
+  "providers": {
+    "horn_m": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "9fb5718d-8485-446b-abfd-af468ecc88ec",
+      "source": "individual image2image"
+    },
+    "horn_l": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "88d6a265-1e9c-4fde-84b0-bb7f81c02683",
+      "source": "individual image2image"
+    },
+    "horn_x": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "2a97b451-3ccc-40b4-80bd-3bfb1b29c996",
+      "source": "individual image2image"
+    },
+    "horn_t": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "4036b154-ff05-46cb-84dd-da1b8cbca8b2",
+      "source": "individual image2image"
+    },
+    "horn_p": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "d0067022-a25d-4f5a-99cb-a272d5f11820",
+      "source": "individual image2image"
+    },
+    "horn_g": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "460124d4-e7fc-4ada-9d30-ff980f0ad683",
+      "source": "individual image2image"
+    },
+    "horn_w": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "60f67480-0c7d-47c4-a3e8-68cbd33c78f7",
+      "source": "individual image2image"
+    },
+    "crystal_core": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "f0d4d837-7a5c-4526-8a27-b095bd61baa8",
+      "source": "individual image2image"
+    },
+    "crystal_wings": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "9d9401f2-33a6-4bf4-a91f-960d891b3de0",
+      "source": "individual image2image"
+    },
+    "tech_guardian": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "10e8661e-45df-4bdf-8122-e2c263cb0383",
+      "source": "individual image2image"
+    },
+    "tech_crown": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "ea7ae32b-8bdb-4f8c-b9ff-0e7945e2d379",
+      "source": "individual image2image"
+    },
+    "tech_sovereign": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "9299f90e-4995-4de7-a53f-226a3be94dd4",
+      "source": "individual image2image"
+    },
+    "tech_ascendant": {
+      "provider": "local correction from individual Dreamina wings",
+      "submitId": "9d9401f2-33a6-4bf4-a91f-960d891b3de0",
+      "source": "malformed pony rejected; gold-and-cyan ascension star composited over the isolated wings"
+    },
+    "tech_delta": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "d0c92c8c-fa4b-499a-8e15-692fd7435057",
+      "source": "individual image2image"
+    },
+    "tech_alpha": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "0cd65012-4984-4401-9573-7d31113b9a80",
+      "source": "individual image2image"
+    },
+    "tech_sigma": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "97e314ca-0af7-4485-9c8c-e0114e8816cb",
+      "source": "individual image2image"
+    },
+    "tech_phi": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "022d08f9-6ca2-49b5-829d-7b41f20a350b",
+      "source": "individual image2image"
+    },
+    "tech_omega": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "cc87b2b5-31f3-47b5-87b2-fbb74da2af1a",
+      "source": "individual image2image"
+    },
+    "tech_eternal": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "3889c7f3-cadd-4633-afd9-0cb504d883da",
+      "source": "individual image2image"
+    },
+    "tech_body_2": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "4a1292ea-714b-4b78-bb0b-e766f4cdaf71",
+      "source": "individual image2image"
+    },
+    "horn_s": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "2b8091cb-8fca-4a2d-a971-83bcf5d1a097",
+      "source": "non-watermarked sheet cell 4,1"
+    },
+    "royal_mind": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "2b8091cb-8fca-4a2d-a971-83bcf5d1a097",
+      "source": "non-watermarked sheet cell 3,2"
+    },
+    "tech_body_3": {
+      "provider": "Dreamina",
+      "model": "4.7",
+      "submitId": "2b8091cb-8fca-4a2d-a971-83bcf5d1a097",
+      "source": "non-watermarked sheet cell 4,4"
+    }
+  },
+  "ground": {
+    "id": "crystal_pony",
+    "preview": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/crystal_pony.png",
+    "native": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/crystal_pony.dds",
+    "size": [
+      34,
+      34
+    ],
+    "visibleFraction": 0.3531,
+    "sha256": "5a65f23a55fb0cc7bb390d6bde363727094be1e7c1b2a85ebfd99459da28492b"
+  },
+  "groundDerivatives": {
+    "component": {
+      "path": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/crystal_pony_component.dds",
+      "size": [
+        58,
+        58
+      ],
+      "sha256": "aecbd03ae9c9612d14b896422e22fdb892619f15b16b48609bc7c28162f37d2f"
+    },
+    "trait": {
+      "path": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/crystal_pony_trait.dds",
+      "size": [
+        29,
+        29
+      ],
+      "sha256": "de907a35f7cc12a6dcb6f294ced983b50ceb22dc01cdd26fb336752640bc7977"
+    },
+    "origin": {
+      "path": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/crystal_pony_origin.dds",
+      "size": [
+        40,
+        40
+      ],
+      "sha256": "48620fdea286868f009ec02bd20c94fcbab00e04b7917edd4c125f0f657ccacb"
+    },
+    "technology": {
+      "path": "algorithms/stellaris_ship_designer/inputs/eqn_assets/art/crystal_pony_technology.dds",
+      "size": [
+        52,
+        52
+      ],
+      "sha256": "c57e4377a919ed1f3bf57887454cc048db6855d3a6a240562f0be008b028d6d1"
+    }
+  }
+}

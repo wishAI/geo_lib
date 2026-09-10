@@ -1,0 +1,351 @@
+﻿### Template
+Pony = {
+	### SHIPS
+	alias = "PONY"
+	randomized = no
+
+	ship_names = {
+		generic = {
+        "Applejack" "Pinkie Pie" "Fluttershy" "Rainbow Dash" "Rarity" "Twilight Sparkle" "Apple Bloom" "Scootaloo" "Sweetie Belle" "Aloe" "Cheerilee" "Cherry Jubilee" "Coco Pommel" "Goldie Delicious" "Granny Smith"
+       "The Headless Horse" "Junebug" "Lotus Blossom" "Mane Goodall" "Mane-iac" "Mayor Mare" "Mrs. Cup Cake" "Ms. Harshwhinny" "Ms. Peachbottom" "Nurse Redheart" "The Olden Pony" "Photo Finish" "Prim Hemline" "Roma"
+       "Suri Polomare" "Daring Do Collector" "Teddie Safari" "Torch Song" "Tree Hugger" "Conductor" "All Aboard" "Big McIntosh" "Braeburn" "Cheese Sandwich" "Doc Top" "Double Diamond" "Dr. Caballeron" "Filthy Rich"
+       "Gizmo" "Hoity Toity" "Mr. Carrot Cake" "Randolph" "Earth pony royal guards" "Sheriff Silverstar" "Silver Shill" "Train Conductor" "Steamer" "Toe-Tapper" "Trouble Shoes" "Blossomforth" "Clear Skies" "Cloud Chaser"
+       "Crafty Crate" "Daring Do" "Derpy" "Dumb-Bell" "Flash Sentry" "Flitter" "Sad Delegate" "Fluffy Clouds" "Hoops" "Lucy Packard" "Night Glider" "Open Skies" "Pegasus royal guards" "Stellar Eclipse" "Sunshower"
+       "Fleetfoot" "Soarin" "Spitfire" "Claude" "Doctor Horse" "Fancy Pants" "Flam" "Fleur Dis Lee" "Flim" "Jet Set" "Joe" "King Sombra" "Party Favor" "Prince Blueblood" "Unicorn royal guards" "Sapphire Shores"
+       "Shining Armor" "Starlight Glimmer" "Sugar Belle" "Sunset Shimmer" "Trenderhoof" "Trixie" "Upper Crust" "Princess Cadance" "Princess Celestia" "Princess Luna" "Alicorn royal guards" "Babs Seed" "Diamond Tiara"
+       "Featherweight" "Pipsqueak" "Pound Cake" "Pumpkin Cake" "Rumble" "Silver Spoon" "Snails" "Snips" "Twist" "Zipporwhill" "Pinkie's mom" "Cloudy Quartz" "Pinkie's sister" "Maud Pie" "Granny Smith's mother"
+       "Sew 'n Sow" "Apple Brown Betty" "Apple Bumpkin" "Apple Cider" "Apple Cobbler" "Apple Dumpling" "Apple Fritter" "Apple Honey" "Apple Leaves" "Apple Munchies" "Apple Pie" "Apple Rose" "Apple Top" "Aunt Orange"
+       "Auntie Applesauce" "Candy Apples" "Caramel Apple" "Florina Tart" "Gala Appleby" "Jonagold" "Lavender Fritter" "Magdalena" "Peachy Sweet" "Red Gala" "Sundowner" "Pinkie's dad" "Igneous Rock"
+       "Granny Smith's father" "Pokey Oaks" "Stinkin' Rich" "Apple Bottoms" "Apple Cinnamon" "Apple Strudel" "Bushel" "Golden Delicious" "Half Baked Apple" "Happy Trails" "Hayseed Turnip Truck" "Prairie Tune"
+       "Red Delicious" "Uncle Orange" "Wensley" "Twilight's dad" "Night Light" "Twilight's mom" "Twilight Velvet" "Rarity's mom" "Cookie Crumbles" "Rarity's dad" "Hondo Flanks" "Pinkie's sister" "Limestone Pie"
+       "Pinkie's sister" "Marble Pie" "Apple Bud" "Apple Crumble" "Apple Flora" "Apple Mint" "Apple Squash" "Candy Caramel Tooth" "Liberty Belle" "Red June" "Action Shot" "Amaranthine" "Ambrosia"
+       "Crystal Chalice Stand Pony" "Amethyst Gleam" "Amira" "Apple Bottom" "Apricot Bow" "Beauty Brass" "Bell Perin" "Bella Brella" "Belle Star" "Berry Dreams" "Berry Frost" "Berry Icicle" "Berryshine" "Biddy Broomtail"
+       "Big Wig" "Bitta Blues" "Blue Bonnet" "Blue Bows" "Blue Cutie" "Blue Nile" "Bonnie" "Bottlecap" "Bubblegum Blossom" "Butter Pop" "Candy Mane" "Candy Twirl" "Carlotta" "Charcoal Bakes" "Charged Up"
+       "Chelsea Porcelain" "Cherry Berry" "Cherry Punch" "Chilly Puddle" "Cobalt Shade" "Coral Shine" "Cornflower" "Crescendo" "Dainty Dove" "Daisy" "Doseydotes" "Dosie Dough" "Dry Wheat" "Eclair Crème" "Elphaba Trot"
+       "Fiddly Faddle" "Flounder" "Flurry" "Forest Spirit" "Ginger Gold" "Golden Harvest" "Grace" "Grape Delight" "Green Jewel" "Hazel Harvest" "Hinny of the Hills" "Immemoria" "Joan Pommelway" "Jubileena"
+       "Lady Justice" "Lavender August" "Lavender Blush" "Lavenderhoof" "Lemon Chiffon" "Lilac Blossom" "Lilac Links" "Lily Valley" "Linked Hearts" "Little Po" "Luckette" "Lucky Star" "Lyrica Lilac" "Majesty"
+       "Mango Juice" "Maribelle" "Marigold" "Maroon Carrot" "Masquerade" "Maybelline" "Midnight Fun" "Millie" "Mint Swirl" "Mjölna" "Nurse Snowheart" "Nurse Sweetheart" "Nurse Tenderheart" "Oakey Doke" "Obscurity"
+       "Octavia Melody" "Paisley Pastel" "Pampered Pearl" "Peachy Cream" "Pearly Stitch" "Peggy Holstein" "Petunia" "Picture Perfect" "Pinot Noir" "Pitch Perfect" "Play Write" "Powder Rouge" "Pretty Vision"
+       "Purple Haze" "Purple Wave" "Pursey Pink" "Masseuse Pony" "Quake" "Reflective Rock" "Regal Candent" "Rose" "Roxie" "Ruby Splash" "Screwball" "Screwy" "Seasong" "Serena" "Shoeshine" "Silver Frames" "Sky View"
+       "Snappy Scoop" "Soft Spot" "Soigne Folio" "Soot Stain" "Spaceage Sparkle" "Spring Forward" "Spring Water" "Stella" "Strawberry Ice" "Sun Streak" "Sunny Smiles" "Sunset Bliss" "Surf" "Sweetberry" "Sweetie Drops"
+       "Swirly Cotton" "Symphony" "Toffee" "Tree Sap" "Tropical Spring" "Turf" "Vanilla Sweets" "Vera" "Vidala Swoon" "Welly" "Wildwood Flower" "Wilma" "Winter Withers" "Ace" "Affero" "Apple Bread" "Apple Slice"
+       "Baritone" "Biff" "Big Top" "Professor" "Bill Neigh" "Black Stone" "Mr. Breezy" "Brindle Young" "Burnt Oak" "Business Saavy" "Caboose" "Caesar" "Caramel" "Charlie Coal" "Cherry Fizzy" "Cherry Strudel"
+       "Chocolate Haze" "Classy Clover" "Cloudy Haze" "Cobalt" "Coco Crusoe" "Commander Redfeather" "Concerto" "Cormano" "Ancient Beast Dealer" "Cratetoss" "Creme Brulee" "Crest Crown" "Flashy Pony" "Dance Fever"
+       "Davenport" "Dirtbound" "Dr. Hooves" "Pest Control Pony" "Egon" "Eiffel" "Emerald Beacon" "Emerald Green" "Evening Star" "Felix" "Frederick Horseshoepin" "Full Steam" "Fuzzy Slippers" "Geri" "Gingerbread"
+       "Globe Trotter" "Goldengrape" "Grape Crush" "Mr. Greenhooves" "Haakim" "Harry Trotter" "Hay Fever" "Haymish" "Hercules" "Hermes" "Hughbert Jellius" "Icy Drop" "Jeff Letrotski" "Jesús Pezuña" "Jim Beam"
+       "John Bull" "Karat" "Kazooie" "Klein" "Duke of Maretonia" "Kyrippos II" "Leadwing" "Lincoln" "Security Guard" "Lockdown" "Lucky Clover" "Antique Chicken Stand Pony" "Match Game" "Meadow Song" "Melilot"
+       "Moon Dust" "Morton Saltworthy" "Astro Pony" "Neptunio" "Night Watch" "Noteworthy" "Ol' Salt" "Oregon Trail" "Parcel Post" "Parish Nandermane" "Perfect Pace" "Persnickety" "Pigpen" "Pine Breeze" "Pinto Picasso"
+       "Pipe Down" "Raggedy Doctor" "Ragtime" "Rivet" "Rogue" "Rough Tumble" "Royal Riff" "Sam" "Savoir Fare" "Sealed Scroll" "Shamrock" "Shooting Star" "Shortround" "Sir Pony Moore" "Slendermane" "Smokestack"
+       "Sourpuss" "Squeaky Clean" "Star Gazer" "Steel Wright" "Sterling Silver" "Strawberry Cream" "Swanky Hank" "Tall Order" "Tall Tale" "Temple Chant" "Theodore Donald "Donny" Kerabatsos" "Twilight Sky" "Uncle Wing"
+       "Wacky Hair Day and Spray" "Mr. Waddle" "Bowling Pony" "Walter" "Welch" "Wetzel" "Wisp" "Withers" "Mr. Zippy" "Amber Waves" "Amberlocks" "Amethyst Maresbury" "Arctic Lily" "Berry Splash" "Bright Smile"
+       "Check Mate" "Crystal Arrow" "Crystal Varado" "Dandy Brush" "Elbow Grease" "Esmeralda" "Fleur de Verre" "Glamour Gleam" "Golden Glitter" "Golden Wheat" "Ivory" "Jade" "Jewel Joy" "Lilac Luster" "Mercury"
+       "Neighls Bohr" "Night Knight" "Periwinkle Pace" "Purple Polish" "Rapid Rush" "Rook Ramparts" "Rose Quartz" "Rubinstein" "Sand Arrow" "Sapphire Rose" "Sugar Glass" "Sunshine Splash" "Toastie" "Winnow Wind"
+       "Zirconic" "Glass Slipper" "Hope" "Opal Bloom" "Amethyst Star" "Apple Cobbler" "Apple Pie" "Applejack" "Berryshine" "Caramel" "Charm" "Cherry Berry" "Cloud Kicker" "Coco Crusoe" "Dr. Hooves" "Eclair Crème"
+       "Fine Line" "Fluttershy" "Gala Appleby" "Golden Harvest" "Goldengrape" "Lemon Hearts" "Lucky Clover" "Masquerade" "Minuette" "Noteworthy" "Orange Swirl" "Perfect Pace" "Pinkie Pie" "Princess Cadance"
+       "Rainbow Dash" "Rainbowshine" "Rarity" "Red Gala" "Rose" "Royal Riff" "Sassaflash" "Sea Swirl" "Shining Armor" "Shooting Star" "Sir Pony Moore" "Sprinkle Medley" "Star Bright" "Twilight Sparkle" "Twinkleshine"
+       "Blaze" "Fire Streak" "High Winds" "Lightning Streak" "Misty Fly" "Silver Lining" "Surprise" "Wave Chill" "Crescent Pony" "Crescent Moon" "Fast Clip" "Cloudsdale Cheer Pony" "Lilac Sky" "Cloudsdale Cheer Pony"
+       "Spring Step" "Tight Ship" "Whiplash" "Bulk Biceps" "Cloud Kicker" "Cloudchaser" "Lightning Dust" "Lime Jelly" "Midnight Strike" "Orange Swirl" "Parasol" "Pizzelle" "Rainbow Drop" "Rainbow Swoop"
+       "Sassaflash" "Sightseer" "Sprinkle Medley" "Star Hunter" "Starburst" "Starry Eyes" "Stormfeather" "Sunburst" "Sunshower Raindrops" "Thorn" "Thunderlane" "Whitewash" "White Lightning" "Wild Fire"
+       "Wild Flower" "Abradacanter" "Big Shot" "Blue October" "Blueberry Muffin" "Bluebell" "Blueberry Banana" "Blueberry Cloud" "Blueberry Punch" "Bluebird Happiness" "Bon Voyage" "Buddy" "Candy Floss"
+       "Cerulean Skies" "Chocolate Blueberry" "Cinnamon Swirl" "Cloud Break" "Cloud Showers" "Compass Star" "Cosmic" "Cream Tangerine" "Deep Blue" "Descent" "Dewdrop" "Downdraft" "Drizzle" "Dust Devil" "Eff Stop"
+       "Electric Blue" "Endless Clouds" "Foggy Fleece" "Golden Glory" "Graceful Falls" "Grape Soda" "Great Scott" "Haymaker" "Helia" "High Note" "High Spirits" "Honey Rays" "Jack Hammer" "Jetstream" "Juicy Fruit"
+       "Laurette" "Lavender Skies" "Madden" "Merry May" "Nightingale" "Pegasus Dad" "Nightjar" "Northern Lights" "Orange Box" "Parula" "Pink Cloud" "Prim Posy" "Prism Glider" "Pumpkin Tart" "Q. T. Prism" "Rain Dance"
+       "Rainbow Blaze" "Rainbowshine" "Ralph" "Riverdance" "Rosewing" "Sandstorm" "Score" "Serenity" "Silver Script" "Silverspeed" "Silverwing" "Sky Flower" "Skyra" "Slipstream" "Snowslide" "Special Delivery"
+       "Spring Skies" "Stardancer" "Steam Roller" "Stormbreaker" "Strawberry Sunrise" "Sugar Apple" "Sugar Twist" "Sugarshine" "Sunlight" "Sunny Rays" "Sunstone" "Tiger Lily" "Tracy Flash" "Shutterfly"
+       "Tropical Storm" "Velvet Light" "Wind Chill" "Wing Wishes" "Amethyst Star" "Apple Polish" "Apple Stars" "Arpeggio" "Ballad" "Banana Fluff" "Beyond" "Bittersweet" "Black Marble" "Blue Belle" "Blue Moon"
+       "Brass Blare" "Bright Bulb" "Charm" "Cherry Spices" "Chocolate Sun" "Chocolate Tail" "Cinnabelle" "Cipher Splash" "Cold Front" "Comet Tail" "Crystal Clear" "Dark Moon" "Diamond Mint" "DJ Pon-3" "Earl Grey"
+       "Eliza" "Fine Line" "Flank Sinatra" "Fly Wishes" "Four Step" "Fuchsia Fizz" "Gary Coronet" "Gold Slipper" "Golden Gavel" "Hair Air" "Holly Dash" "Hors D'oeuvre" "Duchess of Maretonia" "Ice Mirror" "Infinity"
+       "The Inquisitor" "Lemon Hearts" "Lemony Gem" "Lyra Heartstrings" "Minuette" "Monochrome Sunset" "Neon Lights" "Nixie" "Nook" "Ocean Breeze" "Orchid Dew" "Passionate" "Banner Vendor" "Peachy Pitt" "Perfect Timing"
+       "Pinny Lane" "Pixie" "Elite Pony" "Ponet" "Poppycock" "Precious" "Press Pass" "Primrose" "Pristine" "Rare Find" "Raven" "Red Rose" "Rhythm" "Night Shade" "Rosewood Brook" "Royal Pin" "Royal Ribbon" "Sea Spray"
+       "Sea Swirl" "Silver Spanner" "South Pole" "Spring Fresh" "Star Bright" "Star Dream" "Sky Dream" "Strawberry Lime" "Sugarberry" "Swan Song" "Sweet Dreams" "Top Marks" "Top Notch" "Twinkleshine" "Violet Velvet"
+       "Written Script" "Amethyst Beat" "Apple Bytes" "Aquamarine" "Archer" "Aura" "Bags Valet" "Bee Bop" "Berry Pinch" "Blade Runner" "Bloo" "Blueberry Swirl" "Bolt" "Boysenberry" "Brown Sugar" "Button Mash"
+       "Caramel Coffee" "Cheery" "Chip Mint" "Chirpy Hooves" "Coronet" "Cotton Cloudy" "Cotton Top" "Cream Puff" "Cyan Skies" "Dinky Doo" "Dipsy" "Finish Line" "Firelock" "First Base" "Fruitbasket" "Gallop J. Fry"
+       "Green Daze" "Hairpin Turn" "Honey Drop" "Key Lime" "Lance" "Lemon Daze" "Lemon Scratch" "Lickety Split" "Lily Dache" "Little Red" "Liza Doolots" "Mango Dash" "Melody" "Mint Flower" "Noi" "Nursery Rhyme"
+       "Peach Fuzz" "Peachy Petal" "Peachy Pie" "Pearly Whites" "Pinkie Feather" "Piña Colada" "Plum Star" "Pomegranate" "Purpletastic" "Purpleskies" "Rainy Feather" "Royal Blue" "Shady Daze" "Shining Star" "Strike"
+       "Sugar Plum" "Sun Glimmer" "Sunny Daze" "Sweet Pop" "Sweet Tart" "Tornado Bolt" "Train Tracks" "Treasure" "Teacher's Pet" "Truffle" "Amethyst Star" "Charm" "Cloud Kicker" "Derpy" "Diamond Mint" "Fine Line"
+       "Fluttershy" "Helia" "Lemon Hearts" "Lemony Gem" "Lyra Heartstrings" "Merry May" "Minuette" "Orange Swirl" "Parasol" "Primrose" "Rainbow Dash" "Rarity" "Raven" "Sapphire Shores" "Sassaflash" "Sea Swirl"
+       "Sprinkle Medley" "Strawberry Sunrise" "Sunshower Raindrops" "Swan Song" "Twilight Sparkle" "Twinkleshine" "White Lightning" "Comet Tail" "Cosmic" "Crafty Crate" "Crescent Moon" "Jack Hammer" "Rainbow Swoop"
+       "Snappy Scoop" "Star Hunter" "Starburst" "Steam Roller" "Stellar Eclipse" "Sunburst" "Thunderlane" "Berryshine" "Caramel" "Cherry Berry" "Dr. Hooves" "Emerald Green" "Felix" "Globe Trotter" "Golden Harvest"
+       "Luckette" "Lucky Clover" "Lyra Heartstrings" "Meadow Song" "Noteworthy" "Peachy Sweet" "Perfect Pace" "Rivet" "Shoeshine" "Daring Do Collector" "Teddie Safari" "Twilight Sky" "Twilight Sparkle" "Wisp"
+       "Discord" "Goldengrape" "Lucy Packard" "Noteworthy" "Perfect Pace" "Quake" "Red Gala" "Savoir Fare" "Shooting Star" "Sir Pony Moore" "Snails" "Lemon Hearts" "Neon Lights" "Rarity" "Applejack" "Berry Pinch"
+       "Berry Pinch" "Big McIntosh" "Bubblegum Blossom" "Cheerilee" "Cheese Sandwich" "Cloudchaser" "Cotton Cloudy" "Cotton Cloudy" "Derpy" "Dumb-Bell" "Flitter" "Fluttershy" "Granny Smith" "Hoops" "Liberty Belle"
+       "Liza Doolots" "Liza Doolots" "Luckette" "Lyra Heartstrings" "Pinkie's Sister" "Maud Pie" "Minuette" "Pinkie Pie" "Pinot Noir" "Piña Colada" "Piña Colada" "Rainbow Dash" "Rainy Feather" "Rarity" "Red June"
+       "Scootaloo" "Score" "Strawberry Ice" "Sweetie Belle" "Sweetie Drops" "Tornado Bolt" "Trouble Shoes" "Twilight Sparkle" "Nerdy Delegate" "Whinnyapolis Delegate" "Cabbie" "Soldier" "Officer" "Captain" "Bellhop"
+       "Delivery Pony" "Shopkeeper" "Announcer" "Annoyed Delegate" "Manehattan Delegate" "Horticultural Pegasus" "Public Works Pony" "Little Pony" "Comic Geek Pony" "Prince Blue Dream" "Chancellor Puddinghead"
+       "Fili-Second" "Mistress Mare-velous" "Smart Cookie" "Sunflower" "Commander Hurricane" "Blazing Donut Glaze" "Private Pansy" "Saddle Rager" "Zapp" "Princess Golden Dream" "Clover the Clever" "King Bullion"
+       "Masked Matter-Horn" "Meadowbrook" "Princess Amore" "Princess Platinum" "Radiance" "Star Swirl the Bearded" "Apple Brioche" "Apple Cinnamon Crisp" "Apple Tart" "Uncle Apple Tart" "Aunt Bae Mare" "Bumpkin"
+       "Calamity Mane" "Colonel Waffle" "Ernie" "Flourish Prose" "Granny Pie" "Hock Fetlock" "Mr. Kingpin" "Namby-Pamby" "Nana Pinkie" "Aunt Pine Apple" "Quilland Ink" "Thornhoof" "Wild Bull Hickok" "Rapidfire"
+       "General Firefly" "Colonel Purple Dart" "Commander Easyglider" "Admiral Fairweather" "Admiral Fairy Flight" "General Flash" "Flaire De Mare"
+		}
+
+		corvette = {
+		}
+
+		destroyer = {
+		}
+
+		cruiser = {
+		}
+
+		battleship = {
+		}
+
+		science = {
+		}
+
+		colonizer = {
+		}
+
+		constructor = {
+		}
+
+		mining_station = { }
+		research_station = { }
+		wormhole_station = { }
+		#terraform_station = { }
+		observation_station = { }
+		outpost_station = {
+			#random_names = { }
+			#sequential_name = "%O% Frontier Outpost"
+		}
+
+		military_station_small = {}
+		military_station_medium = {}
+		military_station_large = {}
+	}
+
+	ship_class_names = {
+		generic = {
+			Il-Koth Daskall Mongath Sipii Narsul Vithar Kermel Saggor Gasna Dirama Bolkoth Erenth Ethill Kushana Joddam Korgas Ismir Centhor Piroc Pulnar Mol-Vikh
+			Ter-Math Ythamm Hessendroc Shoshona
+		}
+	}
+
+	fleet_names = {
+		random_names = {
+			"Suthnar's Armada" "Ralpakin's Armada" "Hissnak's Armada" "Galathor's Armada" "Olymac's Armada" "Perek's Armada"
+		}
+		sequential_name = "%O% Armada"
+	}
+
+	army_names = {
+		defense_army = {
+			sequential_name = "%O% Herd"
+		}
+
+		assault_army = {
+			sequential_name = "%O% Stampede"
+		}
+
+		slave_army = {
+			sequential_name = "%O% Bonded Army"
+		}
+
+		clone_army = {
+			sequential_name = "Mirror Clones %R%"
+		}
+
+		robotic_army = {
+			sequential_name = "Mobiles Dolls %R%"
+		}
+
+		android_army = {
+			sequential_name = "Ponnequin Forces %R%"
+		}
+
+		psionic_army = {
+			sequential_name = "%O% Gifted Unicorns"
+		}
+
+		xenomorph_army = {
+			sequential_name = "%O% Xeno Flock"
+		}
+
+		gene_warrior_army = {
+			sequential_name = "%O% Mutation Herd"
+		}
+	}
+
+
+	### PLANETS
+
+	planet_names = {
+
+		generic = {
+			names = {
+         "Ponyville" "Canterlot" "Cloudsdale" "Crystal Empire" "Everfree Forest" "Manehattan" "White Tail Woods" "Froggy Bottom Bogg" "Appleloosa" "Ghastly Gorge" "Dodge Junction" "Winsome Falls" "Tenochtitlan Basin"
+         "Rainbow Falls" "Flame Geyser Swamp" "Tartarus" "Hoofington" "Fillydelphia" "Trottingham" "Las Pegasus" "Baltimare" "Saddle Arabia" "Hollow Shades" "Galloping Gorge" "Foal Mountain" "Tall Tale" "Mustangia"
+         "Maretania" "Maretonia" "Vanhoover" "The Frozen North" "Crystal Mountains" "Neighagra Falls" "Unicorn Range" "Smokey Mountain" "Saddle Lake" "Rambling Rock Ridge" "Bogg" "Ruins" "Applewood" "Hayseed Swamps"
+         "Horseshoe Bay" "San Palomino Desert" "Macintosh Hills" "Badlands" "Aquastria" "Abyssinia" "Breezie's Cave" "Ursa Minor" "Ursa Major" "Orion" "Canis Major" "Canis Minor" "Exile" "Appaloosan Mountains"
+         "The Saddle Horn Peaks" "Canter Creek" "Swamps of New Horseleans" "Gelding Grotto" "Forest of Leota" "The old Mansion" "Gracey's Swamp" "Royal Guard Watchtower" "Hatchaway Falls" "Ye Olde Oubliette"
+         "Zap Apple Grove" "Knights Peak" "Rocinante Cliffs" "Kelpie Keep" "Silver and Sceut Meadow" "Froud Valley" "Prancing Plains" "San Palemine Desert" "Cloudsdale Wonderbolt Academy"
+         "Cloudsdale Weather Factory" "Cloudsdale Rainbow Factory" "Everfree Forest Tree of Harmony" "Ponyville Carousel Boutique" "Ponyville Rainbow Kingdom Castle" "Ponyville Golden Oak Library"
+         "Ponyville Schoolhouse" "Ponyville Sugarcube Corner" "Ponyville Sweet Apple Acres" "Canterlot Castle of the Two Sisters"
+			}
+		}
+
+		pc_desert = {
+			names = {
+			}
+		}
+
+		pc_tropical = {
+			names = {
+			}
+		}
+
+		pc_arid = {
+			names = {
+			}
+		}
+
+		pc_continental = {
+			names = {
+			}
+		}
+
+		pc_ocean = {
+			names = {
+			}
+		}
+
+		pc_tundra = {
+			names = {
+			}
+		}
+
+		pc_arctic = {
+			names = {
+			}
+		}
+
+	}
+
+	### CHARACTERS
+
+	character_names = {
+		default = {
+			# A complete name
+			full_names = {
+       "Applejack" "Pinkie Pie" "Fluttershy" "Rainbow Dash" "Rarity" "Twilight Sparkle" "Apple Bloom" "Scootaloo" "Sweetie Belle" "Aloe" "Cheerilee" "Cherry Jubilee" "Coco Pommel" "Goldie Delicious" "Granny Smith"
+       "The Headless Horse" "Junebug" "Lotus Blossom" "Mane Goodall" "Mane-iac" "Mayor Mare" "Mrs. Cup Cake" "Ms. Harshwhinny" "Ms. Peachbottom" "Nurse Redheart" "The Olden Pony" "Photo Finish" "Prim Hemline" "Roma"
+       "Suri Polomare" "Daring Do Collector" "Teddie Safari" "Torch Song" "Tree Hugger" "Conductor" "All Aboard" "Big McIntosh" "Braeburn" "Cheese Sandwich" "Doc Top" "Double Diamond" "Dr. Caballeron" "Filthy Rich"
+       "Gizmo" "Hoity Toity" "Mr. Carrot Cake" "Randolph" "Earth pony royal guards" "Sheriff Silverstar" "Silver Shill" "Train Conductor" "Steamer" "Toe-Tapper" "Trouble Shoes" "Blossomforth" "Clear Skies" "Cloud Chaser"
+       "Crafty Crate" "Daring Do" "Derpy" "Dumb-Bell" "Flash Sentry" "Flitter" "Sad Delegate" "Fluffy Clouds" "Hoops" "Lucy Packard" "Night Glider" "Open Skies" "Pegasus royal guards" "Stellar Eclipse" "Sunshower"
+       "Fleetfoot" "Soarin" "Spitfire" "Claude" "Doctor Horse" "Fancy Pants" "Flam" "Fleur Dis Lee" "Flim" "Jet Set" "Joe" "King Sombra" "Party Favor" "Prince Blueblood" "Unicorn royal guards" "Sapphire Shores"
+       "Shining Armor" "Starlight Glimmer" "Sugar Belle" "Sunset Shimmer" "Trenderhoof" "Trixie" "Upper Crust" "Princess Cadance" "Princess Celestia" "Princess Luna" "Alicorn royal guards" "Babs Seed" "Diamond Tiara"
+       "Featherweight" "Pipsqueak" "Pound Cake" "Pumpkin Cake" "Rumble" "Silver Spoon" "Snails" "Snips" "Twist" "Zipporwhill" "Pinkie's mom" "Cloudy Quartz" "Pinkie's sister" "Maud Pie" "Granny Smith's mother"
+       "Sew 'n Sow" "Apple Brown Betty" "Apple Bumpkin" "Apple Cider" "Apple Cobbler" "Apple Dumpling" "Apple Fritter" "Apple Honey" "Apple Leaves" "Apple Munchies" "Apple Pie" "Apple Rose" "Apple Top" "Aunt Orange"
+       "Auntie Applesauce" "Candy Apples" "Caramel Apple" "Florina Tart" "Gala Appleby" "Jonagold" "Lavender Fritter" "Magdalena" "Peachy Sweet" "Red Gala" "Sundowner" "Pinkie's dad" "Igneous Rock"
+       "Granny Smith's father" "Pokey Oaks" "Stinkin' Rich" "Apple Bottoms" "Apple Cinnamon" "Apple Strudel" "Bushel" "Golden Delicious" "Half Baked Apple" "Happy Trails" "Hayseed Turnip Truck" "Prairie Tune"
+       "Red Delicious" "Uncle Orange" "Wensley" "Twilight's dad" "Night Light" "Twilight's mom" "Twilight Velvet" "Rarity's mom" "Cookie Crumbles" "Rarity's dad" "Hondo Flanks" "Pinkie's sister" "Limestone Pie"
+       "Pinkie's sister" "Marble Pie" "Apple Bud" "Apple Crumble" "Apple Flora" "Apple Mint" "Apple Squash" "Candy Caramel Tooth" "Liberty Belle" "Red June" "Action Shot" "Amaranthine" "Ambrosia"
+       "Crystal Chalice Stand Pony" "Amethyst Gleam" "Amira" "Apple Bottom" "Apricot Bow" "Beauty Brass" "Bell Perin" "Bella Brella" "Belle Star" "Berry Dreams" "Berry Frost" "Berry Icicle" "Berryshine" "Biddy Broomtail"
+       "Big Wig" "Bitta Blues" "Blue Bonnet" "Blue Bows" "Blue Cutie" "Blue Nile" "Bonnie" "Bottlecap" "Bubblegum Blossom" "Butter Pop" "Candy Mane" "Candy Twirl" "Carlotta" "Charcoal Bakes" "Charged Up"
+       "Chelsea Porcelain" "Cherry Berry" "Cherry Punch" "Chilly Puddle" "Cobalt Shade" "Coral Shine" "Cornflower" "Crescendo" "Dainty Dove" "Daisy" "Doseydotes" "Dosie Dough" "Dry Wheat" "Eclair Crème" "Elphaba Trot"
+       "Fiddly Faddle" "Flounder" "Flurry" "Forest Spirit" "Ginger Gold" "Golden Harvest" "Grace" "Grape Delight" "Green Jewel" "Hazel Harvest" "Hinny of the Hills" "Immemoria" "Joan Pommelway" "Jubileena"
+       "Lady Justice" "Lavender August" "Lavender Blush" "Lavenderhoof" "Lemon Chiffon" "Lilac Blossom" "Lilac Links" "Lily Valley" "Linked Hearts" "Little Po" "Luckette" "Lucky Star" "Lyrica Lilac" "Majesty"
+       "Mango Juice" "Maribelle" "Marigold" "Maroon Carrot" "Masquerade" "Maybelline" "Midnight Fun" "Millie" "Mint Swirl" "Mjölna" "Nurse Snowheart" "Nurse Sweetheart" "Nurse Tenderheart" "Oakey Doke" "Obscurity"
+       "Octavia Melody" "Paisley Pastel" "Pampered Pearl" "Peachy Cream" "Pearly Stitch" "Peggy Holstein" "Petunia" "Picture Perfect" "Pinot Noir" "Pitch Perfect" "Play Write" "Powder Rouge" "Pretty Vision"
+       "Purple Haze" "Purple Wave" "Pursey Pink" "Masseuse Pony" "Quake" "Reflective Rock" "Regal Candent" "Rose" "Roxie" "Ruby Splash" "Screwball" "Screwy" "Seasong" "Serena" "Shoeshine" "Silver Frames" "Sky View"
+       "Snappy Scoop" "Soft Spot" "Soigne Folio" "Soot Stain" "Spaceage Sparkle" "Spring Forward" "Spring Water" "Stella" "Strawberry Ice" "Sun Streak" "Sunny Smiles" "Sunset Bliss" "Surf" "Sweetberry" "Sweetie Drops"
+       "Swirly Cotton" "Symphony" "Toffee" "Tree Sap" "Tropical Spring" "Turf" "Vanilla Sweets" "Vera" "Vidala Swoon" "Welly" "Wildwood Flower" "Wilma" "Winter Withers" "Ace" "Affero" "Apple Bread" "Apple Slice"
+       "Baritone" "Biff" "Big Top" "Professor" "Bill Neigh" "Black Stone" "Mr. Breezy" "Brindle Young" "Burnt Oak" "Business Saavy" "Caboose" "Caesar" "Caramel" "Charlie Coal" "Cherry Fizzy" "Cherry Strudel"
+       "Chocolate Haze" "Classy Clover" "Cloudy Haze" "Cobalt" "Coco Crusoe" "Commander Redfeather" "Concerto" "Cormano" "Ancient Beast Dealer" "Cratetoss" "Creme Brulee" "Crest Crown" "Flashy Pony" "Dance Fever"
+       "Davenport" "Dirtbound" "Dr. Hooves" "Pest Control Pony" "Egon" "Eiffel" "Emerald Beacon" "Emerald Green" "Evening Star" "Felix" "Frederick Horseshoepin" "Full Steam" "Fuzzy Slippers" "Geri" "Gingerbread"
+       "Globe Trotter" "Goldengrape" "Grape Crush" "Mr. Greenhooves" "Haakim" "Harry Trotter" "Hay Fever" "Haymish" "Hercules" "Hermes" "Hughbert Jellius" "Icy Drop" "Jeff Letrotski" "Jesús Pezuña" "Jim Beam"
+       "John Bull" "Karat" "Kazooie" "Klein" "Duke of Maretonia" "Kyrippos II" "Leadwing" "Lincoln" "Security Guard" "Lockdown" "Lucky Clover" "Antique Chicken Stand Pony" "Match Game" "Meadow Song" "Melilot"
+       "Moon Dust" "Morton Saltworthy" "Astro Pony" "Neptunio" "Night Watch" "Noteworthy" "Ol' Salt" "Oregon Trail" "Parcel Post" "Parish Nandermane" "Perfect Pace" "Persnickety" "Pigpen" "Pine Breeze" "Pinto Picasso"
+       "Pipe Down" "Raggedy Doctor" "Ragtime" "Rivet" "Rogue" "Rough Tumble" "Royal Riff" "Sam" "Savoir Fare" "Sealed Scroll" "Shamrock" "Shooting Star" "Shortround" "Sir Pony Moore" "Slendermane" "Smokestack"
+       "Sourpuss" "Squeaky Clean" "Star Gazer" "Steel Wright" "Sterling Silver" "Strawberry Cream" "Swanky Hank" "Tall Order" "Tall Tale" "Temple Chant" "Theodore Donald "Donny" Kerabatsos" "Twilight Sky" "Uncle Wing"
+       "Wacky Hair Day and Spray" "Mr. Waddle" "Bowling Pony" "Walter" "Welch" "Wetzel" "Wisp" "Withers" "Mr. Zippy" "Amber Waves" "Amberlocks" "Amethyst Maresbury" "Arctic Lily" "Berry Splash" "Bright Smile"
+       "Check Mate" "Crystal Arrow" "Crystal Varado" "Dandy Brush" "Elbow Grease" "Esmeralda" "Fleur de Verre" "Glamour Gleam" "Golden Glitter" "Golden Wheat" "Ivory" "Jade" "Jewel Joy" "Lilac Luster" "Mercury"
+       "Neighls Bohr" "Night Knight" "Periwinkle Pace" "Purple Polish" "Rapid Rush" "Rook Ramparts" "Rose Quartz" "Rubinstein" "Sand Arrow" "Sapphire Rose" "Sugar Glass" "Sunshine Splash" "Toastie" "Winnow Wind"
+       "Zirconic" "Glass Slipper" "Hope" "Opal Bloom" "Amethyst Star" "Apple Cobbler" "Apple Pie" "Applejack" "Berryshine" "Caramel" "Charm" "Cherry Berry" "Cloud Kicker" "Coco Crusoe" "Dr. Hooves" "Eclair Crème"
+       "Fine Line" "Fluttershy" "Gala Appleby" "Golden Harvest" "Goldengrape" "Lemon Hearts" "Lucky Clover" "Masquerade" "Minuette" "Noteworthy" "Orange Swirl" "Perfect Pace" "Pinkie Pie" "Princess Cadance"
+       "Rainbow Dash" "Rainbowshine" "Rarity" "Red Gala" "Rose" "Royal Riff" "Sassaflash" "Sea Swirl" "Shining Armor" "Shooting Star" "Sir Pony Moore" "Sprinkle Medley" "Star Bright" "Twilight Sparkle" "Twinkleshine"
+       "Blaze" "Fire Streak" "High Winds" "Lightning Streak" "Misty Fly" "Silver Lining" "Surprise" "Wave Chill" "Crescent Pony" "Crescent Moon" "Fast Clip" "Cloudsdale Cheer Pony" "Lilac Sky" "Cloudsdale Cheer Pony"
+       "Spring Step" "Tight Ship" "Whiplash" "Bulk Biceps" "Cloud Kicker" "Cloudchaser" "Lightning Dust" "Lime Jelly" "Midnight Strike" "Orange Swirl" "Parasol" "Pizzelle" "Rainbow Drop" "Rainbow Swoop"
+       "Sassaflash" "Sightseer" "Sprinkle Medley" "Star Hunter" "Starburst" "Starry Eyes" "Stormfeather" "Sunburst" "Sunshower Raindrops" "Thorn" "Thunderlane" "Whitewash" "White Lightning" "Wild Fire"
+       "Wild Flower" "Abradacanter" "Big Shot" "Blue October" "Blueberry Muffin" "Bluebell" "Blueberry Banana" "Blueberry Cloud" "Blueberry Punch" "Bluebird Happiness" "Bon Voyage" "Buddy" "Candy Floss"
+       "Cerulean Skies" "Chocolate Blueberry" "Cinnamon Swirl" "Cloud Break" "Cloud Showers" "Compass Star" "Cosmic" "Cream Tangerine" "Deep Blue" "Descent" "Dewdrop" "Downdraft" "Drizzle" "Dust Devil" "Eff Stop"
+       "Electric Blue" "Endless Clouds" "Foggy Fleece" "Golden Glory" "Graceful Falls" "Grape Soda" "Great Scott" "Haymaker" "Helia" "High Note" "High Spirits" "Honey Rays" "Jack Hammer" "Jetstream" "Juicy Fruit"
+       "Laurette" "Lavender Skies" "Madden" "Merry May" "Nightingale" "Pegasus Dad" "Nightjar" "Northern Lights" "Orange Box" "Parula" "Pink Cloud" "Prim Posy" "Prism Glider" "Pumpkin Tart" "Q. T. Prism" "Rain Dance"
+       "Rainbow Blaze" "Rainbowshine" "Ralph" "Riverdance" "Rosewing" "Sandstorm" "Score" "Serenity" "Silver Script" "Silverspeed" "Silverwing" "Sky Flower" "Skyra" "Slipstream" "Snowslide" "Special Delivery"
+       "Spring Skies" "Stardancer" "Steam Roller" "Stormbreaker" "Strawberry Sunrise" "Sugar Apple" "Sugar Twist" "Sugarshine" "Sunlight" "Sunny Rays" "Sunstone" "Tiger Lily" "Tracy Flash" "Shutterfly"
+       "Tropical Storm" "Velvet Light" "Wind Chill" "Wing Wishes" "Amethyst Star" "Apple Polish" "Apple Stars" "Arpeggio" "Ballad" "Banana Fluff" "Beyond" "Bittersweet" "Black Marble" "Blue Belle" "Blue Moon"
+       "Brass Blare" "Bright Bulb" "Charm" "Cherry Spices" "Chocolate Sun" "Chocolate Tail" "Cinnabelle" "Cipher Splash" "Cold Front" "Comet Tail" "Crystal Clear" "Dark Moon" "Diamond Mint" "DJ Pon-3" "Earl Grey"
+       "Eliza" "Fine Line" "Flank Sinatra" "Fly Wishes" "Four Step" "Fuchsia Fizz" "Gary Coronet" "Gold Slipper" "Golden Gavel" "Hair Air" "Holly Dash" "Hors D'oeuvre" "Duchess of Maretonia" "Ice Mirror" "Infinity"
+       "The Inquisitor" "Lemon Hearts" "Lemony Gem" "Lyra Heartstrings" "Minuette" "Monochrome Sunset" "Neon Lights" "Nixie" "Nook" "Ocean Breeze" "Orchid Dew" "Passionate" "Banner Vendor" "Peachy Pitt" "Perfect Timing"
+       "Pinny Lane" "Pixie" "Elite Pony" "Ponet" "Poppycock" "Precious" "Press Pass" "Primrose" "Pristine" "Rare Find" "Raven" "Red Rose" "Rhythm" "Night Shade" "Rosewood Brook" "Royal Pin" "Royal Ribbon" "Sea Spray"
+       "Sea Swirl" "Silver Spanner" "South Pole" "Spring Fresh" "Star Bright" "Star Dream" "Sky Dream" "Strawberry Lime" "Sugarberry" "Swan Song" "Sweet Dreams" "Top Marks" "Top Notch" "Twinkleshine" "Violet Velvet"
+       "Written Script" "Amethyst Beat" "Apple Bytes" "Aquamarine" "Archer" "Aura" "Bags Valet" "Bee Bop" "Berry Pinch" "Blade Runner" "Bloo" "Blueberry Swirl" "Bolt" "Boysenberry" "Brown Sugar" "Button Mash"
+       "Caramel Coffee" "Cheery" "Chip Mint" "Chirpy Hooves" "Coronet" "Cotton Cloudy" "Cotton Top" "Cream Puff" "Cyan Skies" "Dinky Doo" "Dipsy" "Finish Line" "Firelock" "First Base" "Fruitbasket" "Gallop J. Fry"
+       "Green Daze" "Hairpin Turn" "Honey Drop" "Key Lime" "Lance" "Lemon Daze" "Lemon Scratch" "Lickety Split" "Lily Dache" "Little Red" "Liza Doolots" "Mango Dash" "Melody" "Mint Flower" "Noi" "Nursery Rhyme"
+       "Peach Fuzz" "Peachy Petal" "Peachy Pie" "Pearly Whites" "Pinkie Feather" "Piña Colada" "Plum Star" "Pomegranate" "Purpletastic" "Purpleskies" "Rainy Feather" "Royal Blue" "Shady Daze" "Shining Star" "Strike"
+       "Sugar Plum" "Sun Glimmer" "Sunny Daze" "Sweet Pop" "Sweet Tart" "Tornado Bolt" "Train Tracks" "Treasure" "Teacher's Pet" "Truffle" "Amethyst Star" "Charm" "Cloud Kicker" "Derpy" "Diamond Mint" "Fine Line"
+       "Fluttershy" "Helia" "Lemon Hearts" "Lemony Gem" "Lyra Heartstrings" "Merry May" "Minuette" "Orange Swirl" "Parasol" "Primrose" "Rainbow Dash" "Rarity" "Raven" "Sapphire Shores" "Sassaflash" "Sea Swirl"
+       "Sprinkle Medley" "Strawberry Sunrise" "Sunshower Raindrops" "Swan Song" "Twilight Sparkle" "Twinkleshine" "White Lightning" "Comet Tail" "Cosmic" "Crafty Crate" "Crescent Moon" "Jack Hammer" "Rainbow Swoop"
+       "Snappy Scoop" "Star Hunter" "Starburst" "Steam Roller" "Stellar Eclipse" "Sunburst" "Thunderlane" "Berryshine" "Caramel" "Cherry Berry" "Dr. Hooves" "Emerald Green" "Felix" "Globe Trotter" "Golden Harvest"
+       "Luckette" "Lucky Clover" "Lyra Heartstrings" "Meadow Song" "Noteworthy" "Peachy Sweet" "Perfect Pace" "Rivet" "Shoeshine" "Daring Do Collector" "Teddie Safari" "Twilight Sky" "Twilight Sparkle" "Wisp"
+       "Discord" "Goldengrape" "Lucy Packard" "Noteworthy" "Perfect Pace" "Quake" "Red Gala" "Savoir Fare" "Shooting Star" "Sir Pony Moore" "Snails" "Lemon Hearts" "Neon Lights" "Rarity" "Applejack" "Berry Pinch"
+       "Berry Pinch" "Big McIntosh" "Bubblegum Blossom" "Cheerilee" "Cheese Sandwich" "Cloudchaser" "Cotton Cloudy" "Cotton Cloudy" "Derpy" "Dumb-Bell" "Flitter" "Fluttershy" "Granny Smith" "Hoops" "Liberty Belle"
+       "Liza Doolots" "Liza Doolots" "Luckette" "Lyra Heartstrings" "Pinkie's Sister" "Maud Pie" "Minuette" "Pinkie Pie" "Pinot Noir" "Piña Colada" "Piña Colada" "Rainbow Dash" "Rainy Feather" "Rarity" "Red June"
+       "Scootaloo" "Score" "Strawberry Ice" "Sweetie Belle" "Sweetie Drops" "Tornado Bolt" "Trouble Shoes" "Twilight Sparkle" "Nerdy Delegate" "Whinnyapolis Delegate" "Cabbie" "Soldier" "Officer" "Captain" "Bellhop"
+       "Delivery Pony" "Shopkeeper" "Announcer" "Annoyed Delegate" "Manehattan Delegate" "Horticultural Pegasus" "Public Works Pony" "Little Pony" "Comic Geek Pony" "Prince Blue Dream" "Chancellor Puddinghead"
+       "Fili-Second" "Mistress Mare-velous" "Smart Cookie" "Sunflower" "Commander Hurricane" "Blazing Donut Glaze" "Private Pansy" "Saddle Rager" "Zapp" "Princess Golden Dream" "Clover the Clever" "King Bullion"
+       "Masked Matter-Horn" "Meadowbrook" "Princess Amore" "Princess Platinum" "Radiance" "Star Swirl the Bearded" "Apple Brioche" "Apple Cinnamon Crisp" "Apple Tart" "Uncle Apple Tart" "Aunt Bae Mare" "Bumpkin"
+       "Calamity Mane" "Colonel Waffle" "Ernie" "Flourish Prose" "Granny Pie" "Hock Fetlock" "Mr. Kingpin" "Namby-Pamby" "Nana Pinkie" "Aunt Pine Apple" "Quilland Ink" "Thornhoof" "Wild Bull Hickok" "Rapidfire"
+       "General Firefly" "Colonel Purple Dart" "Commander Easyglider" "Admiral Fairweather" "Admiral Fairy Flight" "General Flash" "Flaire De Mare"
+			}
+
+			# Always combined with a second name
+			first_names = {
+                #food
+			"Apple" "Baked" "Banana" "Berry" "Candy" "Caramel" "Candy Caramel" "Carrot"
+			"Cherry" "Cheese" "Cinnamon" "Cookie" "Cream" "Flurry" "Grape" "Half Baked" "Lemon"
+			"Peachy" "Pumpkin" "Strawberry" "Sugar" "Sweet" "Sweetie"
+		#jewelry and fancy
+			"Amethyst" "Diamond" "Emerald" "Ruby" "Golden" "Goldie" "Silver" "Jewel"
+			"Royal" "Gala" "Fancy" "Prism" "Swanky"
+		#color and light
+			"Blue" "Blues" "Cerulean" "Green" "Lavender" "Lilac" "Periwinkle" "Pinkie" "Purple" "Red"
+			"Rainbow" "Neon"
+			"Bright" "Starlight" "Sunlight" "Sunny" "Sunset" "Sunshine" "Sunshower" "Twilight"
+		#misc
+			"Babs" "Bae" "Beauty" "Big" "Big Daddy" "Charity" "Cloud" "Cloudy" "Cotton"
+			"Daisy" "Electric" "Feldspar Granite" "Fluffy" "Hayseed" "Holly" "Igneous Rock" "Limestone"
+			"Lotus" "Lucky" "Lyra" "Merry" "Perfect" "Pound" "Magnet" "Marble" "Maud"
+		        "Stormy" "Tall" "Tender" "Top" "Vidala" "Golden" "Golden" "Golden" "Golden" "Golden"
+			}
+
+			# Always combined with a first name
+			second_names = {
+                #food
+			Apple Apples Applesauce Berry Cake Cider Cinnamon Crème Delicious Delight Dumpling
+			Fritter Grape Harvest Honey Jellius Mint Munchies Orange
+			Peachbottom Pie Puff Sandwich Spices Strudel Sweet Tart Truffle Waffle Wheat
+		#jewelry and fancy
+			Brass Brioche Bullion Gala Gem Jewel Jubilee Tiara Velvet Rich
+		#color and light
+			Flare Lights Luster Pink Radiance Rays Shimmer Shine Sparkle Sunrise
+		#pun
+			Fetlock Flanks Letrotski Harshwhinny Hooffield Horseshoepin Mare Maresbury Nandermane
+		#misc
+			Appleby Belle Bloom Blossom Bulb Bumpkin Chaser Clover Cobbler Crisp Dash Daze Dreams Drops
+			Fizzy Flora Fluff Frames Gavel Glider Heart Hearts Heartstrings Hugger Joy
+			Kindheart Leaves McColt McIntosh Melody Moon Noteworthy Pace Pansy Pants Petals Pin
+			Quartz Redheart Ribbon Riff Rose
+			Seed Shill Shot Skies Sky Smile Smiles Splash Split Spoon Tooth Top Twist Valet Wave Wig
+			}
+
+			regnal_first_names = {
+				"Celestia" "Luna" "Cadenza" "Sombra" "Amore" "Platinum" "Solaris"
+			}
+
+			regnal_second_names = {
+				"Invictus" "Harmonica" "of Equestria" "the Eternal" "Faustus"
+			}
+		}
+	}
+}

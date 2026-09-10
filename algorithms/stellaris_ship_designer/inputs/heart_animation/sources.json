@@ -1,0 +1,63 @@
+{
+  "baseUrl": "https://ponylumen.net/js/models/pony/",
+  "parts": {
+    "hairFront": "hair_front/braeburn_hair_front.bm",
+    "hairBack": "hair_back/fluttershy_hair_back.bm",
+    "horn": "horn/alicorn_horn.bm",
+    "collar": "accessories/celestia_collar_fix1.bm",
+    "headgear": "accessories/celestia_crown.bm",
+    "accessory_5": "accessories/legring_tlb.bm",
+    "accessory_6": "accessories/legring_tlf.bm",
+    "accessory_7": "accessories/legring_trb.bm",
+    "accessory_8": "accessories/legring_trf.bm",
+    "accessory_9": "accessories/luna_shoe_lb_fix1.bm",
+    "accessory_10": "accessories/luna_shoe_lf_fix1.bm",
+    "accessory_11": "accessories/luna_shoe_rb.bm",
+    "accessory_12": "accessories/luna_shoe_rf.bm",
+    "pony": "body/body60.bm",
+    "leftWing": "wings/left_large_wing_open.bm",
+    "rightWing": "wings/right_large_wing_open.bm",
+    "tail": "tail/octavia_tail.bm"
+  },
+  "creatorSource": "https://ponylumen.net/js/ponyCreator_v.1.1.9.js",
+  "flyFrames": [
+    25,
+    48
+  ],
+  "fps": 24,
+  "redistributionPermission": "Unverified for model and animation assets; software license does not grant asset redistribution rights.",
+  "communityFlights": {
+    "source": "User-provided Downloads files, 2026-09-08",
+    "publicRedistributionPermission": "Not established by the supplied files",
+    "files": [
+      {
+        "file": "community_flights/flying_fast_xxgenmaxx_v1.dmx",
+        "bytes": 985312,
+        "sha256": "6eab90094393b74207253efe221cc701cd4ff8497bee641f173e657af2e81bdd"
+      },
+      {
+        "file": "community_flights/revamped flying down.dmx",
+        "bytes": 857359,
+        "sha256": "66d2823eb8ccad49ad288f3487d3bfcd2992b04992935c37c7e69ffbbac6f786"
+      },
+      {
+        "file": "community_flights/revamped flying fast.dmx",
+        "bytes": 2772879,
+        "sha256": "e42458a356b729857783a441ecf018c54c559f371e09ab4d367d56ec01751031"
+      },
+      {
+        "file": "community_flights/revamped flying upright.dmx",
+        "bytes": 853111,
+        "sha256": "9d2a16c09dfd8dffec0097d4141c70eede20b8170411c1ef9523aeb9575ce1b8"
+      },
+      {
+        "file": "community_flights/female_fly_cycle_fast_rev1.dmx",
+        "bytes": 476397,
+        "sha256": "f39fb4de55f7e05f30947c18b2d0df626104bb34a4b4dd84a407b92784fa0bf0",
+        "sourceArchive": "~/Downloads/female-fly-cycle-fast-rev-1.zip"
+      }
+    ],
+    "decoder": "External MIT Blender Source Tools datamodel.py (helper_repos/blender_source_tools)",
+    "mapping": "Animation-root Y-up coordinates are distinct from the Z-up saved posed skeleton. Preserve Heart bind matrices and retarget body local axes. A uses its native VA body motion and independently timed seven-beat Wing1/Wing2/Wing3 chain; B uses its native Genmaxx body and WingOpen chain; C is the user-supplied female fly cycle. Source wing rotations are transferred as bone-local deltas onto the selected PonyLumen large-wing rest rig. Community left-ear snapshot rotation is excluded because its unmirrored posed basis deforms Heart; Heart's verified left-ear rest pose is retained."
+  }
+}

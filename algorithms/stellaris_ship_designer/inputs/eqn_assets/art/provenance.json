@@ -1,0 +1,293 @@
+{
+  "inputImages": [
+    {
+      "path": "/Users/haowang/Downloads/stellaris heart/abstract.png",
+      "use": "MLP-style full-body visual reference for the new component and technology icon family"
+    },
+    {
+      "path": "inputs/eqn_assets/portraits/krys/krys21.png",
+      "use": "Existing species artwork used directly as the princess leader portrait; not sent for generation"
+    }
+  ],
+  "generationMode": "Legacy artwork below is text-generated. The 0.1.4 component and technology family is reference-guided Dreamina image-to-image, generated one icon per request where available.",
+  "prompts": [
+    {
+      "id": "royal_silhouette",
+      "ratio": "1:1",
+      "prompt": "Create one square Stellaris-style grand-strategy science fiction game army/leader icon, 1:1 ratio. A regal winged unicorn alicorn princess, shown as a full-body dark silhouette in graceful three-quarter side view, four equine legs, long single horn, two feathered wings and a tiny crown. No visible face, no colorful character painting, no anime outline. Dark navy almost-black body, restrained pale teal rim light and subtle lavender starlight, small golden crown glint, deep charcoal square backdrop. Monumental solemn sci-fi heraldic shadow style, painterly texture, strong simple readable silhouette at 64px, centered with 20 percent clear margin. No text, no letters, no logo, no border, no collage. Invent the silhouette entirely from this text; no reference image."
+    },
+    {
+      "id": "crystal_research",
+      "ratio": "1:1",
+      "prompt": "One square 1:1 Stellaris-style science fiction technology icon. A single crystalline heart-shaped energy core suspended inside a thin geometric orbital ring, dark shadow silhouette with restrained teal edge glow and a few lavender facets, golden pinprick at center, charcoal navy background. Serious grand-strategy game painted UI icon, clear compact symbol readable at 64px, centered 20 percent margin. No character, no face, no writing, no symbols resembling letters, no border, no collage. Text-only original design."
+    },
+    {
+      "id": "three_incarnations",
+      "ratio": "1:1",
+      "prompt": "One square 1:1 Stellaris-style grand-strategy society technology icon representing one royal consciousness sharing exactly THREE physical bodies. Exactly three dark winged unicorn equine silhouettes in a balanced triangular arrangement, connected by three thin pale teal arcs to one small luminous violet crystal at center. Tiny crown shapes optional, no faces or clothing details. Dark navy shadow bodies with restrained cyan and lavender rim light on charcoal background. Solemn painterly sci-fi icon, uncluttered and readable at 64px, generous 20 percent margin. No text, no letters, no numbers, no border, no collage. Invent solely from description, no image references."
+    },
+    {
+      "id": "origin_panorama",
+      "ratio": "21:9",
+      "prompt": "Wide panoramic 21:9 Stellaris-style science fiction origin illustration, composed to allow a central 3.1:1 crop. A distant immense regal winged unicorn alicorn princess is only a dark full-body silhouette, suspended above a quiet alien world horizon beneath a dense sea of stars. Four equine legs, a long horn and two outstretched feathered wings, no visible face, no colorful character portrait. A small pale teal stellar halo behind the silhouette and faint lavender nebulae, very restrained golden glints, deep navy shadows. Solemn painterly grand-strategy space art, atmospheric scale, sparse monumental composition; entire small silhouette in the middle 50 percent of canvas height with broad uninterrupted dark space around it. No text, no logos, no borders, no collage. Original text-only artwork, no reference image."
+    }
+  ],
+  "providers": {
+    "royal_silhouette": {
+      "provider": "Dreamina",
+      "model": "5.0",
+      "submitId": "7cbdbbd1-d351-4620-b0d2-309a547593ac",
+      "sourceRatio": "1:1",
+      "nativeSize": [
+        256,
+        256
+      ],
+      "crop": [
+        240,
+        240,
+        1920,
+        1920
+      ]
+    },
+    "crystal_research": {
+      "provider": "OpenAI built-in imagegen",
+      "sourceRatio": "1:1",
+      "nativeSize": [
+        256,
+        256
+      ],
+      "fallbackReason": "Dreamina user-info request timed out before submission",
+      "finalPrompt": "Create one square 1:1 science fiction technology icon for a Stellaris mod. A single crystalline heart-shaped energy core suspended within a thin geometric orbital ring, dark shadow silhouette with restrained teal edge glow, a few lavender facets and a tiny golden center, on an almost black navy background. Solemn grand-strategy game painted interface icon, simple strong shapes readable at 64 pixels, centered with 20 percent quiet margin. No character, no text, no letters, no numbers, no logos, no border, no collage. Original text-only generation: use absolutely no image references or prior images in this conversation. This is a separate abstract research symbol, not a portrait."
+    },
+    "three_incarnations": {
+      "provider": "Dreamina",
+      "model": "5.0",
+      "submitId": "23eda1df-4d18-46b2-a756-2cfb4adac395",
+      "sourceRatio": "1:1",
+      "nativeSize": [
+        256,
+        256
+      ],
+      "crop": [
+        160,
+        192,
+        1888,
+        1920
+      ]
+    },
+    "origin_panorama": {
+      "provider": "Dreamina",
+      "model": "5.0",
+      "submitId": "ff66c24c-0646-4bc7-ad8a-fde78438aca7",
+      "sourceRatio": "21:9",
+      "nativeSize": [
+        450,
+        150
+      ],
+      "nativeRatio": "3:1",
+      "crop": [
+        0,
+        288,
+        3024,
+        1296
+      ]
+    }
+  },
+  "nativeUiDerivatives": [
+    {
+      "source": "inputs/eqn_assets/art/royal_silhouette.png",
+      "output": "inputs/eqn_assets/art/royal_silhouette_component.dds",
+      "usage": "component",
+      "size": [
+        58,
+        58
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "56a9e4d03fb5c400db4c8a6f9f3f1069a9aefb6fb4a5f2c7cecab54b7c468198"
+    },
+    {
+      "source": "inputs/eqn_assets/art/royal_silhouette.png",
+      "output": "inputs/eqn_assets/art/royal_silhouette_army.dds",
+      "usage": "army",
+      "size": [
+        34,
+        34
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "ec3993787da54219a3cdb7a0b35ff7c2764bf7fbf802d511fd6021a0aa28ca89"
+    },
+    {
+      "source": "inputs/eqn_assets/art/royal_silhouette.png",
+      "output": "inputs/eqn_assets/art/royal_silhouette_trait.dds",
+      "usage": "trait",
+      "size": [
+        29,
+        29
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "e44b696fab3acd2bb6f01c5df8880175f9c689223b258aef6519963905025e8f"
+    },
+    {
+      "source": "inputs/eqn_assets/art/royal_silhouette.png",
+      "output": "inputs/eqn_assets/art/royal_silhouette_origin.dds",
+      "usage": "origin",
+      "size": [
+        40,
+        40
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "de398cebd78618467e2c339b3d67a22e04f57138dbd2f56468ce5082cdf4e8e1"
+    },
+    {
+      "source": "inputs/eqn_assets/art/royal_silhouette.png",
+      "output": "inputs/eqn_assets/art/royal_silhouette_technology.dds",
+      "usage": "technology",
+      "size": [
+        52,
+        52
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "088f445940d05edbbc9cfe5af86422dcadbee0b26c74977a837dc5327eb2f7dd"
+    },
+    {
+      "source": "inputs/eqn_assets/art/crystal_research.png",
+      "output": "inputs/eqn_assets/art/crystal_research_component.dds",
+      "usage": "component",
+      "size": [
+        58,
+        58
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "8c512ca29bb8c1d022f04d7a92bff6260f99afa9a6e16031ff60f97ae327fc91"
+    },
+    {
+      "source": "inputs/eqn_assets/art/crystal_research.png",
+      "output": "inputs/eqn_assets/art/crystal_research_army.dds",
+      "usage": "army",
+      "size": [
+        34,
+        34
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "395a470361376b575919deece7d163e997a36afb415ab1c52daa4a8a8a8f3a60"
+    },
+    {
+      "source": "inputs/eqn_assets/art/crystal_research.png",
+      "output": "inputs/eqn_assets/art/crystal_research_trait.dds",
+      "usage": "trait",
+      "size": [
+        29,
+        29
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "6b206e16e38973a53da18e515106d364ac3bef1c545e86308790ec3808b12ede"
+    },
+    {
+      "source": "inputs/eqn_assets/art/crystal_research.png",
+      "output": "inputs/eqn_assets/art/crystal_research_origin.dds",
+      "usage": "origin",
+      "size": [
+        40,
+        40
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "9d0447c2ac841744890a3f33503ea258e912eadbc2323570a5c2b4bd92913089"
+    },
+    {
+      "source": "inputs/eqn_assets/art/crystal_research.png",
+      "output": "inputs/eqn_assets/art/crystal_research_technology.dds",
+      "usage": "technology",
+      "size": [
+        52,
+        52
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "66b56e8a7e8d4303bec9b1b382030b5a31427d39f94c9afca6731db8d9aff20e"
+    },
+    {
+      "source": "inputs/eqn_assets/art/three_incarnations.png",
+      "output": "inputs/eqn_assets/art/three_incarnations_component.dds",
+      "usage": "component",
+      "size": [
+        58,
+        58
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "6ae77318d34e2eaffaec3a43e2b86b5e2b53822ae82dabbcb52a6161d65f75e2"
+    },
+    {
+      "source": "inputs/eqn_assets/art/three_incarnations.png",
+      "output": "inputs/eqn_assets/art/three_incarnations_army.dds",
+      "usage": "army",
+      "size": [
+        34,
+        34
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "974653c079041890e31f05ab3c8cf010892d8627f9641fe7fbb66529f21a1409"
+    },
+    {
+      "source": "inputs/eqn_assets/art/three_incarnations.png",
+      "output": "inputs/eqn_assets/art/three_incarnations_trait.dds",
+      "usage": "trait",
+      "size": [
+        29,
+        29
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "d309f1308cc82a19f2fdbce2052de871778f48e16f4a0fd8f44c9c0b9c18157f"
+    },
+    {
+      "source": "inputs/eqn_assets/art/three_incarnations.png",
+      "output": "inputs/eqn_assets/art/three_incarnations_origin.dds",
+      "usage": "origin",
+      "size": [
+        40,
+        40
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "b51018638a7919aea647733a6ffd26b19e3d8d6eb35b548aa7ed1a04be3e91e7"
+    },
+    {
+      "source": "inputs/eqn_assets/art/three_incarnations.png",
+      "output": "inputs/eqn_assets/art/three_incarnations_technology.dds",
+      "usage": "technology",
+      "size": [
+        52,
+        52
+      ],
+      "operation": "Lanczos resize from text-generated master; no new generation",
+      "sha256": "67e28f2ff3ddfd8f714647563becdb6aedd187861c28e3008973acfd6c2cff4c"
+    },
+    {
+      "source": "inputs/eqn_assets/art/origin_panorama.png",
+      "output": "inputs/eqn_assets/art/origin_panorama_ui.dds",
+      "usage": "origin_picture",
+      "size": [
+        220,
+        115
+      ],
+      "operation": "Centered crop to native origin-picture ratio and Lanczos resize",
+      "sha256": "5d6fff48014602ba167bd065a1549b7148eae0b641f9b7beda28c863629ce340"
+    }
+  ],
+  "componentAndTechnologyIcons": {
+    "manifest": "inputs/eqn_assets/art/generated_icons.json",
+    "provider": "Dreamina 4.7 through agent-bridge",
+    "individualGeneration": true,
+    "count": 23,
+    "sheetFallbacks": [
+      "horn_s",
+      "royal_mind",
+      "tech_body_3"
+    ],
+    "sheetFallbackRule": "Only non-watermarked cells were used; the watermarked top-left cell was rejected.",
+    "techAscendantCorrection": "The malformed missing-head pony result was rejected. The shipped icon is a locally composed gold/cyan ascension star over isolated Dreamina crystal wings.",
+    "backgroundIsolation": "Edge-connected light/checkerboard pixels and large enclosed checkerboard holes are removed. White pixels belonging to the foreground component are preserved.",
+    "nativeSizes": {
+      "component": [58, 58],
+      "technology": [52, 52]
+    }
+  },
+  "nativeUiSizingSource": "Installed Stellaris 4.4.6 DDS headers: ship_part_laser_1 58x58, army_icon17frames34x34, leader_trait_aggressive29x29, origins_default40x40, tech_lasers_1 52x52"
+}

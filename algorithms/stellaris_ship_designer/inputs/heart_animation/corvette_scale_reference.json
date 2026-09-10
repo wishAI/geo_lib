@@ -1,0 +1,33 @@
+{
+  "native_file": "gfx/models/ships/mammalian_01/mammalian_01_corvette_S3.mesh",
+  "coordinate_system": "PDX -Z forward, Y up; Blender -Y forward, Z up (io_pdx_mesh swap_coord_space)",
+  "render_meshes": [
+    {
+      "name": "polySurface349Shape",
+      "shader": "PdxMeshTerra",
+      "minimum": [
+        -1.9709174633026123,
+        -1.671377420425415,
+        -7.3470025062561035
+      ],
+      "maximum": [
+        1.9709168672561646,
+        1.4287145137786865,
+        5.747002124786377
+      ],
+      "dimensions": [
+        3.941834330558777,
+        3.1000919342041016,
+        13.09400463104248
+      ]
+    }
+  ],
+  "entity_scale": 1.0,
+  "pdxmesh_scale": 1.0,
+  "corvette_game_data_size": 6.5,
+  "game_data_size_note": "This is separate game_data metadata, not the explicit entity or pdxmesh scale. Do not multiply mesh bounds by it.",
+  "reference_body_length": 13.09400463104248,
+  "pony_target_ratio": 0.85,
+  "pony_target_body_length": 11.129903936386109,
+  "comparison_scope": "Mesh-space body bounds excluding collision mesh and weapon turret attachments; explicit visual scales 1.0. Runtime camera/perspective and animations not validated."
+}

@@ -1,22 +1,23 @@
 {
   "id": "stellaris_ship_designer",
   "icon": "ship",
-  "name": "Stellaris Ship Designer",
-  "eyebrow": "LIVE 3D MOD WORKBENCH",
-  "summary": "Inspect original Stellaris ship assets in a performant browser 3D view, including a modular battleship and an animated BioGenesis Mauler.",
+  "name": "Stellaris · EQN-GO Mod Maker",
+  "eyebrow": "SPECIES · HERO · RESEARCH · DEPLOY",
+  "summary": "Create and edit EQN-GO: recovered species, Princess Stellaris Heart, technologies, ground bodies and commander traits. Build and deploy to TK2.",
   "accent": "#5b74c9",
   "runtime": "local+tk2",
   "runtimeLabel": "Safari · synced to TK2",
   "capabilities": [
-    "WebGL 3D",
-    "ship sections",
-    "weapon locators",
-    "animation preview"
+    "3D hero",
+    "portrait gallery",
+    "origin & research",
+    "ground forms",
+    "mod export"
   ],
   "designer": {
     "type": "stellarisShipDesigner",
-    "defaultDesign": "mammalian_battleship",
-    "label": "Original-asset ship editor",
+    "defaultDesign": "stellaris_heart",
+    "label": "EQN-GO mod maker",
     "designs": [
       {
         "id": "mammalian_battleship",
@@ -31,8 +32,72 @@
         "description": "Small original BioGenesis ship with a 16-bone skin and its shipped idle, combat-moving, and disabled attack source clips.",
         "configPath": "algorithms/stellaris_ship_designer/inputs/biogenesis_mauler_stage_1.json",
         "modelPath": "algorithms/stellaris_ship_designer/inputs/biogenesis_mauler_stage_1.glb"
+      },
+      {
+        "id": "stellaris_heart",
+        "label": "Stellaris Heart · Hero",
+        "description": "Custom crystal alicorn with original Fly, adapted moving/dash clips and horn weapon slots.",
+        "configPath": "algorithms/stellaris_ship_designer/inputs/stellaris_heart.json",
+        "modelPath": "algorithms/stellaris_ship_designer/outputs/heart_animation_editor_rebuild/stellaris_heart.glb"
       }
-    ]
+    ],
+    "assetRoot": "algorithms/stellaris_ship_designer/inputs/eqn_assets"
   },
-  "examples": []
+  "examples": [
+    {
+      "id": "build_mod",
+      "name": "Build EQN-GO",
+      "description": "Compile saved GUI values and validate the complete mod package.",
+      "target": "local",
+      "targets": [
+        "local"
+      ],
+      "command": [
+        "python3",
+        "algorithms/stellaris_ship_designer/mod_builder.py"
+      ],
+      "resource": "eqn-mod-build",
+      "parameters": [],
+      "artifacts": [
+        {
+          "label": "EQN-GO build report",
+          "path": "algorithms/stellaris_ship_designer/outputs/eqn_build_report.json",
+          "kind": "json"
+        },
+        {
+          "label": "EQN-GO mod ZIP",
+          "path": "algorithms/stellaris_ship_designer/outputs/eqn_go.zip",
+          "kind": "file"
+        },
+        {
+          "label": "Game validation evidence",
+          "path": "algorithms/stellaris_ship_designer/outputs/eqn_runtime_report.json",
+          "kind": "json"
+        }
+      ]
+    },
+    {
+      "id": "deploy_mod",
+      "name": "Deploy EQN-GO to TK2",
+      "description": "Compile against installed game and ACOT references, then install with a previous-release backup.",
+      "target": "tk2",
+      "targets": [
+        "tk2"
+      ],
+      "command": [
+        "python3",
+        "algorithms/stellaris_ship_designer/mod_builder.py",
+        "--install"
+      ],
+      "resource": "eqn-mod-build",
+      "parameters": [],
+      "artifacts": [
+        {
+          "label": "EQN-GO build report",
+          "path": "algorithms/stellaris_ship_designer/outputs/eqn_build_report.json",
+          "kind": "json"
+        }
+      ]
+    }
+  ]
 }

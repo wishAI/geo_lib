@@ -89,6 +89,54 @@
       "sha256": "eb9950df3a3cde200b3bcf2277af3c86970de9c148501a77d6635738a5ff2095"
     },
     {
+      "repoPath": "algorithms/stellaris_ship_designer/inputs/heart_source/pony.zip",
+      "cloudPath": "assets/stellaris_ship_designer/heart/pony_source.zip",
+      "size": 30551183,
+      "sha256": "06314f486d9f72a2356cb906b633f0c948b9d5d6bb0873b5a6d6c05486001fe9"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/inputs/stellaris_heart.glb",
+      "cloudPath": "assets/stellaris_ship_designer/heart/stellaris_heart_safe_materials_017_20260909.glb",
+      "size": 5009572,
+      "sha256": "a7926f378c76513fda41a5b47c70cab8c642a7b20dbdc763571076e79fe7d8a9"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/outputs/heart/heart.blend",
+      "cloudPath": "assets/stellaris_ship_designer/heart/heart_safe_materials_017_20260909.blend",
+      "size": 7201175,
+      "sha256": "35fd3a964cb462f399cf2a46ea881c57908cc6fde8e1e51d8d4b7a4c100d27f7"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/outputs/heart/heart_native.zip",
+      "cloudPath": "assets/stellaris_ship_designer/heart/heart_native_safe_materials_017_20260909.zip",
+      "size": 6271859,
+      "sha256": "4254b76fe54b9e5449411bc06dc1e40ae997773908853803f432f78db51ad50a"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/outputs/releases/eqn_go_0.1.0.zip",
+      "cloudPath": "assets/stellaris_ship_designer/releases/eqn_go_0.1.0_99a9d978.zip",
+      "size": 6737214,
+      "sha256": "9d72f9010c8314b2745e5965bcf024da90c1f3f1cac0205388dc150d0596718e"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/outputs/releases/eqn_go_0.1.1.zip",
+      "cloudPath": "assets/stellaris_ship_designer/releases/eqn_go_0.1.1_2241a630.zip",
+      "size": 6737644,
+      "sha256": "e018766202135163f40833cfda50bb2b612a09b3596eae607149e594682b20f2"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/outputs/releases/eqn_go_0.1.2.zip",
+      "cloudPath": "assets/stellaris_ship_designer/releases/eqn_go_0.1.2_e677f5cd.zip",
+      "size": 6737653,
+      "sha256": "c5ecae4768435de57ced89a03ffd95d9d424c1db8b138f9f5972f865a7fd0856"
+    },
+    {
+      "repoPath": "algorithms/stellaris_ship_designer/outputs/releases/eqn_go_0.1.3.zip",
+      "cloudPath": "assets/stellaris_ship_designer/releases/eqn_go_0.1.3_495eed1d.zip",
+      "size": 6722474,
+      "sha256": "6a419249e736f5a797ae91e95c45a9e5fdcdd95860843fc86d20526ee39bfa6f"
+    },
+    {
       "repoPath": "algorithms/3d_char_details/outputs/landau_v10/landau_character.blend",
       "cloudPath": "assets/3d_char_details/landau_v10/landau_original_lashes_20260910_188477748065.blend",
       "size": 29879001,

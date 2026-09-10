@@ -60,7 +60,7 @@ class ManifestTests(unittest.TestCase):
         manifest = server.manifest_map()["stellaris_ship_designer"]
         self.assertEqual(manifest["designer"]["type"], "stellarisShipDesigner")
         self.assertEqual([item["id"] for item in manifest["designer"]["designs"]], [
-            "mammalian_battleship", "biogenesis_mauler_stage_1",
+            "mammalian_battleship", "biogenesis_mauler_stage_1", "stellaris_heart",
         ])
         design = server.load_ship_design("stellaris_ship_designer", "mammalian_battleship")
         self.assertEqual([section["name"] for section in design["sections"]], [
@@ -130,6 +130,46 @@ class ManifestTests(unittest.TestCase):
             self.assertAlmostEqual(abs(quaternion_dot), 1, places=4, msg=locator["id"])
         self.assertEqual(server._designer_model("stellaris_ship_designer", "mammalian_battleship").stat().st_size, 9218152)
         self.assertEqual(server._designer_model("stellaris_ship_designer", "biogenesis_mauler_stage_1").stat().st_size, 10079592)
+        hero = server.load_ship_design("stellaris_ship_designer", "stellaris_heart")
+        self.assertEqual(hero["source"]["kind"], "custom")
+        self.assertNotIn("officialRules", hero)
+        offensive = [slot for slot in hero["sections"][0]["slots"] if slot["type"] not in {"utility", "auxiliary"}]
+        self.assertEqual({slot["locatorId"] for slot in offensive}, {"loc_horn"})
+        self.assertEqual([slot["size"] for slot in offensive].count("T"), 4)
+        self.assertEqual([slot["size"] for slot in offensive].count("X"), 12)
+        self.assertEqual(len(offensive), 65)
+        self.assertEqual([slot["size"] for slot in offensive].count("W"), 1)
+        hero_bytes = server._designer_model("stellaris_ship_designer", "stellaris_heart").read_bytes()
+        hero_length, = struct.unpack_from("<I", hero_bytes, 12)
+        hero_glb = json.loads(hero_bytes[20:20 + hero_length])
+        self.assertEqual({item["name"] for item in hero_glb["animations"]}, {"idle", "moving", "dash", "planet_killer", "moving_va", "moving_genmaxx", "moving_argodaemon"})
+        clip_payloads = {item["name"]: item for item in hero_glb["animations"]}
+        argodaemon = clip_payloads["moving_argodaemon"]
+        argodaemon_times = {
+            sampler["input"] for sampler in argodaemon["samplers"]
+        }
+        argodaemon_bounds = [
+            hero_glb["accessors"][index] for index in argodaemon_times
+        ]
+        self.assertTrue(any(accessor.get("count") == 241 for accessor in argodaemon_bounds))
+        self.assertAlmostEqual(
+            max(accessor["max"][0] for accessor in argodaemon_bounds)
+            - min(accessor["min"][0] for accessor in argodaemon_bounds),
+            10.0,
+            places=4,
+        )
+        self.assertEqual(hero["model"]["animationMap"]["moving_argodaemon"], "moving_argodaemon")
+        self.assertEqual(hero["animation"]["selected"], "moving_argodaemon")
+        self.assertEqual(hero["animation"]["fastFlightSync"], {
+            "bodyDuration": 4.0, "bodySpeed": 1.0,
+            "wingCycles": 7.0, "wingSpeed": 1.0, "wingPhase": 0.0,
+            "tailCycles": 4.0, "tailPhase": 0.0,
+            "lockSeamlessLoop": True,
+        })
+        nodes = hero_glb["nodes"]
+        muzzle_id = next(i for i, n in enumerate(nodes) if n.get("name") == "horn_muzzle")
+        horn = next(n for n in nodes if n.get("name") == "horn_Horn")
+        self.assertIn(muzzle_id, horn.get("children", []))
         with self.assertRaisesRegex(ValueError, "Unknown ship design"):
             server.load_ship_design("stellaris_ship_designer", "not_declared")
         with self.assertRaisesRegex(ValueError, "duplicate id"):
@@ -139,6 +179,50 @@ class ManifestTests(unittest.TestCase):
                 {"id": "duplicate", "position": [1, 0, 0], "rotation": [0, 0, 0]},
             ]
             server.validate_ship_design(invalid)
+        with self.assertRaisesRegex(ValueError, "Selected animation"):
+            invalid = json.loads(json.dumps(hero))
+            invalid["animation"]["selected"] = "missing_clip"
+            server.validate_ship_design(invalid)
+        with self.assertRaisesRegex(ValueError, "Game animation bindings"):
+            invalid = json.loads(json.dumps(hero))
+            invalid["animation"]["gameStateMap"]["moving"] = "missing_clip"
+            server.validate_ship_design(invalid)
+
+    def test_mod_asset_route_cannot_escape_declared_images(self) -> None:
+        root = "inputs/eqn_assets/"
+        path = server.designer_asset("stellaris_ship_designer", root + "heart_army.png")
+        self.assertTrue(path.is_file())
+        for relative in ("../README.md", "inputs/stellaris_heart.json", root + "../heart_source/ponysave.json"):
+            with self.assertRaises(ValueError):
+                server.designer_asset("stellaris_ship_designer", relative)
+        with self.assertRaises(ValueError):
+            server.import_designer_portrait("stellaris_ship_designer", "bad.png", "not-valid-base64")
+
+    def test_stellaris_animation_editor_keeps_strict_live_clip_controls(self) -> None:
+        source = (server.STATIC_ROOT / "stellaris_ship_designer.js").read_text(encoding="utf-8")
+        for token in (
+            "bodyDuration", "bodySpeed", "wingCycles", "wingSpeed",
+            "wingPhase", "tailCycles", "tailPhase", "lockSeamlessLoop",
+            "data-fast-flight-reset", "data-animation-status",
+            "const sampleSource = sourceTrack", "no fallback was played",
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("this.clips.get('moving_genmaxx')", source)
+        self.assertNotIn("this.actions.values().next().value", source)
+
+    def test_stellaris_community_retarget_keeps_native_wings_and_in_place_root(self) -> None:
+        source = (server.REPO_ROOT / "algorithms/stellaris_ship_designer/dmx_flight.py").read_text(encoding="utf-8")
+        for token in (
+            "side+'Wing1', side+'Wing2', side+'Wing3'",
+            "target_local = (local[name] @ Ji) if name == 'Pelvis'",
+            "target_local.translation = Vector(raw[12:15])",
+            "name not in {'Tail1', 'LeftEar'}",
+            "self.wing_phase / 7",
+            "self.wing_cycles * self.wing_speed / 7",
+            "source_delta = wing_reference[sn].inverted() @ wing_local[sn]",
+        ):
+            self.assertIn(token, source)
+        self.assertNotIn("wing_donor", source)
 
     def test_rimworld_prepare_contract_and_asset_guard(self) -> None:
         manifest = server.manifest_map()["rimworld_prepare"]
@@ -238,6 +322,9 @@ class StorageAndRobotTests(unittest.TestCase):
         self.assertEqual(manifest["thresholdBytes"], 5 * 1024 * 1024)
         paths = [item["repoPath"] for item in manifest["files"]]
         self.assertEqual(len(paths), len(set(paths)))
+        for relative in ["inputs/stellaris_heart.glb", "inputs/heart_source/pony.zip",
+                         "outputs/heart/heart.blend", "outputs/heart/heart_native.zip"]:
+            self.assertIn("algorithms/stellaris_ship_designer/" + relative, paths)
         by_cloud = {}
         for item in manifest["files"]:
             signature = (item["size"], item["sha256"])
@@ -245,6 +332,8 @@ class StorageAndRobotTests(unittest.TestCase):
         self.assertTrue(all(len(item["sha256"]) == 64 for item in manifest["files"]))
 
     def test_repo_has_no_tracked_file_over_threshold(self) -> None:
+        if not (storage.REPO_ROOT / ".git").exists():
+            self.skipTest("isolated deployment workspace has no Git metadata")
         self.assertEqual(storage.audit_tracked_files()["oversizedTrackedFiles"], [])
 
     def test_path_guards_reject_escape(self) -> None:
@@ -252,6 +341,26 @@ class StorageAndRobotTests(unittest.TestCase):
             storage._safe_repo_path("../outside")
         with self.assertRaises(ValueError):
             server._safe_under(server.REPO_ROOT, "../outside")
+
+    def test_artifact_alias_only_follows_managed_cloud_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo = root / "repo"
+            cloud = root / "cloud"
+            repo.mkdir(); cloud.mkdir()
+            release = cloud / "release.zip"
+            release.write_bytes(b"managed release")
+            (repo / "latest.zip").symlink_to(release)
+            private = cloud / "unrelated.txt"
+            private.write_text("unrelated")
+            (repo / "unsafe.zip").symlink_to(private)
+            with patch.object(server, "REPO_ROOT", repo), \
+                 patch.object(storage, "cloud_root", return_value=cloud), \
+                 patch.object(storage, "managed_entries", return_value=[{"cloudPath": "release.zip"}]):
+                self.assertEqual(server.resolve_artifact("latest.zip")[1], release.resolve())
+                for path in ("unsafe.zip", "../cloud/release.zip", str(release)):
+                    with self.assertRaises(ValueError):
+                        server.resolve_artifact(path)
 
     def test_declared_robot_urdfs_are_parseable_and_have_controls(self) -> None:
         candidates = [item for item in server.robot_candidates() if item["exists"]]

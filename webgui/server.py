@@ -4,6 +4,7 @@ import argparse
 import base64
 import hashlib
 import sys
+import tempfile
 import io
 import json
 import math
@@ -73,8 +74,22 @@ def _safe_under(root: Path, relative: str) -> Path:
 
 
 def artifact_candidates(relative: str) -> list[tuple[str, Path]]:
+    try:
+        repo_path = _safe_under(REPO_ROOT, relative)
+    except ValueError:
+        # Release aliases may point at an explicitly managed Nextcloud asset.
+        # Keep arbitrary external symlinks and traversal outside the allowlist.
+        if not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+            raise
+        repo_path = (REPO_ROOT / relative).resolve(strict=False)
+        managed_targets = {
+            _safe_under(storage.cloud_root(), item["cloudPath"])
+            for item in storage.managed_entries()
+        }
+        if repo_path not in managed_targets:
+            raise
     return [
-        ("repo", _safe_under(REPO_ROOT, relative)),
+        ("repo", repo_path),
         ("nextcloud", _safe_under(storage.cloud_root() / "remote_outputs", relative)),
         ("nextcloud", _safe_under(storage.cloud_root(), relative)),
     ]
@@ -124,10 +139,62 @@ def _designer_config(sandbox: str, design_id: str = "") -> tuple[dict, Path]:
 def _designer_model(sandbox: str, design_id: str = "") -> Path:
     config, _ = _designer_config(sandbox, design_id)
     relative = str(config.get("modelPath", ""))
-    expected = f"algorithms/{sandbox}/inputs/"
-    if not relative.startswith(expected) or not relative.endswith(".glb"):
-        raise ValueError("Ship model path must stay inside the sandbox inputs folder")
+    allowed = (
+        f"algorithms/{sandbox}/inputs/",
+        f"algorithms/{sandbox}/outputs/heart_animation_editor_rebuild/",
+    )
+    if not relative.startswith(allowed) or not relative.endswith(".glb"):
+        raise ValueError("Ship model path must stay inside a declared sandbox model folder")
     return storage._safe_repo_path(relative)
+
+
+def _designer_asset_root(sandbox: str) -> Path:
+    manifest = manifest_map().get(sandbox, {})
+    relative = manifest.get("designer", {}).get("assetRoot", "")
+    if not relative.startswith(f"algorithms/{sandbox}/inputs/"):
+        raise ValueError("Designer does not declare an asset folder")
+    return _safe_under(REPO_ROOT, relative)
+
+
+def designer_asset(sandbox: str, relative: str) -> Path:
+    root = _designer_asset_root(sandbox)
+    candidate = _safe_under(REPO_ROOT / "algorithms" / sandbox, relative)
+    candidate.relative_to(root)
+    if candidate.suffix.lower() not in {".png", ".dds"}:
+        raise ValueError("Only portrait image assets can be served")
+    return candidate
+
+
+def import_designer_portrait(sandbox: str, name: str, encoded: str) -> dict:
+    from PIL import Image
+    root = _designer_asset_root(sandbox)
+    if Path(name).suffix.lower() not in {".png", ".dds"}:
+        raise ValueError("Upload a PNG or DDS portrait")
+    if len(encoded) > 7_000_000:
+        raise ValueError("Portrait exceeds 5 MiB")
+    try:
+        data = base64.b64decode(encoded, validate=True)
+        if len(data) > 5 * 1024 * 1024:
+            raise ValueError("Portrait exceeds 5 MiB")
+        with Image.open(io.BytesIO(data)) as source:
+            if source.width * source.height > 16_777_216:
+                raise ValueError("Portrait dimensions are too large")
+            converted = source.convert("RGBA")
+            converted.thumbnail((512, 512))
+    except (OSError, ValueError) as error:
+        raise ValueError(f"Invalid portrait: {error}") from error
+    key = "eqn_import_" + hashlib.sha256(data).hexdigest()[:12]
+    directory = root / "imported"
+    directory.mkdir(exist_ok=True)
+    texture = directory / (key + ".dds")
+    preview = directory / (key + ".png")
+    converted.save(texture)
+    converted.thumbnail((144, 144))
+    converted.save(preview)
+    algorithm = REPO_ROOT / "algorithms" / sandbox
+    return {"portrait": {"id": key + "_" + uuid.uuid4().hex[:6], "name": Path(name).stem,
+            "enabled": True, "texture": str(texture.relative_to(algorithm)),
+            "preview": str(preview.relative_to(algorithm)), "sha256": hashlib.sha256(texture.read_bytes()).hexdigest()}}
 
 
 def _require_finite(value: object, label: str) -> float:
@@ -157,6 +224,25 @@ def validate_ship_design(design: object) -> dict:
     animation = design.get("animation")
     if not isinstance(ship, dict) or not isinstance(sections, list) or not isinstance(locators, list) or not isinstance(animation, dict):
         raise ValueError("Ship design requires ship, sections, locators, and animation fields")
+    clips = animation.get("clips")
+    if not isinstance(clips, list) or not clips:
+        raise ValueError("Ship design requires at least one animation clip")
+    clip_ids: set[str] = set()
+    for index, clip in enumerate(clips):
+        if not isinstance(clip, dict):
+            raise ValueError(f"animation.clips[{index}] must be an object")
+        clip_id = str(clip.get("id", ""))
+        if not DESIGN_ID.fullmatch(clip_id) or clip_id in clip_ids:
+            raise ValueError(f"animation.clips[{index}] has an invalid or duplicate id")
+        clip_ids.add(clip_id)
+        duration = clip.get("duration")
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration) or duration <= 0:
+            raise ValueError(f"animation.clips[{index}].duration must be positive and finite")
+    if animation.get("selected") not in clip_ids:
+        raise ValueError("Selected animation does not name a declared clip")
+    game_state_map = animation.get("gameStateMap", {})
+    if not isinstance(game_state_map, dict) or any(clip_id not in clip_ids for clip_id in game_state_map.values()):
+        raise ValueError("Game animation bindings must name declared clips")
     if not 1 <= len(sections) <= 24:
         raise ValueError("Ship design must contain between 1 and 24 sections")
     if len(locators) > 256:
@@ -217,6 +303,15 @@ def save_ship_design(sandbox: str, design: object, *, design_id: str = "", sync_
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(validated, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if "mod" in validated:
+        try:
+            checked = subprocess.run([sys.executable, str(REPO_ROOT / "algorithms" / sandbox / "mod_builder.py"),
+                                      "--check-config", "--config", str(temporary)], capture_output=True, text=True, timeout=30)
+            if checked.returncode:
+                raise ValueError(checked.stderr.strip() or "Mod configuration is invalid")
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
     temporary.replace(path)
     result = {"ok": True, "path": str(path.relative_to(REPO_ROOT)), "savedAt": utc_now(), "sync": None}
     if sync_tk2:
@@ -870,7 +965,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
-        large_upload = self.path == "/api/rimworld/import-skin"
+        large_upload = self.path in {"/api/designer/import-portrait", "/api/rimworld/import-skin"}
         if length > (22_100_000 if large_upload else 1_000_000):
             raise ValueError("Request body is too large")
         return json.loads(self.rfile.read(length) or b"{}")
@@ -936,6 +1031,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/storage":
                 self._json({"storage": storage.status(), "audit": storage.audit_tracked_files()})
+                return
+            if parsed.path == "/api/designer/asset":
+                self._file(designer_asset(query.get("sandbox", [""])[0], query.get("path", [""])[0]))
                 return
             if parsed.path == "/api/designer/config":
                 sandbox = query.get("sandbox", [""])[0]
@@ -1036,6 +1134,9 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path.startswith("/api/storage/"):
                 action = parsed.path.rsplit("/", 1)[-1]
                 self._json(JOBS.start_storage(action), HTTPStatus.ACCEPTED)
+                return
+            if parsed.path == "/api/designer/import-portrait":
+                self._json(import_designer_portrait(str(body.get("sandbox", "")), str(body.get("name", "")), str(body.get("data", ""))))
                 return
             if parsed.path == "/api/designer/config":
                 sandbox = str(body.get("sandbox", ""))

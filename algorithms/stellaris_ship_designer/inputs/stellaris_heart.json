@@ -1,0 +1,4000 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "kind": "custom",
+    "game": "Stellaris",
+    "dlc": "Custom hero",
+    "reference": "User PonyLumen export + public original animation data",
+    "status": "EQN-GO mod source. Build report and runtime evidence distinguish static validation, game loading and combat testing.",
+    "template": "STELLARIS_HEART_HERO",
+    "creator": "PonyLumen / original model and animation contributors",
+    "sourceFiles": [
+      "pony.zip",
+      "ponysave.json",
+      "cutie_mark.png"
+    ],
+    "sourceSha256": "06314f486d9f72a2356cb906b633f0c948b9d5d6bb0873b5a6d6c05486001fe9",
+    "gameVersionInspected": "Pegasus v4.4.6 (fdde) on TK2"
+  },
+  "model": {
+    "available": true,
+    "label": "Stellaris Heart",
+    "sha256": "1690cf84f79c5090ecd9343e913b199b37d50007b3ea0320c03e27994926efc1",
+    "bytes": 5004036,
+    "cameraDirection": [
+      1.3,
+      0.4,
+      1.2
+    ],
+    "bones": [
+      {
+        "name": "vn_pony_reference",
+        "parent": null
+      },
+      {
+        "name": "Pelvis",
+        "parent": "vn_pony_reference"
+      },
+      {
+        "name": "Chest1",
+        "parent": "Pelvis"
+      },
+      {
+        "name": "Chest2",
+        "parent": "Chest1"
+      },
+      {
+        "name": "Neck",
+        "parent": "Chest2"
+      },
+      {
+        "name": "Head",
+        "parent": "Neck"
+      },
+      {
+        "name": "RightEar",
+        "parent": "Head"
+      },
+      {
+        "name": "LeftEar",
+        "parent": "Head"
+      },
+      {
+        "name": "RightShoulder",
+        "parent": "Chest2"
+      },
+      {
+        "name": "RightForearm",
+        "parent": "RightShoulder"
+      },
+      {
+        "name": "RightHand",
+        "parent": "RightForearm"
+      },
+      {
+        "name": "RightBall",
+        "parent": "RightHand"
+      },
+      {
+        "name": "LeftShoulder",
+        "parent": "Chest2"
+      },
+      {
+        "name": "LeftForearm",
+        "parent": "LeftShoulder"
+      },
+      {
+        "name": "LeftHand",
+        "parent": "LeftForearm"
+      },
+      {
+        "name": "LeftBall",
+        "parent": "LeftHand"
+      },
+      {
+        "name": "RightThigh",
+        "parent": "Pelvis"
+      },
+      {
+        "name": "RightLeg1",
+        "parent": "RightThigh"
+      },
+      {
+        "name": "RightLeg2",
+        "parent": "RightLeg1"
+      },
+      {
+        "name": "RightFoot",
+        "parent": "RightLeg2"
+      },
+      {
+        "name": "LeftThigh",
+        "parent": "Pelvis"
+      },
+      {
+        "name": "LeftLeg1",
+        "parent": "LeftThigh"
+      },
+      {
+        "name": "LeftLeg2",
+        "parent": "LeftLeg1"
+      },
+      {
+        "name": "LeftFoot",
+        "parent": "LeftLeg2"
+      },
+      {
+        "name": "Tail1",
+        "parent": "Pelvis"
+      },
+      {
+        "name": "accessory_10_a",
+        "parent": "LeftBall"
+      },
+      {
+        "name": "accessory_11_a",
+        "parent": "RightFoot"
+      },
+      {
+        "name": "accessory_12_a",
+        "parent": "RightBall"
+      },
+      {
+        "name": "accessory_5_a",
+        "parent": "LeftLeg2"
+      },
+      {
+        "name": "accessory_6_a",
+        "parent": "LeftForearm"
+      },
+      {
+        "name": "accessory_7_a",
+        "parent": "RightLeg2"
+      },
+      {
+        "name": "accessory_8_a",
+        "parent": "RightForearm"
+      },
+      {
+        "name": "accessory_9_a",
+        "parent": "LeftFoot"
+      },
+      {
+        "name": "collar_Neck",
+        "parent": "Neck"
+      },
+      {
+        "name": "hairBack_jiggle_hair7",
+        "parent": "hairBack_jiggle_hair6"
+      },
+      {
+        "name": "hairBack_jiggle_hair6",
+        "parent": "hairBack_jiggle_hair3"
+      },
+      {
+        "name": "hairBack_jiggle_hair3",
+        "parent": "hairBack_HairBack1"
+      },
+      {
+        "name": "hairBack_HairBack1",
+        "parent": "hairBack_Head"
+      },
+      {
+        "name": "hairBack_Head",
+        "parent": "Head"
+      },
+      {
+        "name": "hairFront_HairBack2",
+        "parent": "hairFront_HairBack1"
+      },
+      {
+        "name": "hairFront_HairBack1",
+        "parent": "hairFront_Head"
+      },
+      {
+        "name": "hairFront_Head",
+        "parent": "Head"
+      },
+      {
+        "name": "headgear_Head",
+        "parent": "Head"
+      },
+      {
+        "name": "horn_Head",
+        "parent": "Head"
+      },
+      {
+        "name": "horn_Horn",
+        "parent": "horn_Head"
+      },
+      {
+        "name": "leftWing_LeftWingOpen2",
+        "parent": "leftWing_LeftWingOpen1"
+      },
+      {
+        "name": "leftWing_LeftWingOpen1",
+        "parent": "leftWing_LeftWingOpen"
+      },
+      {
+        "name": "leftWing_LeftWingOpen",
+        "parent": "leftWing_Chest1"
+      },
+      {
+        "name": "leftWing_Chest1",
+        "parent": "Chest1"
+      },
+      {
+        "name": "rightWing_RightWingOpen2",
+        "parent": "rightWing_RightWingOpen1"
+      },
+      {
+        "name": "rightWing_RightWingOpen1",
+        "parent": "rightWing_RightWingOpen"
+      },
+      {
+        "name": "rightWing_RightWingOpen",
+        "parent": "rightWing_Chest1"
+      },
+      {
+        "name": "rightWing_Chest1",
+        "parent": "Chest1"
+      },
+      {
+        "name": "tail_Tail3",
+        "parent": "tail_Tail2"
+      },
+      {
+        "name": "tail_Tail2",
+        "parent": "tail_Tail1"
+      },
+      {
+        "name": "tail_Tail1",
+        "parent": "Tail1"
+      }
+    ],
+    "nodes": [
+      {
+        "name": "pony",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_10",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_11",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_12",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_5",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_6",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_7",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_8",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "accessory_9",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "collar",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "eyelashes",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "hairBack",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "hairFront",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "headgear",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "horn",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "leftEye",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "leftWing",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "rightEye",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "rightWing",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "tail",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "teeth",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "tongue",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "cutie_mark_left",
+        "type": "skinned mesh"
+      },
+      {
+        "name": "cutie_mark_right",
+        "type": "skinned mesh"
+      }
+    ],
+    "animations": [
+      "idle",
+      "moving",
+      "dash",
+      "moving_va",
+      "moving_genmaxx",
+      "moving_argodaemon",
+      "planet_killer"
+    ],
+    "animationMap": {
+      "idle": "idle",
+      "moving": "moving",
+      "dash": "dash",
+      "moving_va": "moving_va",
+      "moving_genmaxx": "moving_genmaxx",
+      "moving_argodaemon": "moving_argodaemon",
+      "planet_killer": "planet_killer"
+    }
+  },
+  "ship": {
+    "id": "stellaris_heart",
+    "name": "Stellaris Heart",
+    "size": "custom",
+    "role": "brawler",
+    "entityScale": 1,
+    "crystalOpacity": 1.0,
+    "crystalShellOpacity": 0.0,
+    "hideMouthInterior": true,
+    "materialGroups": {
+      "gold": {
+        "label": "Golden armor and jewelry",
+        "crystal": false,
+        "opacity": 1.0,
+        "metallic": 0.85,
+        "roughness": 0.24,
+        "clearcoat": 0.2,
+        "transmission": 0.0,
+        "shellOpacity": 0.0,
+        "faceted": false
+      },
+      "wings": {
+        "label": "Wings",
+        "crystal": false,
+        "opacity": 1.0,
+        "metallic": 0.05,
+        "roughness": 0.35,
+        "clearcoat": 0.0,
+        "transmission": 0.0,
+        "shellOpacity": 0.0,
+        "faceted": false
+      },
+      "eyes": {
+        "label": "Eyes",
+        "crystal": false,
+        "opacity": 1.0,
+        "metallic": 0.0,
+        "roughness": 0.3,
+        "clearcoat": 0.0,
+        "transmission": 0.0,
+        "shellOpacity": 0.0,
+        "faceted": false
+      },
+      "body": {
+        "label": "Cyan body and horn",
+        "crystal": false,
+        "opacity": 1.0,
+        "metallic": 0.0,
+        "roughness": 0.4,
+        "clearcoat": 0.0,
+        "transmission": 0.0,
+        "shellOpacity": 0.0,
+        "faceted": false
+      },
+      "maneTail": {
+        "label": "Purple mane and tail",
+        "crystal": false,
+        "opacity": 1.0,
+        "metallic": 0.0,
+        "roughness": 0.4,
+        "clearcoat": 0.0,
+        "transmission": 0.0,
+        "shellOpacity": 0.0,
+        "faceted": false
+      }
+    },
+    "forwardAxis": "+Z",
+    "hullPoints": 12000,
+    "armor": 0,
+    "shields": 0,
+    "power": 0,
+    "powerUse": 0,
+    "alloyCost": 12000,
+    "combatSpeed": 200,
+    "rotationSpeed": 0.1,
+    "evasion": 70,
+    "fleetSize": 1,
+    "computer": "custom swarm computer",
+    "reactor": "custom hero reactor",
+    "thrusters": "custom corvette-motion thrusters",
+    "sensor": "sensor_components",
+    "ftlDrive": "ftl_components"
+  },
+  "hero": {
+    "unique": true,
+    "bodyLengthRatio": 0.85,
+    "comparison": "Mammalian S3 corvette body: 13.094 units; Heart body: 11.130 units (85%), excluding horn, wings and hair.",
+    "combatBehavior": "swarm",
+    "weaponSummary": "65 horn weapons: 4 T · 12 X · 16 L · 12 M · 8 S · 8 P · 4 G · 1 W",
+    "defenseSummary": "24 L utility · 12 auxiliary; staged crystal reactors",
+    "weaponOrigin": "Every offensive slot shares the animated horn muzzle",
+    "groundRole": "The same three bodies can switch between space and ground through a decision on any owned colony in the ship's system. The resulting assault army can embark and invade hostile planets.",
+    "planetKiller": "One native W-slot crystal planet cracker fires from the animated horn. Charge is five times faster than the vanilla World Cracker, while the full firing sequence remains visible.",
+    "materialSummary": "Safe default: all five material groups are fully opaque with crystal effects disabled. The sandbox can independently configure gold, wings, eyes, cyan body/horn, and purple mane/tail; optional crystal shells never replace the stable base pass.",
+    "validation": "Flights A, B, and C retain Heart’s verified left-ear local rest transform across all 371 community frames; direct renders confirm both ears remain attached. A uses its native seven-beat Wing1/Wing2/Wing3 chain with bone-local rest-relative transfer, B remains a selectable native Genmaxx body-and-wing clip, and C discards its far-away source scene placement. Seven native animations passed 483 re-import bounds/locator checks (max error 0.0000210). Fast flight C is selected for native moving and combat_moving states; the rebuilt safe opaque asset still requires game runtime inspection.",
+    "groundArmy": {
+      "key": "stellaris_heart_assault_army",
+      "type": "assault",
+      "displayName": "Stellaris Heart",
+      "intendedHealth": 3000,
+      "intendedDamageMultiplier": 20,
+      "status": "design_specification_only",
+      "implementationRequirement": "Separate common/armies definition; scripted identity/deployment lifecycle if the same unique hero switches between ship and army."
+    },
+    "integrationRequirements": [
+      "Native ship size and section definitions with custom core component eligibility",
+      "Planet-killer component restrictions and dispatch hooks; native star-eater mixed-slot precedent inspected",
+      "Ground army definition and optional single-hero lifecycle",
+      "In-game visual/material, combat, planet-killer and invasion tests"
+    ]
+  },
+  "sections": [
+    {
+      "id": "heart_body",
+      "name": "Crystal Alicorn Hero",
+      "key": "STELLARIS_HEART_HERO",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "parts": [
+        {
+          "id": "part_pony",
+          "name": "pony",
+          "sourceNode": "pony",
+          "sourceFile": "pony.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_10",
+          "name": "accessory_10",
+          "sourceNode": "accessory_10",
+          "sourceFile": "accessory_10.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_11",
+          "name": "accessory_11",
+          "sourceNode": "accessory_11",
+          "sourceFile": "accessory_11.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_12",
+          "name": "accessory_12",
+          "sourceNode": "accessory_12",
+          "sourceFile": "accessory_12.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_5",
+          "name": "accessory_5",
+          "sourceNode": "accessory_5",
+          "sourceFile": "accessory_5.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_6",
+          "name": "accessory_6",
+          "sourceNode": "accessory_6",
+          "sourceFile": "accessory_6.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_7",
+          "name": "accessory_7",
+          "sourceNode": "accessory_7",
+          "sourceFile": "accessory_7.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_8",
+          "name": "accessory_8",
+          "sourceNode": "accessory_8",
+          "sourceFile": "accessory_8.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_accessory_9",
+          "name": "accessory_9",
+          "sourceNode": "accessory_9",
+          "sourceFile": "accessory_9.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_collar",
+          "name": "collar",
+          "sourceNode": "collar",
+          "sourceFile": "collar.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_eyelashes",
+          "name": "eyelashes",
+          "sourceNode": "eyelashes",
+          "sourceFile": "eyelashes.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_hairBack",
+          "name": "hairBack",
+          "sourceNode": "hairBack",
+          "sourceFile": "hairBack.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_hairFront",
+          "name": "hairFront",
+          "sourceNode": "hairFront",
+          "sourceFile": "hairFront.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_headgear",
+          "name": "headgear",
+          "sourceNode": "headgear",
+          "sourceFile": "headgear.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_horn",
+          "name": "horn",
+          "sourceNode": "horn",
+          "sourceFile": "horn.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_leftEye",
+          "name": "leftEye",
+          "sourceNode": "leftEye",
+          "sourceFile": "leftEye.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_leftWing",
+          "name": "leftWing",
+          "sourceNode": "leftWing",
+          "sourceFile": "leftWing.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_rightEye",
+          "name": "rightEye",
+          "sourceNode": "rightEye",
+          "sourceFile": "rightEye.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_rightWing",
+          "name": "rightWing",
+          "sourceNode": "rightWing",
+          "sourceFile": "rightWing.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_tail",
+          "name": "tail",
+          "sourceNode": "tail",
+          "sourceFile": "tail.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_teeth",
+          "name": "teeth",
+          "sourceNode": "teeth",
+          "sourceFile": "teeth.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_tongue",
+          "name": "tongue",
+          "sourceNode": "tongue",
+          "sourceFile": "tongue.smd",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_cutie_mark_left",
+          "name": "cutie_mark_left",
+          "sourceNode": "cutie_mark_left",
+          "sourceFile": "cutie_mark.png",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        },
+        {
+          "id": "part_cutie_mark_right",
+          "name": "cutie_mark_right",
+          "sourceNode": "cutie_mark_right",
+          "sourceFile": "cutie_mark.png",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "visible": true,
+          "editTransform": false
+        }
+      ],
+      "slots": [
+        {
+          "id": "eqn_t_01",
+          "name": "T Horn 1",
+          "type": "weapon",
+          "size": "T",
+          "component": "EQN_HORN_T_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_t_02",
+          "name": "T Horn 2",
+          "type": "weapon",
+          "size": "T",
+          "component": "EQN_HORN_T_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_t_03",
+          "name": "T Horn 3",
+          "type": "weapon",
+          "size": "T",
+          "component": "EQN_HORN_T_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_t_04",
+          "name": "T Horn 4",
+          "type": "weapon",
+          "size": "T",
+          "component": "EQN_HORN_T_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_01",
+          "name": "X Horn 1",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_02",
+          "name": "X Horn 2",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_03",
+          "name": "X Horn 3",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_04",
+          "name": "X Horn 4",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_05",
+          "name": "X Horn 5",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_06",
+          "name": "X Horn 6",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_07",
+          "name": "X Horn 7",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_08",
+          "name": "X Horn 8",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_09",
+          "name": "X Horn 9",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_10",
+          "name": "X Horn 10",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_11",
+          "name": "X Horn 11",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_x_12",
+          "name": "X Horn 12",
+          "type": "weapon",
+          "size": "X",
+          "component": "EQN_HORN_X_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_01",
+          "name": "L Horn 1",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_02",
+          "name": "L Horn 2",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_03",
+          "name": "L Horn 3",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_04",
+          "name": "L Horn 4",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_05",
+          "name": "L Horn 5",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_06",
+          "name": "L Horn 6",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_07",
+          "name": "L Horn 7",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_08",
+          "name": "L Horn 8",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_09",
+          "name": "L Horn 9",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_10",
+          "name": "L Horn 10",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_11",
+          "name": "L Horn 11",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_12",
+          "name": "L Horn 12",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_13",
+          "name": "L Horn 13",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_14",
+          "name": "L Horn 14",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_15",
+          "name": "L Horn 15",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_l_16",
+          "name": "L Horn 16",
+          "type": "weapon",
+          "size": "L",
+          "component": "EQN_HORN_L_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_01",
+          "name": "M Horn 1",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_02",
+          "name": "M Horn 2",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_03",
+          "name": "M Horn 3",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_04",
+          "name": "M Horn 4",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_05",
+          "name": "M Horn 5",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_06",
+          "name": "M Horn 6",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_07",
+          "name": "M Horn 7",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_08",
+          "name": "M Horn 8",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_09",
+          "name": "M Horn 9",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_10",
+          "name": "M Horn 10",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_11",
+          "name": "M Horn 11",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_m_12",
+          "name": "M Horn 12",
+          "type": "weapon",
+          "size": "M",
+          "component": "EQN_HORN_M_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_01",
+          "name": "S Horn 1",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_02",
+          "name": "S Horn 2",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_03",
+          "name": "S Horn 3",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_04",
+          "name": "S Horn 4",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_05",
+          "name": "S Horn 5",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_06",
+          "name": "S Horn 6",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_07",
+          "name": "S Horn 7",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_s_08",
+          "name": "S Horn 8",
+          "type": "weapon",
+          "size": "S",
+          "component": "EQN_HORN_S_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_01",
+          "name": "P Horn 1",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_02",
+          "name": "P Horn 2",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_03",
+          "name": "P Horn 3",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_04",
+          "name": "P Horn 4",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_05",
+          "name": "P Horn 5",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_06",
+          "name": "P Horn 6",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_07",
+          "name": "P Horn 7",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_p_08",
+          "name": "P Horn 8",
+          "type": "point_defense",
+          "size": "P",
+          "component": "EQN_HORN_P_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_g_01",
+          "name": "G Horn 1",
+          "type": "guided",
+          "size": "G",
+          "component": "EQN_HORN_G_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_g_02",
+          "name": "G Horn 2",
+          "type": "guided",
+          "size": "G",
+          "component": "EQN_HORN_G_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_g_03",
+          "name": "G Horn 3",
+          "type": "guided",
+          "size": "G",
+          "component": "EQN_HORN_G_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_g_04",
+          "name": "G Horn 4",
+          "type": "guided",
+          "size": "G",
+          "component": "EQN_HORN_G_0",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_w_01",
+          "name": "W Horn · Planet Cracker",
+          "type": "planet_killer",
+          "size": "W",
+          "component": "EQN_HORN_W",
+          "locatorId": "loc_horn",
+          "sourceTemplateLocator": "horn_muzzle",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_01",
+          "name": "Utility 1",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_02",
+          "name": "Utility 2",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_03",
+          "name": "Utility 3",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_04",
+          "name": "Utility 4",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_05",
+          "name": "Utility 5",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_06",
+          "name": "Utility 6",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_07",
+          "name": "Utility 7",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_08",
+          "name": "Utility 8",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_09",
+          "name": "Utility 9",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_10",
+          "name": "Utility 10",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_11",
+          "name": "Utility 11",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_12",
+          "name": "Utility 12",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_13",
+          "name": "Utility 13",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_14",
+          "name": "Utility 14",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_15",
+          "name": "Utility 15",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_16",
+          "name": "Utility 16",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_17",
+          "name": "Utility 17",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_18",
+          "name": "Utility 18",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_19",
+          "name": "Utility 19",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_20",
+          "name": "Utility 20",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_21",
+          "name": "Utility 21",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_22",
+          "name": "Utility 22",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_23",
+          "name": "Utility 23",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_utility_24",
+          "name": "Utility 24",
+          "type": "utility",
+          "size": "L",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_01",
+          "name": "Auxiliary 1",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_02",
+          "name": "Auxiliary 2",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_03",
+          "name": "Auxiliary 3",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_04",
+          "name": "Auxiliary 4",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_05",
+          "name": "Auxiliary 5",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_06",
+          "name": "Auxiliary 6",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_07",
+          "name": "Auxiliary 7",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_08",
+          "name": "Auxiliary 8",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_09",
+          "name": "Auxiliary 9",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_10",
+          "name": "Auxiliary 10",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_11",
+          "name": "Auxiliary 11",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        },
+        {
+          "id": "eqn_auxiliary_12",
+          "name": "Auxiliary 12",
+          "type": "auxiliary",
+          "size": "A",
+          "component": "",
+          "enabled": true
+        }
+      ]
+    }
+  ],
+  "locators": [
+    {
+      "id": "loc_horn",
+      "name": "Horn · all attacks",
+      "sourceNode": "horn_muzzle",
+      "parentBone": "horn_Horn",
+      "kind": "fire_origin",
+      "usage": "custom_slot_binding",
+      "linkedSlot": "heart_t_1, heart_x_1, heart_x_2, heart_m_1, heart_m_2, heart_s_1, heart_s_2, heart_p_1, heart_p_2, heart_g_1, heart_w_1",
+      "description": "Custom horn-tip firing origin follows the animated horn. Shared by normal, T, X, and W weapons.",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "markerScale": 0.15,
+      "fireAxis": "+Z",
+      "fireAxisEvidence": "Authored forward aiming guide. Game targeting still requires validation.",
+      "visible": true,
+      "labelVisible": true,
+      "editTransform": false
+    }
+  ],
+  "animation": {
+    "selected": "moving_argodaemon",
+    "speed": 1,
+    "loop": true,
+    "fastFlightSync": {
+      "bodyDuration": 4.0,
+      "bodySpeed": 1.0,
+      "wingCycles": 7.0,
+      "wingSpeed": 1.0,
+      "wingPhase": 0.0,
+      "tailCycles": 4.0,
+      "tailPhase": 0.0,
+      "lockSeamlessLoop": true
+    },
+    "clips": [
+      {
+        "id": "idle",
+        "name": "Fly · original idle",
+        "duration": 1,
+        "fps": 24,
+        "frames": 25,
+        "provenance": "source",
+        "sourceFile": "PonyLumen body60.bm + large wing .bm (frames 25–48)",
+        "description": "Original Fly tracks, sampled from the creator source. Runtime hair jiggle is not included."
+      },
+      {
+        "id": "moving",
+        "name": "Previous moving · adapted creator fly",
+        "duration": 0.75,
+        "fps": 24,
+        "frames": 19,
+        "provenance": "adapted",
+        "sourceFile": "PonyLumen body60.bm + large wing .bm (frames 25–48)",
+        "description": "Original fly cycle shortened to 0.75 seconds; not a separately downloaded animation."
+      },
+      {
+        "id": "dash",
+        "name": "Dash · authored variant",
+        "duration": 0.5,
+        "fps": 24,
+        "frames": 13,
+        "provenance": "authored",
+        "sourceFile": "PonyLumen body60.bm + large wing .bm (frames 25–48)",
+        "description": "Forward-leaning 0.5-second flight variant; not a separately downloaded dash."
+      },
+      {
+        "id": "moving_va",
+        "name": "Fast flight A · native VA body + wings",
+        "duration": 4,
+        "fps": 24,
+        "frames": 97,
+        "provenance": "retargeted",
+        "sourceFile": "revamped flying fast.dmx (body + Wing1/Wing2/Wing3 animation)",
+        "description": "Native VA body-and-wing motion with live body, wing, and tail timing. Its source window contains seven wing beats. A’s Wing1 → Wing2 → Wing3 bone-local deltas are applied rest-relative to the selected PonyLumen large-wing rig; the left ear keeps Heart’s verified rest transform."
+      },
+      {
+        "id": "moving_genmaxx",
+        "name": "Fast flight B · Genmaxx",
+        "duration": 1.3333333333333333,
+        "fps": 24,
+        "frames": 33,
+        "provenance": "retargeted",
+        "sourceFile": "flying_fast_xxgenmaxx_v1.dmx",
+        "description": "Selectable native Genmaxx body-and-wing flight. Its animated main wing chain drives Heart’s three large-wing joints through rest-relative rotation deltas, preserving the PonyLumen large-wing bind pose; independent feathers and facial controls are not reproduced. The verified Heart left-ear transform remains fixed."
+      },
+      {
+        "id": "moving_argodaemon",
+        "name": "Fast flight C · Argodaemon",
+        "duration": 10,
+        "fps": 24,
+        "frames": 241,
+        "provenance": "retargeted",
+        "sourceFile": "female_fly_cycle_fast_rev1.dmx",
+        "description": "User-supplied female fast-flight revision sampled from its ten-second animated interval. Source scene translation and global roll are removed so it plays upright and in place instead of leaving the preview camera. It is the default native moving and combat-moving animation. Heart’s verified left-ear rest transform is retained."
+      },
+      {
+        "id": "planet_killer",
+        "name": "Planet killer · idle flight pitched down 45°",
+        "duration": 1,
+        "fps": 24,
+        "frames": 25,
+        "provenance": "authored",
+        "sourceFile": "PonyLumen original Fly, whole rig pitched down for the W-slot firing state",
+        "description": "The original idle flying loop rotated 45 degrees toward the planet while the horn emits the accelerated planet-cracker beam."
+      }
+    ],
+    "planetKillerPitch": -45,
+    "gameStateMap": {
+      "idle": "idle",
+      "moving": "moving_argodaemon",
+      "combat_moving": "moving_argodaemon",
+      "working": "planet_killer",
+      "working_looping": "planet_killer"
+    }
+  },
+  "mod": {
+    "schemaVersion": 1,
+    "id": "eqn_go",
+    "name": "EQN-GO",
+      "version": "0.1.13",
+      "supportedVersion": "v4.4.*",
+    "description": "Princess Stellaris Heart, Robot Eevee and Krys Pony. Player-only origin with a researchable multi-body hero.",
+    "species": [
+      {
+        "id": "EQN_EEVEE",
+        "name": "Robot Eevee",
+        "archetype": "MACHINE",
+        "graphicalCulture": "mammalian_01",
+        "portraits": [
+          {
+            "id": "eqn_eevee1",
+            "name": "Eevee1",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee1.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee1.png",
+            "sha256": "fe7c2689b20594a882329d49ea4ed24c5ab0ce86b1d3af129d68f5178d1320f4"
+          },
+          {
+            "id": "eqn_eevee2",
+            "name": "Eevee2",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee2.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee2.png",
+            "sha256": "47aafc9eda8e90e2b1dfcf971770784f893166bf18225cdfd8885032ef0c937f"
+          },
+          {
+            "id": "eqn_eevee3",
+            "name": "Eevee3",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee3.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee3.png",
+            "sha256": "0d81ccedcaf670f7a8aaa81736b21c943bbf54512e70e0c54d66d4190b481359"
+          },
+          {
+            "id": "eqn_eevee4",
+            "name": "Eevee4",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee4.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee4.png",
+            "sha256": "1de84463e1b916a71bda8e86168d034932e5572326fedd385ec327fbbf03ef12"
+          },
+          {
+            "id": "eqn_eevee5",
+            "name": "Eevee5",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee5.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee5.png",
+            "sha256": "ba3aab7cc86c02b74bf5f2fc6281b613a41c3d68af1e193e13b4a817414846a7"
+          },
+          {
+            "id": "eqn_eevee6",
+            "name": "Eevee6",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee6.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee6.png",
+            "sha256": "c8098ca68019df203bb72da10da3e13d273518ebdd41cdcce0def8bce84eee03"
+          },
+          {
+            "id": "eqn_eevee7",
+            "name": "Eevee7",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee7.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee7.png",
+            "sha256": "d5f30ce7e99e200ad6346800c5f200834d90b60ead6dbee1f037d84cd7b64535"
+          },
+          {
+            "id": "eqn_eevee8",
+            "name": "Eevee8",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/reevee/eevee8.dds",
+            "preview": "inputs/eqn_assets/portraits/reevee/eevee8.png",
+            "sha256": "cd344f89d7a62631cdb9e48ae17615a28fa6f3609d62fe40b5b94a9ad79196d7"
+          }
+        ],
+        "defaultPortrait": "eqn_eevee4"
+      },
+      {
+        "id": "EQN_KRYS",
+        "name": "Krys Pony",
+        "archetype": "BIOLOGICAL",
+        "graphicalCulture": "mammalian_01",
+        "portraits": [
+          {
+            "id": "eqn_krys0",
+            "name": "Krys0",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys0.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys0.png",
+            "sha256": "26e113d8507126aa4995a8c914d65802373fbf22ebe12c1a425f8b2532966abf"
+          },
+          {
+            "id": "eqn_krys1",
+            "name": "Krys1",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys1.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys1.png",
+            "sha256": "8f9c13fe46940e795f309288e466e0c0ff775b7b8264088a060b8f8a04db6db2"
+          },
+          {
+            "id": "eqn_krys2",
+            "name": "Krys2",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys2.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys2.png",
+            "sha256": "044245fee5d5873cb3ab4215297e7b29e9c7d21a2cc094559c8c3733be25272c"
+          },
+          {
+            "id": "eqn_krys3",
+            "name": "Krys3",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys3.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys3.png",
+            "sha256": "98714b1279457de8560b4e3b894f98c191cc5a8db8c1ab5a35f8147009f25de3"
+          },
+          {
+            "id": "eqn_krys4",
+            "name": "Krys4",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys4.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys4.png",
+            "sha256": "10bed58a9bab46ce10b4d0219922690247e46183a33173221a177de99540e0e4"
+          },
+          {
+            "id": "eqn_krys5",
+            "name": "Krys5",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys5.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys5.png",
+            "sha256": "54ba02380a87571fea3314eb1d4d6e0454c4a55003f2da3827e6184f3ca43bb2"
+          },
+          {
+            "id": "eqn_krys6",
+            "name": "Krys6",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys6.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys6.png",
+            "sha256": "bd94e12c39b71292a661431469df78f428608e73ce35dcd94445da77309d9fcf"
+          },
+          {
+            "id": "eqn_krys7",
+            "name": "Krys7",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys7.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys7.png",
+            "sha256": "321c7d7804be5a5c8fae44dd74dc994d0f7abd34090dd61fa3d1a59593c16bce"
+          },
+          {
+            "id": "eqn_krys8",
+            "name": "Krys8",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys8.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys8.png",
+            "sha256": "6e407c7bb27ee341fbbe94e10254384c1fb30c8b599884b26128d26702124d60"
+          },
+          {
+            "id": "eqn_krys9",
+            "name": "Krys9",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys9.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys9.png",
+            "sha256": "3b1b580d9255db88fbce0e706c8fd07117add1527ada39fca3e799854ad2b228"
+          },
+          {
+            "id": "eqn_krys10",
+            "name": "Krys10",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys10.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys10.png",
+            "sha256": "7293643ef92d230823951050eb1dfe510072cffd7efbd73f06afa3403972cb97"
+          },
+          {
+            "id": "eqn_krys11",
+            "name": "Krys11",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys11.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys11.png",
+            "sha256": "dc29dbc338491b1e069818350c950c540b7bbedb759bddcd82cfcc84a3bb1c0c"
+          },
+          {
+            "id": "eqn_krys12",
+            "name": "Krys12",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys12.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys12.png",
+            "sha256": "2fb2f789fdbbdc9c12d373932542f4f7dce51659d32d389febd863d1a5e07f2e"
+          },
+          {
+            "id": "eqn_krys13",
+            "name": "Krys13",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys13.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys13.png",
+            "sha256": "db201f66d6482147d57fea8a3394ffe051ba6b0e32160f4764fc310e5eec887b"
+          },
+          {
+            "id": "eqn_krys14",
+            "name": "Krys14",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys14.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys14.png",
+            "sha256": "28bfd7834bd2951cbeb4ca4f246f6f8ad70850061554af1d4a74415134fab407"
+          },
+          {
+            "id": "eqn_krys15",
+            "name": "Krys15",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys15.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys15.png",
+            "sha256": "9fb051fe90c28732beb95c3478967ae044be4885936a154cd1d9f3ffc0a6273e"
+          },
+          {
+            "id": "eqn_krys16",
+            "name": "Krys16",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys16.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys16.png",
+            "sha256": "53629843955cd0bfb742365ab842b3a76364fb69e82af46f4fdded943a22b899"
+          },
+          {
+            "id": "eqn_krys17",
+            "name": "Krys17",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys17.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys17.png",
+            "sha256": "669e30a11cfd024065b1a45bd548d9c0d4395f68fea6db55374ecb5ba25daa46"
+          },
+          {
+            "id": "eqn_krys18",
+            "name": "Krys18",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys18.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys18.png",
+            "sha256": "2ce9cd8ffb6f1394da81c5d97c5a1d3717fc1969686d461a69ef6f228ab33706"
+          },
+          {
+            "id": "eqn_krys19",
+            "name": "Krys19",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys19.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys19.png",
+            "sha256": "4fca191c6cc983e6124dd3100b91df4249bb59eac9dd32fdbd03c148f4129b10"
+          },
+          {
+            "id": "eqn_krys20",
+            "name": "Krys20",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys20.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys20.png",
+            "sha256": "6b9332e06b49b55b5e3f81ee8c165ae3c44fe7d0248840fdcd6ca93c574f8468"
+          },
+          {
+            "id": "eqn_krys21",
+            "name": "Krys21",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys21.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys21.png",
+            "sha256": "4c3614ca5f98c65113cf0d7dbf243ae68a475adbc0468cb9d5c0744bb3b37ad1"
+          },
+          {
+            "id": "eqn_krys22",
+            "name": "Krys22",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys22.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys22.png",
+            "sha256": "77249df19275cff7b886180cc933ea0b4536e107a0b93494e96e241d8754ce7a"
+          },
+          {
+            "id": "eqn_krys23",
+            "name": "Krys23",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys23.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys23.png",
+            "sha256": "67b4dd83bc59e39140c721df070a20534d8975aa79fec6b45c1c2331498a5cef"
+          },
+          {
+            "id": "eqn_krys24",
+            "name": "Krys24",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys24.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys24.png",
+            "sha256": "ddd42b06fbd91bc22559810cd977591dbf1dfff620f91e7a8398395d204183e5"
+          },
+          {
+            "id": "eqn_krys25",
+            "name": "Krys25",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys25.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys25.png",
+            "sha256": "78462c195046b4e3dbd2eafcefc1817162035aa3a117fae61a0482f022a2f0d2"
+          },
+          {
+            "id": "eqn_krys26",
+            "name": "Krys26",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys26.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys26.png",
+            "sha256": "4c3614ca5f98c65113cf0d7dbf243ae68a475adbc0468cb9d5c0744bb3b37ad1"
+          },
+          {
+            "id": "eqn_krys27",
+            "name": "Krys27",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys27.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys27.png",
+            "sha256": "84364c32317da21167b9ed44f839761d87c8e0736d4b9f1715db7bafb7d157ce"
+          },
+          {
+            "id": "eqn_krys28",
+            "name": "Krys28",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys28.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys28.png",
+            "sha256": "70d18bcff9909bfa146c708097848893d54374578defc67fdd824480152d0aff"
+          },
+          {
+            "id": "eqn_krys29",
+            "name": "Krys29",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys29.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys29.png",
+            "sha256": "0e3a362fae929b4c8ebe67c27cf44c009e78eb4b708072e4f1f86f1715d31c07"
+          },
+          {
+            "id": "eqn_krys30",
+            "name": "Krys 30",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys_30.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys_30.png",
+            "sha256": "59774392fec6cdec7490a9b38f5c19ff1e5ed9e4289d2c83b884de5f0981acc0"
+          },
+          {
+            "id": "eqn_krys31",
+            "name": "Krys31",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys31.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys31.png",
+            "sha256": "dbfb1f798a7d226b6882dcf2637c617db537126c03471a14046dc873fecd24de"
+          },
+          {
+            "id": "eqn_krys32",
+            "name": "Krys32",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys32.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys32.png",
+            "sha256": "2cc6d829579cb077ca3e75094dfb79aba219b04bd135880f116ed64102fb28b5"
+          },
+          {
+            "id": "eqn_krys33",
+            "name": "Krys33",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys33.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys33.png",
+            "sha256": "0063594f4830fe0226a4ba32431bda0099966443c038273f5dc76cb0058155a7"
+          },
+          {
+            "id": "eqn_krys34",
+            "name": "Krys34",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys34.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys34.png",
+            "sha256": "cb4a8c4754b5d3d3e556e27ffbbb2e888be54d86364953b921164d1ae116b659"
+          },
+          {
+            "id": "eqn_krys35",
+            "name": "Krys35",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys35.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys35.png",
+            "sha256": "e42be4fe29cc7f8f414c944901875689e15b10ef7b2bad4796764f4880010780"
+          },
+          {
+            "id": "eqn_krys36",
+            "name": "Krys36",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys36.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys36.png",
+            "sha256": "7a2664587f9d3bb2fbdda86d1947b4d0f75abc85d14ddb9fdc6634738dfe6bc5"
+          },
+          {
+            "id": "eqn_krys37",
+            "name": "Krys37",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys37.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys37.png",
+            "sha256": "4f7b5723d75e4fbddfc4ae4e563e7fc9ca2b0daaa7ec2818bee5267eb5466886"
+          },
+          {
+            "id": "eqn_krys38",
+            "name": "Krys38",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys38.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys38.png",
+            "sha256": "6164f2fe763648a78aecdaa0d1b7ba05688e362ac7cbf324e083fb31df1a4ba0"
+          },
+          {
+            "id": "eqn_krys39",
+            "name": "Krys39",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys39.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys39.png",
+            "sha256": "cd2a41354a44812058edecafbafac4988ab89acff6fa60468f18d5deceb2d48f"
+          },
+          {
+            "id": "eqn_krys40",
+            "name": "Krys40",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys40.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys40.png",
+            "sha256": "9c02c2d81102a6e163ef9c122af28b0253571a0d54ae3319ee7061437e1a4054"
+          },
+          {
+            "id": "eqn_krys41",
+            "name": "Krys41",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys41.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys41.png",
+            "sha256": "03efa6e1587cecf8e583d47a366e689e0ea5069f6204ef131430b1c6d5ce35db"
+          },
+          {
+            "id": "eqn_krys42",
+            "name": "Krys42",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys42.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys42.png",
+            "sha256": "011fc259020c29073e75dabb661bbfa0c82f65d91a4beae445efd07f6a373056"
+          },
+          {
+            "id": "eqn_krys43",
+            "name": "Krys43",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys43.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys43.png",
+            "sha256": "9f40b1181b65938a63250f9a3a19d37d75fcc215c7a9a9ba7e6f5f760c56b97d"
+          },
+          {
+            "id": "eqn_krys44",
+            "name": "Krys44",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys44.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys44.png",
+            "sha256": "b171a39515d4157fc2e6fea99d03b2f347ec422199f0ad81ba544b5f402b2bd4"
+          },
+          {
+            "id": "eqn_krys45",
+            "name": "Krys45",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys45.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys45.png",
+            "sha256": "62a38382ef30044bd0753d962f8c2c96d5faedc795e81e5533c8bf256da05730"
+          },
+          {
+            "id": "eqn_krys46",
+            "name": "Krys46",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys46.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys46.png",
+            "sha256": "12c7fcdd1126e9f535ea2ee20c4909729dc8219b39b1e75575ddfa346a502dc3"
+          },
+          {
+            "id": "eqn_krys47",
+            "name": "Krys47",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys47.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys47.png",
+            "sha256": "4861166c4bbb37af46b8935630bb4de5d6a919cf080d33322c50acf4b2a5a096"
+          },
+          {
+            "id": "eqn_krys48",
+            "name": "Krys48",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys48.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys48.png",
+            "sha256": "2a248f7afc5454683247c94c452166ce2a0923d1f0f67a6192c132f620ae5781"
+          },
+          {
+            "id": "eqn_krys49",
+            "name": "Krys49",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys49.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys49.png",
+            "sha256": "a56296b053f2a2b1ed0f0ea8c5d559057da420749db53fbb410e89a36e03df91"
+          },
+          {
+            "id": "eqn_krys50",
+            "name": "Krys50",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys50.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys50.png",
+            "sha256": "8010fcb2e57082b23e5c24620bd64d8701337e3df5001fa237f50a2c8661a7e4"
+          },
+          {
+            "id": "eqn_krys51",
+            "name": "Krys51",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys51.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys51.png",
+            "sha256": "ef15de4635cabb039d916653f247940351e04b48b284066f0ce04a3140366760"
+          },
+          {
+            "id": "eqn_krys52",
+            "name": "Krys52",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys52.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys52.png",
+            "sha256": "ede70b44bc99e4fcf4ab012b2bf27800dee5e211e7dfa218af88ef948c101bac"
+          },
+          {
+            "id": "eqn_krys53",
+            "name": "Krys53",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys53.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys53.png",
+            "sha256": "5f6b861de80add9aeec63efe3b4801496d8f7908f25e03587bb3730d44ece645"
+          },
+          {
+            "id": "eqn_krys54",
+            "name": "Krys54",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys54.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys54.png",
+            "sha256": "758905484ebf25f47e834dc36c3cc5f2e0600f6462d6c80c1e3d058df329d647"
+          },
+          {
+            "id": "eqn_krys55",
+            "name": "Krys55",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys55.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys55.png",
+            "sha256": "0f0081104138c68729c86618243c94b32b3c21e033cb51df9cbdd79a88640276"
+          },
+          {
+            "id": "eqn_krys56",
+            "name": "Krys56",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys56.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys56.png",
+            "sha256": "0e79da845e6ac9494fc8f681f00339e269e7c475b38185d73a462b2aef193be7"
+          },
+          {
+            "id": "eqn_krys57",
+            "name": "Krys57",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys57.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys57.png",
+            "sha256": "f273855cfeed5cb8f6e54100496a3557509d875869bf9e3c48472edc06063b89"
+          },
+          {
+            "id": "eqn_krys58",
+            "name": "Krys58",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys58.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys58.png",
+            "sha256": "849bda733bb9b7c610d435744aebe51dc689d2d46257abfebe19eebfdf2ef177"
+          },
+          {
+            "id": "eqn_krys59",
+            "name": "Krys59",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys59.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys59.png",
+            "sha256": "d5ce11e1d53b99f025d052fa22a9c3313c21fe833bb1eb74a4c3a920327f61ce"
+          },
+          {
+            "id": "eqn_krys60",
+            "name": "Krys60",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys60.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys60.png",
+            "sha256": "c75e54132dbf6443b3940a2e724cd82afdbdfa79ae410c59d0be8457b06a74f0"
+          },
+          {
+            "id": "eqn_krys61",
+            "name": "Krys61",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys61.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys61.png",
+            "sha256": "b8d435145aa8fcfa319055878454c1a66b24cbffbcdaea82957af496a77708f6"
+          },
+          {
+            "id": "eqn_krys62",
+            "name": "Krys62",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys62.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys62.png",
+            "sha256": "c931e014a68b53064758e493c1151f84bbb9b3099292e52e355b196fe7260fbd"
+          },
+          {
+            "id": "eqn_krys63",
+            "name": "Krys63",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys63.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys63.png",
+            "sha256": "90ba23d8c38a32eb513033660185b8464ecd2e1109deb554b0d44b34ba0b83f3"
+          },
+          {
+            "id": "eqn_krys64",
+            "name": "Krys64",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys64.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys64.png",
+            "sha256": "4ab650802a6d94f537ef5ad48afe74833d9cb41ec5cf0d800105cb532c609cdb"
+          },
+          {
+            "id": "eqn_krys65",
+            "name": "Krys65",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys65.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys65.png",
+            "sha256": "1d886bb63461118b6088e721efcd9848e4bed12621a345b9a98232c13ee4250f"
+          },
+          {
+            "id": "eqn_krys66",
+            "name": "Krys66",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys66.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys66.png",
+            "sha256": "0a2cc7ed97f100f854aa8e5d79069d8974bcd5782b4b85f3f1947a5a829cac99"
+          },
+          {
+            "id": "eqn_krys67",
+            "name": "Krys67",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys67.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys67.png",
+            "sha256": "3a32c17f19dfd48cd9fc3170053c3ea4e0aed5b964b1cd786f76aa7809cd038f"
+          },
+          {
+            "id": "eqn_krys68",
+            "name": "Krys68",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys68.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys68.png",
+            "sha256": "ea431f1c66f5854b2b9059bed0ae9fe9a47b7937d6115e30a9d05f3f2ea6abc9"
+          },
+          {
+            "id": "eqn_krys69",
+            "name": "Krys69",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys69.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys69.png",
+            "sha256": "71348409ddca8cffd8b95324d96270ae9891d63b453b54536a69e1ad3378ed93"
+          },
+          {
+            "id": "eqn_krys70",
+            "name": "Krys70",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys70.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys70.png",
+            "sha256": "8c3421525c4bef92be3b6e8a8d8ab7f30f77039ebcb49610aa234b26702f4a46"
+          },
+          {
+            "id": "eqn_krys71",
+            "name": "Krys71",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys71.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys71.png",
+            "sha256": "f4e484e50ca0744eff2433fde2d5b6be8886a5b5f76271b52475eac57015a5b7"
+          },
+          {
+            "id": "eqn_krys72",
+            "name": "Krys72",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys72.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys72.png",
+            "sha256": "a483bff789777517cc7f8bc32d52cb0f318c75a39854742470ac904426ec72a3"
+          },
+          {
+            "id": "eqn_krys73",
+            "name": "Krys73",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys73.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys73.png",
+            "sha256": "8a53035dabc7d2424aa306781bd0682b871a25ade7ba7d558729a8fefebf0754"
+          },
+          {
+            "id": "eqn_krys74",
+            "name": "Krys74",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys74.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys74.png",
+            "sha256": "9611d1f413dbb3b90568641873d41d21b7bb0cacb999c7fccb5bd9872f19e9be"
+          },
+          {
+            "id": "eqn_krys75",
+            "name": "Krys75",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys75.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys75.png",
+            "sha256": "f0bf741e137379f89f3ea6dc559caef2263a57531aed0d86ef880b70923f8c0d"
+          },
+          {
+            "id": "eqn_krys76",
+            "name": "Krys76",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys76.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys76.png",
+            "sha256": "4c3614ca5f98c65113cf0d7dbf243ae68a475adbc0468cb9d5c0744bb3b37ad1"
+          },
+          {
+            "id": "eqn_krys100",
+            "name": "Krys100",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/krys100.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/krys100.png",
+            "sha256": "88098062dd72eff2f75865b6eed7c8b0b49e5f1c6a5df32a057f05a5c0ba0eba"
+          },
+          {
+            "id": "eqn_cadance",
+            "name": "Cadance",
+            "enabled": true,
+            "texture": "inputs/eqn_assets/portraits/krys/cadance.dds",
+            "preview": "inputs/eqn_assets/portraits/krys/cadance.png",
+            "sha256": "caf7bb50249b4d3d89f38c625073634db113626c632c49ee103b9206b382a468"
+          }
+        ],
+        "defaultPortrait": "eqn_krys21"
+      }
+    ],
+    "recovery": {
+      "source": "/Users/haowang/Documents/Paradox Interactive/Stellaris/mod/roboteevee",
+      "legacyVersion": "3.0.1",
+      "notes": [
+        "Recovered 8 Robot Eevee, 78 Krys file entries and bonus Cadance; 85 unique images total.",
+        "Fixed legacy krys30.dds reference by preserving krys_30.dds.",
+        "Original species overrides deliberately replaced with namespaced classes."
+      ]
+    },
+    "origin": {
+      "id": "origin_eqn_heart",
+      "name": "Princess Stellaris Heart",
+      "description": "Begin with Princess Stellaris Heart as your immortal ruler and as a separate immortal hero-ship commander. Develop her crystal body through royal and precursor technologies. Research two additional bodies, up to three total. Ground deployments use those same bodies.",
+      "startingLeaderLevel": 3
+    },
+    "ship": {
+      "size": "eqn_heart",
+      "maxBodies": 3,
+      "buildDays": 360,
+      "cloneAlloys": 10000,
+      "upkeepEnergy": 10,
+      "upkeepAlloys": 2,
+      "behavior": "swarm",
+      "armor": 6000,
+      "shield": 6000,
+      "hullRegen": 20,
+      "armorRegen": 30,
+      "shieldRegen": 30,
+      "power": 100000,
+      "planetKillerSpeedMultiplier": 5,
+      "weaponDamage": 18,
+      "weaponCooldown": 4,
+      "weaponRange": 100
+    },
+    "ground": {
+      "name": "Stellaris Heart · Ground Body",
+      "damage": 100,
+      "health": 200,
+      "morale": 200,
+      "moraleDamage": 100,
+      "collateralDamage": 0.15,
+      "warExhaustion": 0.05,
+      "upkeepEnergy": 10,
+      "icon": "inputs/eqn_assets/art/crystal_pony.dds",
+      "preview": "inputs/eqn_assets/art/crystal_pony.png"
+    },
+    "leader": {
+      "name": "Princess Stellaris Heart",
+      "portrait": "inputs/eqn_assets/portraits/krys/krys21.dds",
+      "portraitPreview": "inputs/eqn_assets/portraits/krys/krys21.png",
+      "rulerBonuses": {
+        "researchSpeed": 0.25,
+        "unity": 0.25,
+        "navalCapacity": 0.25,
+        "shipBuildSpeed": 0.25
+      },
+      "traits": [
+        {
+          "id": "eqn_princess",
+          "name": "Crystal Princess",
+          "description": "An immortal royal mind. Fleet combat bonuses apply while she commands a fleet; army bonuses apply while she commands an invasion.",
+          "immortal": true,
+          "weaponDamage": 0.2,
+          "fireRate": 0.15,
+          "weaponRange": 0.1,
+          "armyDamage": 0.3,
+          "armyHealth": 0.3,
+          "armyMorale": 0.3,
+          "iconStyle": "crystal_pony"
+        },
+        {
+          "id": "eqn_battle_harmony",
+          "name": "Battlefield Harmony",
+          "description": "Her parallel senses coordinate horn fire and shield timing.",
+          "immortal": false,
+          "weaponDamage": 0.1,
+          "fireRate": 0.1,
+          "weaponRange": 0.1,
+          "armyDamage": 0.2,
+          "armyHealth": 0.2,
+          "armyMorale": 0.2,
+          "iconStyle": "crystal_research"
+        }
+      ]
+    },
+    "technologies": [
+      {
+        "id": "tech_eqn_guardian",
+        "name": "Royal Guardian",
+        "icon": "tech_guardian",
+        "description": "Unlocks the Royal Guardian crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 1,
+        "cost": 3000,
+        "weight": 100,
+        "prerequisite": "",
+        "externalPrerequisite": "tech_destroyers",
+        "hull": 24000,
+        "armor": 12000,
+        "shield": 12000,
+        "regen": 100,
+        "weaponDamage": 90,
+        "weaponCooldown": 4,
+        "weaponRange": 110,
+        "groundMultiplier": 2
+      },
+      {
+        "id": "tech_eqn_crown",
+        "name": "Crystal Crown",
+        "icon": "tech_crown",
+        "description": "Unlocks the Crystal Crown crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 2,
+        "cost": 8000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_guardian",
+        "externalPrerequisite": "tech_cruisers",
+        "hull": 100000,
+        "armor": 50000,
+        "shield": 50000,
+        "regen": 500,
+        "weaponDamage": 500,
+        "weaponCooldown": 4,
+        "weaponRange": 125,
+        "groundMultiplier": 4
+      },
+      {
+        "id": "tech_eqn_sovereign",
+        "name": "Sovereign Heart",
+        "icon": "tech_sovereign",
+        "description": "Unlocks the Sovereign Heart crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 3,
+        "cost": 18000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_crown",
+        "externalPrerequisite": "tech_battleships",
+        "hull": 500000,
+        "armor": 250000,
+        "shield": 250000,
+        "regen": 2500,
+        "weaponDamage": 3000,
+        "weaponCooldown": 4,
+        "weaponRange": 140,
+        "groundMultiplier": 8
+      },
+      {
+        "id": "tech_eqn_ascendant",
+        "name": "Ascendant Princess",
+        "icon": "tech_ascendant",
+        "description": "Unlocks the Ascendant Princess crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 4,
+        "cost": 35000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_sovereign",
+        "externalPrerequisite": "tech_titans",
+        "hull": 2000000,
+        "armor": 1000000,
+        "shield": 1000000,
+        "regen": 10000,
+        "weaponDamage": 12000,
+        "weaponCooldown": 4,
+        "weaponRange": 155,
+        "groundMultiplier": 16
+      },
+      {
+        "id": "tech_eqn_delta",
+        "name": "Delta Resonance",
+        "icon": "tech_delta",
+        "description": "Unlocks the Delta Resonance crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 5,
+        "cost": 65000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_ascendant",
+        "externalPrerequisite": "tech_dark_matter_power_core_dm",
+        "hull": 10000000,
+        "armor": 5000000,
+        "shield": 5000000,
+        "regen": 50000,
+        "weaponDamage": 80000,
+        "weaponCooldown": 4,
+        "weaponRange": 170,
+        "groundMultiplier": 32
+      },
+      {
+        "id": "tech_eqn_alpha",
+        "name": "Alpha Radiance",
+        "icon": "tech_alpha",
+        "description": "Unlocks the Alpha Radiance crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 5,
+        "cost": 120000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_delta",
+        "externalPrerequisite": "tech_dark_matter_power_core_ae",
+        "hull": 40000000,
+        "armor": 25000000,
+        "shield": 25000000,
+        "regen": 150000,
+        "weaponDamage": 300000,
+        "weaponCooldown": 4,
+        "weaponRange": 185,
+        "groundMultiplier": 64
+      },
+      {
+        "id": "tech_eqn_sigma",
+        "name": "Sigma Harmony",
+        "icon": "tech_sigma",
+        "description": "Unlocks the Sigma Harmony crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 5,
+        "cost": 220000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_alpha",
+        "externalPrerequisite": "tech_dark_matter_power_core_se",
+        "hull": 100000000,
+        "armor": 60000000,
+        "shield": 60000000,
+        "regen": 500000,
+        "weaponDamage": 1500000,
+        "weaponCooldown": 4,
+        "weaponRange": 200,
+        "groundMultiplier": 128
+      },
+      {
+        "id": "tech_eqn_phi",
+        "name": "Phanon Crown",
+        "icon": "tech_phi",
+        "description": "Unlocks the Phanon Crown crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 5,
+        "cost": 360000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_sigma",
+        "externalPrerequisite": "",
+        "hull": 250000000,
+        "armor": 150000000,
+        "shield": 150000000,
+        "regen": 1500000,
+        "weaponDamage": 5000000,
+        "weaponCooldown": 4,
+        "weaponRange": 215,
+        "groundMultiplier": 256
+      },
+      {
+        "id": "tech_eqn_omega",
+        "name": "Omega Heart",
+        "icon": "tech_omega",
+        "description": "Unlocks the Omega Heart crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 5,
+        "cost": 550000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_phi",
+        "externalPrerequisite": "",
+        "hull": 600000000,
+        "armor": 400000000,
+        "shield": 400000000,
+        "regen": 5000000,
+        "weaponDamage": 15000000,
+        "weaponCooldown": 4,
+        "weaponRange": 230,
+        "groundMultiplier": 512
+      },
+      {
+        "id": "tech_eqn_eternal",
+        "name": "Eternal Stellaris",
+        "icon": "tech_eternal",
+        "description": "Unlocks the Eternal Stellaris crystal reactor, horn weapons and ground-body strength. Refit Heart to use the new components.",
+        "area": "physics",
+        "tier": 5,
+        "cost": 900000,
+        "weight": 100,
+        "prerequisite": "tech_eqn_omega",
+        "externalPrerequisite": "",
+        "hull": 1200000000,
+        "armor": 800000000,
+        "shield": 800000000,
+        "regen": 15000000,
+        "weaponDamage": 30000000,
+        "weaponCooldown": 4,
+        "weaponRange": 245,
+        "groundMultiplier": 1024
+      }
+    ],
+    "compatibility": {
+      "mode": "acot",
+      "notes": "Tested on Stellaris 4.4.6. The installed SBTG descriptor advertises 4.1.*; boss revival phases are preserved. Exclude Zenith of Fallen Empires 5.0 Beta (4.3.7): the user empire crashes during population-category initialization with it enabled and initializes successfully without it.",
+      "references": [
+        {
+          "id": "1419304439",
+          "name": "Ancient Cache of Technologies",
+          "supportedVersion": "4.4.*"
+        },
+        {
+          "id": "1481972266",
+          "name": "Secrets Beyond the Gates",
+          "supportedVersion": "4.1.*"
+        },
+        {
+          "id": "1504307690",
+          "name": "ACOT: Override",
+          "supportedVersion": "4.4.*"
+        },
+        {
+          "id": "1121692237",
+          "name": "Gigastructural Engineering & More",
+          "supportedVersion": "4.4.*"
+        },
+        {
+          "id": "2865408972",
+          "name": "群星修仙传",
+          "supportedVersion": "4.4.*"
+        }
+      ],
+      "benchmark": {
+        "boss": "SBTG Ancient Arkship",
+        "hull": 100000000,
+        "armor": 100000000,
+        "shield": 100000000,
+        "regenPerLayer": 1000000,
+        "lives": 4,
+        "soloVictoryVerified": false,
+        "references": "TK2 installed sbtg_ancient_arkship; sofe_crisis.9000–9006; Gigas Blokkat mothership 62 weapons, 24 L utilities, 12 auxiliary; Qingyun 34 weapons plus enormous modifiers."
+      }
+    },
+    "eventIdeas": [
+      {
+        "name": "First audience",
+        "idea": "Choose a compassionate, scholarly or martial royal mandate after first contact.",
+        "implemented": false
+      },
+      {
+        "name": "One mind, three bodies",
+        "idea": "Explore parallel memories and identity when the second and third bodies awaken.",
+        "implemented": false
+      },
+      {
+        "name": "Beyond the Gates",
+        "idea": "Let Heart react to each precursor revelation and offer optional challenges before the final battle.",
+        "implemented": false
+      },
+      {
+        "name": "After the last gate",
+        "idea": "A post-victory choice about rebuilding, guardianship or withdrawing from mortal politics.",
+        "implemented": false
+      }
+    ],
+    "bodyTechnologies": [
+      {
+        "id": "tech_eqn_body_2",
+        "body": 2,
+        "name": "Parallel Incarnation 2",
+        "icon": "tech_body_2",
+        "cost": 12000,
+        "weight": 100,
+        "tier": 2,
+        "prerequisite": "tech_eqn_crown"
+      },
+      {
+        "id": "tech_eqn_body_3",
+        "body": 3,
+        "name": "Parallel Incarnation 3",
+        "icon": "tech_body_3",
+        "cost": 65000,
+        "weight": 100,
+        "tier": 3,
+        "prerequisite": "tech_eqn_body_2"
+      }
+    ],
+    "localisation": {
+      "language": "simp_chinese",
+      "translations": {
+        "EQN_EEVEE": "机器人伊布",
+        "EQN_EEVEE_desc": "机器人伊布——仅供玩家创建的帝国使用。",
+        "EQN_KRYS": "Krys小马",
+        "EQN_KRYS_desc": "Krys小马——仅供玩家创建的帝国使用。",
+        "eqn_cadance": "音韵公主",
+        "name_list_EQN_Pony": "EQN小马",
+        "eqn_heart": "星海公主",
+        "eqn_heart_plural": "星海公主的化身",
+        "eqn_ruler_name": "星海公主",
+        "origin_eqn_heart": "星海公主",
+        "EQN_HEART_SECTION": "水晶天角兽之躯",
+        "eqn_crystal_core": "水晶核心",
+        "eqn_royal_mind": "王室意识",
+        "eqn_crystal_wings": "水晶羽翼",
+        "EQN_ROYAL_MIND": "王室战斗意识",
+        "EQN_CRYSTAL_WINGS": "水晶羽翼",
+        "eqn_princess": "水晶公主",
+        "eqn_princess_desc": "永生的王室意识。亲自指挥舰队时获得舰队战斗加成；亲自指挥登陆作战时获得陆军加成。",
+        "eqn_battle_harmony": "战场谐律",
+        "eqn_battle_harmony_desc": "她通过多个化身的同步感知，协调独角火力与护盾响应。",
+        "origin_eqn_heart_desc": "开局由永生的星海公主统治国家，并拥有她的第二位永生英雄舰指挥官化身。通过王室与先驱科技强化她的水晶之躯，并研究两个额外化身，最多同时拥有三个。地面部署也使用这三个化身，同一化身不能同时以舰船和陆军形式存在。",
+        "eqn_origin_effects": "开局由永生的星海公主统治国家，并拥有她的第二位永生英雄舰指挥官化身。通过王室与先驱科技强化她的水晶之躯，并研究两个额外化身，最多同时拥有三个。地面部署也使用这三个化身，同一化身不能同时以舰船和陆军形式存在。",
+        "eqn_eevee1": "机器人伊布 1",
+        "eqn_eevee2": "机器人伊布 2",
+        "eqn_eevee3": "机器人伊布 3",
+        "eqn_eevee4": "机器人伊布 4",
+        "eqn_eevee5": "机器人伊布 5",
+        "eqn_eevee6": "机器人伊布 6",
+        "eqn_eevee7": "机器人伊布 7",
+        "eqn_eevee8": "机器人伊布 8",
+        "eqn_krys0": "Krys小马 0",
+        "eqn_krys1": "Krys小马 1",
+        "eqn_krys2": "Krys小马 2",
+        "eqn_krys3": "Krys小马 3",
+        "eqn_krys4": "Krys小马 4",
+        "eqn_krys5": "Krys小马 5",
+        "eqn_krys6": "Krys小马 6",
+        "eqn_krys7": "Krys小马 7",
+        "eqn_krys8": "Krys小马 8",
+        "eqn_krys9": "Krys小马 9",
+        "eqn_krys10": "Krys小马 10",
+        "eqn_krys11": "Krys小马 11",
+        "eqn_krys12": "Krys小马 12",
+        "eqn_krys13": "Krys小马 13",
+        "eqn_krys14": "Krys小马 14",
+        "eqn_krys15": "Krys小马 15",
+        "eqn_krys16": "Krys小马 16",
+        "eqn_krys17": "Krys小马 17",
+        "eqn_krys18": "Krys小马 18",
+        "eqn_krys19": "Krys小马 19",
+        "eqn_krys20": "Krys小马 20",
+        "eqn_krys21": "Krys小马 21",
+        "eqn_krys22": "Krys小马 22",
+        "eqn_krys23": "Krys小马 23",
+        "eqn_krys24": "Krys小马 24",
+        "eqn_krys25": "Krys小马 25",
+        "eqn_krys26": "Krys小马 26",
+        "eqn_krys27": "Krys小马 27",
+        "eqn_krys28": "Krys小马 28",
+        "eqn_krys29": "Krys小马 29",
+        "eqn_krys30": "Krys小马 30",
+        "eqn_krys31": "Krys小马 31",
+        "eqn_krys32": "Krys小马 32",
+        "eqn_krys33": "Krys小马 33",
+        "eqn_krys34": "Krys小马 34",
+        "eqn_krys35": "Krys小马 35",
+        "eqn_krys36": "Krys小马 36",
+        "eqn_krys37": "Krys小马 37",
+        "eqn_krys38": "Krys小马 38",
+        "eqn_krys39": "Krys小马 39",
+        "eqn_krys40": "Krys小马 40",
+        "eqn_krys41": "Krys小马 41",
+        "eqn_krys42": "Krys小马 42",
+        "eqn_krys43": "Krys小马 43",
+        "eqn_krys44": "Krys小马 44",
+        "eqn_krys45": "Krys小马 45",
+        "eqn_krys46": "Krys小马 46",
+        "eqn_krys47": "Krys小马 47",
+        "eqn_krys48": "Krys小马 48",
+        "eqn_krys49": "Krys小马 49",
+        "eqn_krys50": "Krys小马 50",
+        "eqn_krys51": "Krys小马 51",
+        "eqn_krys52": "Krys小马 52",
+        "eqn_krys53": "Krys小马 53",
+        "eqn_krys54": "Krys小马 54",
+        "eqn_krys55": "Krys小马 55",
+        "eqn_krys56": "Krys小马 56",
+        "eqn_krys57": "Krys小马 57",
+        "eqn_krys58": "Krys小马 58",
+        "eqn_krys59": "Krys小马 59",
+        "eqn_krys60": "Krys小马 60",
+        "eqn_krys61": "Krys小马 61",
+        "eqn_krys62": "Krys小马 62",
+        "eqn_krys63": "Krys小马 63",
+        "eqn_krys64": "Krys小马 64",
+        "eqn_krys65": "Krys小马 65",
+        "eqn_krys66": "Krys小马 66",
+        "eqn_krys67": "Krys小马 67",
+        "eqn_krys68": "Krys小马 68",
+        "eqn_krys69": "Krys小马 69",
+        "eqn_krys70": "Krys小马 70",
+        "eqn_krys71": "Krys小马 71",
+        "eqn_krys72": "Krys小马 72",
+        "eqn_krys73": "Krys小马 73",
+        "eqn_krys74": "Krys小马 74",
+        "eqn_krys75": "Krys小马 75",
+        "eqn_krys76": "Krys小马 76",
+        "eqn_krys100": "Krys小马 100",
+        "EQN_HORN_S": "水晶独角 · S型",
+        "EQN_HORN_M": "水晶独角 · M型",
+        "EQN_HORN_L": "水晶独角 · L型",
+        "EQN_HORN_X": "水晶独角 · X型",
+        "EQN_HORN_T": "水晶独角 · T型",
+        "EQN_HORN_P": "水晶独角 · P型",
+        "EQN_HORN_G": "水晶独角 · G型",
+        "EQN_HORN_W": "水晶独角 · W型行星毁灭者",
+        "EQN_HORN_W_ACTION": "晶碎星球",
+        "FLEETORDER_DESTROY_PLANET_WITH_EQN_HORN_W": "正在准备以星海公主之角晶碎$PLANET|Y$",
+        "EQN_CORE_0": "初醒 · 水晶核心",
+        "EQN_CORE_0_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_0": "初醒 · S型独角",
+        "EQN_HORN_S_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_0": "初醒 · M型独角",
+        "EQN_HORN_M_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_0": "初醒 · L型独角",
+        "EQN_HORN_L_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_0": "初醒 · X型独角",
+        "EQN_HORN_X_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_0": "初醒 · T型独角",
+        "EQN_HORN_T_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_0": "初醒 · P型独角",
+        "EQN_HORN_P_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_0": "初醒 · G型独角",
+        "EQN_HORN_G_0_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_1": "王室守护者 · 水晶核心",
+        "EQN_CORE_1_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_1": "王室守护者 · S型独角",
+        "EQN_HORN_S_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_1": "王室守护者 · M型独角",
+        "EQN_HORN_M_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_1": "王室守护者 · L型独角",
+        "EQN_HORN_L_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_1": "王室守护者 · X型独角",
+        "EQN_HORN_X_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_1": "王室守护者 · T型独角",
+        "EQN_HORN_T_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_1": "王室守护者 · P型独角",
+        "EQN_HORN_P_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_1": "王室守护者 · G型独角",
+        "EQN_HORN_G_1_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_2": "水晶王冠 · 水晶核心",
+        "EQN_CORE_2_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_2": "水晶王冠 · S型独角",
+        "EQN_HORN_S_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_2": "水晶王冠 · M型独角",
+        "EQN_HORN_M_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_2": "水晶王冠 · L型独角",
+        "EQN_HORN_L_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_2": "水晶王冠 · X型独角",
+        "EQN_HORN_X_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_2": "水晶王冠 · T型独角",
+        "EQN_HORN_T_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_2": "水晶王冠 · P型独角",
+        "EQN_HORN_P_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_2": "水晶王冠 · G型独角",
+        "EQN_HORN_G_2_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_3": "主权之心 · 水晶核心",
+        "EQN_CORE_3_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_3": "主权之心 · S型独角",
+        "EQN_HORN_S_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_3": "主权之心 · M型独角",
+        "EQN_HORN_M_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_3": "主权之心 · L型独角",
+        "EQN_HORN_L_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_3": "主权之心 · X型独角",
+        "EQN_HORN_X_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_3": "主权之心 · T型独角",
+        "EQN_HORN_T_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_3": "主权之心 · P型独角",
+        "EQN_HORN_P_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_3": "主权之心 · G型独角",
+        "EQN_HORN_G_3_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_4": "飞升公主 · 水晶核心",
+        "EQN_CORE_4_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_4": "飞升公主 · S型独角",
+        "EQN_HORN_S_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_4": "飞升公主 · M型独角",
+        "EQN_HORN_M_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_4": "飞升公主 · L型独角",
+        "EQN_HORN_L_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_4": "飞升公主 · X型独角",
+        "EQN_HORN_X_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_4": "飞升公主 · T型独角",
+        "EQN_HORN_T_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_4": "飞升公主 · P型独角",
+        "EQN_HORN_P_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_4": "飞升公主 · G型独角",
+        "EQN_HORN_G_4_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_5": "德尔塔共振 · 水晶核心",
+        "EQN_CORE_5_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_5": "德尔塔共振 · S型独角",
+        "EQN_HORN_S_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_5": "德尔塔共振 · M型独角",
+        "EQN_HORN_M_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_5": "德尔塔共振 · L型独角",
+        "EQN_HORN_L_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_5": "德尔塔共振 · X型独角",
+        "EQN_HORN_X_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_5": "德尔塔共振 · T型独角",
+        "EQN_HORN_T_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_5": "德尔塔共振 · P型独角",
+        "EQN_HORN_P_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_5": "德尔塔共振 · G型独角",
+        "EQN_HORN_G_5_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_6": "阿尔法辉光 · 水晶核心",
+        "EQN_CORE_6_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_6": "阿尔法辉光 · S型独角",
+        "EQN_HORN_S_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_6": "阿尔法辉光 · M型独角",
+        "EQN_HORN_M_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_6": "阿尔法辉光 · L型独角",
+        "EQN_HORN_L_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_6": "阿尔法辉光 · X型独角",
+        "EQN_HORN_X_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_6": "阿尔法辉光 · T型独角",
+        "EQN_HORN_T_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_6": "阿尔法辉光 · P型独角",
+        "EQN_HORN_P_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_6": "阿尔法辉光 · G型独角",
+        "EQN_HORN_G_6_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_7": "西格玛谐律 · 水晶核心",
+        "EQN_CORE_7_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_7": "西格玛谐律 · S型独角",
+        "EQN_HORN_S_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_7": "西格玛谐律 · M型独角",
+        "EQN_HORN_M_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_7": "西格玛谐律 · L型独角",
+        "EQN_HORN_L_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_7": "西格玛谐律 · X型独角",
+        "EQN_HORN_X_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_7": "西格玛谐律 · T型独角",
+        "EQN_HORN_T_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_7": "西格玛谐律 · P型独角",
+        "EQN_HORN_P_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_7": "西格玛谐律 · G型独角",
+        "EQN_HORN_G_7_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_8": "法农之冠 · 水晶核心",
+        "EQN_CORE_8_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_8": "法农之冠 · S型独角",
+        "EQN_HORN_S_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_8": "法农之冠 · M型独角",
+        "EQN_HORN_M_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_8": "法农之冠 · L型独角",
+        "EQN_HORN_L_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_8": "法农之冠 · X型独角",
+        "EQN_HORN_X_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_8": "法农之冠 · T型独角",
+        "EQN_HORN_T_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_8": "法农之冠 · P型独角",
+        "EQN_HORN_P_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_8": "法农之冠 · G型独角",
+        "EQN_HORN_G_8_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_9": "欧米伽之心 · 水晶核心",
+        "EQN_CORE_9_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_9": "欧米伽之心 · S型独角",
+        "EQN_HORN_S_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_9": "欧米伽之心 · M型独角",
+        "EQN_HORN_M_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_9": "欧米伽之心 · L型独角",
+        "EQN_HORN_L_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_9": "欧米伽之心 · X型独角",
+        "EQN_HORN_X_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_9": "欧米伽之心 · T型独角",
+        "EQN_HORN_T_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_9": "欧米伽之心 · P型独角",
+        "EQN_HORN_P_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_9": "欧米伽之心 · G型独角",
+        "EQN_HORN_G_9_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_CORE_10": "永恒星海 · 水晶核心",
+        "EQN_CORE_10_desc": "维系这一化身的水晶核心。研究升级后，需要改装舰船以使用新组件；再生数值按每日计算。",
+        "EQN_HORN_S_10": "永恒星海 · S型独角",
+        "EQN_HORN_S_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_M_10": "永恒星海 · M型独角",
+        "EQN_HORN_M_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_L_10": "永恒星海 · L型独角",
+        "EQN_HORN_L_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_X_10": "永恒星海 · X型独角",
+        "EQN_HORN_X_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_T_10": "永恒星海 · T型独角",
+        "EQN_HORN_T_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_P_10": "永恒星海 · P型独角",
+        "EQN_HORN_P_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "EQN_HORN_G_10": "永恒星海 · G型独角",
+        "EQN_HORN_G_10_desc": "可向各个方向发射的独角能量。伤害依次作用于各层防御，不会跳过首领的任何战斗阶段。",
+        "tech_eqn_guardian": "王室守护者",
+        "tech_eqn_guardian_desc": "解锁“王室守护者”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_crown": "水晶王冠",
+        "tech_eqn_crown_desc": "解锁“水晶王冠”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_sovereign": "主权之心",
+        "tech_eqn_sovereign_desc": "解锁“主权之心”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_ascendant": "飞升公主",
+        "tech_eqn_ascendant_desc": "解锁“飞升公主”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_delta": "德尔塔共振",
+        "tech_eqn_delta_desc": "解锁“德尔塔共振”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_alpha": "阿尔法辉光",
+        "tech_eqn_alpha_desc": "解锁“阿尔法辉光”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_sigma": "西格玛谐律",
+        "tech_eqn_sigma_desc": "解锁“西格玛谐律”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_phi": "法农之冠",
+        "tech_eqn_phi_desc": "解锁“法农之冠”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_omega": "欧米伽之心",
+        "tech_eqn_omega_desc": "解锁“欧米伽之心”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "tech_eqn_eternal": "永恒星海",
+        "tech_eqn_eternal_desc": "解锁“永恒星海”阶段的水晶反应堆与独角武器，并强化地面化身。需要改装星海公主以使用新舰船组件。",
+        "eqn_body_1": "星海公主 · 化身1",
+        "eqn_ground_1": "星海公主·地面化身1",
+        "eqn_ground_1_desc": "公主的可运输进攻陆军化身。可在舰船所在星系的任意己方殖民地通过星球决议切换形态，成为陆军后可登船并登陆敌方星球。",
+        "eqn_awaken_1": "唤醒化身1",
+        "eqn_awaken_1_desc": "在首都创造第1个化身。该化身当前不能以舰船或陆军形式存在。",
+        "eqn_space_1": "化身1：太空形态",
+        "eqn_space_1_desc": "将驻扎在任意己方殖民地的地面化身转化为英雄舰船。已登船的陆军必须先在己方殖民地登陆。",
+        "eqn_body_2": "星海公主 · 化身2",
+        "eqn_ground_2": "星海公主·地面化身2",
+        "eqn_ground_2_desc": "公主的可运输进攻陆军化身。可在舰船所在星系的任意己方殖民地通过星球决议切换形态，成为陆军后可登船并登陆敌方星球。",
+        "eqn_awaken_2": "唤醒化身2",
+        "eqn_awaken_2_desc": "在首都创造第2个化身。该化身当前不能以舰船或陆军形式存在。",
+        "eqn_space_2": "化身2：太空形态",
+        "eqn_space_2_desc": "将驻扎在任意己方殖民地的地面化身转化为英雄舰船。已登船的陆军必须先在己方殖民地登陆。",
+        "tech_eqn_body_2": "并行化身2",
+        "tech_eqn_body_2_desc": "解锁第2个化身。唤醒仍在首都进行；已有化身可在其所在星系的任意己方殖民地切换舰船或地面陆军形态。",
+        "eqn_body_3": "星海公主 · 化身3",
+        "eqn_ground_3": "星海公主·地面化身3",
+        "eqn_ground_3_desc": "公主的可运输进攻陆军化身。可在舰船所在星系的任意己方殖民地通过星球决议切换形态，成为陆军后可登船并登陆敌方星球。",
+        "eqn_awaken_3": "唤醒化身3",
+        "eqn_awaken_3_desc": "在首都创造第3个化身。该化身当前不能以舰船或陆军形式存在。",
+        "eqn_space_3": "化身3：太空形态",
+        "eqn_space_3_desc": "将驻扎在任意己方殖民地的地面化身转化为英雄舰船。已登船的陆军必须先在己方殖民地登陆。",
+        "tech_eqn_body_3": "并行化身3",
+        "tech_eqn_body_3_desc": "解锁第3个化身。唤醒仍在首都进行；已有化身可在其所在星系的任意己方殖民地切换舰船或地面陆军形态。",
+        "eqn_name_sequence_0": "%O%大舰队",
+        "eqn_name_sequence_1": "%O%马群军团",
+        "eqn_name_sequence_2": "%O%奔腾军团",
+        "eqn_name_sequence_3": "%O%契约军团",
+        "eqn_name_sequence_4": "镜像克隆军团%R%",
+        "eqn_name_sequence_5": "机动人偶军团%R%",
+        "eqn_name_sequence_6": "小马魔偶军团%R%",
+        "eqn_name_sequence_7": "%O%天赋独角兽军团",
+        "eqn_name_sequence_8": "%O%异星兽群",
+        "eqn_name_sequence_9": "%O%变异马群军团",
+        "eqn_deploy_ground_1": "化身1：地面形态",
+        "eqn_deploy_ground_1_desc": "在任意己方殖民地，将同星系内状态完好的英雄舰船化身转化为可运输进攻陆军。之后让陆军登船，再右键敌方星球即可登陆。仍由同一位指挥官统率。",
+        "eqn_commander_name_1": "星海公主·化身1",
+        "eqn_deploy_ground_2": "化身2：地面形态",
+        "eqn_deploy_ground_2_desc": "在任意己方殖民地，将同星系内状态完好的英雄舰船化身转化为可运输进攻陆军。之后让陆军登船，再右键敌方星球即可登陆。仍由同一位指挥官统率。",
+        "eqn_commander_name_2": "星海公主·化身2",
+        "eqn_deploy_ground_3": "化身3：地面形态",
+        "eqn_deploy_ground_3_desc": "在任意己方殖民地，将同星系内状态完好的英雄舰船化身转化为可运输进攻陆军。之后让陆军登船，再右键敌方星球即可登陆。仍由同一位指挥官统率。",
+        "eqn_commander_name_3": "星海公主·化身3",
+        "eqn_eevee_group": "机器人伊布",
+        "eqn_krys_group": "Krys小马"
+      }
+    },
+    "artwork": {
+      "icons": [
+        {
+          "id": "royal_silhouette",
+          "name": "Royal silhouette / 公主剪影",
+          "texture": "inputs/eqn_assets/art/royal_silhouette.dds",
+          "preview": "inputs/eqn_assets/art/royal_silhouette.png",
+          "nativeTextures": {
+            "component": "inputs/eqn_assets/art/royal_silhouette_component.dds",
+            "army": "inputs/eqn_assets/art/royal_silhouette_army.dds",
+            "trait": "inputs/eqn_assets/art/royal_silhouette_trait.dds",
+            "origin": "inputs/eqn_assets/art/royal_silhouette_origin.dds",
+            "technology": "inputs/eqn_assets/art/royal_silhouette_technology.dds"
+          }
+        },
+        {
+          "id": "crystal_research",
+          "name": "Crystal research / 水晶科技",
+          "texture": "inputs/eqn_assets/art/crystal_research.dds",
+          "preview": "inputs/eqn_assets/art/crystal_research.png",
+          "nativeTextures": {
+            "component": "inputs/eqn_assets/art/crystal_research_component.dds",
+            "army": "inputs/eqn_assets/art/crystal_research_army.dds",
+            "trait": "inputs/eqn_assets/art/crystal_research_trait.dds",
+            "origin": "inputs/eqn_assets/art/crystal_research_origin.dds",
+            "technology": "inputs/eqn_assets/art/crystal_research_technology.dds"
+          }
+        },
+        {
+          "id": "three_incarnations",
+          "name": "Three incarnations / 三重化身",
+          "texture": "inputs/eqn_assets/art/three_incarnations.dds",
+          "preview": "inputs/eqn_assets/art/three_incarnations.png",
+          "nativeTextures": {
+            "component": "inputs/eqn_assets/art/three_incarnations_component.dds",
+            "army": "inputs/eqn_assets/art/three_incarnations_army.dds",
+            "trait": "inputs/eqn_assets/art/three_incarnations_trait.dds",
+            "origin": "inputs/eqn_assets/art/three_incarnations_origin.dds",
+            "technology": "inputs/eqn_assets/art/three_incarnations_technology.dds"
+          }
+        },
+        {
+          "id": "crystal_pony",
+          "name": "Crystal pony / 水晶小马",
+          "texture": "inputs/eqn_assets/art/crystal_pony.dds",
+          "preview": "inputs/eqn_assets/art/crystal_pony.png",
+          "nativeTextures": {
+            "component": "inputs/eqn_assets/art/crystal_pony_component.dds",
+            "army": "inputs/eqn_assets/art/crystal_pony.dds",
+            "trait": "inputs/eqn_assets/art/crystal_pony_trait.dds",
+            "origin": "inputs/eqn_assets/art/crystal_pony_origin.dds",
+            "technology": "inputs/eqn_assets/art/crystal_pony_technology.dds"
+          }
+        }
+      ],
+      "componentIcons": [
+        {"id": "horn_s", "name": "S horn", "preview": "inputs/eqn_assets/art/components/horn_s.png", "texture": "inputs/eqn_assets/art/components/horn_s.dds"},
+        {"id": "horn_m", "name": "M horn", "preview": "inputs/eqn_assets/art/components/horn_m.png", "texture": "inputs/eqn_assets/art/components/horn_m.dds"},
+        {"id": "horn_l", "name": "L horn", "preview": "inputs/eqn_assets/art/components/horn_l.png", "texture": "inputs/eqn_assets/art/components/horn_l.dds"},
+        {"id": "horn_x", "name": "X horn", "preview": "inputs/eqn_assets/art/components/horn_x.png", "texture": "inputs/eqn_assets/art/components/horn_x.dds"},
+        {"id": "horn_t", "name": "T horn", "preview": "inputs/eqn_assets/art/components/horn_t.png", "texture": "inputs/eqn_assets/art/components/horn_t.dds"},
+        {"id": "horn_p", "name": "P defense", "preview": "inputs/eqn_assets/art/components/horn_p.png", "texture": "inputs/eqn_assets/art/components/horn_p.dds"},
+        {"id": "horn_g", "name": "G crystal torpedo", "preview": "inputs/eqn_assets/art/components/horn_g.png", "texture": "inputs/eqn_assets/art/components/horn_g.dds"},
+        {"id": "horn_w", "name": "W planet cracker", "preview": "inputs/eqn_assets/art/components/horn_w.png", "texture": "inputs/eqn_assets/art/components/horn_w.dds"},
+        {"id": "crystal_core", "name": "Crystal core", "preview": "inputs/eqn_assets/art/components/crystal_core.png", "texture": "inputs/eqn_assets/art/components/crystal_core.dds"},
+        {"id": "royal_mind", "name": "Royal mind", "preview": "inputs/eqn_assets/art/components/royal_mind.png", "texture": "inputs/eqn_assets/art/components/royal_mind.dds"},
+        {"id": "crystal_wings", "name": "Crystal wings", "preview": "inputs/eqn_assets/art/components/crystal_wings.png", "texture": "inputs/eqn_assets/art/components/crystal_wings.dds"}
+      ],
+      "technologyIcons": [
+        {"id": "tech_guardian", "name": "Royal Guardian", "preview": "inputs/eqn_assets/art/technologies/tech_guardian.png", "texture": "inputs/eqn_assets/art/technologies/tech_guardian.dds"},
+        {"id": "tech_crown", "name": "Crystal Crown", "preview": "inputs/eqn_assets/art/technologies/tech_crown.png", "texture": "inputs/eqn_assets/art/technologies/tech_crown.dds"},
+        {"id": "tech_sovereign", "name": "Sovereign Heart", "preview": "inputs/eqn_assets/art/technologies/tech_sovereign.png", "texture": "inputs/eqn_assets/art/technologies/tech_sovereign.dds"},
+        {"id": "tech_ascendant", "name": "Ascendant Princess", "preview": "inputs/eqn_assets/art/technologies/tech_ascendant.png", "texture": "inputs/eqn_assets/art/technologies/tech_ascendant.dds"},
+        {"id": "tech_delta", "name": "Delta Resonance", "preview": "inputs/eqn_assets/art/technologies/tech_delta.png", "texture": "inputs/eqn_assets/art/technologies/tech_delta.dds"},
+        {"id": "tech_alpha", "name": "Alpha Radiance", "preview": "inputs/eqn_assets/art/technologies/tech_alpha.png", "texture": "inputs/eqn_assets/art/technologies/tech_alpha.dds"},
+        {"id": "tech_sigma", "name": "Sigma Harmony", "preview": "inputs/eqn_assets/art/technologies/tech_sigma.png", "texture": "inputs/eqn_assets/art/technologies/tech_sigma.dds"},
+        {"id": "tech_phi", "name": "Phanon Crown", "preview": "inputs/eqn_assets/art/technologies/tech_phi.png", "texture": "inputs/eqn_assets/art/technologies/tech_phi.dds"},
+        {"id": "tech_omega", "name": "Omega Heart", "preview": "inputs/eqn_assets/art/technologies/tech_omega.png", "texture": "inputs/eqn_assets/art/technologies/tech_omega.dds"},
+        {"id": "tech_eternal", "name": "Eternal Stellaris", "preview": "inputs/eqn_assets/art/technologies/tech_eternal.png", "texture": "inputs/eqn_assets/art/technologies/tech_eternal.dds"},
+        {"id": "tech_body_2", "name": "Parallel Incarnation 2", "preview": "inputs/eqn_assets/art/technologies/tech_body_2.png", "texture": "inputs/eqn_assets/art/technologies/tech_body_2.dds"},
+        {"id": "tech_body_3", "name": "Parallel Incarnation 3", "preview": "inputs/eqn_assets/art/technologies/tech_body_3.png", "texture": "inputs/eqn_assets/art/technologies/tech_body_3.dds"}
+      ],
+      "originPicture": "inputs/eqn_assets/art/origin_panorama_ui.dds",
+      "originPreview": "inputs/eqn_assets/art/origin_panorama_ui.png",
+      "provenance": "inputs/eqn_assets/art/provenance.json"
+    },
+    "groundComparison": {
+      "gameVersion": "4.4.6",
+      "unitMeaning": "军队定义的damage、health、morale是倍率，不是最终伤害或生命值。",
+      "engine": {
+        "healthBase": 200,
+        "damageMinBase": 1.5,
+        "damageMaxBase": 3,
+        "moraleBase": 200,
+        "planetWidthBase": 5,
+        "planetWidthPerSize": 0.2,
+        "benchmarkPlanetSize": 25,
+        "benchmarkWidth": 10,
+        "monthlyHealthReinforceFraction": 0.2,
+        "monthlyMoraleRegenFraction": 1,
+        "inCombatRegenerationVerified": false,
+        "regenNote": "定义只确认月度恢复常数；不要据此假设战斗中获得回血。基准战斗不额外修复或回血。"
+      },
+      "modRules": {
+        "acotMoraleDamageFactor": 0.75,
+        "acotBrokenMoraleDamageFactor": 0.1,
+        "acotLowMoraleThreshold": 0.5,
+        "acotLowMoraleDamageFactor": 0.5,
+        "warning": "ACOT与群星修仙传会改写陆军战力显示公式；战力数字不可直接换算为可击败的部队数量。"
+      },
+      "modifierFormula": {
+        "health": "200 * army.health * (1 + sum(army_health modifiers))",
+        "damageMin": "1.5 * army.damage * (1 + sum(army_damage_mult modifiers))",
+        "damageMax": "3.0 * army.damage * (1 + sum(army_damage_mult modifiers))",
+        "morale": "200 * army.morale * (1 + sum(army_morale modifiers))",
+        "stageWithCurrentTraits": "Research bonus=M-1; current two traits sum to+0.5 health/damage, hence health/damage scale=M+0.5, before other species/country/skill/experience modifiers.",
+        "moraleModifierKey": "army_morale",
+        "moraleNote": "科技与公主特质同时提高士气；实际指挥官加成须由原生战斗验证。"
+      },
+      "armies": [
+        {
+          "id": "assault_army",
+          "nameZh": "突击陆军",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_01_assault_armies_normal.txt",
+          "damageFactor": 1.0,
+          "healthFactor": 1.0,
+          "health": 200.0,
+          "damageMin": 1.5,
+          "damageMax": 3.0,
+          "morale": 200.0,
+          "moraleDamageFactor": 0.5
+        },
+        {
+          "id": "gene_warrior_army",
+          "nameZh": "基因战士",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_01_assault_armies_normal.txt",
+          "damageFactor": 2.0,
+          "healthFactor": 2.5,
+          "health": 500.0,
+          "damageMin": 3.0,
+          "damageMax": 6.0,
+          "morale": 500.0,
+          "moraleDamageFactor": 1.0
+        },
+        {
+          "id": "xenomorph_army",
+          "nameZh": "异形陆军（ACOT）",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_01_assault_armies_normal.txt",
+          "damageFactor": 4.0,
+          "healthFactor": 2.0,
+          "health": 400.0,
+          "damageMin": 6.0,
+          "damageMax": 12.0,
+          "morale": null,
+          "moraleDamageFactor": 2.5
+        },
+        {
+          "id": "acot_infantry_dm",
+          "nameZh": "德尔塔步兵",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_01_assault_armies_normal.txt",
+          "damageFactor": 2.0,
+          "healthFactor": 2.0,
+          "health": 400.0,
+          "damageMin": 3.0,
+          "damageMax": 6.0,
+          "morale": 250.0,
+          "moraleDamageFactor": 0.5
+        },
+        {
+          "id": "acot_infantry_ae",
+          "nameZh": "阿尔法步兵",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_01_assault_armies_normal.txt",
+          "damageFactor": 2.5,
+          "healthFactor": 2.5,
+          "health": 500.0,
+          "damageMin": 3.75,
+          "damageMax": 7.5,
+          "morale": 300.0,
+          "moraleDamageFactor": 0.5
+        },
+        {
+          "id": "acot_infantry_se",
+          "nameZh": "西格玛步兵",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_01_assault_armies_normal.txt",
+          "damageFactor": 3.5,
+          "healthFactor": 3.5,
+          "health": 700.0,
+          "damageMin": 5.25,
+          "damageMax": 10.5,
+          "morale": 400.0,
+          "moraleDamageFactor": 0.5
+        },
+        {
+          "id": "acot_phanon_operative",
+          "nameZh": "法农特工",
+          "sourceMod": "1419304439",
+          "definition": "1419304439/common/armies/acot_04_assault_armies_others.txt",
+          "damageFactor": 45.0,
+          "healthFactor": 100.0,
+          "health": 20000.0,
+          "damageMin": 67.5,
+          "damageMax": 135.0,
+          "morale": 6000.0,
+          "moraleDamageFactor": 4.0
+        },
+        {
+          "id": "origin_guardian",
+          "nameZh": "天界守卫",
+          "sourceMod": "1481972266",
+          "definition": "1481972266/common/armies/sbtg_armies.txt",
+          "damageFactor": 50.0,
+          "healthFactor": 50.0,
+          "health": 10000.0,
+          "damageMin": 75.0,
+          "damageMax": 150.0,
+          "morale": null,
+          "moraleDamageFactor": 3.5
+        },
+        {
+          "id": "origin_autarch_guardian",
+          "nameZh": "始源专制者卫队",
+          "sourceMod": "1481972266",
+          "definition": "1481972266/common/armies/sbtg_armies.txt",
+          "damageFactor": 250.0,
+          "healthFactor": 150.0,
+          "health": 30000.0,
+          "damageMin": 375.0,
+          "damageMax": 750.0,
+          "morale": null,
+          "moraleDamageFactor": 20.0
+        },
+        {
+          "id": "sofe_omega_mech",
+          "nameZh": "欧米伽战械",
+          "sourceMod": "1481972266",
+          "definition": "1481972266/common/armies/sbtg_armies.txt",
+          "damageFactor": 30.0,
+          "healthFactor": 30.0,
+          "health": 6000.0,
+          "damageMin": 45.0,
+          "damageMax": 90.0,
+          "morale": null,
+          "moraleDamageFactor": 10.0
+        },
+        {
+          "id": "sxx_mortal_monster_army",
+          "nameZh": "凡间妖兽",
+          "sourceMod": "2865408972",
+          "definition": "2865408972/common/armies/sxx_armies.txt",
+          "damageFactor": 10.0,
+          "healthFactor": 10.0,
+          "health": 2000.0,
+          "damageMin": 15.0,
+          "damageMax": 30.0,
+          "morale": null,
+          "moraleDamageFactor": 2.0
+        },
+        {
+          "id": "vanilla_xenomorph_army",
+          "nameZh": "异形陆军（原版）",
+          "sourceMod": "vanilla4.4.6",
+          "damageFactor": 2,
+          "healthFactor": 2,
+          "health": 400,
+          "damageMin": 3,
+          "damageMax": 6,
+          "morale": null,
+          "moraleDamageFactor": 2
+        }
+      ],
+      "heartConfiguredBase": {
+        "damageFactor": 100,
+        "healthFactor": 200,
+        "moraleFactor": 200,
+        "health": 40000,
+        "damageMin": 150.0,
+        "damageMax": 300,
+        "morale": 40000,
+        "moraleDamageFactor": 100
+      },
+      "stageBenchmarks": [
+        {
+          "technology": "awakening",
+          "stageMultiplier": 1,
+          "heartHealthWithCurrentTraits": 60000.0,
+          "heartDamageMinWithCurrentTraits": 225.0,
+          "heartDamageMaxWithCurrentTraits": 450.0,
+          "defenderType": "assault_army",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 24000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_guardian",
+          "stageMultiplier": 2,
+          "heartHealthWithCurrentTraits": 100000.0,
+          "heartDamageMinWithCurrentTraits": 375.0,
+          "heartDamageMaxWithCurrentTraits": 750.0,
+          "defenderType": "assault_army",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 24000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_crown",
+          "stageMultiplier": 4,
+          "heartHealthWithCurrentTraits": 180000.0,
+          "heartDamageMinWithCurrentTraits": 675.0,
+          "heartDamageMaxWithCurrentTraits": 1350.0,
+          "defenderType": "gene_warrior_army",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 60000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_sovereign",
+          "stageMultiplier": 8,
+          "heartHealthWithCurrentTraits": 340000.0,
+          "heartDamageMinWithCurrentTraits": 1275.0,
+          "heartDamageMaxWithCurrentTraits": 2550.0,
+          "defenderType": "xenomorph_army",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 48000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_ascendant",
+          "stageMultiplier": 16,
+          "heartHealthWithCurrentTraits": 660000.0,
+          "heartDamageMinWithCurrentTraits": 2475.0,
+          "heartDamageMaxWithCurrentTraits": 4950.0,
+          "defenderType": "sxx_mortal_monster_army",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 240000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_delta",
+          "stageMultiplier": 32,
+          "heartHealthWithCurrentTraits": 1300000.0,
+          "heartDamageMinWithCurrentTraits": 4875.0,
+          "heartDamageMaxWithCurrentTraits": 9750.0,
+          "defenderType": "acot_infantry_dm",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 48000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_alpha",
+          "stageMultiplier": 64,
+          "heartHealthWithCurrentTraits": 2580000.0,
+          "heartDamageMinWithCurrentTraits": 9675.0,
+          "heartDamageMaxWithCurrentTraits": 19350.0,
+          "defenderType": "acot_infantry_ae",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 60000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_sigma",
+          "stageMultiplier": 128,
+          "heartHealthWithCurrentTraits": 5140000.0,
+          "heartDamageMinWithCurrentTraits": 19275.0,
+          "heartDamageMaxWithCurrentTraits": 38550.0,
+          "defenderType": "acot_infantry_se",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 84000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_phi",
+          "stageMultiplier": 256,
+          "heartHealthWithCurrentTraits": 10260000.0,
+          "heartDamageMinWithCurrentTraits": 38475.0,
+          "heartDamageMaxWithCurrentTraits": 76950.0,
+          "defenderType": "acot_phanon_operative",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 2400000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_omega",
+          "stageMultiplier": 512,
+          "heartHealthWithCurrentTraits": 20500000.0,
+          "heartDamageMinWithCurrentTraits": 76875.0,
+          "heartDamageMaxWithCurrentTraits": 153750.0,
+          "defenderType": "origin_guardian",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 1200000.0,
+          "planetSize": 25,
+          "verified": false
+        },
+        {
+          "technology": "tech_eqn_eternal",
+          "stageMultiplier": 1024,
+          "heartHealthWithCurrentTraits": 40980000.0,
+          "heartDamageMinWithCurrentTraits": 153675.0,
+          "heartDamageMaxWithCurrentTraits": 307350.0,
+          "defenderType": "origin_autarch_guardian",
+          "defenderCount": 120,
+          "defenderTotalBaseHealth": 3600000.0,
+          "planetSize": 25,
+          "verified": false
+        }
+      ],
+      "validation": "理论比较；必须另附原生1对120地面战斗记录才能标记通过。"
+    }
+  }
+}
