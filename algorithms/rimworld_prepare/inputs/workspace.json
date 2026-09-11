@@ -4,6 +4,9 @@
     "name": "Dragon Yuran",
     "packageId": "wishai.dragonyuran",
     "author": "Hao Wang",
+    "dragonBone": {
+      "giantScale": 5.0
+    },
     "selectedApparel": [
       "YR_AP_MiKo",
       "YR_AP_White",
@@ -30,6 +33,7 @@
       "skinColor": "#fafafa",
       "hairColor": "#ffffff",
       "dragonSkinInstalled": false,
+      "dragonBoneInstalled": false,
       "apparel": [
         "YR_AP_MiKo"
       ],

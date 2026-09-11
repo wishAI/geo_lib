@@ -3,13 +3,14 @@
   "icon": "pawn",
   "name": "RimWorld Prepare",
   "eyebrow": "RIMWORLD 1.6 · MOD WORKBENCH",
-  "summary": "Extract the Yuran race core, choose craftable clothing, prepare Dragon Yuran skin textures, edit colonists, and deploy the mod and Prepare Carefully files to TK2.",
+  "summary": "Extract the Yuran race core, choose clothing, prepare dragon-skin textures, configure a Dragon Bone giant form, edit colonists, and deploy to TK2.",
   "accent": "#9f573d",
   "runtime": "tk2",
   "runtimeLabel": "Mac editor · TK2 RimWorld 1.6",
   "capabilities": [
     "Yuran race assets",
     "Dragon Yuran mod",
+    "Configurable Dragon Bone giant form",
     "Prepare Carefully characters",
     "TK2 deploy"
   ],
@@ -47,7 +48,7 @@
     {
       "id": "build_dragon_yuran",
       "name": "Build Dragon Yuran mod",
-      "description": "Build the clean HAR race, selected default-tailoring apparel, dragon-skin implant swap, and Prepare Carefully v5 character files without opening RimWorld.",
+      "description": "Build the clean HAR race, selected default-tailoring apparel, dragon-skin implant, Framework-powered Dragon Bone giant form, and Prepare Carefully v5 files without opening RimWorld. Big and Small - Genes & More is not used.",
       "target": "local",
       "targets": ["local"],
       "resource": "rimworld-prepare",

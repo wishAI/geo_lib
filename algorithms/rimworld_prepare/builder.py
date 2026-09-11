@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import shlex
 import shutil
@@ -30,6 +31,7 @@ REMOTE_MOD = "/home/wishai/.local/share/Steam/steamapps/common/RimWorld/Mods/Dra
 REMOTE_SAVE = "/home/wishai/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios/PrepareCarefully/"
 REMOTE_HARMONY_DLL = "/home/wishai/.local/share/Steam/steamapps/common/RimWorld/Mods/Harmony/Current/Assemblies/0Harmony.dll"
 REMOTE_HAR_DLL = "/home/wishai/.local/share/Steam/steamapps/common/RimWorld/Mods/HumanoidAlienRaces/1.6/Assemblies/AlienRace.dll"
+REMOTE_BIG_SMALL_FRAMEWORK_DLL = "/home/wishai/.local/share/Steam/steamapps/workshop/content/294100/2925432336/1.6/Base/Assemblies/BigAndSmall.dll"
 REMOTE_PREPARE_CAREFULLY_DLL = "/home/wishai/.local/share/Steam/steamapps/common/RimWorld/Mods/EdBPrepareCarefully/1.6/Assemblies/EdBPrepareCarefully.dll"
 DIRECTIONS = ("south", "east", "north", "west")
 IMG2IMG_DIRECTIONS = ("south", "east", "north")
@@ -403,6 +405,15 @@ def validate_config(payload: object, *, catalog: dict | None = None) -> dict:
     allowed_apparel = {item["defName"] for item in (catalog or {}).get("apparel", [])}
     if allowed_apparel and not set(selected).issubset(allowed_apparel):
         raise ValueError("mod.selectedApparel contains an unknown Yuran apparel def")
+    dragon_bone = mod.get("dragonBone")
+    giant_scale = dragon_bone.get("giantScale") if isinstance(dragon_bone, dict) else None
+    if (
+        isinstance(giant_scale, bool)
+        or not isinstance(giant_scale, (int, float))
+        or not math.isfinite(giant_scale)
+        or not 1.25 <= giant_scale <= 10.0
+    ):
+        raise ValueError("mod.dragonBone.giantScale must be a finite number from 1.25 to 10.0")
     ids: set[str] = set()
     for index, character in enumerate(characters):
         if not isinstance(character, dict):
@@ -428,6 +439,9 @@ def validate_config(payload: object, *, catalog: dict | None = None) -> dict:
         for color_key in ("skinColor", "hairColor"):
             if not SAFE_COLOR.fullmatch(str(character.get(color_key, ""))):
                 raise ValueError(f"characters[{index}].{color_key} is invalid")
+        for implant_key in ("dragonSkinInstalled", "dragonBoneInstalled"):
+            if not isinstance(character.get(implant_key, False), bool):
+                raise ValueError(f"characters[{index}].{implant_key} must be true or false")
         apparel = character.get("apparel", [])
         if not isinstance(apparel, list) or not set(apparel).issubset(set(selected)):
             raise ValueError(f"characters[{index}].apparel must use included apparel")
@@ -473,12 +487,20 @@ def _write_about(config: dict) -> None:
     versions = ET.SubElement(root, "supportedVersions")
     ET.SubElement(versions, "li").text = "1.6"
     ET.SubElement(root, "packageId").text = config["mod"]["packageId"]
-    ET.SubElement(root, "description").text = "A clean, race-only Yuran derivative with selectable apparel and an installable dragon-skin texture swap. Buildings, factions, fiction, weapons, research, Miko and Shikigami content are intentionally excluded."
+    ET.SubElement(root, "description").text = "A clean, race-only Yuran derivative with selectable apparel, an installable dragon-skin texture swap, and a cybernetic dragon bone that toggles a configurable giant form. Buildings, factions, fiction, weapons, research, Miko and Shikigami content are intentionally excluded."
     dependencies = ET.SubElement(root, "modDependencies")
-    dependency = ET.SubElement(dependencies, "li")
-    ET.SubElement(dependency, "packageId").text = "erdelf.HumanoidAlienRaces"
-    ET.SubElement(dependency, "displayName").text = "Humanoid Alien Races"
-    ET.SubElement(dependency, "steamWorkshopUrl").text = "https://steamcommunity.com/sharedfiles/filedetails/?id=839005762"
+    for package_id, display_name, workshop_id in (
+        ("brrainz.harmony", "Harmony", "2009463077"),
+        ("RedMattis.BetterPrerequisites", "Big and Small - Framework", "2925432336"),
+        ("erdelf.HumanoidAlienRaces", "Humanoid Alien Races", "839005762"),
+    ):
+        dependency = ET.SubElement(dependencies, "li")
+        ET.SubElement(dependency, "packageId").text = package_id
+        ET.SubElement(dependency, "displayName").text = display_name
+        ET.SubElement(dependency, "steamWorkshopUrl").text = f"https://steamcommunity.com/sharedfiles/filedetails/?id={workshop_id}"
+    load_after = ET.SubElement(root, "loadAfter")
+    for package_id in ("brrainz.harmony", "RedMattis.BetterPrerequisites", "erdelf.HumanoidAlienRaces"):
+        ET.SubElement(load_after, "li").text = package_id
     (about / "About.xml").write_text(_xml_text(root), encoding="utf-8")
 
 
@@ -653,6 +675,132 @@ def _write_dragon_skin_defs() -> None:
     (defs_path / "DragonYuran_DragonSkin.xml").write_text(_xml_text(defs), encoding="utf-8")
 
 
+def _write_dragon_bone_defs(config: dict) -> dict:
+    giant_scale = float(config["mod"]["dragonBone"]["giantScale"])
+    defs = ET.Element("Defs")
+
+    item = ET.SubElement(defs, "ThingDef", {"ParentName": "BodyPartBionicBase"})
+    ET.SubElement(item, "defName").text = "DragonYuran_DragonBoneItem"
+    ET.SubElement(item, "label").text = "cybernetic dragon bone"
+    ET.SubElement(item, "description").text = "An articulated archotech-plasteel spine that lets a Dragon Yuran unfold into a giant form and return at will."
+    hyperlinks = ET.SubElement(item, "descriptionHyperlinks")
+    ET.SubElement(hyperlinks, "RecipeDef").text = "InstallDragonYuranDragonBone"
+    costs = ET.SubElement(item, "costList")
+    ET.SubElement(costs, "Plasteel").text = "40"
+    ET.SubElement(costs, "ComponentSpacer").text = "6"
+    stats = ET.SubElement(item, "statBases")
+    ET.SubElement(stats, "Mass").text = "4"
+    ET.SubElement(stats, "MarketValue").text = "4200"
+    ET.SubElement(stats, "WorkToMake").text = "24000"
+    recipe_maker = ET.SubElement(item, "recipeMaker", {"Inherit": "false"})
+    ET.SubElement(recipe_maker, "workSpeedStat").text = "GeneralLaborSpeed"
+    ET.SubElement(recipe_maker, "workSkill").text = "Crafting"
+    ET.SubElement(recipe_maker, "effectWorking").text = "Smith"
+    ET.SubElement(recipe_maker, "soundWorking").text = "Recipe_Smith"
+    ET.SubElement(recipe_maker, "unfinishedThingDef").text = "UnfinishedHealthItemBionic"
+    requirements = ET.SubElement(recipe_maker, "skillRequirements")
+    ET.SubElement(requirements, "Crafting").text = "10"
+    ET.SubElement(recipe_maker, "researchPrerequisite").text = "Fabrication"
+    recipe_users = ET.SubElement(recipe_maker, "recipeUsers")
+    ET.SubElement(recipe_users, "li").text = "FabricationBench"
+
+    implant = ET.SubElement(defs, "HediffDef", {"ParentName": "AddedBodyPartBase"})
+    ET.SubElement(implant, "defName").text = "DragonYuran_DragonBone"
+    ET.SubElement(implant, "label").text = "dragon bone"
+    ET.SubElement(implant, "labelNoun").text = "a cybernetic dragon bone"
+    ET.SubElement(implant, "description").text = f"A cybernetic spinal frame calibrated to unfold this Dragon Yuran to {giant_scale:g}× body size. It grants the Dragon Giant Form ability."
+    ET.SubElement(implant, "spawnThingOnRemoved").text = "DragonYuran_DragonBoneItem"
+    abilities = ET.SubElement(implant, "abilities")
+    ET.SubElement(abilities, "li").text = "DragonYuran_GiantTransform"
+    added_props = ET.SubElement(implant, "addedPartProps")
+    ET.SubElement(added_props, "solid").text = "true"
+    ET.SubElement(added_props, "betterThanNatural").text = "true"
+    ET.SubElement(added_props, "partEfficiency").text = "1.15"
+
+    giant = ET.SubElement(defs, "HediffDef")
+    ET.SubElement(giant, "defName").text = "DragonYuran_GiantForm"
+    ET.SubElement(giant, "label").text = "dragon giant form"
+    ET.SubElement(giant, "description").text = f"The dragon bone is fully unfolded, multiplying physical and rendered body size by {giant_scale:g}. Cancel this status to return to normal form."
+    ET.SubElement(giant, "hediffClass").text = "HediffWithComps"
+    ET.SubElement(giant, "isBad").text = "false"
+    ET.SubElement(giant, "initialSeverity").text = "1"
+    stages = ET.SubElement(giant, "stages")
+    stage = ET.SubElement(stages, "li")
+    factors = ET.SubElement(stage, "statFactors")
+    ET.SubElement(factors, "SM_BodySizeMultiplier").text = f"{giant_scale:.3f}"
+    ET.SubElement(factors, "StaggerDurationFactor").text = "0.5"
+    comps = ET.SubElement(giant, "comps")
+    cancel = ET.SubElement(comps, "li", {"Class": "BigAndSmall.CompProperties_CanCancelHediff"})
+    ET.SubElement(cancel, "iconPath").text = "UI/Designators/Cancel"
+
+    ability = ET.SubElement(defs, "AbilityDef")
+    ET.SubElement(ability, "defName").text = "DragonYuran_GiantTransform"
+    ET.SubElement(ability, "label").text = "dragon giant form"
+    ET.SubElement(ability, "description").text = f"Unfold the cybernetic dragon bone and transform to {giant_scale:g}× body size. The form remains active until manually cancelled."
+    ET.SubElement(ability, "abilityClass").text = "BigAndSmall.UsableDownedAbility"
+    ET.SubElement(ability, "iconPath").text = "UI/Designators/Cancel"
+    ET.SubElement(ability, "cooldownTicksRange").text = "1400"
+    ET.SubElement(ability, "hostile").text = "false"
+    ET.SubElement(ability, "targetRequired").text = "false"
+    ET.SubElement(ability, "displayGizmoWhileUndrafted").text = "true"
+    ET.SubElement(ability, "disableGizmoWhileUndrafted").text = "false"
+    ET.SubElement(ability, "casterMustBeCapableOfViolence").text = "false"
+    ET.SubElement(ability, "groupAbility").text = "true"
+    ET.SubElement(ability, "aiCanUse").text = "false"
+    verb = ET.SubElement(ability, "verbProperties")
+    ET.SubElement(verb, "verbClass").text = "Verb_CastAbility"
+    ET.SubElement(verb, "label").text = "Transform"
+    ET.SubElement(verb, "violent").text = "false"
+    ET.SubElement(verb, "warmupTime").text = "1"
+    ET.SubElement(verb, "range").text = "1"
+    ET.SubElement(verb, "requireLineOfSight").text = "false"
+    ET.SubElement(verb, "nonInterruptingSelfCast").text = "true"
+    ET.SubElement(verb, "targetable").text = "false"
+    targets = ET.SubElement(verb, "targetParams")
+    ET.SubElement(targets, "canTargetSelf").text = "true"
+    ability_comps = ET.SubElement(ability, "comps")
+    give = ET.SubElement(ability_comps, "li", {"Class": "BigAndSmall.CompProperties_AbilityGiveHediffComplex"})
+    ET.SubElement(give, "compClass").text = "BigAndSmall.CompAbilityEffect_GiveHediffComplex"
+    ET.SubElement(give, "hediffDef").text = "DragonYuran_GiantForm"
+    ET.SubElement(give, "replaceExisting").text = "true"
+    ET.SubElement(give, "onlyApplyToSelf").text = "true"
+
+    recipe = ET.SubElement(defs, "RecipeDef", {"ParentName": "SurgeryInstallBodyPartArtificialBase"})
+    ET.SubElement(recipe, "defName").text = "InstallDragonYuranDragonBone"
+    ET.SubElement(recipe, "label").text = "install cybernetic dragon bone"
+    ET.SubElement(recipe, "description").text = "Replace a Dragon Yuran's spine with a transforming cybernetic dragon bone."
+    recipe_links = ET.SubElement(recipe, "descriptionHyperlinks")
+    ET.SubElement(recipe_links, "ThingDef").text = "DragonYuran_DragonBoneItem"
+    ET.SubElement(recipe_links, "HediffDef").text = "DragonYuran_DragonBone"
+    ET.SubElement(recipe, "jobString").text = "Installing cybernetic dragon bone."
+    ingredients = ET.SubElement(recipe, "ingredients")
+    ingredient = ET.SubElement(ingredients, "li")
+    filt = ET.SubElement(ingredient, "filter")
+    thing_defs = ET.SubElement(filt, "thingDefs")
+    ET.SubElement(thing_defs, "li").text = "DragonYuran_DragonBoneItem"
+    ET.SubElement(ingredient, "count").text = "1"
+    fixed_filter = ET.SubElement(recipe, "fixedIngredientFilter")
+    fixed_defs = ET.SubElement(fixed_filter, "thingDefs")
+    ET.SubElement(fixed_defs, "li").text = "DragonYuran_DragonBoneItem"
+    parts = ET.SubElement(recipe, "appliedOnFixedBodyParts")
+    ET.SubElement(parts, "li").text = "Spine"
+    ET.SubElement(recipe, "addsHediff").text = "DragonYuran_DragonBone"
+    users = ET.SubElement(recipe, "recipeUsers")
+    ET.SubElement(users, "li").text = "DragonYuran_Race"
+
+    defs_path = MOD_OUTPUT / "1.6" / "Defs"
+    (defs_path / "DragonYuran_DragonBone.xml").write_text(_xml_text(defs), encoding="utf-8")
+    return {
+        "item": "DragonYuran_DragonBoneItem",
+        "implant": "DragonYuran_DragonBone",
+        "ability": "DragonYuran_GiantTransform",
+        "giantForm": "DragonYuran_GiantForm",
+        "giantScale": giant_scale,
+        "frameworkPackageId": "RedMattis.BetterPrerequisites",
+        "forbiddenGenesPackageId": "RedMattis.BigSmall.Core",
+    }
+
+
 def _write_apparel_defs(config: dict, catalog: dict) -> list[dict]:
     by_def = {item["defName"]: item for item in catalog["apparel"]}
     root = ET.Element("Defs")
@@ -759,7 +907,7 @@ def _color_tuple(value: str) -> str:
 def _write_pcc(character: dict, apparel_map: dict[str, str]) -> Path:
     root = ET.Element("character")
     ET.SubElement(root, "version").text = "5"
-    ET.SubElement(root, "mods").text = "Harmony, Humanoid Alien Races, Dragon Yuran, EdB Prepare Carefully"
+    ET.SubElement(root, "mods").text = "Harmony, Big and Small - Framework, Humanoid Alien Races, Dragon Yuran, EdB Prepare Carefully"
     pawn = ET.SubElement(root, "pawn")
     values = {
         "id": str(uuid.uuid5(uuid.NAMESPACE_URL, "dragon-yuran:" + character["id"])),
@@ -793,12 +941,18 @@ def _write_pcc(character: dict, apparel_map: dict[str, str]) -> Path:
         ET.SubElement(item, "quality").text = "Normal"
         ET.SubElement(item, "hitPoints").text = "100"
         ET.SubElement(item, "color").text = "(1, 1, 1, 1)"
+    implant_specs = []
     if character.get("dragonSkinInstalled"):
+        implant_specs.append(("InstallDragonYuranDragonSkin", "DragonYuran_DragonSkin", "Torso"))
+    if character.get("dragonBoneInstalled"):
+        implant_specs.append(("InstallDragonYuranDragonBone", "DragonYuran_DragonBone", "Spine"))
+    if implant_specs:
         implants = ET.SubElement(pawn, "implants")
+    for recipe_def, hediff_def, body_part in implant_specs:
         implant = ET.SubElement(implants, "li")
-        ET.SubElement(implant, "recipe").text = "InstallDragonYuranDragonSkin"
-        ET.SubElement(implant, "hediff").text = "DragonYuran_DragonSkin"
-        ET.SubElement(implant, "bodyPart").text = "Torso"
+        ET.SubElement(implant, "recipe").text = recipe_def
+        ET.SubElement(implant, "hediff").text = hediff_def
+        ET.SubElement(implant, "bodyPart").text = body_part
         ET.SubElement(implant, "severity").text = "1"
     CHARACTER_OUTPUT.mkdir(parents=True, exist_ok=True)
     filename = re.sub(r"[^A-Za-z0-9._-]+", "_", character["id"]) + ".pcc"
@@ -821,6 +975,7 @@ def build() -> dict:
     _write_about(config)
     _write_race_defs()
     _write_dragon_skin_defs()
+    dragon_bone = _write_dragon_bone_defs(config)
     apparel = _write_apparel_defs(config, catalog)
     textures = _copy_textures(config, catalog)
     apparel_map = {item["sourceDef"]: item["defName"] for item in apparel}
@@ -829,8 +984,10 @@ def build() -> dict:
         "status": "success", "builtAt": now(), "sourceWorkshopId": "2844129100", "rimworldVersion": "1.6.4871",
         "mod": str(MOD_OUTPUT.relative_to(REPO_ROOT)), "packageId": config["mod"]["packageId"],
         "included": {"raceDefs": ["DragonYuran_Race", "DragonYuran_Colonist"], "apparel": apparel, "textureFiles": len(textures), "characters": [path.name for path in characters]},
-        "excluded": ["Yuran fiction and backstories", "factions", "buildings", "weapons", "research", "Miko variants", "Black Snake variants", "Shikigami", "custom Yuran assemblies"],
+        "excluded": ["Yuran fiction and backstories", "factions", "buildings", "weapons", "research", "Miko variants", "Black Snake variants", "Shikigami", "custom Yuran assemblies", "Big and Small - Genes & More"],
         "dragonSkin": {"hediff": "DragonYuran_DragonSkin", "recipe": "InstallDragonYuranDragonSkin", "fallback": "original Yuran body/head textures until an imported img2img sheet replaces the body and hairless-face canvases"},
+        "dragonBone": dragon_bone,
+        "dependencies": ["brrainz.harmony", "RedMattis.BetterPrerequisites", "erdelf.HumanoidAlienRaces"],
         "gameLaunched": False,
     }
     OUTPUTS.mkdir(parents=True, exist_ok=True)
@@ -949,6 +1106,7 @@ def deploy() -> dict:
             f"test -f '{REMOTE_MOD}About/About.xml' "
             f"&& test -f '{REMOTE_HARMONY_DLL}' "
             f"&& test -f '{REMOTE_HAR_DLL}' "
+            f"&& test -f '{REMOTE_BIG_SMALL_FRAMEWORK_DLL}' "
             f"&& test -f '{REMOTE_PREPARE_CAREFULLY_DLL}' "
             f"&& find '{REMOTE_MOD}' -type f | wc -l "
             f"&& find '{REMOTE_SAVE}' -maxdepth 1 -name '*.pcc' -type f | wc -l "
@@ -965,7 +1123,7 @@ def deploy() -> dict:
     deployed = {
         "status": "success", "deployedAt": now(), "remoteMod": REMOTE_MOD, "remotePrepareCarefully": REMOTE_SAVE,
         "remoteFileCount": remote_files, "remoteCharacterCount": remote_characters,
-        "dependencies": {"harmony": True, "humanoidAlienRaces": True, "prepareCarefully": True},
+        "dependencies": {"harmony": True, "bigSmallFramework": True, "humanoidAlienRaces": True, "prepareCarefully": True},
         "packageId": report["packageId"], "gameLaunched": False, "activeModListChanged": False,
     }
     (OUTPUTS / "deploy_report.json").write_text(json.dumps(deployed, indent=2) + "\n", encoding="utf-8")
