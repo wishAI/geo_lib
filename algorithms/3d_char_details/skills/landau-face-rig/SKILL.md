@@ -39,7 +39,7 @@ The original USD is one connected sculpted mesh with 50,000 triangles, split UV 
 
 Preserve original vertex positions, corner UVs and custom normals when constructing subsets. Do not collapse the render mesh merely because the analysis graph welds UV seams. Small enclosed residual regions near the mouth/philtrum were reassigned from neighboring geometry; broad texture-color classification previously produced blue spots and misaligned cream regions.
 
-Current clean facial palette: head blue `#4b9fb7`, cream `#fff0c1`, ocular white `#fffbee`, lashes/brows navy `#182d5e`, nose `#781729`, inner ear `#e6a6b6`. These are sRGB values converted to linear material inputs. The face uses clean materials without the inaccurate original base-color/normal maps. Body and garment materials remain unfinished.
+Current clean facial palette: head blue `#4b9fb7`, cream `#fff0c1`, ocular white `#fffbee`, lashes/brows navy `#182d5e`, nose `#781729`, inner ear `#e6a6b6`. These are sRGB values converted to linear material inputs. The face uses clean materials without the inaccurate original base-color/normal maps. The supplied body has blue/cream vertex colors. Original garment materials are restored for user fitting.
 
 Round iris/pupil/highlights fit a smooth surface derived from ocular geometry only. Projecting onto the whole face previously placed red iris arcs on the cream face and exposed them through blinking lids. Preserve independent ocular components; extreme gaze combinations still need review.
 
@@ -81,10 +81,13 @@ Keep generated outputs and large binaries out of Git. Archive revised masters an
 
 ## Honest continuation state
 
-- Original source neutral geometry is preserved; the prototype adds ocular details and upper-lid controls. Outer eye corners and lash silhouettes still require art review.
+- Protected original facial local geometry is preserved; the head is rigidly translated for the uniformly scaled FBX body. The prototype adds ocular details and upper-lid controls. Outer eye corners and lash silhouettes still require art review.
 - Current export has 71 bones (68 source plus ear/tail additions) and custom facial controls. This is not a complete ARKit, VRM or FaceRig mapping. `jawDrop` does not provide an oral cavity, phonemes or production lip sync.
-- `Body_UnderClothes` is a hidden rough capsule/voxel approximation and can intersect clothing. Clothing visibility currently does **not** satisfy the user's complete independent-body requirement.
-- For subsequent clothing work, infer a coherent complete body from the character's anatomy and reference proportions; do not shrink garments to fake it. Body and clothes need independent meshes with compatible skinning, usable garment hiding/replacement, refined material boundaries, and joint-pose deformation checks. Preserve the facial components and expression behavior while doing that work.
+- Revision 4 uses the user-provided `landau_body.fbx`, uniformly scaled by 0.79 on every axis. Move the skeleton to the body; do not nonuniformly compress or independently warp limb segments to the old rig. Earlier capsule bodies, custom boots and distorted FBX fitting experiments were rejected.
+- The original head and hands are retained. The head receives a rigid translation, hands a rigid wrist transform. The FBX neck is cut at source Z=0.96, with a short transition collar to the exact original 82-vertex head boundary. The two wrist joins are continuous mesh connections. The separate body alone has that open neck rim; do not falsely call it a closed standalone headless manifold.
+- Original garments and boots retain their source Basis geometry, topology, UVs, normals, weights and materials. Only rigid placement changes. All 19 body and 39 garment controls default to zero. Garments default hidden, and remain unfitted/intersecting until the user adjusts them, as expressly requested.
+- Body skin uses smoothed source weights on the same 71-bone rig. Neutral shape stays unchanged during weight refinement. Deep hip bends still require corrective shapes and art review; finite pose checks are not a production deformation certificate.
+- Current implementation: `integrate_fbx_body.py`, `refine_body_skin.py`, `match_neck_normals.py`, `body_adjustments.py`. `rebuild_body.py` contains shared helpers only. Current body proofs are `fbx_integrated_front`, `fbx_integrated_side`, `fbx_neck_hand`, `body_elbow_90`, `body_bent_legs`, and `export_body`. Read `body_build.json` and `body_validation.json` with the current asset report.
 - Do not claim universal game readiness: retargeting, extreme poses, mouth interiors, LOD, collisions and cloth behavior remain separate acceptance work.
 
 Useful conceptual references: [Blender Rigify face rig types](https://docs.blender.org/manual/en/latest/addons/rigify/rig_types/face.html) and [Blender Studio facial-rigging eyes chapter](https://studio.blender.org/training/facial-rigging/chapter/eyes/). The public chapter overview was consulted; paid lesson contents were not reviewed.

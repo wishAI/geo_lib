@@ -20,8 +20,19 @@ def validate():
     report=json.loads((OUT/'asset_report.json').read_text())
     assert hashlib.sha256(data).hexdigest()==report['glb_sha256'], 'Report is for a different GLB'
     assert not any('uri' in x for x in gltf.get('buffers',[])+gltf.get('images',[])), 'External asset dependency'
-    assert report['neutral_preservation']['max_position_error']==0, 'Neutral geometry changed'
-    assert report['neutral_preservation']['retained_faces']==report['neutral_preservation']['source_faces']==50000
+    body_report=report.get('body_reconstruction')
+    if body_report:
+        assert report['version']==body_report['revision'] and body_report['revision'] in [3,4], 'Unexpected body revision'
+        preservation=report['neutral_preservation']
+        assert preservation['revision']==body_report['revision'] and preservation['face_exactly_preserved'], 'Missing facial preservation contract'
+        before=body_report['face_hashes_before'];after=body_report['face_hashes_after']
+        assert before and before==after and body_report['face_exactly_preserved'], 'Protected facial data changed'
+        assert {'Head','Lash_L','Lash_R','UpperLid_L','UpperLid_R'}<=before.keys(), 'Incomplete facial snapshot'
+        assert all(len(h)==64 and all(c in '0123456789abcdef' for c in h) for h in before.values()), 'Invalid facial digest'
+        assert math.isfinite(body_report['head_rigid_lift']) and preservation['head_rigid_lift']==body_report['head_rigid_lift']
+    else:
+        assert report['neutral_preservation']['max_position_error']==0, 'Neutral geometry changed'
+        assert report['neutral_preservation']['retained_faces']==report['neutral_preservation']['source_faces']==50000
     assert not report['validation']['errors'] and report['validation']['invalid_skin_vertices']==0
     components={'SCALAR':1,'VEC2':2,'VEC3':3,'VEC4':4,'MAT4':16}
     formats={5126:('f',4),5125:('I',4),5123:('H',2),5121:('B',1),5122:('h',2),5120:('b',1)}
@@ -66,13 +77,44 @@ def validate():
     bone_counts=[len(s['joints']) for s in gltf['skins']]
     assert max(bone_counts)==71
     assert {'eyeBlinkL','eyeBlinkR','mouthSmile','jawDrop','eyeLookUpL','eyeSize','cheekFullness'}<=controls
-    assert triangles==report['validation']['triangles']
+    assert triangles==report['validation']['triangles'], 'Unexpected extra or missing exported geometry'
+    assert len(gltf['meshes'])==report['validation']['mesh_count'], 'Unexpected inspection meshes in export'
+    assert len(gltf['scenes'])==1, 'Export must contain only the active character scene'
     hidden=[n['name'] for n in gltf['nodes'] if n.get('extras',{}).get('default_hidden')]
-    assert hidden==['Body_UnderClothes']
-    result={'status':'passed','triangles_including_hidden_body':triangles,'visible_source_triangles':50000,
+    if body_report:
+        nodes={n['name']:n for n in gltf['nodes'] if 'name' in n}
+        body_name=body_report['body_mesh'];assert body_name=='Body_Complete' and body_name in nodes, 'Complete body missing'
+        assert 'Body_UnderClothes' not in nodes, 'Obsolete body approximation remains'
+        body=nodes[body_name];extras=body.get('extras',{})
+        assert 'mesh' in body and 'skin' in body, 'Complete body is not independently skinned'
+        assert extras.get('complete_under_outfit') and not extras.get('default_hidden'), 'Complete body is hidden or incomplete'
+        assert extras.get('part_type')=='inferred_body', 'Body visibility metadata missing'
+        joints=gltf['skins'][body['skin']]['joints']
+        assert len(joints)==71
+        expected_garments={'Vest','Sleeve_L','Sleeve_R','Cuff_L','Cuff_R','Trousers','Boot_L','Boot_R'}
+        assert set(body_report['garments'])==expected_garments, 'Incomplete garment inventory'
+        mesh_ids={body['mesh']}
+        for name in body_report['garments']:
+            assert name in nodes, 'Missing garment: '+name
+            garment=nodes[name]
+            assert garment.get('extras',{}).get('part_type')=='clothing', 'Garment visibility metadata missing: '+name
+            assert 'mesh' in garment and 'skin' in garment, 'Garment not independently skinned: '+name
+            assert garment['mesh'] not in mesh_ids, 'Body/garment mesh data is shared: '+name
+            mesh_ids.add(garment['mesh'])
+            assert gltf['skins'][garment['skin']]['joints']==joints, 'Garment skeleton differs: '+name
+        assert before.keys()<=nodes.keys(), 'Protected facial objects missing from export'
+    else:
+        assert hidden==['Body_UnderClothes']
+    result={'status':'passed','triangles':triangles,
         'skinned_vertices':skinned,'bones':max(bone_counts),'controls':len(controls),
-        'source_neutral_positions':'exact','original_lashes_animated':True,'ocular_blink_deformation':False,'lower_eyelid':False,'embedded_images':len(gltf.get('images',[])),
+        'source_neutral_positions':'face local data exact; whole head rigidly relocated' if body_report else 'exact',
+        'original_lashes_animated':True,'ocular_blink_deformation':False,'lower_eyelid':False,'embedded_images':len(gltf.get('images',[])),
         'scope':'Data integrity. Likeness, extreme poses and production lip sync are separate art gates.'}
+    if body_report:
+        result.update({'body_revision':body_report['revision'],'complete_body_visible':True,'garments_share_body_skeleton':True,
+            'protected_facial_objects':len(before),'head_rigid_lift':body_report['head_rigid_lift']})
+    else:
+        result.update({'triangles_including_hidden_body':triangles,'visible_source_triangles':50000})
     print(json.dumps(result,indent=2));return result
 
 if __name__=='__main__':validate()

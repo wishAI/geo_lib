@@ -3,7 +3,7 @@
   "icon": "sliders",
   "name": "3d char details",
   "eyebrow": "CHARACTER SANDBOX",
-  "summary": "Landau character workshop: inspect the white structure against three references, edit facial shapes and body poses, separate clothing, and export GLB.",
+  "summary": "Uniformly scaled user FBX body, preserved Landau face and hands, original clothing, body and garment fit controls.",
   "accent": "#8b699d",
   "runtime": "local",
   "runtimeLabel": "Local 3D editor",
@@ -138,6 +138,31 @@
           "path": "algorithms/3d_char_details/inputs/landau_v10/half_closed_reference2.png",
           "kind": "image",
           "syncOnly": true
+        },
+        {
+          "label": "Supplied body reference",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/internal_reference.png",
+          "kind": "image"
+        },
+        {
+          "label": "Uniform body front",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/fbx_integrated_front.png",
+          "kind": "image"
+        },
+        {
+          "label": "Uniform body side",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/fbx_integrated_side.png",
+          "kind": "image"
+        },
+        {
+          "label": "Body pose validation",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/body_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "FBX integration report",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/body_build.json",
+          "kind": "json"
         }
       ]
     }

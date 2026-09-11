@@ -138,15 +138,15 @@
     },
     {
       "repoPath": "algorithms/3d_char_details/outputs/landau_v10/landau_character.blend",
-      "cloudPath": "assets/3d_char_details/landau_v10/landau_original_lashes_20260910_188477748065.blend",
-      "size": 29879001,
-      "sha256": "18847774806515ad92be70a6168b0006de30ff37c210a5872a16b8762c5d8a97"
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/landau_character_d61194e3a734e089.blend",
+      "size": 84897270,
+      "sha256": "d61194e3a734e089b1b2665f80c3ea7be6dc4975ee933d7f3f8f459c1646fc59"
     },
     {
       "repoPath": "algorithms/3d_char_details/outputs/landau_v10/landau_character.glb",
-      "cloudPath": "assets/3d_char_details/landau_v10/landau_original_lashes_20260910_38d776c1bc1f.glb",
-      "size": 34231408,
-      "sha256": "38d776c1bc1f12a5b79c83f34bf2ad3daa1e72022efdcc89947c1d4290a19c6e"
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/landau_character_a70a192a1d4f1c0b.glb",
+      "size": 63723612,
+      "sha256": "a70a192a1d4f1c0bcd9af234e2e28fbb7303aafb9acc4fe3302f7f54f900cab5"
     },
     {
       "repoPath": "algorithms/3d_char_details/inputs/landau_v10/textures/texture_pbr_20250901.png",
@@ -174,9 +174,33 @@
     },
     {
       "repoPath": "algorithms/3d_char_details/outputs/landau_v10/asset_report.json",
-      "cloudPath": "assets/3d_char_details/landau_v10/asset_report_ce1f6b0c2b35.json",
-      "size": 8409,
-      "sha256": "ce1f6b0c2b35e803560402e3c0ca48c04f093831742234622cd4a34085496f4c"
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/asset_report_6965e2ad2bb4876a.json",
+      "size": 41855,
+      "sha256": "6965e2ad2bb4876a5f63b22c81865b8cfb18d2d240cc30bbb4bb855c487dd37b"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/inputs/landau_v10/landau_body.fbx",
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/landau_body_dbc9d31d9a934271.fbx",
+      "size": 16584540,
+      "sha256": "dbc9d31d9a93427128d03f32d1fe8882215f3e7ce3a453194cd2b22e3d66d14a"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/outputs/landau_v10/body_before.blend",
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/body_before_fa2971aad5d88f1c.blend",
+      "size": 29881018,
+      "sha256": "fa2971aad5d88f1c479dc1fa2d2cff6211f81e74a700b3ebe2d6458f0440ad32"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/outputs/landau_v10/body_build.json",
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/body_build_b6111f90b0d74eb8.json",
+      "size": 23259,
+      "sha256": "b6111f90b0d74eb8ccf31b0ba42779693c6b2f09a47a919c007c3e24a0a73095"
+    },
+    {
+      "repoPath": "algorithms/3d_char_details/outputs/landau_v10/body_validation.json",
+      "cloudPath": "assets/3d_char_details/landau_v10/revision4/body_validation_dc53929b23575a82.json",
+      "size": 6104,
+      "sha256": "dc53929b23575a823a02d9247da80affd4f529ce50eaa538a5be361d51ffe782"
     }
   ]
 }

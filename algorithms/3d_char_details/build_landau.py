@@ -416,6 +416,26 @@ def proportions():
                 vv=v.copy();vv[:,2]-=.007*w;add_key(o,'browDown'+side,vv)
 
 def validate_and_save():
+    body_report=REPORT.get('body_reconstruction')
+    if body_report:
+        if body_report.get('revision') not in [3,4] or not body_report.get('face_exactly_preserved'):
+            raise RuntimeError('Missing facial preservation contract')
+        if body_report['face_hashes_before']!=body_report['face_hashes_after']:
+            raise RuntimeError('Protected facial data changed during body reconstruction')
+        previous=REPORT.get('neutral_preservation',{})
+        if 'source_faces' in previous:
+            REPORT['source_partition_before_reconstruction']=previous
+        REPORT['version']=body_report['revision']
+        REPORT['neutral_preservation']={
+            'revision':body_report['revision'],'scope':'Protected facial local geometry, topology, UVs, normals, weights, materials and morphs',
+            'face_exactly_preserved':True,'head_rigid_lift':body_report['head_rigid_lift'],
+            'body_and_garment_topology':'Reconstructed independently; original whole-source triangle count no longer applies'}
+        REPORT['inferred_geometry']=[n for n in REPORT.get('inferred_geometry',[]) if n!='Body_UnderClothes']
+        if body_report['body_mesh'] not in REPORT['inferred_geometry']:
+            REPORT['inferred_geometry'].append(body_report['body_mesh'])
+        REPORT['limitations']=[s for s in REPORT.get('limitations',[]) if not s.startswith('Body skinning retains the source rig;')]
+        note='Body and garments use authored weights on the shared rig; extreme poses need art review.'
+        if note not in REPORT['limitations']:REPORT['limitations'].append(note)
     meshes=[o for o in bpy.context.scene.objects if o.type=='MESH'];bad=0;errors=[];key_counts={}
     for o in meshes:
         for v in o.data.vertices:
@@ -444,7 +464,7 @@ def validate_and_save():
     bpy.ops.object.select_all(action='DESELECT');RIG.select_set(True)
     for o in meshes:
         o.hide_set(False);o.select_set(True)
-    bpy.ops.export_scene.gltf(filepath=str(OUT/'landau_character.glb'),export_format='GLB',use_selection=True,export_animations=False,export_morph=True,export_skins=True,export_extras=True,export_image_format='AUTO')
+    bpy.ops.export_scene.gltf(filepath=str(OUT/'landau_character.glb'),export_format='GLB',use_selection=True,use_active_scene=True,export_animations=False,export_morph=True,export_skins=True,export_extras=True,export_image_format='AUTO')
     for o in meshes:
         if o.get('default_hidden'):o.hide_set(True)
     REPORT['glb_sha256']=hashlib.sha256((OUT/'landau_character.glb').read_bytes()).hexdigest()
@@ -471,10 +491,19 @@ def main():
     REPORT['geometric_components']=geometry_report
     FUR=material('Reconstructed teal fur',(.16,.44,.48))
     segment()
-    o=underbody();o.hide_render=True;o.hide_set(True);o['default_hidden']=True
     clean_face_material();lash_beds();eye_details();face_controls();curved_lids()
     REPORT['neutral_preservation']={'source_faces':len(SOURCE_OBJ.data.polygons),'retained_faces':sum(len(bpy.data.objects[n].data.polygons) for n in SOURCE_MAP),'max_position_error':max(float(np.max(np.abs(np.array([v.co[:] for v in bpy.data.objects[n].data.vertices])-np.array([SOURCE_OBJ.data.vertices[i].co[:] for i in ids])))) for n,ids in SOURCE_MAP.items()),'corner_uvs_preserved':True,'corner_normals_preserved':True}
     bpy.data.objects.remove(SOURCE_OBJ,do_unlink=True)
-    improve_rig();proportions();validate_and_save()
+    improve_rig();proportions()
+    bpy.ops.import_scene.fbx(filepath=str(ROOT/'inputs/landau_v10/landau_body.fbx'))
+    for o in bpy.context.selected_objects:
+        if o.type=='MESH':o.name='FBX_SourceBody'
+        elif o.type=='ARMATURE':o.name='FBX_SourceRig';o.data.pose_position='REST'
+    REPORT['body_reconstruction']=runpy.run_path(str(ROOT/'integrate_fbx_body.py'))['run']()
+    runpy.run_path(str(ROOT/'refine_neck_transition.py'))['run']()
+    runpy.run_path(str(ROOT/'refine_body_skin.py'))['run']()
+    runpy.run_path(str(ROOT/'match_neck_normals.py'))['run']()
+    REPORT['body_reconstruction']=runpy.run_path(str(ROOT/'body_adjustments.py'))['run']()
+    validate_and_save()
 
 if __name__=='__main__':main()

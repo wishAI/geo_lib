@@ -15,6 +15,15 @@ def set_blink(value):
     bpy.context.scene.frame_set(1);bpy.context.view_layer.update()
 
 def main():
+    body=bpy.data.objects.get('Body_Complete');lift=0.0
+    if body:
+        lift=body.get('head_rigid_lift',bpy.context.scene.get('head_rigid_lift'))
+        if lift is None:
+            report_path=OUT/'asset_report.json'
+            report=json.loads(report_path.read_text()) if report_path.exists() else {}
+            lift=report.get('body_reconstruction',{}).get('head_rigid_lift')
+        if lift is None:raise RuntimeError('Complete body lacks head placement metadata for proof framing')
+        lift=float(lift)
     assert not any(o.name.startswith('LowerLid') for o in bpy.context.scene.objects)
     independent=[]
     for o in bpy.context.scene.objects:
@@ -41,12 +50,12 @@ def main():
         if o.type=='LIGHT':o.data.energy*=.7
     bpy.context.scene.cycles.samples=8;bpy.context.scene.render.resolution_percentage=70
     for value,name in [(0,'geometry_open'),(.5,'geometry_half'),(1,'geometry_closed')]:
-        set_blink(value);helpers['render_view'](name,(0,-2,.7),target=(0,0,.7),scale=.36)
+        set_blink(value);helpers['render_view'](name,(0,-2,.7+lift),target=(0,0,.7+lift),scale=.36)
     set_blink(0)
-    helpers['render_view']('geometry_threequarter',(.8,-2,.71),target=(0,0,.7),scale=.36)
-    helpers['render_view']('geometry_full',(0,-3,.58))
+    helpers['render_view']('geometry_threequarter',(.8,-2,.71+lift),target=(0,0,.7+lift),scale=.36)
+    helpers['render_view']('geometry_full',(0,-3,.58+lift/2),target=(0,0,.58+lift/2),scale=1.28+lift)
     result={'blink_static_ocular_parts':sorted(independent),'original_lash_attachment':joins,
-        'states_rendered':[0,.5,1],'source_geometry_preserved':True,'lower_lid_geometry':False,'replacement_eyelashes':False}
+        'states_rendered':[0,.5,1],'head_rigid_lift':lift,'lower_lid_geometry':False,'replacement_eyelashes':False}
     (OUT/'likeness_validation.json').write_text(json.dumps(result,indent=2))
     print(json.dumps(result))
 
