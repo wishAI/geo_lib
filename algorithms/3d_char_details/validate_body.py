@@ -36,8 +36,9 @@ def rotate(name,axis,degrees):
 
 def run(render=True):
     reset();body=bpy.data.objects['Body_Complete'];bm=bmesh.new();bm.from_mesh(body.data)
-    topology={'vertices':len(bm.verts),'faces':len(bm.faces),'boundary_edges':sum(e.is_boundary for e in bm.edges),'nonmanifold_edges':sum(not e.is_manifold for e in bm.edges),'loose_vertices':sum(not v.link_faces for v in bm.verts),'quad_faces':sum(len(f.verts)==4 for f in bm.faces)};bm.free()
-    assert topology['boundary_edges']==82 and topology['nonmanifold_edges']==82 and topology['loose_vertices']==0, 'Expected only the paired neck rim to remain open'
+    topology={'vertices':len(bm.verts),'faces':len(bm.faces),'boundary_edges':sum(e.is_boundary for e in bm.edges),'nonmanifold_edges':sum(not e.is_manifold for e in bm.edges),'loose_vertices':sum(not v.link_faces for v in bm.verts),'quad_faces':sum(len(f.verts)==4 for f in bm.faces),'neck_boundary_edges':sum(e.is_boundary and all(.752<v.co.z<.81 for v in e.verts) for e in bm.edges)};bm.free()
+    if body.get('continuous_head'):assert topology['neck_boundary_edges']==0 and topology['loose_vertices']==0, 'Welded neck must have no open edges'
+    else:assert topology['boundary_edges']==82 and topology['nonmanifold_edges']==82 and topology['loose_vertices']==0, 'Expected only the paired neck rim to remain open'
     invalid=[]
     for o in [body]+[bpy.data.objects[n] for n in GARMENTS]:
         assert next(m.object for m in o.modifiers if m.type=='ARMATURE')==bpy.data.objects['Landau_Rig']
@@ -69,6 +70,6 @@ def run(render=True):
         if controls[name]['kind']=='outfit':assert np.max(np.abs(evaluated(body)[0]-neutral))<1e-6,'Garment control changed body'
         tested.append(name);reset()
     result['all_adjustment_controls_tested_individually_at_one']=tested
-    result['scope']='Body has an open 82-vertex rim paired exactly to the original head. Original garments are reset for manual fitting; their clearance values are diagnostics, not acceptance passes.'
+    result['scope']='Revision 5 has a welded continuous head/body junction; other pre-existing facial openings are separate components. Original garments are reset for manual fitting; their clearance values are diagnostics, not acceptance passes.'
     (OUT/'body_validation.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2));return result
 if __name__=='__main__':run()

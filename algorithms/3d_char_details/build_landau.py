@@ -418,7 +418,7 @@ def proportions():
 def validate_and_save():
     body_report=REPORT.get('body_reconstruction')
     if body_report:
-        if body_report.get('revision') not in [3,4] or not body_report.get('face_exactly_preserved'):
+        if body_report.get('revision') not in [3,4,5] or not body_report.get('face_exactly_preserved'):
             raise RuntimeError('Missing facial preservation contract')
         if body_report['face_hashes_before']!=body_report['face_hashes_after']:
             raise RuntimeError('Protected facial data changed during body reconstruction')
@@ -427,7 +427,7 @@ def validate_and_save():
             REPORT['source_partition_before_reconstruction']=previous
         REPORT['version']=body_report['revision']
         REPORT['neutral_preservation']={
-            'revision':body_report['revision'],'scope':'Protected facial local geometry, topology, UVs, normals, weights, materials and morphs',
+            'revision':body_report['revision'],'scope':'Original face preserved above the neck blend band; head and body share welded skin vertices' if body_report.get('continuous_skin') else 'Protected facial local geometry, topology, UVs, normals, weights, materials and morphs',
             'face_exactly_preserved':True,'head_rigid_lift':body_report['head_rigid_lift'],
             'body_and_garment_topology':'Reconstructed independently; original whole-source triangle count no longer applies'}
         REPORT['inferred_geometry']=[n for n in REPORT.get('inferred_geometry',[]) if n!='Body_UnderClothes']
@@ -504,6 +504,8 @@ def main():
     runpy.run_path(str(ROOT/'refine_body_skin.py'))['run']()
     runpy.run_path(str(ROOT/'match_neck_normals.py'))['run']()
     REPORT['body_reconstruction']=runpy.run_path(str(ROOT/'body_adjustments.py'))['run']()
+    REPORT['body_reconstruction']=runpy.run_path(str(ROOT/'continuous_skin.py'))['run']()
+    REPORT['body_reconstruction']=runpy.run_path(str(ROOT/'finish_neck.py'))['run']()
     validate_and_save()
 
 if __name__=='__main__':main()

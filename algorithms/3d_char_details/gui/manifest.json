@@ -3,7 +3,7 @@
   "icon": "sliders",
   "name": "3d char details",
   "eyebrow": "CHARACTER SANDBOX",
-  "summary": "Uniformly scaled user FBX body, preserved Landau face and hands, original clothing, body and garment fit controls.",
+  "summary": "Continuous neck shading, paired clothing controls, aligned body placement and local preset history.",
   "accent": "#8b699d",
   "runtime": "local",
   "runtimeLabel": "Local 3D editor",
@@ -162,6 +162,39 @@
         {
           "label": "FBX integration report",
           "path": "algorithms/3d_char_details/outputs/landau_v10/body_build.json",
+          "kind": "json"
+        },
+        {
+          "label": "property-widgets.js",
+          "path": "algorithms/3d_char_details/gui/property-widgets.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "body-placement.js",
+          "path": "algorithms/3d_char_details/gui/body-placement.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "preset-history.js",
+          "path": "algorithms/3d_char_details/gui/preset-history.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "Neck \u00b7 exported front",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/neck_export_front.png",
+          "kind": "image"
+        },
+        {
+          "label": "Neck \u00b7 exported oblique",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/neck_export_oblique.png",
+          "kind": "image"
+        },
+        {
+          "label": "Neck preservation check",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/neck_finish_validation.json",
           "kind": "json"
         }
       ]

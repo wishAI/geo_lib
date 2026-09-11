@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from '/vendor/three/modules/OrbitControls.js';
 import { GLTFLoader } from '/vendor/three/modules/GLTFLoader.js';
+import {icon,widget,GARMENT_CARDS} from '/api/artifact?path=algorithms/3d_char_details/gui/property-widgets.js';
+import {bodyPlacement} from '/api/artifact?path=algorithms/3d_char_details/gui/body-placement.js';
+
+import {presetHistory} from '/api/artifact?path=algorithms/3d_char_details/gui/preset-history.js';
 
 const ROOT='algorithms/3d_char_details/';
 const asset=p=>`/api/artifact?path=${encodeURIComponent(ROOT+p)}`;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pretty=s=>s.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/_/g,' ').replace(/([a-z])([LR])$/,'$1 · $2');
-const SHAPES=new Set(['headWidth','bodyWidth','earLength','muzzleLength','faceWidth','clothingEase','eyeSize','cheekFullness']);
+const SHAPES=new Set(['headWidth','bodyWidth','earLength','muzzleLength','faceWidth','eyeSize','cheekFullness']);
 const OUTFIT_GROUPS=[
   ['Torso',{vestChestWidth:'Chest width',vestChestDepth:'Chest depth',vestWaistWidth:'Waist width',vestWaistDepth:'Waist depth',vestShoulderWidth:'Shoulder width',vestLength:'Vest length',skirtFlare:'Skirt flare'}],
   ['Arms',{sleeveUpperRoom:'Upper sleeve room',sleeveForearmRoom:'Forearm sleeve room',sleeveLength:'Sleeve length',cuffOpening:'Cuff opening'}],
@@ -14,30 +18,32 @@ const OUTFIT_GROUPS=[
   ['Boots',{bootWidth:'Boot width',bootLength:'Boot length',bootInstep:'Instep height',bootShaftWidth:'Boot shaft width',bootShaftHeight:'Boot shaft height'}]
 ];
 const OUTFIT_LABELS=Object.assign({},...OUTFIT_GROUPS.map(([,labels])=>labels));
-const OUTFIT=new Set(Object.keys(OUTFIT_LABELS));
+const OUTFIT=new Set([...Object.keys(OUTFIT_LABELS),'clothingEase']);
 const COLORS=['#7fc9bd','#baa6db','#d4b078','#719ec3','#d29ca8','#9cbc80'];
 
 export function mount(root) {
   const cssId='char-details-css';
   if(!document.getElementById(cssId)){const l=document.createElement('link');l.id=cssId;l.rel='stylesheet';l.href=asset('gui/editor.css');document.head.append(l);}
-  let dead=false,model,report,renderer,frame,helper,selectedPart=null,selectedBone=null,animation=0,dirty=false,exportBusy=false,downloadUrl=null;
+  let dead=false,model,report,renderer,frame,helper,selectedPart=null,selectedBone=null,animation=0,history,dirty=false,exportBusy=false,downloadUrl=null;
   const abort=new AbortController(),parts=new Map(),bones=new Map(),morphs=new Map(),baseMaterials=new Map();
-  let adjustmentMeta={};
-  let settings={version:1,assetHash:'',morphs:{},bones:{},parts:{}};
+  let adjustmentMeta={},placeBody,frameScale=1,activeView='full';
+  let settings={version:1,assetHash:'',morphs:{},bones:{},parts:{},outfit:{},links:{},bodyFrame:{scale:1,offset:0}};
   const query=s=>root.querySelector(s);
   const announce=t=>{if(!dead)query('[data-status]').textContent=t;};
   root.innerHTML=`<div class="char-editor">
-    <header class="char-bar"><div><span class="char-kicker">LANDAU V10 / CHARACTER WORKSHOP</span><h2>Shape. Pose. Express.</h2></div><div class="char-actions"><button data-action="reset">Reset all</button><button data-action="save">Save preset</button><button data-action="load">Load preset</button><button class="char-primary" data-action="export">Export edited GLB</button></div></header>
+    <header class="char-bar"><div><span class="char-kicker">LANDAU V10 / CHARACTER WORKSHOP</span><h2>Shape. Pose. Express.</h2></div><div class="char-actions"><button data-action="reset">Reset all</button><button data-action="save">Save preset</button><button data-tab="presets">History</button><button class="char-primary" data-action="export">Export edited GLB</button></div></header>
     <div class="char-layout"><section class="char-viewport"><canvas aria-label="Landau 3D editor — drag to orbit, right drag to pan, scroll to zoom"></canvas>
       <div class="char-viewtools"><button data-view="full">Full body</button><button data-view="face">Face</button><button data-view="side">Side</button><button data-view="back">Back</button><button data-action="focus">Expand editor</button><select aria-label="Shading" data-shading><option value="clay">Clay · structure</option><option value="textured" selected>Face material regions</option><option value="wire">Wireframe</option><option value="regions">Parts</option></select><label><input type="checkbox" data-skeleton> Skeleton</label></div>
       <div class="char-stage-label"><span data-selection>Landau v10</span><small>Drag to orbit · right drag to pan · scroll to zoom · click a part</small></div>
       <div class="char-loading" data-loading>Preparing the character…</div>
-    </section><aside class="char-inspector"><nav class="char-tabs"><button class="active" data-tab="face">Face</button><button data-tab="shape">Shape</button><button data-tab="parts">Parts</button><button data-tab="rig">Rig</button><button data-tab="reference">Ref</button><button data-tab="asset">Asset</button></nav>
+    </section><aside class="char-inspector"><nav class="char-tabs"><button class="active" data-tab="face">Face</button><button data-tab="shape">Shape</button><button data-tab="clothing">Clothing</button><button data-tab="parts">Parts</button><button data-tab="rig">Rig</button><button data-tab="reference">Ref</button><button data-tab="asset">Asset</button><button data-tab="presets">Presets</button></nav>
       <div class="char-pane" data-pane="face"><p class="char-hint">Blink moves the original eyelashes with the blue upper lid. The eye remains round and independent; the lower eye rim stays fixed.</p><div class="char-section"><h3>Expression presets</h3><div class="char-presets"><button data-expression="neutral">Neutral</button><button data-expression="happy">Happy</button><button data-expression="surprised">Surprised</button><button data-expression="half">Half closed</button><button data-expression="blink">Blink</button><button data-expression="look">Look left</button></div><label class="char-check"><input type="checkbox" data-blink> Play blink test</label></div><div data-face-sliders></div></div>
-      <div class="char-pane" data-pane="shape" hidden><p class="char-hint">Rest-shape controls move the actual mesh. Test expressions again after changing proportions.</p><div data-shape-sliders></div><button data-action="reset-body">Reset body proportions</button><section class="char-section" data-outfit-section hidden><h3>Clothing fit</h3><p class="char-hint">Adjust local width, depth, length and openings. 0 restores the original garment shape. Width, depth, length and placement are independent; the outfit starts hidden for manual fitting. Check the fit after posing.</p><div data-outfit-sliders></div><button data-action="reset-outfit">Reset clothing fit</button></section></div>
-      <div class="char-pane" data-pane="parts" hidden><p class="char-hint">Garments are independent objects. The supplied FBX body keeps a uniform scale. The original head and hands are retained; original garments are available for manual fitting.</p><div class="char-presets"><button data-action="undress">Hide clothing</button><button data-action="dress">Show clothing</button></div><div data-part-list></div><div class="char-section"><h3 data-part-title>Select a part</h3><div class="char-presets"><button data-action="isolate">Isolate selected</button><button data-action="show-character">Show character</button></div><label class="char-bone-select">Material <select aria-label="Selected material" data-material></select></label><label>Material color <input aria-label="Selected material color" type="color" value="#ffffff" data-tint></label><button data-action="untint">Reset material color</button></div></div>
+      <div class="char-pane" data-pane="shape" hidden><section class="char-frame"><div data-frame-sliders></div></section><div data-shape-sliders></div><button data-action="reset-body">Reset body proportions</button></div>
+      <div class="char-pane" data-pane="clothing" hidden><div class="char-presets char-clothing-toolbar"><button data-action="dress">Show all</button><button data-action="undress">Hide all</button><button data-action="reset-outfit">Reset fit</button></div><div data-garment-cards></div></div>
+      <div class="char-pane" data-pane="parts" hidden><p class="char-hint">Garments are independent objects. The supplied FBX body keeps a uniform scale. The original head and hands are retained; original garments are available for manual fitting.</p><div data-part-list></div><div class="char-section"><h3 data-part-title>Select a part</h3><div class="char-presets"><button data-action="isolate">Isolate selected</button><button data-action="show-character">Show character</button></div><label class="char-bone-select">Material <select aria-label="Selected material" data-material></select></label><label>Material color <input aria-label="Selected material color" type="color" value="#ffffff" data-tint></label><button data-action="untint">Reset material color</button></div></div>
       <div class="char-pane" data-pane="rig" hidden><p class="char-hint">71 bones: original body rig plus ears and tail. Angles use each bone’s local axes.</p><label class="char-bone-select">Bone <select aria-label="Bone" data-bone></select></label><div data-bone-sliders></div><button data-action="reset-bone">Reset selected bone</button><button data-action="reset-pose">Reset pose</button><p class="char-hint">Scale is a pose control; use Shape for body proportions. Extreme poses may need further weight painting.</p></div>
       <div class="char-pane" data-pane="reference" hidden><h3>Landau character references</h3><p class="char-hint">Compare the tall eyes, swept lashes, full cheeks and small smile. Clay removes color and normal maps.</p><select aria-label="Character reference" data-reference><option value="landau_test2.png">Landau test 2 · 3D reference</option><option value="internal_reference.png">Body structure · proportion reference</option><option value="closed_eyes_reference.png">Closed eyes · expression reference</option><option value="closed_eyes_reference2.png">Closed eyes · reference 2</option><option value="half_closed_reference.png">Half-closed eyes · expression</option><option value="half_closed_reference2.png">Half-closed eyes · reference 2</option><option value="landau_test.png">Landau test · illustration</option><option value="reference.png">Landau v10 · generation source</option></select><label class="char-check"><input type="checkbox" data-crop checked> Face close-up</label><div class="char-reference-crop closeup" data-reference-frame><img data-reference-image src="${asset('inputs/landau_v10/landau_test2.png')}" alt="Landau reference face"></div><a class="char-reference-link" data-reference-link href="${asset('inputs/landau_v10/landau_test2.png')}" target="_blank" rel="noopener">Open full reference</a><p class="char-hint">Each reference has different proportions. They guide likeness; the original mesh remains available at neutral.</p></div>
+      <div class="char-pane" data-pane="presets" hidden></div>
       <div class="char-pane" data-pane="asset" hidden><div data-asset-report></div><figure><img src="${asset('inputs/landau_v10/reference.png')}" alt="Original Landau v10 generation reference"><figcaption>Original generation reference</figcaption></figure><label class="char-check">Export textures <select aria-label="Export texture resolution" data-export-resolution><option value="4096">4096 · source detail</option><option value="2048">2048 · smaller file</option><option value="1024">1024 · compact</option></select></label><label class="char-check"><input type="checkbox" data-visible-only checked> Export visible parts only</label><div class="char-downloads"><a href="${asset('outputs/landau_v10/landau_character.blend')}&download=1" download>Blender master</a><a href="${asset('outputs/landau_v10/asset_report.json')}&download=1" download>Asset report</a></div></div>
     </aside></div><footer class="char-footer"><span data-status role="status">Loading the authored GLB…</span><a data-download hidden>Download prepared file</a><span data-stats></span></footer><input type="file" accept=".json,application/json" data-file hidden>
   </div>`;
@@ -57,12 +63,12 @@ export function mount(root) {
   const dispose=()=>{if(dead)return;dead=true;abort.abort();if(downloadUrl)URL.revokeObjectURL(downloadUrl);cancelAnimationFrame(frame);resize.disconnect();orbit.dispose();releaseTree(scene);for(const m of baseMaterials.keys())release(m);renderer.dispose();};
   // Return a lifecycle handle immediately, including while the asynchronous loader runs.
   root.charDispose=dispose;
-  function saveLocal(){try{localStorage.setItem('landau-char-v1',JSON.stringify(settings));dirty=false;}catch{announce('Browser storage unavailable; download a preset to keep your edits.');}}
+  function saveLocal(){try{localStorage.setItem('landau-char-v1',JSON.stringify(settings));dirty=false;}catch{announce('Browser storage unavailable; save a version in sandbox history to keep your edits.');}}
   function touch(){dirty=true;saveLocal();}
   function setMorph(name,value,persist=true){
     if(!morphs.has(name))return;
     settings.morphs[name]=value;for(const [mesh,index] of morphs.get(name)||[])mesh.morphTargetInfluences[index]=value;
-    const input=query(`input[data-morph="${name}"]`);if(input){input.value=value;input.nextElementSibling.value=Number(value).toFixed(2);}
+    for(const input of root.querySelectorAll(`input[data-morph="${name}"]`)){input.value=value;input.nextElementSibling.value=Number(value).toFixed(2);}
     if(persist)touch();
   }
   function applyParts(){for(const [name,p] of parts){const cfg=settings.parts[name]||{};p.object.visible=cfg.visible??p.defaultVisible;for(const m of p.materials)m.color.set(cfg.materialColors?.[m.name]||baseMaterials.get(m).color);}}
@@ -72,44 +78,87 @@ export function mount(root) {
   function selectPart(name){if(!parts.has(name))return;selectedPart=name;query('[data-selection]').textContent=pretty(name);query('[data-part-title]').textContent=pretty(name);query('[data-material]').innerHTML=[...parts.get(name).materials].map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');readMaterial();root.querySelectorAll('[data-part]').forEach(el=>el.classList.toggle('selected',el.dataset.part===name));}
   function shading(){const mode=query('[data-shading]').value;let i=0;for(const [name,p] of parts){for(const m of p.materials){const b=baseMaterials.get(m);for(const [key,val]of Object.entries(b.maps))m[key]=(mode==='clay'||mode==='regions')?null:val;m.wireframe=mode==='wire';m.vertexColors=(mode==='clay'||mode==='regions')?false:b.vertexColors;m.roughness=mode==='clay'?.8:b.roughness;m.metalness=(mode==='clay'||mode==='regions')?0:b.metalness;if(mode==='clay')m.color.set('#c8d2d2');else if(mode==='regions')m.color.set(COLORS[i%COLORS.length]);else m.color.set(settings.parts[name]?.materialColors?.[m.name]||b.color);m.needsUpdate=true;}i++;}}
   function view(name){
+    activeView=name;
     const reportedLift=report?.body_reconstruction?.head_rigid_lift;
     const lift=Number.isFinite(reportedLift)?reportedLift:0;
-    const center=.58+lift/2,height=.64+lift/2,distance=2.4*(1+lift/1.16);
+    const extra=.806*((settings.bodyFrame?.scale??1)-1),center=.58+lift/2-extra/2,height=.64+lift/2-extra/2,distance=2.4*(1+(lift+extra)/1.16);
     orbit.target.set(0,name==='face'?.71+lift:center,name==='face'?.01:0);
     const positions={full:[0,height,distance],face:[0,.73+lift,.72],side:[distance,height,0],back:[0,height,-distance]};
     camera.position.set(...positions[name]);orbit.update();
   }
   function download(data,name,type){if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=URL.createObjectURL(new Blob([data],{type}));const a=query('[data-download]');a.href=downloadUrl;a.download=name;a.textContent='Download '+name;a.hidden=false;a.click();}
+  function compatiblePreset(hash){return hash===report.glb_sha256||(report.preset_compatible_hashes||[]).includes(hash);}
   function validatePreset(p){
-    if(!p||p.version!==1||p.assetHash!==report.glb_sha256)throw new Error('This preset belongs to a different asset revision.');
+    if(!p||p.version!==1||!compatiblePreset(p.assetHash))throw new Error('This preset belongs to a different asset revision.');
     for(const [n,v] of Object.entries(p.morphs||{})){if(!morphs.has(n)||!Number.isFinite(v)||v<(adjustmentMeta[n]?.min??(SHAPES.has(n)?-1:0))||v>1)throw new Error('Invalid morph: '+n);}
     for(const [n,v] of Object.entries(p.bones||{})){if(!bones.has(n)||!Array.isArray(v.rotation)||v.rotation.length!==3||v.rotation.some(x=>!Number.isFinite(x)||Math.abs(x)>120)||!Number.isFinite(v.scale)||v.scale<.7||v.scale>1.3)throw new Error('Invalid bone: '+n);}
     for(const [n,v] of Object.entries(p.parts||{})){if(!parts.has(n)||!v||typeof v!=='object'||(v.visible!==undefined&&typeof v.visible!=='boolean')||(v.tint!==undefined&&!/^#[0-9a-f]{6}$/i.test(v.tint)))throw new Error('Invalid part: '+n);}
     for(const [n,v] of Object.entries(p.parts||{}))for(const [material,color]of Object.entries(v.materialColors||{}))if(![...parts.get(n).materials].some(m=>m.name===material)||!/^#[0-9a-f]{6}$/i.test(color))throw new Error('Invalid material color: '+material);
-    return {version:1,assetHash:p.assetHash,morphs:p.morphs||{},bones:p.bones||{},parts:p.parts||{}};
+    for(const [part,values] of Object.entries(p.outfit||{}))for(const [n,v] of Object.entries(values)){if(!garmentNames(part).includes(n)||!Number.isFinite(v)||v<(adjustmentMeta[n]?.min??0)||v>1)throw new Error('Invalid clothing adjustment');}
+    for(const [n,v]of Object.entries(p.links||{}))if(!GARMENT_CARDS.some(g=>g.id===n)||typeof v!=='boolean')throw new Error('Invalid pair link');
+    const frame={scale:1,offset:0,...p.bodyFrame};if(!Number.isFinite(frame.scale)||frame.scale<.75||frame.scale>1.25||!Number.isFinite(frame.offset)||Math.abs(frame.offset)>.05)throw new Error('Invalid body placement');
+    return {version:1,assetHash:report.glb_sha256,morphs:p.morphs||{},bones:p.bones||{},parts:p.parts||{},outfit:p.outfit||{},links:p.links||{},bodyFrame:frame};
   }
-  function applyPreset(p,persist=true){query('[data-blink]').checked=false;settings=validatePreset(p);for(const n of morphs.keys())setMorph(n,settings.morphs[n]||0,false);for(const n of bones.keys())applyBone(n);applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible]?.visible??parts.get(e.dataset.visible).defaultVisible);readBone();readMaterial();if(persist)touch();}
+  function applyPreset(p,persist=true){query('[data-blink]').checked=false;settings=validatePreset(p);for(const n of morphs.keys())setMorph(n,settings.morphs[n]||0,false);for(const n of bones.keys())applyBone(n);applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible]?.visible??parts.get(e.dataset.visible).defaultVisible);for(const g of GARMENT_CARDS)for(const n of g.parts)for(const name of garmentNames(n)){const v=outfitValue(n,name);parts.get(n)?.object.traverse(o=>{const i=o.morphTargetDictionary?.[name];if(i!==undefined)o.morphTargetInfluences[i]=v;});}applyBodyFrame();renderGarments();readBone();readMaterial();if(persist)touch();}
   function expression(kind){query('[data-blink]').checked=false;for(const n of morphs.keys())if(!SHAPES.has(n)&&!OUTFIT.has(n))setMorph(n,0,false);const p={neutral:{},happy:{mouthSmile:.7,eyeSquintL:.15,eyeSquintR:.15},surprised:{jawDrop:.75,browUpL:.65,browUpR:.65,eyeWideL:.5,eyeWideR:.5},half:{eyeBlinkL:.5,eyeBlinkR:.5},blink:{eyeBlinkL:1,eyeBlinkR:1},look:{eyeLookOutL:.75,eyeLookInR:.75}}[kind];for(const [n,v]of Object.entries(p))setMorph(n,v,false);touch();announce('Expression: '+kind);}
-  function control(name){const min=adjustmentMeta[name]?.min??(SHAPES.has(name)?-1:0),label=adjustmentMeta[name]?.label||OUTFIT_LABELS[name]||pretty(name);return `<label class="char-slider"><span>${esc(label)}</span><div><input aria-label="${esc(label)}" data-morph="${esc(name)}" type="range" min="${min}" max="1" step=".01" value="0"><output>0.00</output></div></label>`;}
+  function control(name,part=''){
+    const min=adjustmentMeta[name]?.min??(SHAPES.has(name)?-1:0),label=esc(adjustmentMeta[name]?.label||OUTFIT_LABELS[name]||pretty(name));
+    return widget({label,min,attrs:part?`data-outfit="${esc(name)}" data-garment="${esc(part)}"`:`data-morph="${esc(name)}"`,reset:part?`data-reset-outfit="${esc(name)}" data-garment="${esc(part)}"`:`data-reset-morph="${esc(name)}"`,life:SHAPES.has(name)||part?'edit':'live',op:part&&/(Raise|Forward|Spread)$/.test(name)?'move':'morph'});
+  }
+  function garmentNames(part){const found=new Set();parts.get(part)?.object.traverse(o=>{for(const n of Object.keys(o.morphTargetDictionary||{}))if(OUTFIT.has(n)||n==='clothingEase')found.add(n);});return [...found];}
+  function garmentGroup(part){return GARMENT_CARDS.find(g=>g.parts.includes(part));}
+  function linked(group){return settings.links[group.id]!==false;}
+  function outfitValue(part,name){return settings.outfit[part]?.[name]??settings.morphs[name]??0;}
+  function setOutfit(part,name,value,persist=true){
+    const group=garmentGroup(part),targets=group&&linked(group)?group.parts:[part];
+    for(const n of targets){settings.outfit[n]={...settings.outfit[n],[name]:value};parts.get(n)?.object.traverse(o=>{const i=o.morphTargetDictionary?.[name];if(i!==undefined)o.morphTargetInfluences[i]=value;});}
+    syncGarmentControls();if(persist)touch();
+  }
+  function syncGarmentControls(){
+    root.querySelectorAll('[data-outfit]').forEach(el=>{const v=outfitValue(el.dataset.garment,el.dataset.outfit);el.value=v;el.nextElementSibling.value=Number(v).toFixed(2);});
+    root.querySelectorAll('[data-garment-visible]').forEach(el=>{const group=garmentGroup(el.dataset.garmentVisible);const names=group&&linked(group)?group.parts:[el.dataset.garmentVisible];el.checked=names.every(n=>settings.parts[n]?.visible??parts.get(n)?.defaultVisible);el.indeterminate=names.some(n=>settings.parts[n]?.visible??parts.get(n)?.defaultVisible)&&!el.checked;});
+  }
+  function renderGarments(){
+    const open=new Set([...root.querySelectorAll('[data-garment-card][open]')].map(e=>e.dataset.garmentCard));
+    query('[data-garment-cards]').innerHTML=GARMENT_CARDS.map(g=>{
+      const pair=g.parts.length===2,together=linked(g);
+      return `<section class="char-garment-group">${g.parts.filter((n,i)=>!i||!together).map((n,i)=>`<details class="char-garment-card" data-garment-card="${n}" ${open.has(n)?'open':''}><summary><span class="char-disclosure">${icon('chevron')}</span>${icon('shirt')}<span class="char-garment-name">${g.label}${pair&&!together?` · ${i?'R':'L'}`:''}</span>${pair&&!i?`<label class="char-icon-toggle char-link-toggle" title="Mirror left and right adjustments"><input type="checkbox" aria-label="Link ${g.label.toLowerCase()} left and right" data-garment-link="${g.id}" ${together?'checked':''}>${icon('link')}</label>`:''}<label class="char-icon-toggle char-eye-toggle" title="Show ${g.label}${pair&&!together?` ${i?'right':'left'}`:''}"><input type="checkbox" aria-label="Show ${g.label}${pair&&!together?` ${i?'right':'left'}`:''}" data-garment-visible="${n}">${icon('eye')}</label></summary><div class="char-garment-options">${garmentNames(n).map(name=>control(name,n)).join('')}</div></details>`).join('')}</section>`;
+    }).join('');syncGarmentControls();
+  }
+  function applyBodyFrame(){
+    const scale=settings.bodyFrame.scale;
+    if(activeView!=='face'){
+      const height=1.16+(report?.body_reconstruction?.head_rigid_lift||0),ratio=(height+.806*(scale-1))/(height+.806*(frameScale-1)),direction=camera.position.clone().sub(orbit.target);
+      orbit.target.y-=.806*(scale-frameScale)/2;camera.position.copy(orbit.target).addScaledVector(direction,ratio);
+    }
+    frameScale=scale;grid.position.y=.806*(1-scale);
+    placeBody?.(scale,settings.bodyFrame.offset);for(const n of bones.keys())applyBone(n);for(const input of root.querySelectorAll('[data-body-frame]')){input.value=settings.bodyFrame[input.dataset.bodyFrame];input.nextElementSibling.value=Number(input.value).toFixed(input.dataset.bodyFrame==='offset'?3:2);}}
   function tick(t){if(dead)return;frame=requestAnimationFrame(tick);if(query('[data-blink]').checked){const phase=(t/1000)%3.4;animation=Math.max(0,1-Math.abs(phase-.35)/.16);for(const n of ['eyeBlinkL','eyeBlinkR'])for(const[m,i]of morphs.get(n)||[])m.morphTargetInfluences[i]=animation;}orbit.update();renderer.render(scene,camera);}
   frame=requestAnimationFrame(tick);
 
+  function showTab(name){root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));root.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==name);}
   root.addEventListener('click',async e=>{
+    if(e.target.closest('.char-icon-toggle')){e.stopPropagation();return;}
     const button=e.target.closest('button');if(!button||exportBusy)return;
-    if(button.dataset.tab){root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===button));root.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==button.dataset.tab);}
+    if(button.dataset.resetMorph){setMorph(button.dataset.resetMorph,0);return;}
+    if(button.dataset.resetOutfit){setOutfit(button.dataset.garment,button.dataset.resetOutfit,0);return;}
+    if(button.dataset.resetFrame){settings.bodyFrame[button.dataset.resetFrame]=button.dataset.resetFrame==='scale'?1:0;applyBodyFrame();touch();return;}
+    if(button.dataset.resetJoint){const c=settings.bones[selectedBone]||{rotation:[0,0,0],scale:1};if(button.dataset.resetJoint==='scale')c.scale=1;else c.rotation[Number(button.dataset.resetJoint)]=0;settings.bones[selectedBone]=c;applyBone(selectedBone);readBone();touch();return;}
+    if(button.dataset.tab){showTab(button.dataset.tab);if(button.dataset.tab==='presets')void history?.refresh();}
     if(button.dataset.view)view(button.dataset.view);
     if(button.dataset.expression&&model)expression(button.dataset.expression);
     if(button.dataset.part)selectPart(button.dataset.part);
     const action=button.dataset.action;if(action==='focus'){const expanded=query('.char-editor').classList.toggle('char-expanded');button.textContent=expanded?'Exit expanded view':'Expand editor';return;}if(!action||!model)return;
     try{
       if(action==='reset'){query('[data-blink]').checked=false;applyPreset({version:1,assetHash:report.glb_sha256});announce('All character edits reset.');}
-      if(action==='reset-body'){for(const [n,m]of Object.entries(adjustmentMeta))if(m.kind==='body')setMorph(n,0,false);touch();announce('Body proportions restored to the uniformly scaled FBX.');}
-      if(action==='reset-outfit'){for(const n of OUTFIT)setMorph(n,0,false);touch();announce('Clothing fit reset.');}
-      if(action==='save'){saveLocal();download(JSON.stringify(settings,null,2),'landau-v10-preset.json','application/json');announce('Preset saved with asset revision.');}
+      if(action==='reset-body'){settings.bodyFrame={scale:1,offset:0};applyBodyFrame();for(const [n,m]of Object.entries(adjustmentMeta))if(m.kind==='body')setMorph(n,0,false);touch();announce('Body proportions restored to the uniformly scaled FBX.');}
+      if(action==='reset-outfit'){settings.outfit={};for(const n of OUTFIT)setMorph(n,0,false);for(const g of GARMENT_CARDS)for(const p of g.parts)for(const n of garmentNames(p))setOutfit(p,n,0,false);touch();announce('Clothing fit reset.');}
+      if(action==='save'){showTab('presets');await history.save();}
+      if(action==='preset-download')download(JSON.stringify(settings,null,2),'landau-v10-preset.json','application/json');
       if(action==='load')query('[data-file]').click();
       if(action==='undress'||action==='dress'){for(const [n,p]of parts)if(p.kind==='clothing')settings.parts[n]={...settings.parts[n],visible:action==='dress'};for(const [n,p]of parts)if(p.kind==='inferred_body')settings.parts[n]={...settings.parts[n],visible:true};applyParts();shading();root.querySelectorAll('[data-visible]').forEach(el=>el.checked=settings.parts[el.dataset.visible]?.visible??parts.get(el.dataset.visible).defaultVisible);touch();}
       if(action==='untint'&&selectedPart){const colors=settings.parts[selectedPart]?.materialColors||{};delete colors[query('[data-material]').value];shading();readMaterial();touch();}
-      if((action==='isolate'&&selectedPart)||action==='show-character'){for(const [n,p]of parts)settings.parts[n]={...settings.parts[n],visible:action==='isolate'?n===selectedPart:p.defaultVisible};applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible].visible);touch();}
+      if((action==='isolate'&&selectedPart)||action==='show-character'){for(const [n,p]of parts)settings.parts[n]={...settings.parts[n],visible:action==='isolate'?n===selectedPart:p.defaultVisible};applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible].visible);syncGarmentControls();touch();}
       if(action==='reset-bone'&&selectedBone){delete settings.bones[selectedBone];applyBone(selectedBone);readBone();touch();}
       if(action==='reset-pose'){settings.bones={};for(const n of bones.keys())applyBone(n);readBone();touch();}
       if(action==='export'){
@@ -122,6 +171,8 @@ export function mount(root) {
   },{signal:abort.signal});
   root.addEventListener('input',e=>{
     const el=e.target;if(!model||exportBusy)return;
+    if(el.dataset.outfit)setOutfit(el.dataset.garment,el.dataset.outfit,Number(el.value));
+    if(el.dataset.bodyFrame){settings.bodyFrame[el.dataset.bodyFrame]=Number(el.value);applyBodyFrame();touch();}
     if(el.dataset.morph)setMorph(el.dataset.morph,Number(el.value));
     if(el.hasAttribute('data-bone-axis')||el.hasAttribute('data-bone-scale')){if(!selectedBone)return;const cfg=settings.bones[selectedBone]||{rotation:[0,0,0],scale:1};if(el.hasAttribute('data-bone-axis'))cfg.rotation[Number(el.dataset.boneAxis)]=Number(el.value);else cfg.scale=Number(el.value);settings.bones[selectedBone]=cfg;applyBone(selectedBone);readBone();touch();}
     if(el.hasAttribute('data-tint')&&selectedPart){const cfg=settings.parts[selectedPart]||{};settings.parts[selectedPart]={...cfg,materialColors:{...cfg.materialColors,[query('[data-material]').value]:el.value}};shading();touch();}
@@ -132,6 +183,8 @@ export function mount(root) {
     if(el.hasAttribute('data-crop'))query('[data-reference-frame]').classList.toggle('closeup',el.checked);
     if(el.hasAttribute('data-shading'))shading();
     if(el.hasAttribute('data-skeleton')&&helper)helper.visible=el.checked;
+    if(el.dataset.garmentLink){const group=GARMENT_CARDS.find(g=>g.id===el.dataset.garmentLink);settings.links[group.id]=el.checked;if(el.checked){for(const n of garmentNames(group.parts[0]))setOutfit(group.parts[0],n,outfitValue(group.parts[0],n),false);const visible=settings.parts[group.parts[0]]?.visible??parts.get(group.parts[0]).defaultVisible;for(const n of group.parts)settings.parts[n]={...settings.parts[n],visible};applyParts();}renderGarments();touch();}
+    if(el.dataset.garmentVisible){const g=garmentGroup(el.dataset.garmentVisible);for(const n of linked(g)?g.parts:[el.dataset.garmentVisible])settings.parts[n]={...settings.parts[n],visible:el.checked};applyParts();syncGarmentControls();touch();}
     if(el.dataset.visible){settings.parts[el.dataset.visible]={...settings.parts[el.dataset.visible],visible:el.checked};applyParts();shading();touch();}
     if(el.hasAttribute('data-material'))readMaterial();
     if(el.hasAttribute('data-bone')){selectedBone=el.value;readBone();}
@@ -156,22 +209,22 @@ export function mount(root) {
       for(const [name,index]of Object.entries(o.morphTargetDictionary||{})){if(!morphs.has(name))morphs.set(name,[]);morphs.get(name).push([o,index]);}
     });
     helper=new THREE.SkeletonHelper(model);helper.visible=false;helper.material.depthTest=false;helper.renderOrder=10;scene.add(helper);
-    query('[data-face-sliders]').innerHTML=[...morphs.keys()].filter(n=>!SHAPES.has(n)&&!OUTFIT.has(n)).sort().map(control).join('');
-    query('[data-shape-sliders]').innerHTML=[...morphs.keys()].filter(n=>SHAPES.has(n)).sort().map(control).join('');
-    const outfitControls=[...OUTFIT].filter(n=>morphs.has(n));
-    query('[data-outfit-sliders]').innerHTML=(Object.keys(adjustmentMeta).length?[...new Set(Object.values(adjustmentMeta).filter(m=>m.kind==='outfit').map(m=>m.group))].map(group=>[group,Object.fromEntries(Object.entries(adjustmentMeta).filter(([,m])=>m.kind==='outfit'&&m.group===group).map(([n,m])=>[n,m.label]))]):OUTFIT_GROUPS).map(([title,labels])=>{const names=Object.keys(labels).filter(n=>morphs.has(n));return names.length?`<section class="char-outfit-group"><h4>${esc(title)}</h4>${names.map(control).join('')}</section>`:'';}).join('');
-    query('[data-outfit-section]').hidden=outfitControls.length===0;
-    query('[data-part-list]').innerHTML=[...parts].map(([n,p])=>`<div class="char-part"><input type="checkbox" aria-label="Show ${esc(pretty(n))}" data-visible="${esc(n)}" ${p.defaultVisible?'checked':''}><button data-part="${esc(n)}">${esc(pretty(n))}<small>${esc(p.kind.replace('_',' '))}</small></button></div>`).join('');
+    query('[data-face-sliders]').innerHTML=[...morphs.keys()].filter(n=>!SHAPES.has(n)&&!OUTFIT.has(n)).sort().map(n=>control(n)).join('');
+    query('[data-shape-sliders]').innerHTML=[...morphs.keys()].filter(n=>SHAPES.has(n)).sort().map(n=>control(n)).join('');
+    query('[data-part-list]').innerHTML=[...parts].filter(([,p])=>p.kind!=='clothing').map(([n,p])=>`<div class="char-part"><input type="checkbox" aria-label="Show ${esc(pretty(n))}" data-visible="${esc(n)}" ${p.defaultVisible?'checked':''}><button data-part="${esc(n)}">${esc(n==='Body_Complete'?'Connected skin':pretty(n))}</button></div>`).join('');
+    query('[data-frame-sliders]').innerHTML=widget({label:'Body scale',attrs:'data-body-frame="scale"',min:.75,max:1.25,value:1,reset:'data-reset-frame="scale"',op:'scale',scope:'world'})+widget({label:'Body left / right',attrs:'data-body-frame="offset"',min:-.05,max:.05,step:.001,reset:'data-reset-frame="offset"',op:'move',scope:'world',axis:'x'});
+    placeBody=bodyPlacement(model,bones);
     query('[data-bone]').innerHTML=[...bones.keys()].map(n=>`<option value="${esc(n)}">${esc(pretty(n))}</option>`).join('');selectedBone=bones.has('head_x')?'head_x':bones.keys().next().value;query('[data-bone]').value=selectedBone;
-    query('[data-bone-sliders]').innerHTML=['X','Y','Z'].map((a,i)=>`<label class="char-slider"><span>Rotation ${a}</span><div><input type="range" aria-label="Bone rotation ${a}" data-bone-axis="${i}" min="-120" max="120" step="1" value="0"><output>0°</output></div></label>`).join('')+`<label class="char-slider"><span>Scale</span><div><input aria-label="Bone scale" type="range" data-bone-scale min=".7" max="1.3" step=".01" value="1"><output>1.00</output></div></label>`;
+    query('[data-bone-sliders]').innerHTML=['X','Y','Z'].map((a,i)=>widget({label:`Rotation ${a}`,attrs:`data-bone-axis="${i}"`,min:-120,max:120,step:1,reset:`data-reset-joint="${i}"`,life:'live',op:'rotate',axis:a.toLowerCase()})).join('')+widget({label:'Scale',attrs:'data-bone-scale',min:.7,max:1.3,value:1,reset:'data-reset-joint="scale"',life:'live',op:'scale'});
     const v=report.validation;query('[data-asset-report]').innerHTML=`<h3>Structure and rig preview</h3><dl class="char-facts"><dt>Meshes</dt><dd>${v.mesh_count}</dd><dt>Triangles</dt><dd>${v.triangles.toLocaleString()}</dd><dt>Bones</dt><dd>${v.bones}</dd><dt>Facial + shape controls</dt><dd>${morphs.size}</dd><dt>Invalid skin weights</dt><dd>${v.invalid_skin_vertices}</dd></dl><h3>Remaining production work</h3><ul>${report.limitations.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`;
     query('[data-stats]').textContent=`${parts.size} parts · ${bones.size} bones · ${morphs.size} controls`;
     settings.assetHash=report.glb_sha256;
+    history=presetHistory(root,{read:()=>structuredClone(settings),apply:applyPreset,compatible:compatiblePreset,announce,signal:abort.signal});
     // Read saved edits before applying defaults; applying a preset may persist it.
     let restored=false;
     try{const saved=localStorage.getItem('landau-char-v1');if(saved){applyPreset(JSON.parse(saved),false);restored=true;}}catch{announce('An incompatible saved preset was skipped.');}
     if(!restored)applyPreset(settings,false);
-    query('[data-loading]').hidden=true;selectPart('Head');readBone();shading();view(report.body_reconstruction?.revision>=3?'full':'face');announce('Ready. Edits are saved in this browser; download a preset for backup.');
+    query('[data-loading]').hidden=true;selectPart(parts.has('Head')?'Head':'Body_Complete');readBone();shading();view(report.body_reconstruction?.revision>=3?'full':'face');announce('Ready. Working edits resume in this browser; Save preset keeps a version in sandbox history.');
   }catch(err){if(!dead){query('[data-loading]').textContent=err.message;announce('Could not load character: '+err.message);}}
   })();
   return {destroy:dispose,ready};

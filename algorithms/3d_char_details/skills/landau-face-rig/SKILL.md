@@ -91,3 +91,31 @@ Keep generated outputs and large binaries out of Git. Archive revised masters an
 - Do not claim universal game readiness: retargeting, extreme poses, mouth interiors, LOD, collisions and cloth behavior remain separate acceptance work.
 
 Useful conceptual references: [Blender Rigify face rig types](https://docs.blender.org/manual/en/latest/addons/rigify/rig_types/face.html) and [Blender Studio facial-rigging eyes chapter](https://studio.blender.org/training/facial-rigging/chapter/eyes/). The public chapter overview was consulted; paid lesson contents were not reviewed.
+
+## September 11 revision 5 continuation
+
+The user explicitly requested a continuous head/body mesh. `continuous_skin.py`
+now joins Head and Face_Cream into Body_Complete and welds their neck vertices.
+The neck band Z=.745–.816 is relaxed; 11,585 original head vertices and all
+corresponding shape-key coordinates above Z=.818 are verified unchanged.
+The other 23 facial objects retain exact hashes. This supersedes the revision 4
+requirement for separate Head / Face_Cream objects and its 82-edge open neck rim.
+Revision 5 has zero open edges in the neck band. Original ocular/lash rules remain.
+
+The Clothing tab groups per-garment visibility and compact tailoring controls,
+with linked left/right cards by default. Global below-head size and lateral
+placement are in Shape; rest geometry, morphs and inverse bind matrices change
+together, and the head remains fixed. `validate_editor.py` checks the real GLB
+at parameter extremes and at reset. See AGENTS.md for the current data model.
+Archive authorization from the previous turn is still pending; preserve local
+outputs and the checkpoint instead of repeating the blocked transfer.
+
+The September 11 browser export was downloaded as `~/Downloads/landau-v10-edited.glb` with body offset .001 and verified using `validate_editor.py`: zero head drift, zero reset drift, and neutral inverse-bind error below 4e-8. This supersedes the older note that the browser download had not been verified. The editor was reset afterward.
+
+The later September 11 neck finish uses `finish_neck.py` after `continuous_skin.py`.
+Zero boundary edges alone did not remove shading marks. Explicit shared
+area-weighted normals and a continuous neck color field remove the old material
+seam; tapered Taubin smoothing reduces remaining dents without changing the
+face above .818 or its morph targets. Current proofs are `neck_export_front` /
+`neck_export_oblique`, with refreshed GLB-reimport blink and full-body views.
+Saved presets now live in sandbox history; see AGENTS.md for persistence details.

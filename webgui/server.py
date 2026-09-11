@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import base64
 import hashlib
 import sys
@@ -999,6 +1000,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         try:
+            if parsed.path == "/api/character/presets":
+                self._json(importlib.import_module("algorithms.3d_char_details.preset_store").handle("GET", query=query))
+                return
             if parsed.path == "/api/health":
                 self._json({"status": "ok", "service": "geo-web-gui", "sandboxes": len(discover_manifests())})
                 return
@@ -1120,6 +1124,14 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             body = self._body()
+            if parsed.path == "/api/character/presets":
+                if self.headers.get_content_type() != "application/json":
+                    raise ValueError("Preset requests require application/json")
+                origin = self.headers.get("Origin")
+                if origin and origin != "http://" + self.headers.get("Host", ""):
+                    raise ValueError("Preset writes require the local editor origin")
+                self._json(importlib.import_module("algorithms.3d_char_details.preset_store").handle("POST", body=body))
+                return
             if parsed.path == "/api/jobs":
                 job = JOBS.start_example(
                     str(body.get("sandbox", "")), str(body.get("example", "")),

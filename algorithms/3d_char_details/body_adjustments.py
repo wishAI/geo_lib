@@ -53,6 +53,11 @@ def run():
  labels={'vestChestWidth':'Chest width','vestChestDepth':'Chest depth','vestWaistWidth':'Waist width','vestWaistDepth':'Waist depth','vestShoulderWidth':'Shoulder width','vestLength':'Vest length','skirtFlare':'Skirt flare','vestRaise':'Move vest up / down','vestForward':'Move vest forward / back','sleeveUpperRoom':'Upper sleeve room','sleeveForearmRoom':'Forearm sleeve room','sleeveLength':'Sleeve length','sleeveSpread':'Move sleeves outward','sleeveRaise':'Move sleeves up / down','sleeveForward':'Move sleeves forward / back','cuffOpening':'Cuff opening','cuffWidth':'Cuff width','cuffDepth':'Cuff depth','cuffSlide':'Slide cuffs along wrist','trouserWaistWidth':'Waist width','trouserWaistDepth':'Waist depth','trouserRise':'Waist-to-crotch length','trouserThighRoom':'Thigh width','trouserThighDepth':'Thigh depth','trouserCalfRoom':'Calf width','trouserCalfDepth':'Calf depth','trouserLength':'Leg length','trouserRaise':'Move trousers up / down','trouserForward':'Move trousers forward / back','bootWidth':'Toe-box width','bootLength':'Toe-box length','bootInstep':'Instep height','bootHeelDepth':'Heel room','bootShaftWidth':'Shaft width','bootShaftDepth':'Shaft depth','bootShaftHeight':'Shaft height','bootRaise':'Move boots up / down','bootForward':'Move boots forward / back','bootSpread':'Move boots outward'}
  for name in api['GARMENTS']:
   o=bpy.data.objects[name]
+  # Old facial/global falloffs accidentally touched garments. Their dedicated
+  # tailoring controls now own garment fit; the shared frame handles placement.
+  if o.data.shape_keys:
+   for key in list(o.data.shape_keys.key_blocks):
+    if key.name in {'headWidth','bodyWidth','faceWidth','muzzleLength','earLength'}:o.shape_key_remove(key)
   if name=='Vest':choices=[n for n in labels if n.startswith('vest') or n=='skirtFlare'];group='Vest'
   elif name.startswith('Sleeve'):choices=[n for n in labels if n.startswith('sleeve')]+['vestShoulderWidth'];group='Sleeves'
   elif name.startswith('Cuff'):choices=[n for n in labels if n.startswith('cuff')]+['sleeveLength'];group='Cuffs'

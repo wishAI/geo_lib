@@ -22,7 +22,7 @@ def validate():
     assert not any('uri' in x for x in gltf.get('buffers',[])+gltf.get('images',[])), 'External asset dependency'
     body_report=report.get('body_reconstruction')
     if body_report:
-        assert report['version']==body_report['revision'] and body_report['revision'] in [3,4], 'Unexpected body revision'
+        assert report['version']==body_report['revision'] and body_report['revision'] in [3,4,5], 'Unexpected body revision'
         preservation=report['neutral_preservation']
         assert preservation['revision']==body_report['revision'] and preservation['face_exactly_preserved'], 'Missing facial preservation contract'
         before=body_report['face_hashes_before'];after=body_report['face_hashes_after']
@@ -102,12 +102,17 @@ def validate():
             assert garment['mesh'] not in mesh_ids, 'Body/garment mesh data is shared: '+name
             mesh_ids.add(garment['mesh'])
             assert gltf['skins'][garment['skin']]['joints']==joints, 'Garment skeleton differs: '+name
-        assert before.keys()<=nodes.keys(), 'Protected facial objects missing from export'
+        joined=set(body_report.get('continuous_skin',{}).get('joined_objects',[]))
+        assert before.keys()-joined<=nodes.keys(), 'Protected facial objects missing from export'
+        if body_report['revision']==5:
+            assert joined=={'Head','Face_Cream'} and not joined.intersection(nodes)
+            assert body_report['continuous_skin']['neck_boundary_edges']==0
+            assert body_report['continuous_skin']['protected_head_morph_max_error']<2e-6
     else:
         assert hidden==['Body_UnderClothes']
     result={'status':'passed','triangles':triangles,
         'skinned_vertices':skinned,'bones':max(bone_counts),'controls':len(controls),
-        'source_neutral_positions':'face local data exact; whole head rigidly relocated' if body_report else 'exact',
+        'source_neutral_positions':('original face positions and morphs exact above neck blend; welded head/body skin' if body_report.get('continuous_skin') else 'face local data exact; whole head rigidly relocated') if body_report else 'exact',
         'original_lashes_animated':True,'ocular_blink_deformation':False,'lower_eyelid':False,'embedded_images':len(gltf.get('images',[])),
         'scope':'Data integrity. Likeness, extreme poses and production lip sync are separate art gates.'}
     if body_report:
