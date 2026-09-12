@@ -119,3 +119,14 @@ seam; tapered Taubin smoothing reduces remaining dents without changing the
 face above .818 or its morph targets. Current proofs are `neck_export_front` /
 `neck_export_oblique`, with refreshed GLB-reimport blink and full-body views.
 Saved presets now live in sandbox history; see AGENTS.md for persistence details.
+
+
+## Clothing scope clarified after 6446c39
+
+The user explicitly restricted clothing work to segmentation/material regions,
+with manual fitting through sandbox properties. Keep original source surfaces,
+shoe design and existing controls. Do not automatically fit, reshape, scale shoes,
+add correction morphs or simulate cloth. The accepted face/body/neck remain exact.
+The new source-seam segmenter and 60 Hz running preview are described in AGENTS.md.
+Research notes are future options; no cloth/collision certification is implied.
+Keep the current local assets and the 6446c39 checkpoint; do not hydrate archives.

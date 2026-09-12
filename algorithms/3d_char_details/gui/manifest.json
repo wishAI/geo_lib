@@ -3,7 +3,7 @@
   "icon": "sliders",
   "name": "3d char details",
   "eyebrow": "CHARACTER SANDBOX",
-  "summary": "Continuous neck shading, paired clothing controls, aligned body placement and local preset history.",
+  "summary": "Geometry-based clothing segmentation, original garment shapes, manual fitting controls and supplied running-animation preview.",
   "accent": "#8b699d",
   "runtime": "local",
   "runtimeLabel": "Local 3D editor",
@@ -12,7 +12,8 @@
     "Reference comparison",
     "Face morphs",
     "Clothing separation",
-    "Skin + morph export"
+    "Skin + morph export",
+    "Running preview"
   ],
   "examples": [
     {
@@ -196,6 +197,32 @@
           "label": "Neck preservation check",
           "path": "algorithms/3d_char_details/outputs/landau_v10/neck_finish_validation.json",
           "kind": "json"
+        },
+        {
+          "label": "Original clothing · segmented material regions",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/clothing_source_materials.png",
+          "kind": "image"
+        },
+        {
+          "label": "Clothing segmentation audit",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/clothing_rebuild.json",
+          "kind": "json"
+        },
+        {
+          "label": "Running retarget audit",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/running_retarget.json",
+          "kind": "json"
+        },
+        {
+          "label": "Running playback validation",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/motion_editor_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "motion-player.js",
+          "path": "algorithms/3d_char_details/gui/motion-player.js",
+          "kind": "file",
+          "syncOnly": true
         }
       ]
     }

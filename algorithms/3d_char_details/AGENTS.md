@@ -103,4 +103,48 @@ Inspect the actual animation clips in `~/Downloads/landau_body.fbx`; import and
 retarget the supplied running clip to the current rig with correct axes, units,
 rest pose and root motion. Add play/pause, loop, speed, scrub and reset in the
 sandbox, then test body/garment deformation and interfaces throughout the clip.
-These changes were requested for the next session and are not implemented yet.
+The September 11 continuation below records the implemented work and the user's
+subsequent restriction to segmentation and manual fitting.
+
+## September 11 continuation from 6446c39: segmentation and running
+
+The user clarified: **do not create a new clothing version or automatically fit
+it**. Segment the existing geometry; leave fitting to the sandbox properties.
+This supersedes the earlier request to implement corrective/cloth fitting now.
+Do not resume the discarded automatic-fitting experiment.
+
+- `segment_clothing.py` uses reviewed 15-degree crease components on the original
+  source sculpt plus dihedral-weighted surface propagation. Placket/collar colors
+  use geometry-based minimum cuts. No bone ownership, UV or texture classification.
+- `rebuild_clothing.py` keeps exact original source positions and corner UV/normals,
+  the existing rigid placements, full source skin weights, and existing tailoring
+  keys. Ownership changes at seams; controls are transferred to newly owned
+  vertices from the previous garment's nearest source vertex. Eight independently
+  replaceable garment objects retain their stable GUI names. Shoes are original
+  source geometry; no replacement, scaling or automatic fitting is applied.
+- `retarget_running.py` transfers the supplied Downloads FBX clip (same SHA as the
+  retained input) through source/target world rest frames. It is 33 frames at
+  60 fps, an in-place 0.533333-second loop. All 71 target rest bones are unchanged.
+- `gui/motion-player.js` adds play/pause, loop, speed, scrub and motion reset.
+  Playback is separate from saved manual settings; reset restores the user's pose.
+  Body-placement edits and unanimated manual bones are supported. The action is
+  embedded as `Running` in GLB and retained as an unassigned fake-user action in
+  Blender so the neutral master stays neutral. Browser edited-GLB export keeps
+  the current posed character; it does not promise animation-clip export.
+- `export_clothing.py` writes fresh local assets and keeps prior GLB hashes in the
+  compatibility list. Saved preset history is untouched. Legacy garment material
+  color names remain accepted and are mapped to the replacement clean palette.
+- `clothing_research.md` records industry options as future guidance, not features
+  currently implemented. There is no automatic cloth fit, correction or simulation.
+  Unfitted clothes can intersect or have interface gaps in motion; the user owns
+  manual fitting. Never describe these diagnostics as a collision-free pass.
+
+Validation: `validate_asset.py`, `validate_editor.py`, `validate_motion.py`, plus
+`python3 -m unittest algorithms.3d_char_details.test_presets`. Motion tests sample
+65 times and cover repeated/backward scrub, pause, looping, speed, end clamping,
+manual pose, body placement and reset. Protected face/body/neck data hashes match
+before and after segmentation. Original garment Basis source-position error is 0.
+
+The accepted starting local assets remain in `outputs/landau_v10/checkpoints/6446c39/`.
+Use current local master/GLB. Do not hydrate older archive entries over them.
+`discarded_autofit/` contains rejected diagnostic outputs only, not current assets.

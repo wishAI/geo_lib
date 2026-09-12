@@ -4,6 +4,7 @@ import { GLTFLoader } from '/vendor/three/modules/GLTFLoader.js';
 import {icon,widget,GARMENT_CARDS} from '/api/artifact?path=algorithms/3d_char_details/gui/property-widgets.js';
 import {bodyPlacement} from '/api/artifact?path=algorithms/3d_char_details/gui/body-placement.js';
 
+import {motionPlayer,motionControls} from '/api/artifact?path=algorithms/3d_char_details/gui/motion-player.js';
 import {presetHistory} from '/api/artifact?path=algorithms/3d_char_details/gui/preset-history.js';
 
 const ROOT='algorithms/3d_char_details/';
@@ -26,7 +27,7 @@ export function mount(root) {
   if(!document.getElementById(cssId)){const l=document.createElement('link');l.id=cssId;l.rel='stylesheet';l.href=asset('gui/editor.css');document.head.append(l);}
   let dead=false,model,report,renderer,frame,helper,selectedPart=null,selectedBone=null,animation=0,history,dirty=false,exportBusy=false,downloadUrl=null;
   const abort=new AbortController(),parts=new Map(),bones=new Map(),morphs=new Map(),baseMaterials=new Map();
-  let adjustmentMeta={},placeBody,frameScale=1,activeView='full';
+  let adjustmentMeta={},placeBody,frameScale=1,activeView='full',player,updateMotion,lastTick=0;
   let settings={version:1,assetHash:'',morphs:{},bones:{},parts:{},outfit:{},links:{},bodyFrame:{scale:1,offset:0}};
   const query=s=>root.querySelector(s);
   const announce=t=>{if(!dead)query('[data-status]').textContent=t;};
@@ -35,7 +36,7 @@ export function mount(root) {
     <div class="char-layout"><section class="char-viewport"><canvas aria-label="Landau 3D editor — drag to orbit, right drag to pan, scroll to zoom"></canvas>
       <div class="char-viewtools"><button data-view="full">Full body</button><button data-view="face">Face</button><button data-view="side">Side</button><button data-view="back">Back</button><button data-action="focus">Expand editor</button><select aria-label="Shading" data-shading><option value="clay">Clay · structure</option><option value="textured" selected>Face material regions</option><option value="wire">Wireframe</option><option value="regions">Parts</option></select><label><input type="checkbox" data-skeleton> Skeleton</label></div>
       <div class="char-stage-label"><span data-selection>Landau v10</span><small>Drag to orbit · right drag to pan · scroll to zoom · click a part</small></div>
-      <div class="char-loading" data-loading>Preparing the character…</div>
+      <div class="char-motion" data-motion hidden></div><div class="char-loading" data-loading>Preparing the character…</div>
     </section><aside class="char-inspector"><nav class="char-tabs"><button class="active" data-tab="face">Face</button><button data-tab="shape">Shape</button><button data-tab="clothing">Clothing</button><button data-tab="parts">Parts</button><button data-tab="rig">Rig</button><button data-tab="reference">Ref</button><button data-tab="asset">Asset</button><button data-tab="presets">Presets</button></nav>
       <div class="char-pane" data-pane="face"><p class="char-hint">Blink moves the original eyelashes with the blue upper lid. The eye remains round and independent; the lower eye rim stays fixed.</p><div class="char-section"><h3>Expression presets</h3><div class="char-presets"><button data-expression="neutral">Neutral</button><button data-expression="happy">Happy</button><button data-expression="surprised">Surprised</button><button data-expression="half">Half closed</button><button data-expression="blink">Blink</button><button data-expression="look">Look left</button></div><label class="char-check"><input type="checkbox" data-blink> Play blink test</label></div><div data-face-sliders></div></div>
       <div class="char-pane" data-pane="shape" hidden><section class="char-frame"><div data-frame-sliders></div></section><div data-shape-sliders></div><button data-action="reset-body">Reset body proportions</button></div>
@@ -60,23 +61,24 @@ export function mount(root) {
   const released=new Set();
   function release(resource){if(resource&&!released.has(resource)){released.add(resource);resource.dispose?.();}}
   function releaseTree(tree){tree.traverse(o=>{release(o.geometry);if(o.skeleton)release(o.skeleton);for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m){for(const v of Object.values(m))if(v?.isTexture)release(v);release(m);}});}
-  const dispose=()=>{if(dead)return;dead=true;abort.abort();if(downloadUrl)URL.revokeObjectURL(downloadUrl);cancelAnimationFrame(frame);resize.disconnect();orbit.dispose();releaseTree(scene);for(const m of baseMaterials.keys())release(m);renderer.dispose();};
+  const dispose=()=>{if(dead)return;dead=true;abort.abort();if(downloadUrl)URL.revokeObjectURL(downloadUrl);cancelAnimationFrame(frame);player?.dispose();resize.disconnect();orbit.dispose();releaseTree(scene);for(const m of baseMaterials.keys())release(m);renderer.dispose();};
   // Return a lifecycle handle immediately, including while the asynchronous loader runs.
   root.charDispose=dispose;
   function saveLocal(){try{localStorage.setItem('landau-char-v1',JSON.stringify(settings));dirty=false;}catch{announce('Browser storage unavailable; save a version in sandbox history to keep your edits.');}}
   function touch(){dirty=true;saveLocal();}
   function setMorph(name,value,persist=true){
     if(!morphs.has(name))return;
-    settings.morphs[name]=value;for(const [mesh,index] of morphs.get(name)||[])mesh.morphTargetInfluences[index]=value;
+    if(!name.startsWith('_'))settings.morphs[name]=value;for(const [mesh,index] of morphs.get(name)||[])mesh.morphTargetInfluences[index]=value;
     for(const input of root.querySelectorAll(`input[data-morph="${name}"]`)){input.value=value;input.nextElementSibling.value=Number(value).toFixed(2);}
     if(persist)touch();
   }
-  function applyParts(){for(const [name,p] of parts){const cfg=settings.parts[name]||{};p.object.visible=cfg.visible??p.defaultVisible;for(const m of p.materials)m.color.set(cfg.materialColors?.[m.name]||baseMaterials.get(m).color);}}
-  function applyBone(name){const item=bones.get(name);if(!item)return;const cfg=settings.bones[name]||{rotation:[0,0,0],scale:1};const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(...cfg.rotation.map(v=>v*Math.PI/180),'XYZ'));item.bone.quaternion.copy(item.quaternion).multiply(q);item.bone.scale.copy(item.scale).multiplyScalar(cfg.scale);}
+  function partColor(name,m){const colors=settings.parts[name]?.materialColors||{};const aliases=report?.clothing_segmentation?.garments?.[name]?.legacy_material_names||[];return colors[m.name]||aliases.map(n=>colors[n]).find(Boolean)||baseMaterials.get(m).color;}
+  function applyParts(){for(const [name,p] of parts){const cfg=settings.parts[name]||{};p.object.visible=cfg.visible??p.defaultVisible;for(const m of p.materials)m.color.set(partColor(name,m));}}
+  function applyBone(name){const item=bones.get(name);if(!item)return;const cfg=settings.bones[name]||{rotation:[0,0,0],scale:1};const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(...cfg.rotation.map(v=>v*Math.PI/180),'XYZ'));item.bone.quaternion.copy(player?.quaternion(name)||item.quaternion).multiply(q);item.bone.scale.copy(item.scale).multiplyScalar(cfg.scale);}
   function readBone(){if(!selectedBone)return;const v=settings.bones[selectedBone]||{rotation:[0,0,0],scale:1};for(const input of root.querySelectorAll('[data-bone-axis]')){const i=Number(input.dataset.boneAxis);input.value=v.rotation[i];input.nextElementSibling.value=v.rotation[i].toFixed(0)+'°';}const input=query('[data-bone-scale]');input.value=v.scale;input.nextElementSibling.value=v.scale.toFixed(2);}
-  function readMaterial(){const p=parts.get(selectedPart);if(!p)return;const name=query('[data-material]').value;const m=[...p.materials].find(m=>m.name===name);if(m)query('[data-tint]').value=settings.parts[selectedPart]?.materialColors?.[name]||'#'+baseMaterials.get(m).color.getHexString();}
+  function readMaterial(){const p=parts.get(selectedPart);if(!p)return;const name=query('[data-material]').value;const m=[...p.materials].find(m=>m.name===name);if(m)query('[data-tint]').value='#'+new THREE.Color(partColor(selectedPart,m)).getHexString();}
   function selectPart(name){if(!parts.has(name))return;selectedPart=name;query('[data-selection]').textContent=pretty(name);query('[data-part-title]').textContent=pretty(name);query('[data-material]').innerHTML=[...parts.get(name).materials].map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');readMaterial();root.querySelectorAll('[data-part]').forEach(el=>el.classList.toggle('selected',el.dataset.part===name));}
-  function shading(){const mode=query('[data-shading]').value;let i=0;for(const [name,p] of parts){for(const m of p.materials){const b=baseMaterials.get(m);for(const [key,val]of Object.entries(b.maps))m[key]=(mode==='clay'||mode==='regions')?null:val;m.wireframe=mode==='wire';m.vertexColors=(mode==='clay'||mode==='regions')?false:b.vertexColors;m.roughness=mode==='clay'?.8:b.roughness;m.metalness=(mode==='clay'||mode==='regions')?0:b.metalness;if(mode==='clay')m.color.set('#c8d2d2');else if(mode==='regions')m.color.set(COLORS[i%COLORS.length]);else m.color.set(settings.parts[name]?.materialColors?.[m.name]||b.color);m.needsUpdate=true;}i++;}}
+  function shading(){const mode=query('[data-shading]').value;let i=0;for(const [name,p] of parts){for(const m of p.materials){const b=baseMaterials.get(m);for(const [key,val]of Object.entries(b.maps))m[key]=(mode==='clay'||mode==='regions')?null:val;m.wireframe=mode==='wire';m.vertexColors=(mode==='clay'||mode==='regions')?false:b.vertexColors;m.roughness=mode==='clay'?.8:b.roughness;m.metalness=(mode==='clay'||mode==='regions')?0:b.metalness;if(mode==='clay')m.color.set('#c8d2d2');else if(mode==='regions')m.color.set(COLORS[i%COLORS.length]);else m.color.set(partColor(name,m));m.needsUpdate=true;}i++;}}
   function view(name){
     activeView=name;
     const reportedLift=report?.body_reconstruction?.head_rigid_lift;
@@ -93,13 +95,13 @@ export function mount(root) {
     for(const [n,v] of Object.entries(p.morphs||{})){if(!morphs.has(n)||!Number.isFinite(v)||v<(adjustmentMeta[n]?.min??(SHAPES.has(n)?-1:0))||v>1)throw new Error('Invalid morph: '+n);}
     for(const [n,v] of Object.entries(p.bones||{})){if(!bones.has(n)||!Array.isArray(v.rotation)||v.rotation.length!==3||v.rotation.some(x=>!Number.isFinite(x)||Math.abs(x)>120)||!Number.isFinite(v.scale)||v.scale<.7||v.scale>1.3)throw new Error('Invalid bone: '+n);}
     for(const [n,v] of Object.entries(p.parts||{})){if(!parts.has(n)||!v||typeof v!=='object'||(v.visible!==undefined&&typeof v.visible!=='boolean')||(v.tint!==undefined&&!/^#[0-9a-f]{6}$/i.test(v.tint)))throw new Error('Invalid part: '+n);}
-    for(const [n,v] of Object.entries(p.parts||{}))for(const [material,color]of Object.entries(v.materialColors||{}))if(![...parts.get(n).materials].some(m=>m.name===material)||!/^#[0-9a-f]{6}$/i.test(color))throw new Error('Invalid material color: '+material);
+    for(const [n,v] of Object.entries(p.parts||{}))for(const [material,color]of Object.entries(v.materialColors||{}))if((![...parts.get(n).materials].some(m=>m.name===material)&&!(report.clothing_segmentation?.garments?.[n]?.legacy_material_names||[]).includes(material))||!/^#[0-9a-f]{6}$/i.test(color))throw new Error('Invalid material color: '+material);
     for(const [part,values] of Object.entries(p.outfit||{}))for(const [n,v] of Object.entries(values)){if(!garmentNames(part).includes(n)||!Number.isFinite(v)||v<(adjustmentMeta[n]?.min??0)||v>1)throw new Error('Invalid clothing adjustment');}
     for(const [n,v]of Object.entries(p.links||{}))if(!GARMENT_CARDS.some(g=>g.id===n)||typeof v!=='boolean')throw new Error('Invalid pair link');
     const frame={scale:1,offset:0,...p.bodyFrame};if(!Number.isFinite(frame.scale)||frame.scale<.75||frame.scale>1.25||!Number.isFinite(frame.offset)||Math.abs(frame.offset)>.05)throw new Error('Invalid body placement');
     return {version:1,assetHash:report.glb_sha256,morphs:p.morphs||{},bones:p.bones||{},parts:p.parts||{},outfit:p.outfit||{},links:p.links||{},bodyFrame:frame};
   }
-  function applyPreset(p,persist=true){query('[data-blink]').checked=false;settings=validatePreset(p);for(const n of morphs.keys())setMorph(n,settings.morphs[n]||0,false);for(const n of bones.keys())applyBone(n);applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible]?.visible??parts.get(e.dataset.visible).defaultVisible);for(const g of GARMENT_CARDS)for(const n of g.parts)for(const name of garmentNames(n)){const v=outfitValue(n,name);parts.get(n)?.object.traverse(o=>{const i=o.morphTargetDictionary?.[name];if(i!==undefined)o.morphTargetInfluences[i]=v;});}applyBodyFrame();renderGarments();readBone();readMaterial();if(persist)touch();}
+  function applyPreset(p,persist=true){player?.reset();query('[data-blink]').checked=false;settings=validatePreset(p);for(const n of morphs.keys())setMorph(n,settings.morphs[n]||0,false);for(const n of bones.keys())applyBone(n);applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible]?.visible??parts.get(e.dataset.visible).defaultVisible);for(const g of GARMENT_CARDS)for(const n of g.parts)for(const name of garmentNames(n)){const v=outfitValue(n,name);parts.get(n)?.object.traverse(o=>{const i=o.morphTargetDictionary?.[name];if(i!==undefined)o.morphTargetInfluences[i]=v;});}applyBodyFrame();renderGarments();readBone();readMaterial();if(persist)touch();}
   function expression(kind){query('[data-blink]').checked=false;for(const n of morphs.keys())if(!SHAPES.has(n)&&!OUTFIT.has(n))setMorph(n,0,false);const p={neutral:{},happy:{mouthSmile:.7,eyeSquintL:.15,eyeSquintR:.15},surprised:{jawDrop:.75,browUpL:.65,browUpR:.65,eyeWideL:.5,eyeWideR:.5},half:{eyeBlinkL:.5,eyeBlinkR:.5},blink:{eyeBlinkL:1,eyeBlinkR:1},look:{eyeLookOutL:.75,eyeLookInR:.75}}[kind];for(const [n,v]of Object.entries(p))setMorph(n,v,false);touch();announce('Expression: '+kind);}
   function control(name,part=''){
     const min=adjustmentMeta[name]?.min??(SHAPES.has(name)?-1:0),label=esc(adjustmentMeta[name]?.label||OUTFIT_LABELS[name]||pretty(name));
@@ -132,8 +134,8 @@ export function mount(root) {
       orbit.target.y-=.806*(scale-frameScale)/2;camera.position.copy(orbit.target).addScaledVector(direction,ratio);
     }
     frameScale=scale;grid.position.y=.806*(1-scale);
-    placeBody?.(scale,settings.bodyFrame.offset);for(const n of bones.keys())applyBone(n);for(const input of root.querySelectorAll('[data-body-frame]')){input.value=settings.bodyFrame[input.dataset.bodyFrame];input.nextElementSibling.value=Number(input.value).toFixed(input.dataset.bodyFrame==='offset'?3:2);}}
-  function tick(t){if(dead)return;frame=requestAnimationFrame(tick);if(query('[data-blink]').checked){const phase=(t/1000)%3.4;animation=Math.max(0,1-Math.abs(phase-.35)/.16);for(const n of ['eyeBlinkL','eyeBlinkR'])for(const[m,i]of morphs.get(n)||[])m.morphTargetInfluences[i]=animation;}orbit.update();renderer.render(scene,camera);}
+    player?.beforeRestEdit();placeBody?.(scale,settings.bodyFrame.offset);player?.afterRestEdit(scale);for(const n of bones.keys())applyBone(n);for(const input of root.querySelectorAll('[data-body-frame]')){input.value=settings.bodyFrame[input.dataset.bodyFrame];input.nextElementSibling.value=Number(input.value).toFixed(input.dataset.bodyFrame==='offset'?3:2);}}
+  function tick(t){if(dead)return;frame=requestAnimationFrame(tick);player?.tick(lastTick?(t-lastTick)/1000:0);lastTick=t;updateMotion?.();if(query('[data-blink]').checked){const phase=(t/1000)%3.4;animation=Math.max(0,1-Math.abs(phase-.35)/.16);for(const n of ['eyeBlinkL','eyeBlinkR'])for(const[m,i]of morphs.get(n)||[])m.morphTargetInfluences[i]=animation;}orbit.update();renderer.render(scene,camera);}
   frame=requestAnimationFrame(tick);
 
   function showTab(name){root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));root.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==name);}
@@ -156,16 +158,16 @@ export function mount(root) {
       if(action==='save'){showTab('presets');await history.save();}
       if(action==='preset-download')download(JSON.stringify(settings,null,2),'landau-v10-preset.json','application/json');
       if(action==='load')query('[data-file]').click();
-      if(action==='undress'||action==='dress'){for(const [n,p]of parts)if(p.kind==='clothing')settings.parts[n]={...settings.parts[n],visible:action==='dress'};for(const [n,p]of parts)if(p.kind==='inferred_body')settings.parts[n]={...settings.parts[n],visible:true};applyParts();shading();root.querySelectorAll('[data-visible]').forEach(el=>el.checked=settings.parts[el.dataset.visible]?.visible??parts.get(el.dataset.visible).defaultVisible);touch();}
+      if(action==='undress'||action==='dress'){for(const [n,p]of parts)if(p.kind==='clothing')settings.parts[n]={...settings.parts[n],visible:action==='dress'};for(const [n,p]of parts)if(p.kind==='inferred_body')settings.parts[n]={...settings.parts[n],visible:true};applyParts();shading();root.querySelectorAll('[data-visible]').forEach(el=>el.checked=settings.parts[el.dataset.visible]?.visible??parts.get(el.dataset.visible).defaultVisible);syncGarmentControls();touch();}
       if(action==='untint'&&selectedPart){const colors=settings.parts[selectedPart]?.materialColors||{};delete colors[query('[data-material]').value];shading();readMaterial();touch();}
       if((action==='isolate'&&selectedPart)||action==='show-character'){for(const [n,p]of parts)settings.parts[n]={...settings.parts[n],visible:action==='isolate'?n===selectedPart:p.defaultVisible};applyParts();shading();root.querySelectorAll('[data-visible]').forEach(e=>e.checked=settings.parts[e.dataset.visible].visible);syncGarmentControls();touch();}
       if(action==='reset-bone'&&selectedBone){delete settings.bones[selectedBone];applyBone(selectedBone);readBone();touch();}
       if(action==='reset-pose'){settings.bones={};for(const n of bones.keys())applyBone(n);readBone();touch();}
       if(action==='export'){
         exportBusy=true;button.disabled=true;query('.char-layout').inert=true;query('.char-actions').inert=true;announce('Exporting skin, morph targets, textures and current settings…');
-        query('[data-blink]').checked=false;for(const n of ['eyeBlinkL','eyeBlinkR'])setMorph(n,settings.morphs[n]||0,false);
+        player?.pause();query('[data-blink]').checked=false;for(const n of ['eyeBlinkL','eyeBlinkR'])setMorph(n,settings.morphs[n]||0,false);
         const old=query('[data-shading]').value;query('[data-shading]').value='textured';shading();
-        try{const {GLTFExporter}=await import('/api/artifact?path=algorithms/3d_char_details/gui/vendor/GLTFExporter.js');if(dead)return;const result=await new GLTFExporter().parseAsync(model,{binary:true,trs:true,onlyVisible:query('[data-visible-only]').checked,maxTextureSize:Number(query('[data-export-resolution]').value)});if(dead)return;download(result,'landau-v10-edited.glb','model/gltf-binary');announce('Edited GLB exported. Facial morphs and skin are retained.');}finally{exportBusy=false;if(!dead){query('[data-shading]').value=old;shading();button.disabled=false;query('.char-layout').inert=false;query('.char-actions').inert=false;}}
+        try{const {GLTFExporter}=await import('/api/artifact?path=algorithms/3d_char_details/gui/vendor/GLTFExporter.js');if(dead)return;const result=await new GLTFExporter().parseAsync(model,{binary:true,trs:true,onlyVisible:query('[data-visible-only]').checked,maxTextureSize:Number(query('[data-export-resolution]').value)});if(dead)return;download(result,'landau-v10-edited.glb','model/gltf-binary');announce('Edited GLB exported. Facial morphs, skin and the current motion pose are retained.');}finally{exportBusy=false;if(!dead){query('[data-shading]').value=old;shading();button.disabled=false;query('.char-layout').inert=false;query('.char-actions').inert=false;}}
       }
     }catch(err){announce(err.message);button.disabled=false;}
   },{signal:abort.signal});
@@ -209,7 +211,7 @@ export function mount(root) {
       for(const [name,index]of Object.entries(o.morphTargetDictionary||{})){if(!morphs.has(name))morphs.set(name,[]);morphs.get(name).push([o,index]);}
     });
     helper=new THREE.SkeletonHelper(model);helper.visible=false;helper.material.depthTest=false;helper.renderOrder=10;scene.add(helper);
-    query('[data-face-sliders]').innerHTML=[...morphs.keys()].filter(n=>!SHAPES.has(n)&&!OUTFIT.has(n)).sort().map(n=>control(n)).join('');
+    query('[data-face-sliders]').innerHTML=[...morphs.keys()].filter(n=>!n.startsWith('_')&&!SHAPES.has(n)&&!OUTFIT.has(n)).sort().map(n=>control(n)).join('');
     query('[data-shape-sliders]').innerHTML=[...morphs.keys()].filter(n=>SHAPES.has(n)).sort().map(n=>control(n)).join('');
     query('[data-part-list]').innerHTML=[...parts].filter(([,p])=>p.kind!=='clothing').map(([n,p])=>`<div class="char-part"><input type="checkbox" aria-label="Show ${esc(pretty(n))}" data-visible="${esc(n)}" ${p.defaultVisible?'checked':''}><button data-part="${esc(n)}">${esc(n==='Body_Complete'?'Connected skin':pretty(n))}</button></div>`).join('');
     query('[data-frame-sliders]').innerHTML=widget({label:'Body scale',attrs:'data-body-frame="scale"',min:.75,max:1.25,value:1,reset:'data-reset-frame="scale"',op:'scale',scope:'world'})+widget({label:'Body left / right',attrs:'data-body-frame="offset"',min:-.05,max:.05,step:.001,reset:'data-reset-frame="offset"',op:'move',scope:'world',axis:'x'});
@@ -218,6 +220,8 @@ export function mount(root) {
     query('[data-bone-sliders]').innerHTML=['X','Y','Z'].map((a,i)=>widget({label:`Rotation ${a}`,attrs:`data-bone-axis="${i}"`,min:-120,max:120,step:1,reset:`data-reset-joint="${i}"`,life:'live',op:'rotate',axis:a.toLowerCase()})).join('')+widget({label:'Scale',attrs:'data-bone-scale',min:.7,max:1.3,value:1,reset:'data-reset-joint="scale"',life:'live',op:'scale'});
     const v=report.validation;query('[data-asset-report]').innerHTML=`<h3>Structure and rig preview</h3><dl class="char-facts"><dt>Meshes</dt><dd>${v.mesh_count}</dd><dt>Triangles</dt><dd>${v.triangles.toLocaleString()}</dd><dt>Bones</dt><dd>${v.bones}</dd><dt>Facial + shape controls</dt><dd>${morphs.size}</dd><dt>Invalid skin weights</dt><dd>${v.invalid_skin_vertices}</dd></dl><h3>Remaining production work</h3><ul>${report.limitations.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`;
     query('[data-stats]').textContent=`${parts.size} parts · ${bones.size} bones · ${morphs.size} controls`;
+    player=motionPlayer(model,gltf.animations,bones,()=>{for(const n of bones.keys())applyBone(n);});
+    query('[data-motion]').hidden=false;updateMotion=motionControls(query('[data-motion]'),player,abort.signal);
     settings.assetHash=report.glb_sha256;
     history=presetHistory(root,{read:()=>structuredClone(settings),apply:applyPreset,compatible:compatiblePreset,announce,signal:abort.signal});
     // Read saved edits before applying defaults; applying a preset may persist it.
