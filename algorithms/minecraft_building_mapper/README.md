@@ -8,7 +8,9 @@ replace a region file.
 Current scope is only the base 2D map:
 
 - chunk-streamed 256×256-block PNG tiles
+- complete allocated-chunk inventory and bounded whole-world overview rendering
 - exact top-face textures when the supplied asset evidence resolves them
+- alpha-aware substrate composition, representative fluid depth, partial-block geometry, and bounded height shading
 - pan/zoom plus world, dimension, layer-cutoff, and texture-scale selectors
 - machine-readable `metadata.json` and `report.json`
 - legacy 1.5.2 `Blocks` + `Data` + optional `Add` decoding
@@ -65,8 +67,10 @@ contain paths and SHA-256 hashes, not copied textures.
 
 For LunaMatrix Fabric 26.1.2, pass its exact enabled resource packs, mod JARs,
 and game JAR. The resolver follows blockstates, model parents, and top-face
-texture references. Multipart geometry or ambiguous weighted top textures stay
-unknown rather than being guessed.
+texture references. Multipart models that share a top texture are exact;
+multi-sprite multipart models use one exact supplied representative only with
+an explicit `inferred` label. Mojang client artifacts must be selected through
+the matching authoritative version manifest and hash-verified.
 
 ```bash
 python3 -m algorithms.minecraft_building_mapper catalog-modern \
@@ -75,6 +79,13 @@ python3 -m algorithms.minecraft_building_mapper catalog-modern \
   --asset /remote/storage/versions/26.1.2/26.1.2.jar \
   --output /remote/storage/minecraft-map/lunamatrix_catalog.json
 ```
+
+The verified LunaMatrix fullpack world lives at `lunamatrix-test/world` and is
+DataVersion 4790 / Minecraft 26.1.2. Its server JAR does not contain the full
+client texture set. For the validated run, Mojang's official manifest selected
+client SHA-1 `4e618f09a0c649dde3fdf829df443ce0b8831e65` (SHA-256
+`b1b3158572666445eff01e82fad8c7de2e4953db6d354f311730d77a8359d0b0`).
+The exact fullpack server and mod JARs remain additional catalog sources.
 
 For Bilicraft, use the exact runtime `bc3` tree (not a newly generated Forge
 instance), the BiliCraft 1.5.1 32× texture pack, the
@@ -85,7 +96,9 @@ combine exact config IDs, bundled registration/render bytecode, client options,
 language labels, and texture members. The resolver refuses its hard-coded
 bytecode summary unless the complete mod archive SHA-256 matches the audited
 bc3 copy. Vanilla 1.5.2 IDs use canonical mappings but pixels always come from
-the supplied 32× pack. A config-only ID is named with its exact provenance but
+the supplied 32× pack. The exact client biome table and ForgottenNature's
+fingerprinted biome classes/config provide temperature and rainfall for IDs
+0–22 and 70–76. A config-only ID is named with its exact provenance but
 remains texture-unknown because config assignment alone does not prove a
 metadata-specific top face.
 
@@ -101,6 +114,37 @@ python3 -m algorithms.minecraft_building_mapper catalog-legacy \
 Every unresolved palette key is drawn as a deterministic black/magenta checker
 and counted under `unknown.blockCounts` in the report. Do not hand-map an
 unknown block from appearance or a similarly named mod.
+
+After a complete read-only legacy inventory, explicitly cover only its visible
+unresolved states (and unresolved metadata in the same exactly configured ID
+families) with audited representative textures:
+
+```bash
+python3 -m algorithms.minecraft_building_mapper catalog-cover-visible \
+  --catalog /remote/storage/minecraft-map/bilicraft_exact_catalog.json \
+  --inventory /remote/storage/minecraft-map/bilicraft_inventory/surface_inventory.json \
+  --output /remote/storage/minecraft-map/bilicraft_render_catalog.json
+```
+
+This command never upgrades confidence to `exact`: every fallback records the
+triggering surface count, exact config evidence when present, representative
+texture member/hash, reason, and confidence below 1.0.
+
+### Legacy satellite rendering
+
+The renderer follows the exact bundled OptiFine settings (`customColors`,
+`smoothBiomes`, and `swampColors`) and its 3×3 smoothing rule. Grass, foliage,
+pine, birch, swamp, water, lily, stem, and configured block palettes use the
+supplied pack's exact colorizer pixels. Animated texture strips use their first
+square frame. Transparent surfaces are composited over the next visible layer;
+water retains the visible substrate while darkening with measured column depth.
+
+Crossed plants/crops, lines and rails, connected fences/panes, vertical planes,
+slabs, stairs, snow covers, partial blocks, leaves, glass, ice, and fluids have
+explicit overhead geometry categories. The report counts every contributing
+state by geometry and certainty. A bounded directional height shade is applied
+after rendering to make terrain and roof edges legible; it changes pixels only,
+never block identity or world data.
 
 ### Resolution and inference contract
 
@@ -204,6 +248,38 @@ The output folder contains `tile_0_0.png`, `metadata.json`, and `report.json`.
 Keep it on TK2 or pull the ignored output through `./geo pull-output
 minecraft_building_mapper`, which places remote results in the established
 Nextcloud workflow.
+
+## Inventory and render the whole explored world
+
+These commands discover allocated chunks themselves. They do not accept a
+region and do not expose the QA density ranking as building recognition.
+
+```bash
+python3 -m algorithms.minecraft_building_mapper inventory-world \
+  --world /remote/storage/worlds/Bilicraft三周目地图.zip \
+  --catalog /remote/storage/minecraft-map/bilicraft_catalog.json \
+  --dimension minecraft:overworld \
+  --output /remote/storage/minecraft-map/bilicraft_inventory
+
+python3 -m algorithms.minecraft_building_mapper render-overview \
+  --world /remote/storage/worlds/Bilicraft三周目地图.zip \
+  --catalog /remote/storage/minecraft-map/bilicraft_catalog.json \
+  --dimension minecraft:overworld --max-size 4096 \
+  --output /remote/storage/minecraft-map/bilicraft_overview
+```
+
+`surface_inventory.json` includes explored bounds, biome and top-state counts,
+all transparent surface contributions, geometry totals, certainty coverage,
+non-rendering helpers, and parse errors. `world_overview.png` and
+`overview_report.json` record the automatically chosen blocks-per-pixel scale,
+source bounds, tint diagnostics, texture failures, and shade range. The QA-only
+constructed-material density list may be used by an operator to choose an
+existing fixed 256×256 tile for closer visual inspection.
+
+The overview canvas uses the dominant four-neighbour explored chunk component.
+Disconnected coordinate-jump components remain counted with full bounds under
+`disconnectedComponentsQuarantinedFromCanvas`; this keeps the inhabited world
+navigable without deleting, rewriting, or hiding evidence from the inventory.
 
 ## Pan and zoom viewer
 

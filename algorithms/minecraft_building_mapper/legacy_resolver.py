@@ -130,6 +130,54 @@ FLOWERS = (
     ("Star of Bethlehem", "StarOfBethlehem"),
 )
 
+PLANKS = (
+    "PlankBrown", "PlankPurple", "PlankDarkRed", "PlankDarkYellow", "PlankPeach", "PlankOrange",
+    "PlankBrightwood", "PlankRedwood", "PlankAcacia", "PlankBrightYellow", "PlankOld", "PlankBamboo",
+    "PlankDriedBamboo", "PlankNetherBlaze", "PlankNetherAsh",
+)
+PARQUET = (
+    "PlankHerringbone", "PlankXParquet", "PlankFrederiksborgParquet", "PlankForDonParquet",
+    "PlankLatticeParquet", "PlankSquareDiamondParquet", "PlankPavimentiParquet",
+)
+STONE = (
+    "StoneChert", "StoneGranite", "StoneGneiss", "StoneHornfels", "StoneMarble",
+    "BricksGranite", "BricksGneiss", "BricksHornfels", "BricksMarble", "TitanStoneBlock",
+)
+CRYSTAL_WOOD = tuple(
+    "LightCrystalLogBase" if metadata == 0 else
+    "DarkCrystalLogBase" if metadata == 1 else
+    ("LightCrystalLog", "DarkCrystalLog", "LightCrystalPlank", "DarkCrystalPlank")[metadata & 3]
+    for metadata in range(16)
+)
+CRYSTAL_BLOCK = ("LightCrystalBlock", "DarkCrystalBlock", "LightBrickCrystalBlock", "DarkBrickCrystalBlock")
+FRUIT = ("FoodWalnuts", "Bananas", "FruitFig", "FoodCoconut", "FoodGinkgoNuts", "FruitOrange", "FruitPeach", "FruitLemon")
+SAPLINGS = (
+    (
+        "SaplingDesertIronwood", "SaplingCherry", "SaplingRedMaple", "SaplingAngel", "SaplingYellowMaple",
+        "SaplingJacaranda", "SaplingApple", "SaplingEucalyptus", "SaplingSequoia", "SaplingFig",
+        "SaplingCypress", "SaplingAcacia", "SaplingJoshua", "SaplingSwampWillow", "SaplingDeciduousBush",
+        "SaplingEvergreenBush",
+    ),
+    (
+        "SaplingPalm", "SaplingDesertWillow", "SaplingCedar", "SaplingGinkgo", "SaplingPoplar",
+        "SaplingBeech", "SaplingWalnut", None, "SaplingWTEucalyptus", "SaplingBukkit", "SaplingBanana",
+        "SaplingOrange", "SaplingPeach", "SaplingLemon", "SaplingBlueberry", "SaplingRaspberry",
+    ),
+    ("SaplingHuckleberry", "SaplingBlackberry", "SaplingCrystal", "SaplingNetherAsh", "SaplingNetherBlaze", "SaplingNetherMushroom"),
+)
+CROP_TEXTURES = {
+    "CeleryOnionGarlicID": tuple(f"KnobCelery_{i}" for i in range(4)) + tuple(f"Onion_{i}" for i in range(4)) + tuple(f"Garlic_{i}" for i in range(4)),
+    "PeanutTurnipGingerID": tuple(f"Peanut_{i}" for i in range(4)) + tuple(f"Turnip_{i}" for i in range(4)) + tuple(f"Ginger_{i}" for i in range(4)),
+    "ParsleyWChestnutRiceBroccoliID": tuple(f"Parsley_{i}" for i in range(4)) + tuple(f"Broccoli_{i}" for i in range(4)) + tuple(f"WaterChestnut_{i}" for i in range(4)) + tuple(f"Rice_{i}" for i in range(4)),
+    "HempCottonBambooCornID": tuple(f"Corn_{i}" for i in range(4)) + tuple(f"Cotton_{i}" for i in range(4)) + tuple(f"Bamboo_{i}" for i in range(4)) + tuple(f"Hemp_{i}" for i in range(4)),
+    "GrapeTomatoCabbagePineappleID": tuple(f"Tomato_{i}" for i in range(4)) + tuple(f"Cabbage_{i}" for i in range(4)) + tuple(f"Pineapple_{i}" for i in range(4)) + tuple(f"Grapes_{i}" for i in range(4)),
+}
+CROP_CLASSES = {
+    "CeleryOnionGarlicID": "BlockKCelOniGar", "PeanutTurnipGingerID": "BlockPeaTurnGinger",
+    "ParsleyWChestnutRiceBroccoliID": "BlockParsWChestRiceBroc", "HempCottonBambooCornID": "BlockHempCotBamCorn",
+    "GrapeTomatoCabbagePineappleID": "BlockGrapeTomCabPine",
+}
+
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -229,6 +277,7 @@ def _forgotten_nature(
                     "exact",
                     name=name,
                     texture={"source": located[0], "member": located[1]},
+                    visual={"geometry": "alpha_cube", "height": 1.0},
                     reason="Exact bc3 config, bundled 1.5.2 registration/render bytecode, client graphics option, and supplied texture agree.",
                     provenance=[leaf_config, main, class_evidence, labels, graphics, _texture_evidence(sources, located)],
                 )
@@ -254,6 +303,7 @@ def _forgotten_nature(
                 "exact",
                 name=f"Forgotten Nature {texture_stem}",
                 texture={"source": located[0], "member": located[1]},
+                visual={"geometry": "cube", "height": 1.0},
                 reason="Exact bc3 config and bundled 1.5.2 top-face bytecode select this supplied texture for the stored metadata.",
                 provenance=[log_config, main, class_evidence, _texture_evidence(sources, located)],
             )
@@ -270,10 +320,130 @@ def _forgotten_nature(
             "exact",
             name=name,
             texture={"source": located[0], "member": located[1]},
+            visual={"geometry": "cross", "height": 0.8},
             reason="Exact bc3 config and bundled 1.5.2 metadata-indexed icon array select this supplied texture.",
             provenance=[flower_config, main, flower_evidence, labels, _texture_evidence(sources, located)],
         )
         applied += 1
+
+    def exact_state(
+        block_id: int, metadata: int, name: str, texture_stem: str, class_name: str,
+        config_evidence: dict[str, Any], geometry: str = "cube", height: float = 1.0,
+    ) -> None:
+        nonlocal applied
+        member = f"ForgottenNature/Blocks/{class_name}.class"
+        located = locate_texture(texture_stem)
+        if located is None or not source.has(member):
+            return
+        class_evidence = _member_evidence(source, source_index, member, "bundled-render-bytecode")
+        class_evidence["methods"] = ["getIcon(int,int)", "registerIcons(IconRegister)"]
+        entries[f"legacy:{block_id}:{metadata}"] = resolution_entry(
+            "exact", name=name, texture={"source": located[0], "member": located[1]},
+            visual={"geometry": geometry, "height": height},
+            reason="Exact bc3 config, fingerprinted registration/render bytecode, and supplied texture select this overhead appearance.",
+            provenance=[config_evidence, main, class_evidence, _texture_evidence(sources, located)],
+        )
+        applied += 1
+
+    def exact_table(
+        config_key: str, class_name: str, textures: tuple[str | None, ...], geometry: str = "cube",
+        metadata_mask: int | None = None, block_offset: int = 0, height: float = 1.0,
+    ) -> None:
+        config = _assignment(assignments, config_key)
+        if config is None:
+            return
+        for metadata in range(16):
+            index = metadata & metadata_mask if metadata_mask is not None else metadata
+            if index >= len(textures) or textures[index] is None:
+                continue
+            exact_state(
+                int(config["id"]) + block_offset, metadata,
+                f"Forgotten Nature {textures[index]}", str(textures[index]), class_name,
+                config, geometry, height,
+            )
+
+    # Complete exact metadata tables for every other ForgottenNature block
+    # family visible in the archived world.
+    for config_key, textures in CROP_TEXTURES.items():
+        exact_table(config_key, CROP_CLASSES[config_key], textures, "cross")
+    exact_table("torchID", "BlockNewTorch", ("CrystalTorch",) * 16, "point", 15, height=0.75)
+    exact_table("ropeID", "BlockRope", ("Rope",) * 16, "plane", 15)
+    exact_table('"New Stones ID"', "BlockNewStone", STONE)
+    exact_table("plankID", "BlockNewPlanks", PLANKS)
+    exact_table("plankID2", "BlockNewPlanks2", PARQUET)
+    exact_table("fenceID", "BlockNewFence", PLANKS, "connected")
+    exact_table('"New Glass ID"', "FNBlockGlass", (
+        "Glass2x1", "Glass2x2", "Glass3x3", "GlassBlackLattice", "GlassCircle", "GlassDiamondLattice",
+        "GlassDoubleDiamond", "GlassDoubleDoor", "GlassDoubleLattice", "GlassFramed2x2", "GlassFramed3x3",
+        "GlassFramedWide3x3", "GlassPeaking", "GlassPinwheel", "GlassSquareLattice", "GlassWide3x3",
+    ), "alpha_cube")
+    for config_key, textures, double in (
+        ('"New Half Planks ID"', PLANKS[:8], False), ('"New DoubleHalf Planks ID"', PLANKS[:8], True),
+        ('"New Half Planks ID2"', PLANKS[8:13] + ("LightCrystalPlank", "DarkCrystalPlank"), False),
+        ('"New DoubleHalf Planks ID2"', PLANKS[8:13] + ("LightCrystalPlank", "DarkCrystalPlank"), True),
+        ('"New Half StoneID"', STONE[1:9], False), ('"New DoubleHalf StoneID"', STONE[1:9], True),
+    ):
+        config = _assignment(assignments, config_key)
+        if config is None:
+            continue
+        for metadata in range(16):
+            index = metadata & 7
+            # The second plank bank contains only the five remaining woods
+            # plus the two crystal planks.  Metadata 7 is unregistered for
+            # that block and must remain absent rather than aliasing a texture.
+            if index >= len(textures):
+                continue
+            texture = textures[index]
+            exact_state(
+                int(config["id"]), metadata, f"Forgotten Nature {texture} {'double ' if double else ''}slab",
+                texture, "BlockNewSlab", config, "cube" if double else "slab", 1.0 if double or metadata & 8 else 0.5,
+            )
+    exact_table("groundID", "BlockNewGroundcover", ("CrystalGroundcover",) * 16)
+    exact_table("crystalWoodID", "BlockCrystalWood", CRYSTAL_WOOD)
+    exact_table("crystalStoneID", "BlockCrystalStone", ("LightCrystalFlower", "DarkCrystalFlower"), "cross")
+    exact_table("crystalBlockID", "BlockCrystalBlock", CRYSTAL_BLOCK)
+    exact_table("fruitID", "BlockNewFruit", FRUIT, "cross")
+    exact_table('"Crystal Mushroom ID"', "BlockCrystalMushroom", ("CrystalMushroom",), "cross")
+    mushroom_config = _assignment(assignments, '"Crystal MushroomBlock ID"')
+    if mushroom_config:
+        for metadata in range(16):
+            texture = "LightCrystalMushroomStemBlockBase" if metadata == 0 else "LightCrystalMushroomHeadBlock"
+            exact_state(int(mushroom_config["id"]), metadata, "Forgotten Nature Crystal Mushroom Block",
+                        texture, "BlockCrystalMushroomBlock", mushroom_config)
+    for offset, textures in enumerate(SAPLINGS):
+        exact_table("sapIDindex", f"BlockNewSap{'' if offset == 0 else offset + 1}", textures, "cross", block_offset=offset)
+
+    stairs_config = _assignment(assignments, '"New Stair Index"')
+    if stairs_config:
+        stair_textures = PLANKS[:13] + ("LightCrystalPlank", "DarkCrystalPlank") + STONE[5:9]
+        for offset, texture in enumerate(stair_textures):
+            for metadata in range(16):
+                exact_state(int(stairs_config["id"]) + offset, metadata, f"Forgotten Nature {texture} stairs",
+                            texture, "BlockNewStairs", stairs_config, "stair", 1.0 if metadata & 4 else 0.5)
+
+    # Contiguous registrations proven by ForgottenNature.class.
+    log_config = _assignment(assignments, "logIDindex")
+    if log_config:
+        for metadata in range(16):
+            index = metadata & 7
+            texture = (
+                ("NetherAshLogBase", "NetherBlazeLogBase", "NetherSporeStalkBase")[metadata]
+                if metadata < 3 else
+                ("NetherAshLog", "NetherBlazeLog", "NetherSporeStalk")[index]
+                if index < 3 else "NetherSporeStalkBase"
+            )
+            exact_state(int(log_config["id"]) + 4, metadata, f"Forgotten Nature {texture}", texture,
+                        "BlockNetherLogs", log_config)
+    leaf_config = _assignment(assignments, "leafIDindex")
+    if leaf_config:
+        for offset, class_name, textures in (
+            (6, "BlockCrystalLeaves", ("DarkCrystalLeaves", "LightCrystalLeaves")),
+            (7, "BlockNetherLeaves", ("NetherAshLeaves", "NetherBlazeLeaves")),
+        ):
+            for metadata in range(16):
+                texture = textures[(metadata - 8 if metadata > 7 else metadata) & 1]
+                exact_state(int(leaf_config["id"]) + offset, metadata, f"Forgotten Nature {texture}", texture,
+                            class_name, leaf_config, "alpha_cube")
     return {"name": "ForgottenNature 1.5.2 exact bc3", "archiveSha256": source.sha256, "entriesApplied": applied}
 
 
@@ -294,6 +464,7 @@ def _railcraft_hidden(
         "exact",
         name="Railcraft Residual Heat",
         renderAsAir=True,
+        visual={"geometry": "nonstandard", "height": 0.0, "renderAsAir": True},
         reason="The exact bundled Railcraft class has render type -1 and reports itself as air; no appearance is inferred.",
         provenance=[config, evidence],
     )
