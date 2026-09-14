@@ -31,7 +31,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
-        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest"}
+        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "layers"}
         algorithm_names = {
             path.name
             for path in (server.REPO_ROOT / "algorithms").iterdir()

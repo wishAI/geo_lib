@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geo-lib-minecraft-building-mapper"
+version = "0.1.0"
+description = "Read-only tiled top-down renderer for modern and legacy Minecraft Anvil worlds."
+requires-python = ">=3.10"
+dependencies = ["pillow>=10.0"]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+minecraft-building-map = "algorithms.minecraft_building_mapper.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+package-dir = {"" = "../.."}
+packages = ["algorithms", "algorithms.minecraft_building_mapper"]
+
+[tool.setuptools.package-data]
+"algorithms.minecraft_building_mapper" = ["web/*.html"]
