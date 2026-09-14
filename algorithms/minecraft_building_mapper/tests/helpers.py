@@ -101,6 +101,23 @@ def modern_chunk(
     return root([(9, "sections", list_of(10, [section]))])
 
 
+def flattened_palette_chunk(block_name: str = "minecraft:stone") -> bytes:
+    """Build the section schema used by flattened 1.13 through 1.17 saves."""
+
+    palette_entry = compound([(8, "Name", string(block_name))])
+    section = compound([
+        (1, "Y", byte(0)),
+        (9, "Palette", list_of(10, [palette_entry])),
+        (12, "BlockStates", long_array([])),
+    ])
+    level = compound([
+        (3, "DataVersion", integer(2230)),
+        (8, "Status", string("full")),
+        (9, "Sections", list_of(10, [section])),
+    ])
+    return root([(10, "Level", level)])
+
+
 def write_world(root_path: Path, chunk: bytes, level_name: str = "Fixture") -> Path:
     root_path.mkdir(parents=True)
     level = root([(10, "Data", compound([(8, "LevelName", string(level_name)), (3, "DataVersion", integer(1343))]))])

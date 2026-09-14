@@ -290,10 +290,17 @@ def _modern_sections(chunk: dict[str, object]) -> dict[int, tuple[list[object], 
         if not isinstance(section, dict):
             continue
         states = section.get("block_states", section.get("BlockStates"))
-        if not isinstance(states, dict):
-            continue
-        palette = states.get("palette", states.get("Palette", []))
-        packed = states.get("data", states.get("BlockStates", []))
+        if isinstance(states, dict):
+            palette = states.get("palette", states.get("Palette", []))
+            packed = states.get("data", states.get("BlockStates", []))
+        else:
+            # Flattened Java worlds from 1.13 through 1.17 store Palette and
+            # BlockStates directly on each section.  These saves are modern
+            # namespaced palettes, not the older numeric Blocks/Data schema.
+            # In particular, LunaMatrix's world-editor-generated 1.15.2
+            # terrain uses this layout and must not be mistaken for air.
+            palette = section.get("Palette", [])
+            packed = section.get("BlockStates", [])
         if isinstance(palette, list) and palette:
             result[int(section.get("Y", 0))] = (palette, list(packed))
     return result

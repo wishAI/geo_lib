@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 from algorithms.minecraft_building_mapper.nbt import loads
-from algorithms.minecraft_building_mapper.tests.helpers import compound, integer, legacy_chunk, long, modern_chunk, root, string, write_world
+from algorithms.minecraft_building_mapper.tests.helpers import compound, flattened_palette_chunk, integer, legacy_chunk, long, modern_chunk, root, string, write_world
 from algorithms.minecraft_building_mapper.world import (
     AnvilWorld,
     ChunkView,
@@ -33,6 +33,10 @@ class WorldTests(unittest.TestCase):
         chunk = ChunkView(loads(modern_chunk("lunamatrix:moon_tile")))
         self.assertEqual(chunk.top_block(0, 0).key, "lunamatrix:moon_tile")
         self.assertEqual(chunk.top_block(0, 0, max_y=-1), None)
+
+    def test_flattened_1_15_palette_is_not_treated_as_empty(self) -> None:
+        chunk = ChunkView(loads(flattened_palette_chunk("minecraft:grass_block")))
+        self.assertEqual(chunk.top_block(8, 8).key, "minecraft:grass_block")
 
     def test_modern_world_surface_heightmap_decodes_negative_min_y(self) -> None:
         bits = 9
