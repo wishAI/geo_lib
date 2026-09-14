@@ -35,6 +35,10 @@ def long_array(values: list[int]) -> bytes:
     return integer(len(values)) + b"".join(long(value) for value in values)
 
 
+def int_array(values: list[int]) -> bytes:
+    return integer(len(values)) + b"".join(integer(value) for value in values)
+
+
 def compound(entries: list[tuple[int, str, bytes]]) -> bytes:
     return b"".join(bytes([tag]) + name(key) + payload for tag, key, payload in entries) + b"\x00"
 
@@ -101,7 +105,7 @@ def modern_chunk(
     return root([(9, "sections", list_of(10, [section]))])
 
 
-def flattened_palette_chunk(block_name: str = "minecraft:stone") -> bytes:
+def flattened_palette_chunk(block_name: str = "minecraft:stone", biome_id: int = 1) -> bytes:
     """Build the section schema used by flattened 1.13 through 1.17 saves."""
 
     palette_entry = compound([(8, "Name", string(block_name))])
@@ -114,6 +118,7 @@ def flattened_palette_chunk(block_name: str = "minecraft:stone") -> bytes:
         (3, "DataVersion", integer(2230)),
         (8, "Status", string("full")),
         (9, "Sections", list_of(10, [section])),
+        (11, "Biomes", int_array([biome_id] * 1024)),
     ])
     return root([(10, "Level", level)])
 

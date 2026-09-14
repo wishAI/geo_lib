@@ -20,6 +20,42 @@ from .nbt import NBTError, loads
 AIR_NAMES = {"minecraft:air", "minecraft:cave_air", "minecraft:void_air"}
 REGION_RE = re.compile(r"r\.(-?\d+)\.(-?\d+)\.mca$")
 
+# Java 1.15 stored namespaced block palettes alongside a 1024-entry numeric
+# biome volume.  Resolve every vanilla ID from that format to a current biome
+# family so an exact modern asset catalog can apply grass, foliage, and water
+# tint instead of rendering world-editor-generated terrain with no biome data.
+FLATTENED_BIOME_NAMES = {
+    0: "minecraft:ocean", 1: "minecraft:plains", 2: "minecraft:desert",
+    3: "minecraft:windswept_hills", 4: "minecraft:forest", 5: "minecraft:taiga",
+    6: "minecraft:swamp", 7: "minecraft:river", 8: "minecraft:nether_wastes",
+    9: "minecraft:the_end", 10: "minecraft:frozen_ocean", 11: "minecraft:frozen_river",
+    12: "minecraft:snowy_plains", 13: "minecraft:snowy_slopes",
+    14: "minecraft:mushroom_fields", 15: "minecraft:mushroom_fields",
+    16: "minecraft:beach", 17: "minecraft:desert", 18: "minecraft:forest",
+    19: "minecraft:taiga", 20: "minecraft:windswept_hills", 21: "minecraft:jungle",
+    22: "minecraft:jungle", 23: "minecraft:sparse_jungle", 24: "minecraft:deep_ocean",
+    25: "minecraft:stony_shore", 26: "minecraft:snowy_beach", 27: "minecraft:birch_forest",
+    28: "minecraft:birch_forest", 29: "minecraft:dark_forest", 30: "minecraft:snowy_taiga",
+    31: "minecraft:snowy_taiga", 32: "minecraft:old_growth_pine_taiga",
+    33: "minecraft:old_growth_pine_taiga", 34: "minecraft:windswept_forest",
+    35: "minecraft:savanna", 36: "minecraft:savanna_plateau", 37: "minecraft:badlands",
+    38: "minecraft:wooded_badlands", 39: "minecraft:badlands", 40: "minecraft:small_end_islands",
+    41: "minecraft:end_midlands", 42: "minecraft:end_highlands", 43: "minecraft:end_barrens",
+    44: "minecraft:warm_ocean", 45: "minecraft:lukewarm_ocean", 46: "minecraft:cold_ocean",
+    47: "minecraft:deep_warm_ocean", 48: "minecraft:deep_lukewarm_ocean",
+    49: "minecraft:deep_cold_ocean", 50: "minecraft:deep_frozen_ocean",
+    127: "minecraft:the_void", 129: "minecraft:sunflower_plains", 130: "minecraft:desert",
+    131: "minecraft:windswept_gravelly_hills", 132: "minecraft:flower_forest",
+    133: "minecraft:taiga", 134: "minecraft:swamp", 140: "minecraft:ice_spikes",
+    149: "minecraft:jungle", 151: "minecraft:sparse_jungle", 155: "minecraft:old_growth_birch_forest",
+    156: "minecraft:old_growth_birch_forest", 157: "minecraft:dark_forest",
+    158: "minecraft:snowy_taiga", 160: "minecraft:old_growth_spruce_taiga",
+    161: "minecraft:old_growth_spruce_taiga", 162: "minecraft:windswept_gravelly_hills",
+    163: "minecraft:windswept_savanna", 164: "minecraft:windswept_savanna",
+    165: "minecraft:eroded_badlands", 166: "minecraft:wooded_badlands",
+    167: "minecraft:badlands", 168: "minecraft:bamboo_jungle", 169: "minecraft:bamboo_jungle",
+}
+
 
 class WorldReadError(RuntimeError):
     pass
@@ -389,7 +425,7 @@ class ChunkView:
         self.modern_surface_heights = _modern_surface_heights(chunk, sorted(self.modern))
         body = chunk.get("Level", chunk)
         raw_biomes = body.get("Biomes", b"") if isinstance(body, dict) else b""
-        self.legacy_biomes = bytes(raw_biomes) if isinstance(raw_biomes, (bytes, bytearray, list)) else b""
+        self.legacy_biomes = list(raw_biomes) if isinstance(raw_biomes, (bytes, bytearray, list)) else []
 
     def biome_at(self, x: int, z: int, y: int | None = None) -> int | str | None:
         """Return the stored legacy column biome ID.
@@ -400,6 +436,11 @@ class ChunkView:
 
         if len(self.legacy_biomes) == 256:
             return self.legacy_biomes[(z & 15) * 16 + (x & 15)]
+        if len(self.legacy_biomes) == 1024:
+            quart_y = max(0, min(63, (y if y is not None else 255) // 4))
+            index = quart_y * 16 + ((z & 15) >> 2) * 4 + ((x & 15) >> 2)
+            biome_id = int(self.legacy_biomes[index])
+            return FLATTENED_BIOME_NAMES.get(biome_id, f"legacy:{biome_id}")
         if self.modern_biomes:
             section_y = y // 16 if y is not None else max(self.modern_biomes)
             palette, packed = self.modern_biomes.get(section_y, self.modern_biomes[max(self.modern_biomes)])

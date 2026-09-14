@@ -35,8 +35,9 @@ class WorldTests(unittest.TestCase):
         self.assertEqual(chunk.top_block(0, 0, max_y=-1), None)
 
     def test_flattened_1_15_palette_is_not_treated_as_empty(self) -> None:
-        chunk = ChunkView(loads(flattened_palette_chunk("minecraft:grass_block")))
+        chunk = ChunkView(loads(flattened_palette_chunk("minecraft:grass_block", biome_id=132)))
         self.assertEqual(chunk.top_block(8, 8).key, "minecraft:grass_block")
+        self.assertEqual(chunk.biome_at(8, 8, 64), "minecraft:flower_forest")
 
     def test_modern_world_surface_heightmap_decodes_negative_min_y(self) -> None:
         bits = 9
