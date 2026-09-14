@@ -23,13 +23,11 @@ notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-1)
 and [Fabric 26.1 compatibility
 notes](https://www.fabricmc.net/2026/03/14/261.html).
 
-The validated LunaMatrix full pack also contains a separate, substantial
-`minecraft:custom/resource` terrain at
-`dimensions/minecraft/custom/resource/region`. Dimension discovery therefore
-supports arbitrary path depth below `dimensions/<namespace>/`, not only the
-single-segment default dimension names. Render it explicitly with
-`--dimension minecraft:custom/resource`; it is not part of the main-overworld
-exploration canvas.
+Dimension discovery supports arbitrary path depth below
+`dimensions/<namespace>/`, not only the single-segment default dimension
+names. The validated LunaMatrix full pack contains such a separate
+`minecraft:custom/resource` dimension, but it is intentionally excluded from
+the LunaMatrix overworld deliverable.
 
 There is no region-selection or building-recognition feature or control. Output
 metadata reserves only a versioned, empty `extensions` object for future
