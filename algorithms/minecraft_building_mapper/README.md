@@ -80,10 +80,14 @@ For Bilicraft, use the exact runtime `bc3` tree (not a newly generated Forge
 instance), the BiliCraft 1.5.1 32× texture pack, the
 `CustomStuff/BilicraftMOD` texture directory, and every exact mod JAR. The
 catalog reads numeric assignments from the Forge configs and ID/metadata/texture
-fields from CustomStuff definitions. Vanilla 1.5.2 IDs use canonical atlas
-coordinates but pixels always come from the supplied 32× pack. A config-only ID
-is named with its exact provenance but remains texture-unknown because config
-assignment alone does not prove a metadata-specific top face.
+fields from CustomStuff definitions. Fingerprint-gated legacy resolvers then
+combine exact config IDs, bundled registration/render bytecode, client options,
+language labels, and texture members. The resolver refuses its hard-coded
+bytecode summary unless the complete mod archive SHA-256 matches the audited
+bc3 copy. Vanilla 1.5.2 IDs use canonical mappings but pixels always come from
+the supplied 32× pack. A config-only ID is named with its exact provenance but
+remains texture-unknown because config assignment alone does not prove a
+metadata-specific top face.
 
 ```bash
 python3 -m algorithms.minecraft_building_mapper catalog-legacy \
@@ -97,6 +101,90 @@ python3 -m algorithms.minecraft_building_mapper catalog-legacy \
 Every unresolved palette key is drawn as a deterministic black/magenta checker
 and counted under `unknown.blockCounts` in the report. Do not hand-map an
 unknown block from appearance or a similarly named mod.
+
+### Resolution and inference contract
+
+Every catalog entry carries `resolution`, numeric `confidence`, `reason`, and a
+machine-readable `provenance` list:
+
+- `exact`: the supplied runtime config/code/options and supplied pixels directly
+  prove the result; confidence is `1.0`.
+- `resolved`: a stable external format mapping, such as a canonical vanilla
+  numeric ID, selects pixels from an exact supplied asset; confidence is `1.0`.
+- `inferred`: exact evidence is unavailable and a private/internal mapping is
+  explicitly inferred; confidence must be greater than zero and less than one.
+- `unknown`: no appearance is asserted; confidence is `0.0`.
+
+The renderer reports visible counts for all four categories. An exact class may
+also prove that a block is non-rendering: Railcraft `block.hidden` is recorded as
+`renderAsAir`, skipped while scanning downward, and counted separately under
+`skippedAsAir`. No inference is used for that block.
+
+### Audited Bilicraft evidence
+
+The exact pack inspected on TK2 has these stable hashes:
+
+| Input | SHA-256 |
+|---|---|
+| `bc3.zip` | `dc7274588b2a4fc110c9f8dd9301c68a69242da3d7cfe2d6ad45c7ab7751967c` |
+| `ForgottenNature for 1.5.2.zip` (embedded version string `1.2.9`) | `063cc073a6fb18990073ea632c151526ce8fb24bb14bdcc13c15702e46176ee3` |
+| `ForgottenNature.cfg` | `2cdd2787f679aa245a6b6b3fe990627702e3ad3b55ee4fefb75896ff3c753531` |
+| `.minecraft/options.txt` (`fancyGraphics:true`) | `3fddfb91d6c4a3c1ceec1ea88fbc173642ce6c0a0710c55f1241bcee2b2d2f49` |
+| `BiliCraft_1.5.1_32x.zip` | `2dc23a6b2c3eced8a2645054586c6b80f82525cdda9b0cf9090679e56acf4296` |
+| `Railcraft_1.5.2-7.2.3.0.jar` | `42b6b736a544303eafc420504e6097c1a60ac1e3e9eeb16d9217a05b209438c2` |
+
+The first exact mappings are `leafIDindex=4084` plus contiguous leaf classes,
+`logIDindex=4079` plus contiguous log classes, and `FlowerID=4092`. Stored leaf
+metadata `8..15` has its decay bit removed by the exact class before selecting
+the icon. The exact `fancyGraphics:true` client setting selects non-`Solid`
+leaf textures. In the validation tile this proves, among others, Fig/Cypress at
+4084, Acacia at 4085, Poplar at 4086, the metadata-indexed ten-flower table at
+4092, and the log cross-section for 4079:8.
+
+### Reproducible TK2 acquisition and extraction
+
+Run these only on TK2. The save remains remote; do not run this workflow in a
+Mac checkout and do not open the save with Minecraft.
+
+```bash
+cache=$(mktemp -d /tmp/minecraft-legacy-resolver.XXXXXX)
+rclone copyto \
+  'ugreen-nextcloud:Documents/Games/Minecraft/Bilicraft-1.5.2/from-ugreen/bc3.zip' \
+  "$cache/bc3.zip"
+sha256sum "$cache/bc3.zip"
+unzip -tq "$cache/bc3.zip"
+
+# Select only evidence needed by the catalog into TK2 cache.
+unzip -q "$cache/bc3.zip" -d "$cache/exact" \
+  'bc3/.minecraft/config/*' 'bc3/.minecraft/mods/*' \
+  'bc3/.minecraft/coremods/*' 'bc3/.minecraft/texturepacks/*' \
+  'bc3/.minecraft/options.txt'
+```
+
+Normalize the extracted `bc3/.minecraft` directory as `--bc3-root`; pass the
+texture pack first, then `CustomStuff/mods/BilicraftMOD`, then the exact mod and
+coremod archives. The catalog hashes every asset and refuses to reopen it if an
+asset changes.
+
+For historical comparison, the original author’s [Minecraft Forum release
+record](https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1286390-forgotten-nature-1-7-19-a-natural-addition-to-mc)
+identifies ForgottenNature 1.2.9 for Minecraft 1.5.1 and documents six
+contiguous leaf IDs; the exact bundled binary’s embedded version is also 1.2.9.
+The forum’s original Dropbox binary link now returns HTTP 403, so no external
+binary hash is claimed. The author-associated [ForgottenNature v1.3.0 source
+repository](https://github.com/alexandrage/ForgottenNature_v1.3.0) at commit
+`65069082fe537158fd0d64092399fc453f658b39` was downloaded to TK2 cache as a
+source archive (`cdef3358b78509057d575ae45eced4efd948813fc54c3ff58c89229dfd65062f`).
+It targets later Minecraft 1.6.2–1.6.4, so it is comparison evidence only. Its
+ID-offset and icon tables agree with the exact 1.2.9 bytecode, which remains the
+authority used by the resolver.
+
+Storage lineage note: the standalone `bc3.zip` was intentionally moved by the
+parent orchestration from UGREEN Backup to the Nextcloud path above. Nextcloud
+chunk upload was assembled first, source and destination SHA-256 both matched
+`dc7274588b2a4fc110c9f8dd9301c68a69242da3d7cfe2d6ad45c7ab7751967c`,
+and only then was the standalone source deleted. Its disappearance is expected,
+not an SMB anomaly. `LunaMatrix_20260429.zip` still contains the second copy.
 
 ## Validate one tile first
 

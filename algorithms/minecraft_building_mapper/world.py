@@ -11,7 +11,7 @@ import zipfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO, Iterator, Protocol
+from typing import BinaryIO, Callable, Iterator, Protocol
 
 from .nbt import NBTError, loads
 
@@ -298,7 +298,13 @@ class ChunkView:
             return Block(f"legacy:{block_id}:{meta}", y, block_id, meta)
         return None
 
-    def top_block(self, x: int, z: int, max_y: int | None = None) -> Block | None:
+    def top_block(
+        self,
+        x: int,
+        z: int,
+        max_y: int | None = None,
+        skip: Callable[[Block], bool] | None = None,
+    ) -> Block | None:
         section_ids = sorted(set(self.legacy) | set(self.modern), reverse=True)
         for section_y in section_ids:
             top = section_y * 16 + 15
@@ -309,7 +315,7 @@ class ChunkView:
                 top = min(top, max_y)
             for y in range(top, bottom - 1, -1):
                 block = self.block_at(x, y, z)
-                if block is not None:
+                if block is not None and not (skip and skip(block)):
                     return block
         return None
 

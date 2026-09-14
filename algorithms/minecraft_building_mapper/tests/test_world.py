@@ -18,6 +18,7 @@ class WorldTests(unittest.TestCase):
         chunk = ChunkView(loads(legacy_chunk(300, 7)))
         block = chunk.top_block(3, 4)
         self.assertEqual((block.key, block.legacy_id, block.metadata, block.y), ("legacy:300:7", 300, 7, 15))
+        self.assertIsNone(chunk.top_block(3, 4, skip=lambda candidate: candidate.legacy_id == 300))
 
     def test_modern_namespaced_palette_is_preserved(self) -> None:
         chunk = ChunkView(loads(modern_chunk("lunamatrix:moon_tile")))

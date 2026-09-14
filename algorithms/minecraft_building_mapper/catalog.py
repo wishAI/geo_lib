@@ -14,6 +14,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Iterator
 
+from .evidence import resolution_entry, validate_resolution_entry
+from .legacy_resolver import apply_exact_legacy_resolvers
+
 
 CATALOG_SCHEMA = "geo.minecraft-block-catalog/v1"
 CONFIG_ID_RE = re.compile(r"^\s*I:([^=]+)=(-?\d+)\s*$")
@@ -208,11 +211,17 @@ def build_modern_catalog(asset_paths: Iterable[str | Path]) -> dict[str, object]
             raw = resources.sources[source_index].read(blockstate_path)
             state = json.loads(raw)
         except (ValueError, KeyError, json.JSONDecodeError) as exc:
-            entries[block_name] = {"status": "unknown", "reason": f"invalid blockstate: {exc}", "provenance": [blockstate_path]}
+            entries[block_name] = resolution_entry(
+                "unknown", name=block_name, reason=f"invalid blockstate: {exc}",
+                provenance=[{"kind": "asset-member", "source": source_index, "member": blockstate_path}],
+            )
             continue
         variants = state.get("variants")
         if not isinstance(variants, dict):
-            entries[block_name] = {"status": "unknown", "reason": "multipart blockstate requires geometry-aware rendering", "provenance": [blockstate_path]}
+            entries[block_name] = resolution_entry(
+                "unknown", name=block_name, reason="multipart blockstate requires geometry-aware rendering",
+                provenance=[{"kind": "asset-member", "source": source_index, "member": blockstate_path}],
+            )
             continue
         for properties, variant in variants.items():
             key = _canonical_state(block_name, properties)
@@ -223,14 +232,16 @@ def build_modern_catalog(asset_paths: Iterable[str | Path]) -> dict[str, object]
                 if not resolved or len(textures) != 1:
                     raise ValueError("weighted variants do not share one top texture")
                 texture, model_provenance = resolved[0]
-                entries[key] = {
-                    "status": "resolved",
-                    "name": block_name,
-                    "texture": texture,
-                    "provenance": [blockstate_path] + model_provenance,
-                }
+                entries[key] = resolution_entry(
+                    "exact", name=block_name, texture=texture,
+                    reason="Supplied blockstate and model chain select one supplied top-face texture.",
+                    provenance=[{"kind": "asset-member", "member": path} for path in [blockstate_path] + model_provenance],
+                )
             except (ValueError, KeyError, json.JSONDecodeError) as exc:
-                entries[key] = {"status": "unknown", "name": block_name, "reason": str(exc), "provenance": [blockstate_path]}
+                entries[key] = resolution_entry(
+                    "unknown", name=block_name, reason=str(exc),
+                    provenance=[{"kind": "asset-member", "source": source_index, "member": blockstate_path}],
+                )
     return {"schema": CATALOG_SCHEMA, "edition": "modern", "sources": [item.record() for item in sources], "entries": entries}
 
 
@@ -284,6 +295,9 @@ VANILLA_152_FILES: dict[tuple[int, int], tuple[str, str]] = {
     (15, 0): ("minecraft:iron_ore", "textures/blocks/oreIron.png"),
     (16, 0): ("minecraft:coal_ore", "textures/blocks/oreCoal.png"),
     (17, 0): ("minecraft:oak_log", "textures/blocks/tree_top.png"),
+    (17, 1): ("minecraft:spruce_log", "textures/blocks/tree_top.png"),
+    (17, 2): ("minecraft:birch_log", "textures/blocks/tree_top.png"),
+    (17, 3): ("minecraft:jungle_log", "textures/blocks/tree_top.png"),
     (20, 0): ("minecraft:glass", "textures/blocks/glass.png"),
     (22, 0): ("minecraft:lapis_block", "textures/blocks/blockLapis.png"),
     (24, 0): ("minecraft:sandstone", "textures/blocks/sandstone_top.png"),
@@ -300,6 +314,7 @@ VANILLA_152_FILES: dict[tuple[int, int], tuple[str, str]] = {
     (87, 0): ("minecraft:netherrack", "textures/blocks/hellrock.png"),
     (88, 0): ("minecraft:soul_sand", "textures/blocks/hellsand.png"),
     (89, 0): ("minecraft:glowstone", "textures/blocks/lightgem.png"),
+    (98, 0): ("minecraft:stone_bricks", "textures/blocks/stonebricksmooth.png"),
     (112, 0): ("minecraft:nether_brick", "textures/blocks/netherBrick.png"),
     (121, 0): ("minecraft:end_stone", "textures/blocks/whiteStone.png"),
     (129, 0): ("minecraft:emerald_ore", "textures/blocks/oreEmerald.png"),
@@ -427,59 +442,68 @@ def build_legacy_catalog(bc3_root: str | Path, asset_paths: Iterable[str | Path]
         located = next(((index, member) for index, source in enumerate(sources) if source.has(member)), None)
         if located:
             source_index, resolved_member = located
-            entries[f"legacy:{block_id}:{metadata}"] = {
-                "status": "resolved",
-                "name": name,
-                "texture": {"source": source_index, "member": resolved_member},
-                "provenance": ["Minecraft Java 1.5.2 canonical numeric ID", resolved_member],
-            }
+            entries[f"legacy:{block_id}:{metadata}"] = resolution_entry(
+                "resolved", name=name, texture={"source": source_index, "member": resolved_member},
+                reason="Canonical Minecraft Java 1.5.2 numeric ID and metadata select an exact supplied pack texture.",
+                provenance=[
+                    {"kind": "canonical-id", "edition": "Minecraft Java 1.5.2", "id": block_id, "metadata": metadata},
+                    {"kind": "exact-texture", "source": source_index, "member": resolved_member},
+                ],
+            )
     if terrain:
         source_index, member = terrain
         for (block_id, metadata), (name, atlas_index) in VANILLA_152_TOP.items():
             if f"legacy:{block_id}:{metadata}" in entries:
                 continue
-            entries[f"legacy:{block_id}:{metadata}"] = {
-                "status": "resolved",
-                "name": name,
-                "texture": {"source": source_index, "member": member, "atlas": {"columns": 16, "index": atlas_index}},
-                "provenance": ["Minecraft Java 1.5.2 canonical numeric ID", member],
-            }
+            entries[f"legacy:{block_id}:{metadata}"] = resolution_entry(
+                "resolved", name=name,
+                texture={"source": source_index, "member": member, "atlas": {"columns": 16, "index": atlas_index}},
+                reason="Canonical Minecraft Java 1.5.2 numeric ID selects an exact supplied terrain-atlas cell.",
+                provenance=[
+                    {"kind": "canonical-id", "edition": "Minecraft Java 1.5.2", "id": block_id, "metadata": metadata},
+                    {"kind": "exact-texture", "source": source_index, "member": member, "atlasIndex": atlas_index},
+                ],
+            )
     assignments = _config_assignments(root)
     by_id: dict[int, list[dict[str, object]]] = {}
     for record in assignments:
         by_id.setdefault(int(record["id"]), []).append(record)
     for block_id, records in sorted(by_id.items()):
         key = f"legacy:{block_id}:*"
-        entries[key] = {
-            "status": "unknown",
-            "name": records[0]["key"] if len(records) == 1 else f"configured_id_{block_id}",
-            "reason": "Forge config proves the numeric ID but not a metadata-specific top texture",
-            "provenance": records,
-        }
+        entries[key] = resolution_entry(
+            "unknown", name=records[0]["key"] if len(records) == 1 else f"configured_id_{block_id}",
+            reason="Forge config proves the numeric ID but not a metadata-specific top texture",
+            provenance=[{"kind": "forge-config", **record} for record in records],
+        )
     for definition in _customstuff_definitions(root, assignments):
         metadata = definition["metadata"]
         key = f"legacy:{definition['id']}:{metadata}"
         located = _locate_loose_texture(sources, str(definition["texture"])) if definition.get("texture") else None
         if located:
             source_index, member = located
-            entries[key] = {
-                "status": "resolved",
-                "name": definition["name"],
-                "texture": {"source": source_index, "member": member},
-                "provenance": [definition],
-            }
+            entries[key] = resolution_entry(
+                "exact", name=str(definition["name"]), texture={"source": source_index, "member": member},
+                reason="Exact CustomStuff definition links this configured ID and metadata to a uniquely supplied top texture.",
+                provenance=[{"kind": "customstuff-definition", **definition}, {"kind": "exact-texture", "source": source_index, "member": member}],
+            )
         else:
-            entries[key] = {
-                "status": "unknown",
-                "name": definition["name"],
-                "reason": "CustomStuff definition has no uniquely resolvable top texture",
-                "provenance": [definition],
-            }
+            entries[key] = resolution_entry(
+                "unknown", name=str(definition["name"]), reason="CustomStuff definition has no uniquely resolvable top texture",
+                provenance=[{"kind": "customstuff-definition", **definition}],
+            )
+    resolver_reports = apply_exact_legacy_resolvers(
+        root=root,
+        sources=sources,
+        assignments=assignments,
+        entries=entries,
+        locate_texture=lambda value: _locate_loose_texture(sources, value),
+    )
     return {
         "schema": CATALOG_SCHEMA,
         "edition": "legacy-1.5.2-forge",
         "sources": [item.record() for item in sources],
         "bc3": {"root": str(root), "treeSha256": sha256_tree(root)},
+        "resolvers": resolver_reports,
         "entries": entries,
     }
 
@@ -501,6 +525,15 @@ class Catalog:
             if expected.get("sha256") != actual.sha256:
                 raise ValueError(f"Asset changed since catalog creation: {actual.path}")
         self.entries = self.data.get("entries", {})
+        for key, entry in self.entries.items():
+            # v1 catalogs created before certainty labels remain readable. New
+            # catalogs always include and validate the richer evidence fields.
+            if "resolution" not in entry:
+                continue
+            try:
+                validate_resolution_entry(entry)
+            except ValueError as exc:
+                raise ValueError(f"Invalid catalog entry {key}: {exc}") from exc
 
     def entry(self, key: str) -> dict[str, object] | None:
         if key in self.entries:
@@ -528,3 +561,7 @@ class Catalog:
     def texture_bytes(self, entry: dict[str, object]) -> bytes:
         texture = entry["texture"]
         return self.sources[int(texture["source"])].read(str(texture["member"]))
+
+    def renders_as_air(self, key: str) -> bool:
+        entry = self.entry(key)
+        return bool(entry and entry.get("status") == "resolved" and entry.get("renderAsAir") is True)

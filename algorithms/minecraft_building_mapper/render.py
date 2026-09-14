@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .catalog import Catalog
+from .evidence import RESOLUTION_KINDS
 from .world import AnvilWorld, Block, WorldReadError, read_level_metadata
 
 
@@ -101,12 +102,20 @@ def render_tile(world: AnvilWorld, catalog: Catalog, request: TileRequest) -> tu
     canvas = Image.new("RGBA", (size, size), (14, 18, 24, 255))
     textures = TextureRenderer(catalog, request.pixels_per_block)
     block_counts: Counter[str] = Counter()
-    unknown_counts: Counter[str] = Counter()
+    resolution_counts: dict[str, Counter[str]] = {kind: Counter() for kind in RESOLUTION_KINDS}
+    skipped_as_air: Counter[str] = Counter()
     y_values: list[int] = []
     missing_chunks = 0
     loaded_chunks = 0
     chunk_errors: list[dict[str, object]] = []
     bounds = request.bounds
+
+    def should_skip(candidate: Block) -> bool:
+        if catalog.renders_as_air(candidate.key):
+            skipped_as_air[candidate.key] += 1
+            return True
+        return False
+
     for chunk_z in range(bounds["minZ"] // 16, bounds["maxZExclusive"] // 16):
         for chunk_x in range(bounds["minX"] // 16, bounds["maxXExclusive"] // 16):
             try:
@@ -120,7 +129,7 @@ def render_tile(world: AnvilWorld, catalog: Catalog, request: TileRequest) -> tu
             loaded_chunks += 1
             for local_z in range(16):
                 for local_x in range(16):
-                    block = chunk.top_block(local_x, local_z, request.layer)
+                    block = chunk.top_block(local_x, local_z, request.layer, should_skip)
                     if block is None:
                         continue
                     block_counts[block.key] += 1
@@ -130,16 +139,30 @@ def render_tile(world: AnvilWorld, catalog: Catalog, request: TileRequest) -> tu
                     pixel_z = (chunk_z * 16 + local_z - bounds["minZ"]) * request.pixels_per_block
                     block_image = textures.block_image(block)
                     if not entry or entry.get("status") != "resolved" or block.key in textures.failures:
-                        unknown_counts[block.key] += 1
+                        resolution = "unknown"
+                    else:
+                        resolution = str(entry.get("resolution", "resolved"))
+                        if resolution not in resolution_counts:
+                            resolution = "unknown"
+                    resolution_counts[resolution][block.key] += 1
                     canvas.alpha_composite(block_image, (pixel_x, pixel_z))
     unknown_details = {}
-    for key, count in sorted(unknown_counts.items()):
+    for key, count in sorted(resolution_counts["unknown"].items()):
         entry = catalog.entry(key) or {}
         unknown_details[key] = {
             "count": count,
             "catalogName": entry.get("name"),
             "reason": textures.failures.get(key) or entry.get("reason") or "no exact catalog entry",
         }
+    resolution_report = {
+        kind: {
+            "visibleBlocks": sum(counts.values()),
+            "distinctBlockStates": len(counts),
+            "blockCounts": dict(sorted(counts.items())),
+        }
+        for kind, counts in resolution_counts.items()
+    }
+    resolution_report["unknown"]["details"] = unknown_details
     report = {
         "schema": REPORT_SCHEMA,
         "status": "ok" if not chunk_errors else "partial",
@@ -150,7 +173,9 @@ def render_tile(world: AnvilWorld, catalog: Catalog, request: TileRequest) -> tu
         "visibleBlocks": sum(block_counts.values()),
         "height": {"min": min(y_values) if y_values else None, "max": max(y_values) if y_values else None},
         "blockCounts": dict(sorted(block_counts.items())),
-        "unknown": {"visibleBlocks": sum(unknown_counts.values()), "blockCounts": dict(sorted(unknown_counts.items())), "details": unknown_details},
+        "skippedAsAir": {"blocks": sum(skipped_as_air.values()), "blockCounts": dict(sorted(skipped_as_air.items()))},
+        "resolution": resolution_report,
+        "unknown": resolution_report["unknown"],
     }
     return canvas.convert("RGB"), report
 

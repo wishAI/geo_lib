@@ -3,10 +3,10 @@
   "icon": "layers",
   "name": "Minecraft 2D Block Map",
   "eyebrow": "READ-ONLY ANVIL TILE STREAMING",
-  "summary": "Stream top-visible blocks from exact modern or legacy Anvil saves into a pan-and-zoom tiled map, with provenance and unknown-block reporting.",
+  "summary": "Stream top-visible blocks from exact modern or legacy Anvil saves into a pan-and-zoom tiled map, with exact/resolved/inferred/unknown provenance reporting.",
   "accent": "#4f8f55",
   "runtime": "tk2",
   "runtimeLabel": "TK2 / UGREEN inputs · Nextcloud outputs",
-  "capabilities": ["Anvil", "tile map", "read-only"],
+  "capabilities": ["Anvil", "tile map", "exact textures", "read-only"],
   "examples": []
 }
