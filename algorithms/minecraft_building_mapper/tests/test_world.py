@@ -69,6 +69,17 @@ class WorldTests(unittest.TestCase):
                 [("minecraft:overworld", "dimensions/minecraft/overworld/region")],
             )
 
+    def test_nested_custom_dimension_path_is_discovered(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root_path = write_world(Path(temporary) / "world", modern_chunk())
+            nested_region = root_path / "dimensions/minecraft/custom/resource/region"
+            nested_region.mkdir(parents=True)
+            (root_path / "region/r.0.0.mca").replace(nested_region / "r.0.0.mca")
+            self.assertEqual(
+                [(item.id, item.region_dir) for item in discover_dimensions(open_world(root_path))],
+                [("minecraft:custom/resource", "dimensions/minecraft/custom/resource/region")],
+            )
+
     def test_26_1_compound_spawn_is_reported_without_rewriting_level(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             world = Path(temporary) / "world"

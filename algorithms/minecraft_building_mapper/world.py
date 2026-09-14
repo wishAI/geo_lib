@@ -54,7 +54,12 @@ class DirectoryWorldFS:
         level = self.root / "level.dat"
         if level.is_file():
             yield "level.dat"
-        patterns = ("region/r.*.*.mca", "DIM-1/region/r.*.*.mca", "DIM1/region/r.*.*.mca", "dimensions/*/*/region/r.*.*.mca")
+        patterns = (
+            "region/r.*.*.mca",
+            "DIM-1/region/r.*.*.mca",
+            "DIM1/region/r.*.*.mca",
+            "dimensions/**/region/r.*.*.mca",
+        )
         for pattern in patterns:
             for path in self.root.glob(pattern):
                 if path.is_file():
@@ -131,9 +136,16 @@ def discover_dimensions(fs: WorldFS) -> list[Dimension]:
         dimensions["minecraft:the_end"] = Dimension("minecraft:the_end", "DIM1/region")
     for name in names:
         parts = PurePosixPath(name).parts
-        if len(parts) >= 5 and parts[0] == "dimensions" and parts[3] == "region" and REGION_RE.match(parts[4]):
-            dim_id = f"{parts[1]}:{parts[2]}"
-            dimensions[dim_id] = Dimension(dim_id, "/".join(parts[:4]))
+        if (
+            len(parts) >= 5
+            and parts[0] == "dimensions"
+            and parts[-2] == "region"
+            and REGION_RE.match(parts[-1])
+        ):
+            dimension_path = "/".join(parts[2:-2])
+            if dimension_path:
+                dim_id = f"{parts[1]}:{dimension_path}"
+                dimensions[dim_id] = Dimension(dim_id, "/".join(parts[:-1]))
     return sorted(dimensions.values(), key=lambda item: item.id)
 
 
