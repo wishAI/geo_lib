@@ -3,28 +3,106 @@
   "icon": "headset",
   "name": "AVP Remote",
   "eyebrow": "SPATIAL INPUT RETARGETING",
-  "summary": "Validate the Vision Pro tracking, retargeting, and Landau pose pipeline while inspecting the same robot asset used by the remote session.",
+  "summary": "Inspect saved poses, control Landau in the browser, and enter the same skinned USD + URDF scene on Vision Pro.",
   "accent": "#4f7192",
-  "runtime": "tk2",
-  "runtimeLabel": "TK2 · Isaac Sim",
-  "capabilities": ["Vision Pro", "retargeting", "URDF"],
+  "runtime": "local",
+  "runtimeLabel": "Browser \u00b7 WebXR \u00b7 no Isaac Sim",
+  "capabilities": [
+    "Snapshot",
+    "USD skinning",
+    "URDF",
+    "Vision Pro",
+    "WebXR",
+    "Tracking markers"
+  ],
   "examples": [
+    {
+      "id": "prepare_browser_scene",
+      "name": "Prepare browser scene",
+      "description": "Copy the current parallel URDF package and convert the original USD skin/materials to browser GLB. Requires Blender, no Isaac Sim.",
+      "target": "local",
+      "targets": [
+        "local"
+      ],
+      "command": [
+        "blender",
+        "--background",
+        "--factory-startup",
+        "--python",
+        "algorithms/avp_remote/build_web_scene.py"
+      ],
+      "artifacts": [
+        {
+          "label": "Browser scene",
+          "path": "algorithms/avp_remote/outputs/web_scene/scene.json",
+          "kind": "json"
+        },
+        {
+          "label": "USD-derived skinned model",
+          "path": "algorithms/avp_remote/outputs/web_scene/character.glb",
+          "kind": "model"
+        }
+      ],
+      "resource": "avp-assets"
+    },
     {
       "id": "contract_tests",
       "name": "Run AVP contract tests",
       "description": "Check snapshot schemas, pose conversion, wrist mapping, and session contracts without opening a live headset connection.",
       "target": "tk2",
-      "targets": ["tk2"],
-      "command": ["./geo", "avp", "test"],
+      "targets": [
+        "tk2"
+      ],
+      "command": [
+        "./geo",
+        "avp",
+        "test"
+      ],
       "artifacts": [
-        {"label": "Reference tracking snapshot", "path": "algorithms/avp_remote/avp_snapshot.json", "kind": "json"}
+        {
+          "label": "Reference tracking snapshot",
+          "path": "algorithms/avp_remote/avp_snapshot.json",
+          "kind": "json"
+        }
       ]
     }
   ],
   "viewer": {
     "type": "urdf",
     "urdfCandidates": [
-      {"label": "Landau v10 · AVP input", "path": "algorithms/avp_remote/inputs/landau_v10/landau_v10_parallel_mesh.urdf"}
+      {
+        "label": "Landau v10 \u00b7 AVP input",
+        "path": "algorithms/avp_remote/inputs/landau_v10/landau_v10_parallel_mesh.urdf"
+      }
     ]
-  }
+  },
+  "designer": {
+    "type": "avpRemote"
+  },
+  "artifacts": [
+    {
+      "label": "viewer.js",
+      "path": "algorithms/avp_remote/gui/viewer.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "viewer.css",
+      "path": "algorithms/avp_remote/gui/viewer.css",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "pose-math.js",
+      "path": "algorithms/avp_remote/gui/pose-math.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "tracking-markers.js",
+      "path": "algorithms/avp_remote/gui/tracking-markers.js",
+      "kind": "file",
+      "syncOnly": true
+    }
+  ]
 }

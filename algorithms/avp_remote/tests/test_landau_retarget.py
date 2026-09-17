@@ -30,6 +30,7 @@ class TestLandauRetarget(unittest.TestCase):
             urdf_path=prepared.urdf_path,
             skeleton_json_path=prepared.skeleton_json_path,
             snapshot_path=MODULE_ROOT / "avp_snapshot.json",
+            use_trac_ik=False,
         )
 
     def test_find_joint_chain_matches_expected_arm_order(self):

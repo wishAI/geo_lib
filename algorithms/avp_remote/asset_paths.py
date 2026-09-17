@@ -40,11 +40,11 @@ def landau_texture_dir() -> Path:
 
 
 def default_landau_source_urdf() -> Path:
-    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "landau_v10_parallel_mesh.urdf"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "urdf_packages" / "landau_v10" / "landau_v10_parallel_mesh.urdf"
 
 
 def default_landau_source_mesh_root() -> Path:
-    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "mesh_collision_stl"
+    return repo_root() / "algorithms" / "usd_parallel_urdf" / "outputs" / "urdf_packages" / "landau_v10" / "mesh_collision_stl"
 
 
 def default_landau_source_usd() -> Path:

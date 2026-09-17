@@ -14,6 +14,8 @@ import os
 import re
 import shlex
 import signal
+import select
+import atexit
 import subprocess
 import threading
 import time
@@ -43,6 +45,62 @@ SSH_ARGS = [
 MAX_LOG_CHARS = 180_000
 PARAMETER_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 DESIGN_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,79}$")
+
+
+# Algorithm code runs in an isolated JSON-lines process, never imported by the host.
+AVP_POSE_LOCK = threading.Lock()
+AVP_POSE_PROCESS = None
+AVP_POSE_SIGNATURE = None
+
+
+def _stop_avp_pose():
+    global AVP_POSE_PROCESS
+    if AVP_POSE_PROCESS is not None:
+        AVP_POSE_PROCESS.kill()
+        AVP_POSE_PROCESS.wait(timeout=5)
+        AVP_POSE_PROCESS = None
+
+
+atexit.register(_stop_avp_pose)
+
+
+def avp_pose(payload: dict) -> dict:
+    global AVP_POSE_PROCESS, AVP_POSE_SIGNATURE
+    with AVP_POSE_LOCK:
+        root = REPO_ROOT / "algorithms/avp_remote"
+        paths = [*root.glob("*.py"), root / "inputs/landau_v10/landau_v10_parallel_mesh.urdf"]
+        signature = tuple((str(p), p.stat().st_mtime_ns) for p in paths)
+        if signature != AVP_POSE_SIGNATURE:
+            _stop_avp_pose()
+            AVP_POSE_SIGNATURE = signature
+        if AVP_POSE_PROCESS is None or AVP_POSE_PROCESS.poll() is not None:
+            candidates = [os.environ.get("AVP_WEB_PYTHON", ""), sys.executable,
+                *map(str, Path("/Applications/Blender.app/Contents/Resources").glob("*/python/bin/python*"))]
+            python = None
+            for candidate in candidates:
+                if candidate and Path(candidate).is_file():
+                    probe = subprocess.run([candidate, "-c", "import numpy"], capture_output=True, timeout=10)
+                    if probe.returncode == 0:
+                        python = candidate
+                        break
+            if python is None:
+                raise ValueError("Pose solving needs NumPy. Set AVP_WEB_PYTHON to a Python with NumPy, or install Blender.")
+            AVP_POSE_PROCESS = subprocess.Popen(
+                [python, "-u", str(REPO_ROOT / "algorithms/avp_remote/web_pose.py")],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, cwd=REPO_ROOT)
+        try:
+            AVP_POSE_PROCESS.stdin.write(json.dumps(payload, allow_nan=False) + "\n")
+            AVP_POSE_PROCESS.stdin.flush()
+            if not select.select([AVP_POSE_PROCESS.stdout], [], [], 15)[0]:
+                raise ValueError("AVP pose solver timed out")
+            line = AVP_POSE_PROCESS.stdout.readline()
+            if not line:
+                raise ValueError("AVP pose worker stopped; prepare the browser scene first")
+            return json.loads(line)
+        except (OSError, ValueError):
+            _stop_avp_pose()
+            raise
 
 
 def utc_now() -> str:
@@ -106,6 +164,8 @@ def resolve_artifact(relative: str) -> tuple[str, Path] | None:
 def declared_artifact_paths() -> set[str]:
     paths: set[str] = set()
     for manifest in discover_manifests():
+        for artifact in manifest.get("artifacts", []):
+            paths.add(artifact["path"])
         for example in manifest.get("examples", []):
             for artifact in example.get("artifacts", []):
                 paths.add(artifact["path"])
@@ -719,6 +779,8 @@ def artifact_inventory(sandbox: str) -> list[dict]:
     if not manifest:
         raise ValueError("Unknown sandbox")
     declared: dict[str, dict] = {}
+    for artifact in manifest.get("artifacts", []):
+        declared[artifact["path"]] = artifact
     for example in manifest.get("examples", []):
         for artifact in example.get("artifacts", []):
             if artifact.get("syncOnly"):
@@ -1003,6 +1065,12 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/character/presets":
                 self._json(importlib.import_module("algorithms.3d_char_details.preset_store").handle("GET", query=query))
                 return
+            if parsed.path == "/api/avp/assets":
+                result = subprocess.run([sys.executable, str(REPO_ROOT / "algorithms/avp_remote/build_web_scene.py"), "--check"], capture_output=True, text=True, timeout=15)
+                if result.returncode:
+                    raise ValueError("Cannot verify AVP source assets")
+                self._json(json.loads(result.stdout))
+                return
             if parsed.path == "/api/health":
                 self._json({"status": "ok", "service": "geo-web-gui", "sandboxes": len(discover_manifests())})
                 return
@@ -1124,6 +1192,14 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             body = self._body()
+            if parsed.path == "/api/avp/pose":
+                if self.headers.get_content_type() != "application/json":
+                    raise ValueError("Pose requests require application/json")
+                origin = self.headers.get("Origin")
+                if origin and urlparse(origin).netloc != self.headers.get("Host", ""):
+                    raise ValueError("Pose requests require the same origin")
+                self._json(avp_pose(body))
+                return
             if parsed.path == "/api/character/presets":
                 if self.headers.get_content_type() != "application/json":
                     raise ValueError("Preset requests require application/json")
