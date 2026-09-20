@@ -3,10 +3,10 @@
   "icon": "cube",
   "name": "Motion Anim Generate",
   "eyebrow": "NVIDIA KIMODO \u00b7 LANDAU V10",
-  "summary": "Real local Kimodo unconditional diffusion and SOMA-to-Landau evidence; retargeting currently fails kinematic screening. Text-conditioned actions require authorized encoder/embeddings.",
+  "summary": "Watch generated Landau animations and compare clips. Quality notes and experiment history are available in Details.",
   "accent": "#408d83",
   "runtime": "tk2",
-  "runtimeLabel": "TK2 \u00b7 Astra High \u00b7 Standard \u00b7 isolated worker",
+  "runtimeLabel": "TK2",
   "capabilities": [
     "Kimodo",
     "motion generation",
@@ -288,6 +288,53 @@
       "path": "algorithms/motion_anim_generate/outputs/unconditional_suite.json"
     },
     {
+      "label": "Animation viewer",
+      "kind": "file",
+      "path": "algorithms/motion_anim_generate/gui/viewer.js"
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/preview.mp4",
+      "localPreview": true
+    },
+    {
       "label": "unconditional_cuda_smoke_seed42 \u00b7 proof.mp4",
       "kind": "video",
       "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/proof.mp4"
@@ -366,6 +413,24 @@
       "label": "CPU/CUDA measured comparison",
       "kind": "json",
       "path": "algorithms/motion_anim_generate/outputs/cpu_cuda_comparison.json"
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/preview.mp4",
+      "localPreview": true
+    },
+    {
+      "label": "Landau animation preview",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/preview.mp4",
+      "localPreview": true
     }
   ]
 }

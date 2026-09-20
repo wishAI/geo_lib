@@ -71,6 +71,7 @@ def main():
     report = {}
     for name, (remote, branch, base) in SOURCES.items():
         report[name] = {'commits': sync_source(name, remote, branch, base), 'artifacts': sync_artifacts(name, remote)}
+    run([sys.executable, 'algorithms/motion_anim_generate/make_preview.py'])
     run([sys.executable, 'algorithms/urdf_learn_wasd_walk/evolution.py'])
     run([sys.executable, 'geo', 'storage', 'audit'])
     out = ROOT / 'algorithms/motion_anim_generate/outputs/last_sync.json'

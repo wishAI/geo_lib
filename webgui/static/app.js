@@ -221,6 +221,16 @@
     state.shipDesigner = null;
     state.rimworldPrepare = null;
     state.charDetails = null;
+    if (sandbox.id === 'motion_anim_generate') {
+      app.innerHTML = '<div id="motion-animation-viewer"></div>';
+      const root = app.querySelector('#motion-animation-viewer');
+      void import('/api/artifact?path=algorithms/motion_anim_generate/gui/viewer.js').then(module => {
+        if (root.isConnected) return module.mount(root, {
+          onPreview: previewArtifact, onEvolution: () => openEvolutionTree(sandbox),
+        });
+      }).catch(error => { if (root.isConnected) root.textContent = 'Animation viewer unavailable: ' + error.message; });
+      return;
+    }
     const resultCount = declaredArtifactCount(sandbox);
     const examples = visibleExamples(sandbox);
     app.innerHTML = `
