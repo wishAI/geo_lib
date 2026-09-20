@@ -48,7 +48,7 @@ def load_source(path):
     return src, skeleton
 
 
-def solve(source, destination, fps=30., max_nfev=45):
+def solve(source, destination, fps=30., max_nfev=45, speed_bounded=False):
     src, skeleton = load_source(source)
     names = [x[0] for x in skeleton]
     idx = {n:i for i,n in enumerate(names)}
@@ -100,8 +100,12 @@ def solve(source, destination, fps=30., max_nfev=45):
                 for row,(_,t,_) in enumerate(MAP):
                     if qi in ancestors[t]: jmat[row*3:row*3+3,col]=np.cross(axis,pred[row]-joint_tf[:3,3])
             return np.vstack([jmat,smooth*np.eye(len(active)),neutral*np.eye(len(active))])
+        lower=robot.lower[active].copy();upper=robot.upper[active].copy()
+        if speed_bounded and frame>0:
+            lower=np.maximum(lower,previous[active]-robot.speed[active]/fps)
+            upper=np.minimum(upper,previous[active]+robot.speed[active]/fps)
         result=least_squares(evaluate,previous[active],jac=lambda x:evaluate(x,True),
-                             bounds=(robot.lower[active],robot.upper[active]),max_nfev=max_nfev,ftol=1e-5)
+                             bounds=(lower,upper),max_nfev=max_nfev,ftol=1e-5)
         previous=q0.copy();previous[active]=result.x
         tf=robot.fk(previous,base)
         fitted.append([tf[t][:3,3] for _,t,_ in MAP]);all_q.append(previous.copy())
@@ -125,7 +129,7 @@ def solve(source, destination, fps=30., max_nfev=45):
             'root_x_mount_preserved':True,'fps':fps,'frame_count':len(p),'duration_s':len(p)/fps,
             'retarget_rmse_m':float(np.sqrt(np.mean(errors**2))),'max_landmark_error_m':float(errors.max()),
             'per_landmark_rmse_m':{t:float(np.sqrt(np.mean(errors[:,i]**2))) for i,(_,t,_) in enumerate(MAP)},
-            'optimizer_nfev':iterations,'optimizer_success':optimizer_success,'max_nfev':max_nfev,
+            'speed_bounded':speed_bounded,'optimizer_nfev':iterations,'optimizer_success':optimizer_success,'max_nfev':max_nfev,
             'source_rotation_tracking':'unavailable: position-only objective; axial twist underdetermined',
             'dynamic_feasibility':'not tested','unscaled_source_retained':'source.npz'}
     write_json(destination/'retarget.json',report)

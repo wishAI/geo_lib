@@ -30,7 +30,7 @@
       ],
       "command": [
         "python3",
-        "algorithms/motion_anim_generate/prepare.py",
+        "/home/wishai/.cache/geo-lib-motion-20260920/source/algorithms/motion_anim_generate/prepare.py",
         "status"
       ],
       "artifacts": [
@@ -87,6 +87,26 @@
       "label": "Latest evidence provenance",
       "kind": "json",
       "path": "algorithms/motion_anim_generate/outputs/latest.json"
+    },
+    {
+      "label": "Velocity-bounded alternative \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/proof.mp4"
+    },
+    {
+      "label": "Velocity-bounded alternative \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/validation.json"
+    },
+    {
+      "label": "Velocity-bounded alternative \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/contact_sheet.png"
+    },
+    {
+      "label": "Velocity-bounded alternative \u00b7 retarget.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/retarget.json"
     }
   ]
 }

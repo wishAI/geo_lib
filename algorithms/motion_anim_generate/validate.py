@@ -158,3 +158,23 @@ def validate(data, robot=None, action='idle', thresholds=None):
 def validate_file(run,action):
     with np.load(run/'target.npz',allow_pickle=False) as f:data={k:f[k] for k in f.files}
     report=validate(data,action=action);write_json(run/'validation.json',report);return report
+
+
+def validate_source(path):
+    from retarget import load_source
+    src,skeleton=load_source(path);issues=[];p=src['posed_joints'];n=len(p)
+    for key,value in src.items():
+        if np.issubdtype(value.dtype,np.number) and not np.isfinite(value).all():
+            for f in np.unique(np.argwhere(~np.isfinite(value))[:,0]):issues.append({'frame':int(f),'check':'nonfinite','field':key})
+    if 'global_rot_mats' in src:
+        rot=src['global_rot_mats']
+        if rot.shape!=(n,len(skeleton),3,3):issues.append({'frame':-1,'check':'rotation_shape'})
+        else:
+            error=np.max(np.abs(np.swapaxes(rot,-1,-2)@rot-np.eye(3)),axis=(-1,-2))
+            determinant=np.linalg.det(rot)
+            for f,j in np.argwhere((error>1e-3)|(np.abs(determinant-1)>1e-3)):
+                issues.append({'frame':int(f),'joint':skeleton[j][0],'check':'rotation_SO3'})
+    return {'finite_rotation_pass':not issues,'violations':issues,'frame_count':n,'duration_s':n/30,
+            'checks':['finite source arrays','global rotation orthogonality and determinant, 1e-3 tolerance'],
+            'not_checked':['source physical feasibility','source joint limits: SOMA is not Landau'],
+            'frame_rate_contract_hz':30}

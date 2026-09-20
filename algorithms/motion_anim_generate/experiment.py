@@ -6,18 +6,19 @@ import shutil
 import time
 from state import ROOT, OUT, progress, node, artifact, sha256, write_json
 from retarget import solve
-from validate import validate_file
+from validate import validate_file, validate_source
 from render import render
 
 
-def process(run, action, source_kind):
+def process(run, action, source_kind, speed_bounded=False):
     meta=json.loads((run/'source_metadata.json').read_text())
+    write_json(run/'source_validation.json',validate_source(run/'source.npz'))
     source_id=run.name+':generated';target_id=run.name+':retargeted';valid_id=run.name+':validated'
     node(source_id,['assets'],'passed',label=run.name+' · '+source_kind,
          provenance=meta,artifacts=[artifact(run/'source_metadata.json'),artifact(run/'source.npz','file')])
     progress('retargeting',active_run=run.name,next_step='Validate fitted Landau then render actual full source/target motion',
              config=meta,active_process='experiment.py CPU bounded IK')
-    start=time.monotonic();ret=solve(run/'source.npz',run)
+    start=time.monotonic();ret=solve(run/'source.npz',run,speed_bounded=speed_bounded)
     node(target_id,[source_id],'passed' if ret['retarget_rmse_m']<=.03 else 'failed',label=run.name+' · Landau retarget',
          metrics={'retarget_rmse_m':ret['retarget_rmse_m']},artifacts=[artifact(run/'retarget.json')])
     progress('validating',active_run=run.name,metrics=ret,next_step='Render complete front/side comparison')
@@ -40,6 +41,7 @@ def process(run, action, source_kind):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--upstream-example',choices=['02_multi_text_prompt','05_root_path'])
     parser.add_argument('--run-id',required=True);parser.add_argument('--action',choices=['idle','walk','turn','wave','composite'],default='composite')
+    parser.add_argument('--speed-bounded',action='store_true')
     args=parser.parse_args()
     if not args.run_id.replace('_','').replace('-','').isalnum():raise ValueError('Invalid run id')
     run=OUT/'runs'/args.run_id;run.mkdir(parents=True,exist_ok=False)
@@ -50,6 +52,6 @@ def main():
         'model_revision':'not recorded in bundled example; do not attribute to selected v1.1 checkpoint',
         'meta':json.loads((folder/'meta.json').read_text()),'source_sha256':sha256(run/'source.npz'),
         'command':__import__('sys').argv})
-    print(json.dumps(process(run,args.action,'upstream example (NO local inference)')['metrics']))
+    print(json.dumps(process(run,args.action,'upstream example (NO local inference)',args.speed_bounded)['metrics']))
 
 if __name__=='__main__':main()

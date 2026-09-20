@@ -28,3 +28,16 @@ def test_semantic_coordinate_conversion_and_skeleton():
     assert np.linalg.det(C)==-1
     assert len(skeleton_names(30))==30
     assert len(skeleton_names(77))==77
+
+
+def test_bounded_ik_respects_speed_and_locks(tmp_path):
+    from retarget import solve, ROOT
+    src=ROOT/'outputs/vendor/kimodo/kimodo/assets/demo/examples/kimodo-soma-rp/02_multi_text_prompt/motion.npz'
+    with np.load(src) as f:
+        np.savez(tmp_path/'source.npz',**{k:f[k][:8] for k in f.files})
+    solve(tmp_path/'source.npz',tmp_path,max_nfev=12,speed_bounded=True)
+    r=Robot()
+    with np.load(tmp_path/'target.npz') as d:
+        assert np.all(np.abs(np.diff(d['q'],axis=0))*30 <= r.speed+1e-6)
+        assert np.all(d['q'][:,r.locked]==0)
+        assert np.all(d['q']>=r.lower-1e-9) and np.all(d['q']<=r.upper+1e-9)
