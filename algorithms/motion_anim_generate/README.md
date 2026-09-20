@@ -104,7 +104,15 @@ constraint following from remaining Landau pose concerns. This demonstrates
 one learned pose anchor without text; it does not demonstrate a prompted action
 suite or arbitrary root paths. The next specified experiment is a two-second,
 seed43,30-step matched-null test of five official root waypoints spanning0.4m;
-it has not been requested or executed.
+the worker supports `--root-path --seconds 2 --steps 30 --seed 43 --run-id UNIQUE`.
+Its ready request is `outputs/backend_gpu/jobs/rootpath20260920a.json`; parent
+dispatch and actual inference results are pending. CPU preflight verifies that
+the official conditioning mask selects exactly ten XZ values at five frames,
+with no vertical or heading constraint. Metrics compare the actual constrained
+`smooth_root_pos` feature and retain pelvis sway separately. Every-frame linear
+interpolation error is diagnostic; only the five supplied anchors are guided.
+Source and target quality will be reviewed separately after execution. No new
+default clip is promoted by this constraint experiment.
 
 ## Hand orientation follow-up
 

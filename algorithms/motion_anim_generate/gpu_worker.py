@@ -24,10 +24,12 @@ def main():
     p.add_argument('--speed-bounded',action='store_true')
     mode=p.add_mutually_exclusive_group();mode.add_argument('--unconditional',action='store_true')
     mode.add_argument('--pose-anchor',action='store_true',help='Official empty-text constraint-only smoke, plus matched-null source')
+    mode.add_argument('--root-path',action='store_true',help='Official sparse root-waypoint smoke, plus matched null')
     mode.add_argument('--embeddings',type=Path)
     p.add_argument('--action',choices=list(PROMPTS),default='idle');p.add_argument('--seed',type=int,default=42)
     p.add_argument('--seconds',type=float,default=2.);p.add_argument('--steps',type=int,default=30)
     p.add_argument('--run-id',default='unconditional_smoke_seed42');args=p.parse_args()
+    constraint_mode=args.pose_anchor or args.root_path
     occupancy=None
     if args.device=='cuda':
         # Query host driver occupancy before creating this process's CUDA context.
@@ -47,7 +49,7 @@ def main():
            'host_gpu_idle_verified':occupancy is not None}
     write_json(OUT/('backend_gpu/torch_probe.json' if args.device=='cuda' else 'cpu_torch_probe.json'),probe)
     if args.probe:print(json.dumps(probe));return
-    if not args.unconditional and not args.pose_anchor and not args.embeddings:
+    if not args.unconditional and not constraint_mode and not args.embeddings:
         raise RuntimeError('Need authorized exact-prompt embedding bundle; gated encoder is not bypassed')
     if args.embeddings:
         args.embeddings=args.embeddings.resolve()
@@ -61,8 +63,8 @@ def main():
         if not provenance.get('provenance') or not provenance.get('dtype'):raise ValueError('Missing embedding provenance/dtype')
     if not args.run_id.replace('_','').replace('-','').isalnum():raise ValueError('Invalid run id')
     if not (1<=args.seconds<=10 and 1<=args.steps<=100):raise ValueError('Bounded runs: 1..10s and 1..100 steps')
-    if args.pose_anchor and args.seconds!=2.:raise ValueError('Pose anchor smoke is exactly2 seconds')
-    encoder_free=args.unconditional or args.pose_anchor
+    if constraint_mode and args.seconds!=2.:raise ValueError('Constraint smoke is exactly2 seconds')
+    encoder_free=args.unconditional or constraint_mode
     import numpy as np
     vendor=OUT/'vendor/kimodo'
     expected=json.loads((ROOT/'provenance.json').read_text())
@@ -88,11 +90,11 @@ def main():
                 lengths=[1]*len(batch)
             return (values[0],lengths[0]) if is_string else (values,lengths)
     run=OUT/'runs'/args.run_id;run.mkdir(parents=True,exist_ok=False)
-    metadata={'source_kind':'local Kimodo constraint-only inference' if args.pose_anchor else 'local Kimodo unconditional inference' if args.unconditional else 'local Kimodo inference',
-              'action':'pose_anchor' if args.pose_anchor else 'unconditional' if args.unconditional else args.action,'prompt':None if encoder_free else PROMPTS[args.action],
+    metadata={'source_kind':'local Kimodo constraint-only inference' if constraint_mode else 'local Kimodo unconditional inference' if args.unconditional else 'local Kimodo inference',
+              'action':'root_path' if args.root_path else 'pose_anchor' if args.pose_anchor else 'unconditional' if args.unconditional else args.action,'prompt':None if encoder_free else PROMPTS[args.action],
               'seed':args.seed,'seconds':args.seconds,'diffusion_steps':args.steps,'post_processing':False,
               'postprocessing_reason':'Raw diffusion feasibility first; compiled correction not installed',
-              'cfg_type':'separated' if args.pose_anchor else 'regular','cfg_weight':[0.,2.] if args.pose_anchor else 0. if args.unconditional else 2.,'pins':expected,
+              'cfg_type':'separated' if constraint_mode else 'regular','cfg_weight':[0.,2.] if constraint_mode else 0. if args.unconditional else 2.,'pins':expected,
               'model_sha256':sha256(OUT/'models/Kimodo-SOMA-RP-v1.1/model.safetensors'),
               'embedding_sha256':sha256(args.embeddings) if args.embeddings else None,
               'command':sys.argv,'gpu':probe,'semantic_claim':not encoder_free,
@@ -107,11 +109,13 @@ def main():
     start=time.monotonic()
     model=load_model('Kimodo-SOMA-RP-v1.1',device=args.device,text_encoder=Encoder())
     constraints=[]
-    if args.pose_anchor:
-        from constraint_smoke import make_anchor,measure_constraint
-        constraints=[make_anchor(model.skeleton,args.device,run)]
+    if constraint_mode:
+        from constraint_smoke import make_anchor,measure_constraint,make_root_path,measure_root_path
+        builder=make_root_path if args.root_path else make_anchor
+        measure=measure_root_path if args.root_path else measure_constraint
+        constraints=[builder(model.skeleton,args.device,run)]
     with torch.inference_mode():
-        if args.pose_anchor:
+        if constraint_mode:
             torch.manual_seed(args.seed);torch.cuda.manual_seed_all(args.seed);np.random.seed(args.seed)
             baseline=model('',num_frames=round(args.seconds*model.fps),num_denoising_steps=args.steps,
                 cfg_type='separated',cfg_weight=[0.,0.],constraint_lst=constraints,
@@ -122,9 +126,9 @@ def main():
                      num_denoising_steps=args.steps,cfg_type=metadata['cfg_type'],cfg_weight=metadata['cfg_weight'],
                      constraint_lst=constraints,return_numpy=True,post_processing=False)
     np.savez_compressed(run/'source.npz',**output)
-    if args.pose_anchor:
+    if constraint_mode:
         metadata['timing_scope']='Model load plus both matched-null and guided inference calls'
-        metadata['constraint_metrics']=measure_constraint(run,output,baseline,model.skeleton)
+        metadata['constraint_metrics']=measure(run,output,baseline,model.skeleton)
         metadata['matched_null_source_sha256']=sha256(run/'matched_null_source.npz')
     metadata.update(elapsed_inference_s=time.monotonic()-start,source_sha256=sha256(run/'source.npz'),
                     peak_cuda_allocated_bytes=torch.cuda.max_memory_allocated() if args.device=='cuda' else None,
@@ -132,7 +136,7 @@ def main():
     write_json(run/'source_metadata.json',metadata)
     del model;torch.cuda.empty_cache()
     from experiment import process
-    result=process(run,'composite' if encoder_free else args.action,metadata['source_kind'],args.speed_bounded,promote=not args.pose_anchor)
+    result=process(run,'composite' if encoder_free else args.action,metadata['source_kind'],args.speed_bounded,promote=not constraint_mode)
     print(json.dumps({'inference':metadata,'validation_metrics':result['metrics']}))
 
 if __name__=='__main__':main()

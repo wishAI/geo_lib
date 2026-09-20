@@ -5,6 +5,64 @@ from state import OUT, sha256, write_json
 
 DONOR = 'unconditional_cpu_6s_seed43'
 FRAME = 30
+PATH_FRAMES = np.array([0, 15, 30, 45, 59])
+PATH_XZ = np.array([[0., 0.], [0., .1], [0., .2], [0., .3], [0., .4]])
+
+
+def make_root_path(skeleton, device, run):
+    """Use explicit two-column XZ input, matching the official demo constructor."""
+    import torch
+    from kimodo.constraints import Root2DConstraintSet
+    np.savez_compressed(run/'constraint_target.npz', frame_indices=PATH_FRAMES,
+                        smooth_root_xz=PATH_XZ)
+    write_json(run/'constraint_config.json', {
+        'kind': 'official Root2DConstraintSet; learned sparse smooth-root guidance',
+        'frame_indices': PATH_FRAMES.tolist(), 'soma_xz_waypoints_m': PATH_XZ.tolist(),
+        'seconds': 2, 'fps': 30, 'cfg_type': 'separated', 'cfg_weight': [0., 2.],
+        'text': '', 'heading_constrained': False, 'post_processing': False,
+        'coordinate_evidence': 'Pinned demo/generation.py passes XZ columns; kimodo_motionrep.py writes them to smooth_root_pos dimensions0 and2.',
+        'expected_diagnostic': {'waypoint_rms_m_at_most': .05,
+            'rms_reduction_vs_matched_null_at_least': .5},
+        'baseline': 'Identical seed, model, constraints and CFG batching; constraint guidance changes2 to0.',
+        'interpretation': 'Sparse smooth-root constraints; linear interpolation between anchors is a reference, not a dense requested constraint. Hips can sway around smooth root. No natural gait or text semantics claim.'})
+    return Root2DConstraintSet(skeleton,
+        frame_indices=torch.tensor(PATH_FRAMES, dtype=torch.long, device=device),
+        smooth_root_2d=torch.tensor(PATH_XZ, dtype=torch.float32, device=device))
+
+
+def root_path_metrics(sample):
+    from quality import summary
+    positions = np.asarray(sample['smooth_root_pos'])
+    hips = np.asarray(sample['root_positions'])
+    heading = np.asarray(sample['global_root_heading'])
+    if positions.shape != (60, 3) or hips.shape != (60, 3) or heading.shape != (60, 2):
+        raise ValueError('Expected exactly60 smooth-root/hips/heading samples')
+    if not all(np.isfinite(x).all() for x in (positions, hips, heading)):
+        raise ValueError('Nonfinite root-path output')
+    frames = np.arange(60); times = frames/30
+    desired = np.stack([np.interp(frames, PATH_FRAMES, PATH_XZ[:,i]) for i in range(2)], axis=-1)
+    xz = positions[:, [0,2]]
+    error = np.linalg.norm(xz-desired, axis=-1)
+    anchor_error = error[PATH_FRAMES]
+    return {'waypoint_rms_m': float(np.sqrt(np.mean(anchor_error**2))),
+        'waypoint_max_m': float(anchor_error.max()), 'waypoint_errors_m': anchor_error.tolist(),
+        'smooth_root_interpolated_reference_error_m': summary(error, times, .05),
+        'per_frame_reference_error_m': error.tolist(), 'per_frame_smooth_root_xz_m': xz.tolist(),
+        'per_frame_hips_xz_m': hips[:,[0,2]].tolist(),
+        'per_frame_heading_cos_sin': heading.tolist(),
+        'smooth_root_final_displacement_xz_m': (xz[-1]-xz[0]).tolist(),
+        'hips_final_displacement_xz_m': (hips[-1,[0,2]]-hips[0,[0,2]]).tolist(),
+        'smooth_root_step_m': summary(np.r_[0.,np.linalg.norm(np.diff(xz,axis=0),axis=-1)], times, .08)}
+
+
+def measure_root_path(run, output, baseline, skeleton=None):
+    before, after = root_path_metrics(baseline), root_path_metrics(output)
+    rms = before['waypoint_rms_m']
+    report = {'matched_null': before, 'constraint_guided': after,
+        'rms_reduction_fraction': 1-after['waypoint_rms_m']/rms if rms>1e-8 else None,
+        'purpose': 'Measure actual constrained smooth-root feature separately from unconstrained hips sway, heading and interpolated reference. No walking-semantic claim.'}
+    write_json(run/'constraint_metrics.json', report)
+    return report
 
 
 def make_anchor(skeleton, device, run):
