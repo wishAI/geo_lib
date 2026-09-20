@@ -30,6 +30,8 @@ class ModelSpecTests(unittest.TestCase):
         training = model_spec.URDF_PATH.parent / "mesh_collision_stl" / "landau_v10"
         reference = repo_root / "algorithms" / "usd_parallel_urdf" / "outputs" / "urdf_packages" / "landau_v10" / "mesh_collision_stl" / "landau_v10"
         training_files = sorted(training.glob("*.stl"))
+        if not reference.is_dir():
+            self.skipTest("Optional generated comparison package is absent; exact input hashes are tested separately")
         reference_files = sorted(reference.glob("*.stl"))
         self.assertEqual([path.name for path in training_files], [path.name for path in reference_files])
         self.assertEqual(
@@ -225,7 +227,17 @@ class ModelSpecTests(unittest.TestCase):
 
     def test_checked_in_robot_spec_is_current(self) -> None:
         checked_in = json.loads(model_spec.ROBOT_SPEC_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(checked_in, self.spec)
+        # libm differs by a few ulps between macOS and Linux in unrounded AABBs.
+        # Compare at picometer precision while preserving exact strings/hashes.
+        def portable(value):
+            if isinstance(value, float):
+                return round(value, 12)
+            if isinstance(value, list):
+                return [portable(item) for item in value]
+            if isinstance(value, dict):
+                return {key: portable(item) for key, item in value.items()}
+            return value
+        self.assertEqual(portable(checked_in), portable(self.spec))
 
 
 if __name__ == "__main__":
