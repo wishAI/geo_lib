@@ -1,0 +1,10 @@
+{
+  "kimodo": {"url": "https://github.com/nv-tlabs/kimodo", "revision": "1aece8c124d73d255ceff5086d983b844c9f4e94", "license": "Apache-2.0"},
+  "model": {"repo": "nvidia/Kimodo-SOMA-RP-v1.1", "revision": "6c9233af1180b8151e3c4703477104af5dce9dd5", "license": "NVIDIA Open Model License", "gated": false},
+  "text_base": {"repo": "meta-llama/Meta-Llama-3-8B-Instruct", "revision": "8afb486c1db24fe5011ec46dfbe5b5dccdb575c2", "license": "Meta Llama 3 Community License", "gated": true},
+  "text_mntp": {"repo": "McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp", "revision": "31474e395ada192e8ed1586db6be79fb3b70c9c0"},
+  "text_supervised": {"repo": "McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp-supervised", "revision": "baa8ebf04a1c2500e61288e7dad65e8ae42601a7"},
+  "selection": "SOMA-RP-v1.1 provides the newest full-Rigplay source without G1 retargeting distortion or SMPL-X body asset requirements. Landau uses separate bounded IK; arbitrary URDF is not a native Kimodo skeleton.",
+  "urdf_sha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
+  "mesh_tree_sha256": "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73"
+}
