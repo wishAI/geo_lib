@@ -24,6 +24,8 @@ def _as_point_list(value: Any, *, key: str) -> list[tuple[float, float]]:
             or not isinstance(raw[1], (int, float))
         ):
             raise ValueError(f"{key}[{idx}] must be [x, y]")
+        if not all(math.isfinite(float(v)) for v in raw):
+            raise ValueError(f"{key}[{idx}] must be finite")
         points.append((float(raw[0]), float(raw[1])))
     return points
 
@@ -128,9 +130,11 @@ class WidgetSpec:
         if not isinstance(allowed_angles_raw, list):
             raise ValueError(f"widgets[{index}].allowed_angles_degrees must be a list")
         allowed_angles = tuple(float(value) for value in allowed_angles_raw)
+        if not all(math.isfinite(a) for a in allowed_angles):
+            raise ValueError("allowed angles must be finite")
         step_raw = raw.get("rotation_step_degrees")
         rotation_step = None if step_raw is None else float(step_raw)
-        if rotation_step is not None and rotation_step <= 0:
+        if rotation_step is not None and (not math.isfinite(rotation_step) or rotation_step <= 0):
             raise ValueError(f"widgets[{index}].rotation_step_degrees must be > 0")
         return cls(
             widget_id=widget_id,
@@ -175,6 +179,10 @@ class ProblemSpec:
             raise ValueError("widgets must be a non-empty list")
         boards = tuple(BoardSpec.from_json(entry, index=i) for i, entry in enumerate(boards_raw))
         widgets = tuple(WidgetSpec.from_json(entry, index=i) for i, entry in enumerate(widgets_raw))
+        if len({b.board_id for b in boards}) != len(boards):
+            raise ValueError("board IDs must be unique")
+        if len({w.widget_id for w in widgets}) != len(widgets):
+            raise ValueError("widget IDs must be unique")
         config = raw.get("config", {})
         if not isinstance(config, dict):
             raise ValueError("config must be an object when provided")

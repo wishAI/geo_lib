@@ -61,7 +61,7 @@ def main() -> None:
         start = time.perf_counter()
         solution = solve_problem(problem, config=config)
         elapsed = time.perf_counter() - start
-        validate_solution(problem, solution, tolerance=config.placement_tolerance)
+        validate_solution(problem, solution, tolerance=config.placement_tolerance, config=config)
 
         solution_payload = solution_to_dict(problem, solution)
         save_solution(case_output_dir / "solution.json", solution_payload)

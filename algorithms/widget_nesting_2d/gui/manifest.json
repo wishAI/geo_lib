@@ -3,28 +3,257 @@
   "icon": "nest",
   "name": "2D Widget Nesting",
   "eyebrow": "IRREGULAR STOCK LAYOUT",
-  "summary": "Pack hole-aware polygon widgets across boards, tune the search budget, and inspect placement quality and remaining usable stock.",
+  "summary": "Pack varied polygons with fast envelope and raster construction, NFP repair, and genetic search; compare validated layouts and usable stock.",
   "accent": "#a17b24",
   "runtime": "local-or-tk2",
-  "runtimeLabel": "TK2 default · Mac optional",
-  "capabilities": ["Shapely", "nesting", "layout"],
+  "runtimeLabel": "TK2 default \u00b7 Mac optional",
+  "capabilities": [
+    "Hybrid construction",
+    "NFP repair",
+    "genetic search",
+    "hole nesting",
+    "1,000 distinct outlines",
+    "SDK comparison"
+  ],
   "examples": [
     {
       "id": "complex_board",
       "name": "Nest the complex dual-board case",
-      "description": "Run the evolutionary beam solver with adjustable generations and rotation resolution.",
+      "description": "Run cached polygonal NFP placement with genetic ordering and a beam of alternate layouts.",
       "target": "tk2",
-      "targets": ["tk2", "local"],
-      "command": ["./geo", "pt", "-m", "algorithms.widget_nesting_2d.solver", "--input", "algorithms/widget_nesting_2d/inputs/complex_dual_board.json", "--output", "algorithms/widget_nesting_2d/outputs/gui_example", "--generations", "{generations}", "--rotation-step-degrees", "{rotation_step}", "--seed", "{seed}"],
+      "targets": [
+        "tk2",
+        "local"
+      ],
+      "command": [
+        "./geo",
+        "pt",
+        "-m",
+        "algorithms.widget_nesting_2d.solver",
+        "--input",
+        "algorithms/widget_nesting_2d/inputs/complex_dual_board.json",
+        "--output",
+        "algorithms/widget_nesting_2d/outputs/gui_example",
+        "--generations",
+        "{generations}",
+        "--rotation-step-degrees",
+        "{rotation_step}",
+        "--seed",
+        "{seed}"
+      ],
       "parameters": [
-        {"id": "generations", "label": "Generations", "type": "integer", "default": 4, "min": 1, "max": 20, "step": 1},
-        {"id": "rotation_step", "label": "Rotation step (°)", "type": "number", "default": 15, "min": 5, "max": 90, "step": 5},
-        {"id": "seed", "label": "Random seed", "type": "integer", "default": 7, "min": 0, "max": 99999, "step": 1}
+        {
+          "id": "generations",
+          "label": "Generations",
+          "type": "integer",
+          "default": 4,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        {
+          "id": "rotation_step",
+          "label": "Rotation step (\u00b0)",
+          "type": "number",
+          "default": 15,
+          "min": 5,
+          "max": 90,
+          "step": 5
+        },
+        {
+          "id": "seed",
+          "label": "Random seed",
+          "type": "integer",
+          "default": 7,
+          "min": 0,
+          "max": 99999,
+          "step": 1
+        }
       ],
       "artifacts": [
-        {"label": "Nesting layout", "path": "algorithms/widget_nesting_2d/outputs/gui_example/nesting_layout.png", "kind": "image"},
-        {"label": "Solution", "path": "algorithms/widget_nesting_2d/outputs/gui_example/solution.json", "kind": "json"}
+        {
+          "label": "Nesting layout",
+          "path": "algorithms/widget_nesting_2d/outputs/gui_example/nesting_layout.png",
+          "kind": "image"
+        },
+        {
+          "label": "Solution",
+          "path": "algorithms/widget_nesting_2d/outputs/gui_example/solution.json",
+          "kind": "json"
+        }
       ]
+    }
+  ],
+  "artifacts": [
+    {
+      "label": "New input catalog \u00b7 256 distinct outlines",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s/catalog_256.png",
+      "kind": "image"
+    },
+    {
+      "label": "New input catalog \u00b7 all 66 source outlines",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s/catalog_66.png",
+      "kind": "image"
+    },
+    {
+      "label": "Improved solver \u00b7 1,000 rectangles \u00b7 before / after",
+      "path": "algorithms/widget_nesting_2d/outputs/hybrid_large_10s/large_tiles_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Improved solver \u00b7 300 shirts \u00b7 before / after",
+      "path": "algorithms/widget_nesting_2d/outputs/hybrid_large_10s/large_shirts_300_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Improved solver \u00b7 260 letters \u00b7 before / after",
+      "path": "algorithms/widget_nesting_2d/outputs/hybrid_large_10s/large_alphabet_260_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Diverse scene \u00b7 1,000 widgets / 256 shapes",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s/diverse_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Dense mix \u00b7 256 distinct shapes",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s/diverse_256_dense_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Dense source mix \u00b7 66 shapes \u00b7 remaining hard case",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s/source_mix_66_dense_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Hole-free dense mix \u00b7 256 shapes \u00b7 three engines",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_simple_10s/simple_mix_256_dense_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Hole-free scene \u00b7 1,000 widgets / 256 shapes",
+      "path": "algorithms/widget_nesting_2d/outputs/diverse_simple_10s/simple_mix_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Maximum diversity \u00b7 1,000 distinct outlines",
+      "path": "algorithms/widget_nesting_2d/outputs/unique_1000_10s/unique_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scenes \u00b7 NFP 10s versus 60s",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_nfp_60s/budget_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scenes \u00b7 60-second NFP trial data",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_nfp_60s/index.json",
+      "kind": "json"
+    },
+    {
+      "label": "Large scene \u00b7 1,000 rectangles \u00b7 10s comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/large_tiles_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scene \u00b7 300 shirt widgets \u00b7 10s comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/large_shirts_300_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scene \u00b7 260 letters \u00b7 10s comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/large_alphabet_260_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scene \u00b7 500 rectangles \u00b7 10s comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/large_tiles_500_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scene \u00b7 100 shirt widgets \u00b7 10s comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/large_shirts_100_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scene \u00b7 100 rectangles \u00b7 10s comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/large_tiles_100_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scenes \u00b7 placed-area comparison",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "1,000 rectangles \u00b7 known feasible grid reference",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_witness/grid_1000.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large scenes \u00b7 per-seed data",
+      "path": "algorithms/widget_nesting_2d/outputs/large_scene_10s/analysis.json",
+      "kind": "json"
+    },
+    {
+      "label": "Tight shirts \u00b7 side-by-side layouts (seed 42)",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/shirts_combo_tight_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Full alphabet \u00b7 side-by-side layouts (seed 42)",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/alphabet_abcdefghijklmnopqrstuvwxyz_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Curved swim widgets \u00b7 side-by-side layouts (seed 42)",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/swim_curved_mix_tight_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Tight trousers \u00b7 side-by-side layouts (seed 42)",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/trousers_shortage_tight_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Letters EFGH \u00b7 side-by-side layouts (seed 42)",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/alphabet_efgh_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Letters UVWXYZ \u00b7 side-by-side layouts (seed 42)",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/alphabet_uvwxyz_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Open-source comparison \u00b7 matched 2-second budget",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_2s/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "Open-source comparison \u00b7 10 seconds, three seeds",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "NFP vs OpenNest \u00b7 median and seed range",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Open-source benchmark data",
+      "path": "algorithms/widget_nesting_2d/outputs/open_source_10s/analysis.json",
+      "kind": "json"
+    },
+    {
+      "label": "Nesting SDK comparison \u00b7 24 cases",
+      "path": "algorithms/widget_nesting_2d/outputs/benchmark_20260920/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "Benchmark data \u00b7 validated layouts and timeouts",
+      "path": "algorithms/widget_nesting_2d/outputs/benchmark_20260920/analysis.json",
+      "kind": "json"
     }
   ]
 }
