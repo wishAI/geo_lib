@@ -3,10 +3,10 @@
   "icon": "cube",
   "name": "Motion Anim Generate",
   "eyebrow": "NVIDIA KIMODO \u00b7 LANDAU V10",
-  "summary": "Test generated basic motions on Landau v10 with retargeting checks, debug videos and explicit validity reports. Backend implementation pending.",
+  "summary": "Pinned Kimodo/SOMA to canonical Landau. First real upstream walk/turn retarget fails kinematic checks; local prompt generation awaits authorized text embeddings. Inspect full evidence and progress.",
   "accent": "#408d83",
   "runtime": "tk2",
-  "runtimeLabel": "TK2 \u00b7 Astra High",
+  "runtimeLabel": "TK2 \u00b7 Astra High \u00b7 Standard \u00b7 isolated worker",
   "capabilities": [
     "Kimodo",
     "motion generation",
@@ -19,7 +19,44 @@
     "label": "Motion experiments",
     "path": "algorithms/motion_anim_generate/outputs/evolution.json"
   },
-  "examples": [],
+  "examples": [
+    {
+      "id": "inspect_backend",
+      "name": "Inspect backend progress",
+      "description": "Read dedicated persistent task status and blockers. Mac supervisor owns worker dispatch and sync.",
+      "target": "tk2",
+      "targets": [
+        "tk2"
+      ],
+      "command": [
+        "python3",
+        "algorithms/motion_anim_generate/prepare.py",
+        "status"
+      ],
+      "artifacts": [
+        {
+          "label": "Walk + turn full source/Landau video (upstream example)",
+          "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/proof.mp4",
+          "kind": "video"
+        },
+        {
+          "label": "Walk + turn screening (failed)",
+          "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Walk + turn contact sheet",
+          "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/contact_sheet.png",
+          "kind": "image"
+        },
+        {
+          "label": "Retarget metrics",
+          "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/retarget.json",
+          "kind": "json"
+        }
+      ]
+    }
+  ],
   "artifacts": [
     {
       "label": "Backend progress",
@@ -40,6 +77,16 @@
       "label": "Motion contact sheet",
       "kind": "image",
       "path": "algorithms/motion_anim_generate/outputs/contact_sheet.png"
+    },
+    {
+      "label": "Canonical asset audit",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/asset_audit.json"
+    },
+    {
+      "label": "Latest evidence provenance",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/latest.json"
     }
   ]
 }
