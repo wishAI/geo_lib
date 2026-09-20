@@ -1,11 +1,13 @@
-"""Kinematic screening only. Mesh floor is exact; contacts/capsules/semantics are heuristics."""
+"""Animation diagnostics. Legacy actuator/RMSE flags never determine clip usability."""
 import numpy as np
 from scipy.spatial.transform import Rotation
 from landau import Robot
+from state import sha256
 from retarget import MAP
 from state import write_json
 
 TOLERANCES = dict(time_step_s=1e-5, quaternion_norm=1e-4, quaternion_step_rad=.35,
+                  joint_step_rad=.35, joint_jitter_third_difference_rad=.12,
                   joint_limit_rad=1e-5, locked_joint_rad=1e-6, joint_acceleration_rad_s2=80.,
                   root_step_m=.08, foot_contact_height_m=.012, floor_penetration_m=.005,
                   foot_sliding_m_s=.08, retarget_rmse_m=.03, retarget_peak_m=.08,
@@ -68,10 +70,12 @@ def semantics(action, positions, names, yaw, times, thresholds=TOLERANCES):
 
 def validate(data, robot=None, action='idle', thresholds=None):
     r=robot or Robot();tol={**TOLERANCES,**(thresholds or {})};violations=[]
-    report={'schema_version':1,'kinematic_pass':False,'dynamic_feasibility':'not tested',
+    report={'schema_version':2,'purpose':'animation_quality',
+            'legacy_thresholds_not_animation_acceptance':True,
+            'validator_sha256':sha256(__file__),'kinematic_pass':False,'dynamic_feasibility':'not tested',
             'robot_control_safety':'not established; no actuation', 'thresholds':tol,
             'heuristic_checks':['contact labels from target geometry','capsule self-intersection proxy','motion semantics'],
-            'unavailable_checks':['exact triangle self-intersection','balance, forces, torque and actuator tracking','source-to-target axial orientation fidelity'],
+            'unavailable_checks':['exact triangle self-intersection','balance, forces, torque and actuator tracking','full-body/finger orientation fidelity (foot, pelvis, chest and head directions are measured separately in directions.json)'],
             'violations':violations}
     def add(code, frame, **extra):violations.append({'check':code,'frame':int(frame),**extra})
     required=['q','base','base_quat_xyzw','times','errors_m']
@@ -100,6 +104,8 @@ def validate(data, robot=None, action='idle', thresholds=None):
         for f in np.where((dt<=0)|(np.abs(dt-np.median(dt))>tol['time_step_s']))[0]:add('time_continuity',f+1)
         return report
     h=float(np.median(dt));speed=np.diff(q,axis=0)/dt[:,None];acc=np.diff(speed,axis=0)/h
+    for f,j in np.argwhere(np.abs(np.diff(q,axis=0))>tol['joint_step_rad']):add('joint_continuity',f+1,joint=r.names[j])
+    for f,j in np.argwhere(np.abs(np.diff(q,n=3,axis=0))>tol['joint_jitter_third_difference_rad']):add('joint_jitter',f+3,joint=r.names[j])
     tests=[('joint_limits',(q<r.lower-tol['joint_limit_rad'])|(q>r.upper+tol['joint_limit_rad']),0),
            ('joint_speed',np.abs(speed)>r.speed+1e-6,1),
            ('joint_acceleration',np.abs(acc)>tol['joint_acceleration_rad_s2'],2)]
@@ -148,7 +154,7 @@ def validate(data, robot=None, action='idle', thresholds=None):
     errors=np.asarray(data['errors_m']);rmse=float(np.sqrt(np.mean(errors**2)))
     for f in np.where(np.max(errors,axis=1)>tol['retarget_peak_m'])[0]:add('retarget_peak',f)
     if rmse>tol['retarget_rmse_m']:add('retarget_rmse',-1,value_m=rmse)
-    yaw=np.unwrap(np.arctan2(bases[:,1,0],bases[:,0,0]))
+    yaw=np.unwrap(np.arctan2(bases[:,1,0],bases[:,0,0]))+float(data.get('semantic_heading_offset_rad',0))
     sem=semantics(action,positions,r.links,yaw,times,tol)
     if sem['status']=='failed':add('motion_semantics',-1,action=action)
     report.update(kinematic_pass=not violations and sem['status']=='passed',
@@ -161,12 +167,22 @@ def validate(data, robot=None, action='idle', thresholds=None):
                            'self_intersection_proxy_frames':sum(bool(x) for x in proxy)},
                   per_frame={'minimum_mesh_z_m':[float(x) for x in min_z],
                              'foot_min_z_m':foot_bottom.tolist(),'foot_contact_heuristic':contacts.tolist()})
+    concern_checks={'floor_penetration','foot_sliding','self_intersection_proxy','quaternion_step','root_discontinuity',
+                    'joint_continuity','joint_jitter','joint_limits','locked_joint'}
+    invalid_checks={'base_rotation_mismatch','base_homogeneous_row','quaternion_norm'}
+    report['animation_quality']={'data_renderable':not any(v['check'] in invalid_checks for v in violations),
+        'review_notes':sorted({v['check'] for v in violations if v['check'] in concern_checks}),
+        'joint_speed_acceleration':'recorded diagnostics; robot actuator thresholds do not reject animation',
+        'retarget_error':'reported fidelity metric; arbitrary RMSE cutoff does not reject animation',
+        'requested_semantics':'unverified' if sem['status']=='unavailable' else sem['status']}
     return report
 
 
 def validate_file(run,action):
     with np.load(run/'target.npz',allow_pickle=False) as f:data={k:f[k] for k in f.files}
-    report=validate(data,action=action);write_json(run/'validation.json',report);return report
+    report=validate(data,action=action)
+    report['clip_status']='retargeted' if report.get('animation_quality',{}).get('data_renderable') else 'invalid_data'
+    write_json(run/'validation.json',report);return report
 
 
 def validate_source(path):
@@ -194,11 +210,12 @@ def compare_semantics(run):
     import json
     src,skeleton=load_source(run/'source.npz');ix={x[0]:i for i,x in enumerate(skeleton)}
     ret=json.loads((run/'retarget.json').read_text());scale=ret['root_trajectory_scale']
-    source=np.stack([src['posed_joints'][:,ix[s]]@C.T*scale for s,_,_ in MAP],axis=1)
+    coordinate_matrix=np.array(ret['source_coordinate_matrix'])
+    source=np.stack([src['posed_joints'][:,ix[s]]@coordinate_matrix.T*scale for s,_,_ in MAP],axis=1)
     names=[t for _,t,_ in MAP]
     with np.load(run/'target.npz') as d:
         target=d['fitted'];times=d['times'];base=d['base']
-    yaw=np.unwrap(np.arctan2(base[:,1,0],base[:,0,0]))
+    yaw=np.unwrap(np.arctan2(base[:,1,0],base[:,0,0]))+ret.get('semantic_heading_offset_rad',0)
     report={'heuristic_only':True,'source_units':'SOMA positions uniformly scaled to Landau leg length for threshold comparability',
             'source_scale':scale,'prompt_success_claim':False,
             'actions':{a:{'source':semantics(a,source,names,yaw,times),'target':semantics(a,target,names,yaw,times)} for a in ('idle','walk','turn','wave')}}

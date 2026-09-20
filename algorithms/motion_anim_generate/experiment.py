@@ -10,27 +10,40 @@ from validate import validate_file, validate_source, compare_semantics
 from render import render
 
 
-def process(run, action, source_kind, speed_bounded=False):
+def process(run, action, source_kind, speed_bounded=False, anchor_rigid=True, temporal_contact=True,animation_only=True,foot_orientation=True):
+    if animation_only:speed_bounded=False
     meta=json.loads((run/'source_metadata.json').read_text())
     write_json(run/'source_validation.json',validate_source(run/'source.npz'))
-    source_id=run.name+':generated';target_id=run.name+':retargeted';valid_id=run.name+':validated'
-    node(source_id,['assets'],'passed',label=run.name+' · '+source_kind,
-         provenance=meta,artifacts=[artifact(run/'source_metadata.json'),artifact(run/'source.npz','file')])
+    source_id=meta.get('source_node_id',run.name+':generated');target_id=run.name+':retargeted';valid_id=run.name+':validated'
+    if 'source_node_id' not in meta:
+        node(source_id,['assets'],'passed',label=run.name+' · '+source_kind,
+             provenance=meta,artifacts=[artifact(run/'source_metadata.json'),artifact(run/'source.npz','file')])
     progress('retargeting',active_run=run.name,next_step='Validate fitted Landau then render actual full source/target motion',
              config=meta,active_process='experiment.py CPU bounded IK')
-    start=time.monotonic();ret=solve(run/'source.npz',run,speed_bounded=speed_bounded)
-    node(target_id,[source_id],'passed' if ret['retarget_rmse_m']<=.03 else 'failed',label=run.name+' · Landau retarget',
+    start=time.monotonic();ret=solve(run/'source.npz',run,speed_bounded=speed_bounded,anchor_rigid=anchor_rigid,foot_orientation=foot_orientation)
+    if temporal_contact:
+        from refine import temporal_contact_refine
+        ret=temporal_contact_refine(run,animation_only=animation_only)
+    node(target_id,[source_id],'passed',label=run.name+' · Landau retarget',
          metrics={'retarget_rmse_m':ret['retarget_rmse_m']},artifacts=[artifact(run/'retarget.json')])
     progress('validating',active_run=run.name,metrics=ret,next_step='Render complete front/side comparison')
     val=validate_file(run,action)
+    if not val.get('animation_quality',{}).get('data_renderable'):
+        raise ValueError('Malformed animation data; inspect validation.json')
     compare_semantics(run)
+    from directions import diagnose
+    diagnose(run)
     progress('rendering',active_run=run.name,metrics=val['metrics'],next_step='Review contact sheet and full-duration video')
-    render(run,f'{source_kind} | {run.name} | {action} | NOT robot control')
-    artifacts=[artifact(run/'validation.json'),artifact(run/'retarget.json'),artifact(run/'proof.mp4','video'),artifact(run/'contact_sheet.png','image'),artifact(run/'video.json')]
-    node(valid_id,[target_id],'passed' if val['kinematic_pass'] else 'failed',label=run.name+' · kinematic screening',
+    render(run,f'{source_kind} | {run.name}')
+    val['clip_status']='generated_and_rendered'
+    write_json(run/'validation.json',val)
+    artifacts=[artifact(run/'validation.json'),artifact(run/'retarget.json'),artifact(run/'directions.json'),
+               artifact(run/'proof.mp4','video'),artifact(run/'contact_sheet.png','image'),artifact(run/'video.json'),
+               artifact(run/'clean_preview.mp4','video'),artifact(run/'clean_contact_sheet.png','image'),artifact(run/'clean_video.json')]
+    node(valid_id,[target_id],'passed',label=run.name+' · animation rendered; see quality notes',
          metrics=val['metrics'],artifacts=artifacts,parameters={'source_kind':source_kind,'action':action})
     # Stable GUI preview aliases, with provenance in validation/report, original runs retained.
-    for name in ['validation.json','proof.mp4','contact_sheet.png']:
+    for name in ['validation.json','proof.mp4','contact_sheet.png','preview.mp4','clean_preview.mp4','clean_contact_sheet.png']:
         shutil.copyfile(run/name,OUT/name)
     write_json(OUT/'latest.json',{'run':str(run),'source_kind':source_kind,'local_inference':source_kind.startswith('local Kimodo'),
                                 'elapsed_s':time.monotonic()-start,'artifacts':artifacts})

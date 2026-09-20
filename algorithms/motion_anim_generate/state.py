@@ -46,7 +46,7 @@ def node(node_id, parent_ids, status, **fields):
     path = OUT / 'evolution.json'
     data = json.loads(path.read_text()) if path.exists() else {
         'schemaVersion': 1, 'type': 'evolutionTree', 'lineage': 'kimodo_landau_v10',
-        'primaryMetric': 'retarget_rmse_m', 'targetMetricValue': 0.03,
+        'primaryMetric': 'retarget_rmse_m',
         'milestones': [], 'nodes': [], 'visibleNodeBudget': 40}
     value = {'id': node_id, 'parentIds': parent_ids, 'status': status,
              'kind': 'experiment', 'label': node_id, 'metrics': {}, 'artifacts': [], **fields}

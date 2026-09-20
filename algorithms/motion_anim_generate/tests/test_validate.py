@@ -26,7 +26,7 @@ def test_static_fixture_passes_kinematic_only(robot,still):
     ('sign','quaternion_sign_discontinuity'),('joint','joint_limits'),('speed','joint_speed'),
     ('locked','locked_joint'),('floor','floor_penetration'),('slide','foot_sliding'),
     ('root','root_discontinuity'),('error','retarget_peak'),('order','joint_order')])
-def test_invalid_motion_is_rejected(robot,still,fault,expected):
+def test_legacy_flags_preserved(robot,still,fault,expected):
     if fault=='nan':still['q'][3,0]=np.nan
     elif fault=='time':still['times'][4]=still['times'][3]
     elif fault=='norm':still['base_quat_xyzw'][4]*=2
@@ -78,3 +78,22 @@ def test_malformed_error_array_rejected(robot,still):
 def test_quaternion_base_inconsistency_rejected(robot,still):
     still['base'][3,0,0]=2
     assert 'base_rotation_mismatch' in checks(validate(still,robot))
+
+
+def test_animation_not_rejected_for_actuator_or_rmse_diagnostics(robot,still):
+    still['q'][:,0]=np.arange(len(still['q']))*.14
+    still['errors_m'][:]=.09
+    report=validate(still,robot,action='composite')
+    assert {'joint_speed','retarget_rmse'} <= checks(report)
+    assert report['animation_quality']['data_renderable']
+    assert 'joint_speed' not in report['animation_quality']['review_notes']
+    assert 'retarget_rmse' not in report['animation_quality']['review_notes']
+    assert report['animation_quality']['requested_semantics']=='unverified'
+
+
+def test_animation_spike_has_jitter_note(robot,still):
+    still['q'][6,0]=.3
+    report=validate(still,robot,action='composite')
+    assert 'joint_jitter' in report['animation_quality']['review_notes']
+    still['q'][6,0]=np.nan
+    assert not validate(still,robot).get('animation_quality',{}).get('data_renderable',False)

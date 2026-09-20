@@ -56,7 +56,7 @@ class Robot:
                 self.joints.append(j); seen.add(j['child']); raw.remove(j)
         self.moving = [j for j in self.joints if j['type'] == 'revolute']
         self.names = [j['name'] for j in self.moving]
-        self.active = [i for i, n in enumerate(self.names) if not any(f in n for f in FINGERS) and 'shin_roll' not in n]
+        self.active = [i for i, n in enumerate(self.names) if not any(f in n for f in FINGERS)]
         self.locked = [i for i in range(len(self.names)) if i not in self.active]
         self.lower = np.array([j['lower'] for j in self.moving])
         self.upper = np.array([j['upper'] for j in self.moving])
@@ -104,9 +104,9 @@ class Robot:
                 'triangle_count': sum(len(f) for _, _, f, _ in self.meshes), 'link_count': len(self.links),
                 'revolute_count':len(self.names), 'action_joints':[self.names[i] for i in self.active],
                 'locked_joints':[self.names[i] for i in self.locked], 'lock_position_rad':0,
-                'lock_reason':'Fingers and distal shin twists held at zero. All other URDF revolutes enabled for animation, including arms for wave; this is independent of walking policy actions.',
+                'lock_reason':'Fingers held at zero. All other URDF revolutes, including shin twists for foot orientation, enabled for animation; independent of walking policy actions.',
                 'units':{'xyz':'metres','angles':'radians','speed':'rad/s','mesh_scale':'URDF explicit scale or 1'},
-                'world_axes':'+Z up, Landau body +Y forward', 'root_x_mount':rest['root_x'].tolist(),
+                'world_axes':'+Z up; canonical mounted mesh/anatomical forward is native -Y; application forward +Y requires explicit retarget frame transport', 'root_x_mount':rest['root_x'].tolist(),
                 'root_note':'root_x +90 degree roll preserved in FK. Base yaw operates around world Z; never treat root_x local Y as body heading.',
                 'rest_bounds_m':[vertices.min(0).tolist(),vertices.max(0).tolist()],
                 'joints':[{k:v.tolist() if isinstance(v,np.ndarray) else v for k,v in j.items()} for j in self.joints],
