@@ -736,6 +736,11 @@
       "path": "algorithms/motion_anim_generate/outputs/frame_rest_audit.json",
       "kind": "json",
       "label": "outputs \u00b7 frame_rest_audit.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/completion_audit.json",
+      "kind": "json",
+      "label": "Feasibility completion audit"
     }
   ]
 }
