@@ -286,6 +286,86 @@
       "label": "unconditional_suite.json",
       "kind": "json",
       "path": "algorithms/motion_anim_generate/outputs/unconditional_suite.json"
+    },
+    {
+      "label": "unconditional_cuda_smoke_seed42 \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/proof.mp4"
+    },
+    {
+      "label": "unconditional_cuda_smoke_seed42 \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/contact_sheet.png"
+    },
+    {
+      "label": "unconditional_cuda_smoke_seed42 \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/validation.json"
+    },
+    {
+      "label": "unconditional_cuda_smoke_seed42 \u00b7 retarget.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/retarget.json"
+    },
+    {
+      "label": "unconditional_cuda_smoke_seed42 \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/source_metadata.json"
+    },
+    {
+      "label": "unconditional_cpu_repeat_seed42 \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/proof.mp4"
+    },
+    {
+      "label": "unconditional_cpu_repeat_seed42 \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/contact_sheet.png"
+    },
+    {
+      "label": "unconditional_cpu_repeat_seed42 \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/validation.json"
+    },
+    {
+      "label": "unconditional_cpu_repeat_seed42 \u00b7 retarget.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/retarget.json"
+    },
+    {
+      "label": "unconditional_cpu_repeat_seed42 \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/source_metadata.json"
+    },
+    {
+      "label": "cuda_smoke_anchored \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/proof.mp4"
+    },
+    {
+      "label": "cuda_smoke_anchored \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/contact_sheet.png"
+    },
+    {
+      "label": "cuda_smoke_anchored \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/validation.json"
+    },
+    {
+      "label": "cuda_smoke_anchored \u00b7 retarget.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/retarget.json"
+    },
+    {
+      "label": "cuda_smoke_anchored \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/source_metadata.json"
+    },
+    {
+      "label": "CPU/CUDA measured comparison",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/cpu_cuda_comparison.json"
     }
   ]
 }

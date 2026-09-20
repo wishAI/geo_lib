@@ -6,9 +6,10 @@ from validate import compare_semantics
 
 
 def main():
-    runs=[];parents=[]
+    runs=[];parents=[];pending=[]
     for run in sorted((OUT/'runs').iterdir()):
-        if not (run/'validation.json').exists():continue
+        if not all((run/name).exists() for name in ('validation.json','video.json','retarget.json','source_metadata.json')):
+            pending.append(run.name);continue
         val=json.loads((run/'validation.json').read_text())
         meta=json.loads((run/'source_metadata.json').read_text())
         video=json.loads((run/'video.json').read_text())
@@ -33,7 +34,7 @@ def main():
                                     'representative':{'seeds':[42,43,44],'seconds':6,'steps':100},
                                     'reason':'Official gated text encoder unavailable; no official public prompt embedding bundle found'},
             'dynamic_feasibility':'not tested','robot_control_safety':'not established; no hardware actuation',
-            'runs':runs,'blockers':json.loads((OUT/'blockers.json').read_text()),
+            'runs':runs,'incomplete_runs':pending,'blockers':json.loads((OUT/'blockers.json').read_text()),
             'diagnosis':['Hard joint-speed bounds remove speed violations but leave acceleration, floor/contact and landmark-fit failures.',
                          'Landau proportions and available joint axes differ substantially from SOMA. Position-only IK leaves twist and upper-body orientation underconstrained.',
                          'Root transport is scaled but unconstrained by target support contacts; a single floor offset cannot prevent later penetration or sliding.',
