@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +16,7 @@ SOURCES = {
 
 
 def run(args, **kwargs):
-    return subprocess.check_output(args, cwd=ROOT, text=True, timeout=180, **kwargs).strip()
+    return subprocess.check_output(args, cwd=ROOT, text=True, timeout=kwargs.pop('timeout', 180), **kwargs).strip()
 
 
 def sync_source(name, remote, branch, base):
@@ -52,11 +53,18 @@ def sync_artifacts(name, remote):
     code = 'import os,json; root=' + repr(remote) + '; paths=' + repr(paths) + '; print(json.dumps([p for p in paths if os.path.isfile(os.path.join(root,p))]))'
     available = json.loads(run([*SSH, 'tk2', 'python3 -c ' + shlex.quote(code)]))
     destination = Path(os.environ.get('GEO_CLOUD_ROOT', str(Path.home() / 'Nextcloud/Projects/geo_lib'))) / 'remote_outputs'
+    if available:
+        destination.mkdir(parents=True, exist_ok=True)
+        # One allowlisted transfer avoids a fresh SSH connection for every review frame.
+        # NUL delimiters preserve spaces/newlines; rsync replaces each file atomically.
+        with tempfile.NamedTemporaryFile(mode='wb') as listing:
+            listing.write(('\0'.join(available) + '\0').encode('utf-8'))
+            listing.flush()
+            run(['rsync', '-az', '--checksum', '--relative', '--from0',
+                 '--files-from', listing.name, '-e', shlex.join(SSH),
+                 f'tk2:{remote}/', str(destination) + '/'], timeout=1800)
     for relative in available:
-        # Backend JSON evolves atomically; rsync writes a temporary destination before rename.
         target = destination / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        run(['rsync', '-az', '--checksum', '-e', shlex.join(SSH), f'tk2:{remote}/{relative}', str(target)])
         # The walk builder consumes the compact progress file locally. Videos stay in cloud storage.
         if relative.endswith('/backend_progress.json'):
             local = ROOT / relative
