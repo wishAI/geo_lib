@@ -1,0 +1,45 @@
+{
+  "id": "motion_anim_generate",
+  "icon": "cube",
+  "name": "Motion Anim Generate",
+  "eyebrow": "NVIDIA KIMODO \u00b7 LANDAU V10",
+  "summary": "Test generated basic motions on Landau v10 with retargeting checks, debug videos and explicit validity reports. Backend implementation pending.",
+  "accent": "#408d83",
+  "runtime": "tk2",
+  "runtimeLabel": "TK2 \u00b7 Astra High",
+  "capabilities": [
+    "Kimodo",
+    "motion generation",
+    "retargeting",
+    "debug video",
+    "motion validity"
+  ],
+  "inspector": {
+    "type": "evolutionTree",
+    "label": "Motion experiments",
+    "path": "algorithms/motion_anim_generate/outputs/evolution.json"
+  },
+  "examples": [],
+  "artifacts": [
+    {
+      "label": "Backend progress",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/backend_progress.json"
+    },
+    {
+      "label": "Motion validity report",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/validation.json"
+    },
+    {
+      "label": "Landau debug video",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/proof.mp4"
+    },
+    {
+      "label": "Motion contact sheet",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/contact_sheet.png"
+    }
+  ]
+}

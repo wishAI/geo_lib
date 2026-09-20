@@ -237,6 +237,7 @@ def _overview_nodes(
         if (
             node.get("status") == "failed"
             and node.get("kind") != "root"
+            and lineage in invalidated_root_ids
             and lineage != current_lineage
         ):
             groups[lineage].append(node)
@@ -299,6 +300,65 @@ def _overview_nodes(
         current = next(node for node in nodes if node["id"] == current_id)
         overview.append(current)
     return overview
+
+
+def _backend_nodes(output_root: Path) -> list[dict]:
+    """Expose simulator development evidence without promoting canonical gates."""
+    progress_path = output_root / "backend_progress.json"
+    progress = _read_json(progress_path)
+    if not progress:
+        return []
+    latest = progress.get("latest_fully_unassisted") or {}
+    lineage = "tk2_mujoco_development"
+    root_id = "backend:tk2-mujoco"
+    nodes = [{
+        "id": root_id, "parentIds": [], "label": "TK2 MuJoCo · development",
+        "kind": "root", "status": progress.get("status", "unknown"),
+        "lineage": lineage, "step": 10000, "important": True,
+        "startedAt": progress.get("updated_at"),
+        "approach": progress.get("variant"),
+        "changeSummary": "Synced TK2 ragdoll and student experiments; separate simulator evidence",
+        "result": "Canonical gates unchanged; exact-student standing and 5 m remain unresolved",
+        "metrics": {}, "artifacts": [_artifact(progress_path, root_id)],
+        "experimentParameters": {"simulator": progress.get("simulator"),
+                                 "backend status": progress.get("status")},
+    }]
+    for index, run in enumerate(latest.get("runs", [])):
+        metrics = run.get("metrics") or {}
+        lifts = metrics.get("liftoffs") or {}
+        node_id = f"backend:unassisted-repeat-{index + 1}"
+        nodes.append({
+            "id": node_id, "parentIds": [root_id],
+            "label": f"Unassisted repeat {index + 1} · development only",
+            "kind": "experiment", "status": "completed", "lineage": lineage,
+            "step": 10001 + index, "important": True,
+            "startedAt": progress.get("updated_at"), "gateEligible": False,
+            "approach": progress.get("variant"),
+            "result": f"{metrics.get('forward_m', 0):.3f} m / {metrics.get('duration_s', 0):g} s; "
+                      + str(latest.get("proof_status", "Visual review and gate validation pending")),
+            "changeSummary": "All auxiliary assistance off; normal motor PD retained; not a gate pass",
+            "metrics": {"semantic_forward_displacement_m": metrics.get("forward_m"),
+                        "left_foot_liftoff_count": lifts.get("left"),
+                        "right_foot_liftoff_count": lifts.get("right"),
+                        "reset_count": metrics.get("reset_count"), "done_count": metrics.get("done_count"),
+                        "fall_count": int(bool(metrics.get("fall")))},
+            "trainingProgress": {"kind": "diagnostic", "durationSeconds": metrics.get("duration_s")},
+            "experimentParameters": {"assistance coefficient": latest.get("assistance_coefficient"),
+                                     "teacher blend": latest.get("teacher_blend"),
+                                     "reference forcing": latest.get("reference_forcing")},
+            "checkpointPath": progress.get("checkpoint"),
+            "checkpointSha256": run.get("checkpoint_sha256"),
+            "sourceResultPath": run.get("result"), "configSha256": run.get("config_sha256"),
+            "artifacts": [_artifact(progress_path, node_id)],
+        })
+    # Only the last repeat owns the saved proof; do not attach it to other trials.
+    if len(nodes) > 1 and latest.get("proof"):
+        proof = REPO_ROOT / latest["proof"]
+        if proof.is_file():
+            artifact = _artifact(proof, nodes[-1]["id"])
+            artifact.update(kind="video", mimeType="video/mp4")
+            nodes[-1]["artifacts"].append(artifact)
+    return nodes
 
 
 def build_evolution(
@@ -656,6 +716,8 @@ def build_evolution(
         })
         diagnostic_step += 1
 
+    backend_nodes = _backend_nodes(output_root)
+    nodes.extend(backend_nodes)
     _parameter_changes(nodes)
     active = next(
         (item.get("id") for item in ledger.get("milestones", []) if item.get("status") == "in_progress"),
@@ -674,6 +736,8 @@ def build_evolution(
         current_candidates,
         key=lambda item: (str(item.get("startedAt") or ""), item.get("step", 0)),
     )["id"]
+    if backend_nodes:
+        current = backend_nodes[-1]["id"]
     overview = _overview_nodes(
         nodes,
         current_id=current,

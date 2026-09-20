@@ -3,10 +3,10 @@
   "icon": "walk",
   "name": "Learn WASD Walk",
   "eyebrow": "CLEAN TRAINING RESTART",
-  "summary": "Latest-mesh Landau passive standing is proven for 30 seconds; policy standing is now being rebuilt from the corrected visual/collision package.",
+  "summary": "Canonical passive stand passed; policy standing remains unresolved. Synced TK2 MuJoCo development trials reached 0.223 m in 120 s with assistance off; 5 m gate not passed.",
   "accent": "#cb6b42",
   "runtime": "tk2-clean",
-  "runtimeLabel": "TK2 · latest-mesh policy stand",
+  "runtimeLabel": "TK2 \u00b7 latest-mesh policy stand",
   "capabilities": [
     "passive stand",
     "policy stand",
@@ -22,7 +22,7 @@
   "examples": [
     {
       "id": "validate_passive_stand",
-      "name": "Validate passive stand · 30 s",
+      "name": "Validate passive stand \u00b7 30 s",
       "description": "Run camera-free dynamics first, then a separate viewport proof replay; final evidence appears only when both exact components pass.",
       "target": "tk2",
       "targets": [
@@ -57,7 +57,7 @@
           "kind": "video"
         },
         {
-          "label": "Start · middle · end contact sheet",
+          "label": "Start \u00b7 middle \u00b7 end contact sheet",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
           "kind": "image"
         }
@@ -65,7 +65,7 @@
     },
     {
       "id": "train_policy_stand",
-      "name": "Train policy stand · PPO",
+      "name": "Train policy stand \u00b7 PPO",
       "description": "Train the compact manager-based proprioceptive policy. Checkpoints stay on TK2 and Nextcloud; training never marks the gate passed.",
       "target": "tk2",
       "targets": [
@@ -92,7 +92,7 @@
     },
     {
       "id": "validate_policy_stand",
-      "name": "Validate policy stand · 30 s",
+      "name": "Validate policy stand \u00b7 30 s",
       "description": "Evaluate the same checkpoint camera-free, then record a separate deterministic viewport proof and finalize cumulatively.",
       "target": "tk2",
       "targets": [
@@ -127,7 +127,7 @@
           "kind": "video"
         },
         {
-          "label": "Policy start · middle · end contact sheet",
+          "label": "Policy start \u00b7 middle \u00b7 end contact sheet",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
           "kind": "image"
         }
@@ -135,7 +135,7 @@
     },
     {
       "id": "train_forward_walk",
-      "name": "Train +Y forward walk · PPO",
+      "name": "Train +Y forward walk \u00b7 PPO",
       "description": "Expand the proven stand actor with semantic command inputs and fine-tune on flat standing and +Y forward commands.",
       "target": "tk2",
       "targets": [
@@ -162,7 +162,7 @@
     },
     {
       "id": "validate_forward_walk",
-      "name": "Validate cumulative forward gate · 5 m",
+      "name": "Validate cumulative forward gate \u00b7 5 m",
       "description": "Re-pass policy standing with the candidate, run camera-free +Y forward dynamics, render the full gate, and finalize only when all components pass.",
       "target": "tk2",
       "targets": [
@@ -202,7 +202,7 @@
           "kind": "video"
         },
         {
-          "label": "5 m start · middle · end",
+          "label": "5 m start \u00b7 middle \u00b7 end",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/contact_sheet.png",
           "kind": "image"
         }
@@ -212,49 +212,49 @@
   "milestones": [
     {
       "id": "stand_zero_signal_30s_no_reset",
-      "name": "Passive stand · 30 s",
+      "name": "Passive stand \u00b7 30 s",
       "stage": "stand",
       "passWhen": "Zero actions, zero command, zero resets or done events.",
       "status": "passed"
     },
     {
       "id": "stand_30s_no_reset",
-      "name": "Policy stand · 30 s",
+      "name": "Policy stand \u00b7 30 s",
       "stage": "stand",
       "passWhen": "Policy control with zero falls, resets, or done events.",
       "status": "in progress"
     },
     {
       "id": "gate_5m_no_reset",
-      "name": "Forward gate · 5 m",
+      "name": "Forward gate \u00b7 5 m",
       "stage": "fwd_only",
       "passWhen": "Walking pose preserved with no reset.",
       "status": "not started"
     },
     {
       "id": "gate_10m_no_reset",
-      "name": "Forward gate · 10 m",
+      "name": "Forward gate \u00b7 10 m",
       "stage": "fwd_only",
       "passWhen": "Same checkpoint re-passes all earlier gates.",
       "status": "not started"
     },
     {
       "id": "yaw_turn_90deg_hold",
-      "name": "Turn 90° and hold",
+      "name": "Turn 90\u00b0 and hold",
       "stage": "fwd_yaw",
       "passWhen": "Turn, settle, and hold without reset.",
       "status": "not started"
     },
     {
       "id": "teleop_60s_forward_turn",
-      "name": "Teleop · 60 s",
+      "name": "Teleop \u00b7 60 s",
       "stage": "fwd_yaw",
       "passWhen": "Forward and turn commands without reset or frozen joints.",
       "status": "not started"
     },
     {
       "id": "gate_10m_four_directions_no_reset",
-      "name": "Four directions · 10 m",
+      "name": "Four directions \u00b7 10 m",
       "stage": "fwd_yaw",
       "passWhen": "One checkpoint clears forward, left, right, and backward.",
       "status": "not started"
@@ -275,7 +275,7 @@
     },
     {
       "id": "terrain_5m_no_reset",
-      "name": "Rough terrain · 5 m",
+      "name": "Rough terrain \u00b7 5 m",
       "stage": "game",
       "passWhen": "Cross the small map without reset.",
       "status": "not started"
@@ -289,7 +289,7 @@
     },
     {
       "id": "game_10m_no_reset",
-      "name": "Mixed game gate · 10 m",
+      "name": "Mixed game gate \u00b7 10 m",
       "stage": "game",
       "passWhen": "Terrain and obstacles with a preserved walking pose.",
       "status": "not started"
@@ -299,9 +299,31 @@
     "type": "urdf",
     "urdfCandidates": [
       {
-        "label": "Landau v10 · clean training input",
+        "label": "Landau v10 \u00b7 clean training input",
         "path": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/landau_v10_parallel_mesh.urdf"
       }
     ]
-  }
+  },
+  "artifacts": [
+    {
+      "label": "TK2 MuJoCo progress \u00b7 paused",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/backend_progress.json",
+      "kind": "json"
+    },
+    {
+      "label": "Unassisted slow-walk proof \u00b7 gate not passed",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/ragdoll/ragdoll_walk_first_20260918/student_margin12_fourier_zero_repeat4/proof.mp4",
+      "kind": "video"
+    },
+    {
+      "label": "Unassisted repeat contact sheet",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/ragdoll/ragdoll_walk_first_20260918/student_margin12_fourier_zero_repeat4/contact_sheet.png",
+      "kind": "image"
+    },
+    {
+      "label": "TK2 shutdown handoff",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/backend/shutdown_status.json",
+      "kind": "json"
+    }
+  ]
 }

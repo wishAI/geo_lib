@@ -7,6 +7,30 @@ from algorithms.urdf_learn_wasd_walk import evolution
 
 
 class EvolutionTests(unittest.TestCase):
+    def test_backend_development_does_not_promote_canonical_gates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "outputs"
+            output.mkdir()
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({"lineage": "canonical", "milestones": [
+                {"id": "stand_zero_signal_30s_no_reset", "status": "passed"},
+                {"id": "stand_30s_no_reset", "status": "in_progress"}]}))
+            (output / "backend_progress.json").write_text(json.dumps({
+                "status": "paused_by_user", "updated_at": "2026-09-18T13:23:14Z",
+                "latest_fully_unassisted": {"assistance_coefficient": 0, "teacher_blend": 0,
+                    "proof_status": "visual review pending", "runs": [{"metrics": {
+                        "duration_s": 120, "forward_m": 0.223, "fall": False,
+                        "liftoffs": {"left": 5, "right": 4}, "reset_count": 0, "done_count": 0}}]}}))
+            result = evolution.build_evolution(output, ledger)
+            node = next(n for n in result["nodes"] if n["id"] == result["currentNodeId"])
+            self.assertEqual(node["lineage"], "tk2_mujoco_development")
+            self.assertFalse(node["gateEligible"])
+            self.assertEqual(node["metrics"]["left_foot_liftoff_count"], 5)
+            self.assertIn("visual review pending", node["result"])
+            self.assertEqual(result["summary"]["passedMilestoneCount"], 1)
+            self.assertEqual(result["milestones"][1]["status"], "in_progress")
+
     def test_real_artifacts_define_parentage_and_models_are_metadata_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
