@@ -431,6 +431,311 @@
       "kind": "video",
       "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/preview.mp4",
       "localPreview": true
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/clean_preview.mp4",
+      "kind": "video",
+      "label": "outputs \u00b7 clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "outputs \u00b7 clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/directions.json",
+      "kind": "json",
+      "label": "outputs \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/video.json",
+      "kind": "json",
+      "label": "outputs \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/clean_video.json",
+      "kind": "json",
+      "label": "outputs \u00b7 clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/facing_foot_comparison/proof.mp4",
+      "kind": "video",
+      "label": "facing_foot_comparison \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/facing_foot_comparison/preview.mp4",
+      "kind": "video",
+      "label": "facing_foot_comparison \u00b7 preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/facing_foot_comparison/contact_sheet.png",
+      "kind": "image",
+      "label": "facing_foot_comparison \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/facing_foot_comparison/comparison.json",
+      "kind": "json",
+      "label": "facing_foot_comparison \u00b7 comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/proof.mp4",
+      "kind": "video",
+      "label": "animation_feet_facing_6s42 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/preview.mp4",
+      "kind": "video",
+      "label": "animation_feet_facing_6s42 \u00b7 preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/clean_preview.mp4",
+      "kind": "video",
+      "label": "animation_feet_facing_6s42 \u00b7 clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/contact_sheet.png",
+      "kind": "image",
+      "label": "animation_feet_facing_6s42 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "animation_feet_facing_6s42 \u00b7 clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/validation.json",
+      "kind": "json",
+      "label": "animation_feet_facing_6s42 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/directions.json",
+      "kind": "json",
+      "label": "animation_feet_facing_6s42 \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/video.json",
+      "kind": "json",
+      "label": "animation_feet_facing_6s42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/clean_video.json",
+      "kind": "json",
+      "label": "animation_feet_facing_6s42 \u00b7 clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/original_proof.mp4",
+      "kind": "video",
+      "label": "animation_feet_facing_6s42 \u00b7 original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/original_video.json",
+      "kind": "json",
+      "label": "animation_feet_facing_6s42 \u00b7 original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_feet_facing_6s42/original_validation.json",
+      "kind": "json",
+      "label": "animation_feet_facing_6s42 \u00b7 original_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_forward_corrected_6s42/proof.mp4",
+      "kind": "video",
+      "label": "animation_forward_corrected_6s42 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_forward_corrected_6s42/contact_sheet.png",
+      "kind": "image",
+      "label": "animation_forward_corrected_6s42 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_forward_corrected_6s42/validation.json",
+      "kind": "json",
+      "label": "animation_forward_corrected_6s42 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_forward_corrected_6s42/directions.json",
+      "kind": "json",
+      "label": "animation_forward_corrected_6s42 \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_forward_corrected_6s42/video.json",
+      "kind": "json",
+      "label": "animation_forward_corrected_6s42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/proof.mp4",
+      "kind": "video",
+      "label": "animation_orientation_6s42 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/clean_preview.mp4",
+      "kind": "video",
+      "label": "animation_orientation_6s42 \u00b7 clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/contact_sheet.png",
+      "kind": "image",
+      "label": "animation_orientation_6s42 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "animation_orientation_6s42 \u00b7 clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/validation.json",
+      "kind": "json",
+      "label": "animation_orientation_6s42 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/directions.json",
+      "kind": "json",
+      "label": "animation_orientation_6s42 \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/video.json",
+      "kind": "json",
+      "label": "animation_orientation_6s42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_orientation_6s42/clean_video.json",
+      "kind": "json",
+      "label": "animation_orientation_6s42 \u00b7 clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cpu6s42_anchored_temporal_contact_v2/proof.mp4",
+      "kind": "video",
+      "label": "cpu6s42_anchored_temporal_contact_v2 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cpu6s42_anchored_temporal_contact_v2/contact_sheet.png",
+      "kind": "image",
+      "label": "cpu6s42_anchored_temporal_contact_v2 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cpu6s42_anchored_temporal_contact_v2/validation.json",
+      "kind": "json",
+      "label": "cpu6s42_anchored_temporal_contact_v2 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cpu6s42_anchored_temporal_contact_v2/video.json",
+      "kind": "json",
+      "label": "cpu6s42_anchored_temporal_contact_v2 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored/video.json",
+      "kind": "json",
+      "label": "cuda_smoke_anchored \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored_temporal_contact_v2/proof.mp4",
+      "kind": "video",
+      "label": "cuda_smoke_anchored_temporal_contact_v2 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored_temporal_contact_v2/contact_sheet.png",
+      "kind": "image",
+      "label": "cuda_smoke_anchored_temporal_contact_v2 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored_temporal_contact_v2/validation.json",
+      "kind": "json",
+      "label": "cuda_smoke_anchored_temporal_contact_v2 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/cuda_smoke_anchored_temporal_contact_v2/video.json",
+      "kind": "json",
+      "label": "cuda_smoke_anchored_temporal_contact_v2 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/directions.json",
+      "kind": "json",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/clean_video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/original_proof.mp4",
+      "kind": "video",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/original_video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_6s_seed42 \u00b7 original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_6s_seed43 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_6s_seed44 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_repeat_seed42/video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_repeat_seed42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/video.json",
+      "kind": "json",
+      "label": "unconditional_cpu_seed42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cuda_smoke_seed42/video.json",
+      "kind": "json",
+      "label": "unconditional_cuda_smoke_seed42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/video.json",
+      "kind": "json",
+      "label": "upstream_walk_turn_speed_bounded \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/proof.mp4",
+      "kind": "video",
+      "label": "upstream_walk_turn_v1 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/contact_sheet.png",
+      "kind": "image",
+      "label": "upstream_walk_turn_v1 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/validation.json",
+      "kind": "json",
+      "label": "upstream_walk_turn_v1 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/video.json",
+      "kind": "json",
+      "label": "upstream_walk_turn_v1 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/frame_rest_audit.json",
+      "kind": "json",
+      "label": "outputs \u00b7 frame_rest_audit.json"
     }
   ]
 }
