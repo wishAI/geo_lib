@@ -30,6 +30,10 @@ def write_json(path, value):
 def progress(status, **fields):
     path = OUT / 'backend_progress.json'
     old = json.loads(path.read_text()) if path.exists() else {}
+    if fields.get('active_run') is not None and fields['active_run'] != old.get('active_run'):
+        # Never attach the previous run's diagnostics/configuration to a new ID.
+        for key in ('metrics', 'config', 'retarget_config', 'artifacts'):
+            old.pop(key, None)
     old.update(fields)
     old.update(status=status, updated_at=datetime.now(timezone.utc).isoformat(),
                source_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
