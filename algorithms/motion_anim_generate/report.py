@@ -18,7 +18,7 @@ def main():
         compare_semantics(run)
         paths=[run/name for name in ('source.npz','target.npz','source_metadata.json','retarget.json','source_validation.json',
             'validation.json','semantic_comparison.json','directions.json','proof.mp4','contact_sheet.png','video.json',
-            'quality_frames.json','review.json','feet_proof.mp4','preview.mp4','clean_preview.mp4','clean_contact_sheet.png','clean_video.json','original_proof.mp4','original_video.json') if (run/name).exists()]
+            'quality_frames.json','review.json','hands.json','hands_comparison.mp4','feet_proof.mp4','preview.mp4','clean_preview.mp4','clean_contact_sheet.png','clean_video.json','original_proof.mp4','original_video.json') if (run/name).exists()]
         runs.append({'id':run.name,'clip_status':'generated_and_rendered','source_kind':meta['source_kind'],
             'seed':meta.get('seed',meta.get('meta',{}).get('seed')),'duration_s':val['duration_s'],
             'model_revision':meta.get('pins',{}).get('model',{}).get('revision',meta.get('model_revision')),
@@ -43,12 +43,16 @@ def main():
             'Ankle-to-toe displacement is not a sole normal. Explicit forward/up orientation residuals and unlocked shin twists improve feet.',
             'Original debug XZ depth sorting disagreed with its projection; updated before/after use identical correctly labeled fixed cameras.',
             'Position-only arm matching and contact heuristics remain approximate; foot sliding persists in the moving clip.',
-            'Exact mesh self-intersection and source-to-target finger fidelity are unavailable. Capsule and contact diagnostics are heuristics.'],
+            'Hand orientation now has calibrated anatomical-axis diagnostics; individual finger articulation remains locked. Exact mesh self-intersection is unavailable. Capsule and contact diagnostics are heuristics.'],
         'next_step':'Inspect three-seed native clean/contact comparisons; pose-only CUDA smoke is demonstrated separately. Root-waypoint experiment is specified but unexecuted; prompt suite awaits HF account approval.'}
     multiframe=OUT/'multiframe_comparison.json'
     if multiframe.exists():report['multiframe_review']=json.loads(multiframe.read_text())
     constraint=OUT/'constraint_feasibility.json'
     if constraint.exists():report['constraint_only']=json.loads(constraint.read_text())
+    hands=OUT/'hand_comparison.json'
+    if hands.exists():
+        report['hand_refinement']=json.loads(hands.read_text())
+        report['next_step']='Review published three-seed hand variants in native GUI playback; contact-v3 seed42 remains default. Root-waypoint plan is unexecuted. Text suite awaits account approval.'
     comparison=OUT/'facing_foot_comparison/comparison.json'
     if comparison.exists():report['facing_foot_comparison']=json.loads(comparison.read_text())
     write_json(OUT/'feasibility.json',report)

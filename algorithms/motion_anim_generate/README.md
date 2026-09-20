@@ -50,7 +50,7 @@ CUDA job `cudasmoke20260920a` succeeded on clean source `9703f1b74e56f7f581b77ef
 
 The isolated parent GPU service and Torch CUDA probe work. Agent D-Bus dispatch is intentionally unavailable; do not retry it. Future jobs are unique JSON requests in `outputs/backend_gpu/jobs/`, dispatched by the parent after host occupancy checks. The service is network-isolated; download authorized assets beforehand. Never overlap GPU/walking workers or modify the service.
 
-The requested text-conditioned idle/walk/turn/wave suite still needs legitimate access to pinned Meta-Llama-3-8B-Instruct revision `8afb486c1db24fe5011ec46dfbe5b5dccdb575c2` plus the pinned official LLM2Vec adapters. The observed config request returned HTTP401. No official public prompt-embedding bundle was found; no gated access is retried or bypassed. Alternatively provide authorized exact-prompt embeddings: NPZ Unicode `prompts` and float `embeddings` `[N,1,4096]`, plus matching JSON provenance/pins/hashes checked by `gpu_worker.py`. Exact prompts are `gpu_worker.PROMPTS`. Official `TEXT_ENCODER_DEVICE=cpu` is implemented in the pinned wrapper; no substitute encoder is used.
+The requested text-conditioned idle/walk/turn/wave suite still needs legitimate access to pinned Meta-Llama-3-8B-Instruct revision `8afb486c1db24fe5011ec46dfbe5b5dccdb575c2` plus the pinned official LLM2Vec adapters. The latest authenticated exact-revision config request returned HTTP403 GatedRepoError. No official public prompt-embedding bundle was found; no gated access is retried or bypassed. Alternatively provide authorized exact-prompt embeddings: NPZ Unicode `prompts` and float `embeddings` `[N,1,4096]`, plus matching JSON provenance/pins/hashes checked by `gpu_worker.py`. Exact prompts are `gpu_worker.PROMPTS`. Official `TEXT_ENCODER_DEVICE=cpu` is implemented in the pinned wrapper; no substitute encoder is used.
 
 The executed unconditional path uses upstream CFG weight zero (`out_uncond`), so placeholder text features do not condition motion. These are actual model samples, not fixtures or a completed semantic suite.
 
@@ -96,3 +96,44 @@ max100mm and50% improvement; these test constraint following, not animation
 acceptance. No output is clamped. Constraint evidence does not automatically
 replace the reviewed default preview. `constraint_preflight/preflight.json`
 only verifies CPU constructor/metric plumbing; it is not inference evidence.
+
+Actual CUDA job `poseanchor20260920a` completed in11.70s. Anchor RMS decreased
+from0.1759645m for the matched null to0.0110718m guided (93.71% reduction), with
+guided maximum0.0241503m. `outputs/constraint_feasibility.json` separates source
+constraint following from remaining Landau pose concerns. This demonstrates
+one learned pose anchor without text; it does not demonstrate a prompted action
+suite or arbitrary root paths. The next specified experiment is a two-second,
+seed43,30-step matched-null test of five official root waypoints spanning0.4m;
+it has not been requested or executed.
+
+## Hand orientation follow-up
+
+`outputs/hand_comparison.json` compares three retained six-second sources.
+Position-only landmarks leave wrist pitch and collinear forearm roll unobserved.
+`hand_refine.py` calibrates proper anatomical bases from neutral middle-finger
+and thumb-side rays, then adjusts only four forearm/wrist joints. Source motion,
+root, legs, upper-arm pose and locked finger joints are preserved. Smoothing only
+the correction over1.5 frames removes added jitter spikes seen in the retained
+0.6-frame alternative. Every frame has orientation and continuity diagnostics;
+clean, paired-hand and whole-body comparison videos retain original timing.
+
+From this sandbox, reproduce with a fresh ID:
+```sh
+outputs/venv/bin/python hand_refine.py --parent-run animation_contact_v3_seed42 --run-id UNIQUE --smoothing-sigma 1.5
+outputs/venv/bin/python review.py UNIQUE
+```
+
+The published candidates are `animation_hands_v3_seed42/43/44`; the GUI default
+remains reviewed `animation_contact_v3_seed42`. All540 candidate clean frames,
+at least24 evenly spaced frames per clip and worst hand frames were inspected
+in chronological sheets. New hand-variant real-time playback remains pending.
+Residual hand-direction mismatch and high/compressed arm placement remain.
+Canonical right upper-arm roll is perpendicular to its bone whereas left roll
+aligns; the canonical URDF is preserved. Exact hand/torso mesh intersections and
+individual finger fidelity are not established.
+
+Character proportions and movement style are distinct. Uniform scaling or
+reusing rotations does not create childlike gait. The pinned fixed-skeleton
+Kimodo source is retargeted to Landau proportions; arbitrary child proportions
+are not a native conditioning input, and childlike behavior has not been
+demonstrated. No model training, generator change or GLB migration is involved.

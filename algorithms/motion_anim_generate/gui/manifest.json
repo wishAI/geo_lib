@@ -2841,6 +2841,1596 @@
       "path": "algorithms/motion_anim_generate/outputs/backend_gpu/jobs/poseanchor20260920a.json",
       "kind": "json",
       "label": "jobs \u00b7 poseanchor20260920a.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hand_comparison.json",
+      "kind": "json",
+      "label": "hand_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hand_visual_review_42.json",
+      "kind": "json",
+      "label": "hand_visual_review_42.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hand_visual_review_43_44.json",
+      "kind": "json",
+      "label": "hand_visual_review_43_44.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/parent_gui_review.json",
+      "kind": "json",
+      "label": "parent_gui_review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/directions.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/original_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/source_metadata.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/source_validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/clean_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/source.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed42/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/original_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed42/original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/quality_frames.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed42/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed42/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/hands.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed42/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/target.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed42/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed42/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/original_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/original_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed42/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/retarget.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed42/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed42/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/feet_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/feet_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/feet_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/feet_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_04.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_04.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_07.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_07.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_05.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_05.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/worst_transitions_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/worst_transitions_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_06.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_06.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed42/review/worst_transitions_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed42/review/worst_transitions_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/directions.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/original_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/source_metadata.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/source_validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/clean_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/source.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed43/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/original_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed43/original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/quality_frames.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed43/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed43/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/hands.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed43/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/target.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed43/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed43/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/original_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/original_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed43/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/retarget.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed43/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed43/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/feet_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/feet_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_04.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_04.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_07.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_07.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_05.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_05.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_06.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_06.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed43/review/worst_transitions_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed43/review/worst_transitions_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/directions.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/original_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/source_metadata.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/source_validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/clean_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/source.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed44/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/original_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed44/original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/quality_frames.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed44/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed44/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/hands.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed44/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/target.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed44/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed44/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/original_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/original_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v2_seed44/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/retarget.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v2_seed44/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v2_seed44/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/feet_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/feet_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_04.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_04.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_07.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_07.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_05.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_05.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_06.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_06.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v2_seed44/review/worst_transitions_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v2_seed44/review/worst_transitions_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/directions.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/original_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/source_metadata.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/source_validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/clean_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/source.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed42/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/original_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed42/original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/quality_frames.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed42/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed42/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/hands.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed42/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/target.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed42/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed42/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/original_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/original_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed42/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/retarget.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed42/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed42/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/feet_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/feet_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/feet_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/feet_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_04.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_04.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_07.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_07.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_05.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_05.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/worst_transitions_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/worst_transitions_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_06.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_06.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed42/review/worst_transitions_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed42/review/worst_transitions_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/directions.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/original_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/source_metadata.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/source_validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/clean_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/source.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed43/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/original_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed43/original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/quality_frames.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed43/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed43/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/hands.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed43/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/target.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed43/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed43/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/original_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/original_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed43/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/retarget.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed43/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed43/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/feet_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/feet_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_04.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_04.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_07.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_07.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_05.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_05.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_06.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_06.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed43/review/worst_transitions_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed43/review/worst_transitions_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/directions.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/original_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/original_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/source_metadata.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/source_validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/clean_video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/source.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed44/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/original_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed44/original_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/quality_frames.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed44/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed44/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/hands.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed44/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/target.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed44/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed44/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/validation.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/original_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/original_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/proof.mp4",
+      "kind": "video",
+      "label": "runs/animation_hands_v3_seed44/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/video.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/retarget.json",
+      "kind": "json",
+      "label": "runs/animation_hands_v3_seed44/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/animation_hands_v3_seed44/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/feet_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/feet_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_04.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_04.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_07.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_07.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_05.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_05.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_03.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_03.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_06.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_06.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/animation_hands_v3_seed44/review/worst_transitions_01.png",
+      "kind": "image",
+      "label": "runs/animation_hands_v3_seed44/review/worst_transitions_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/directions.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/source_metadata.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/source_validation.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/clean_video.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/source.npz",
+      "kind": "file",
+      "label": "runs/hand_orientation_null_seed42/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/quality_frames.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/preview.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_null_seed42/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/hands.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/target.npz",
+      "kind": "file",
+      "label": "runs/hand_orientation_null_seed42/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_null_seed42/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/validation.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/proof.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_null_seed42/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/hand_orientation_null_seed42/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/video.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/retarget.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_null_seed42/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/hand_orientation_null_seed42/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_null_seed42/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/hand_orientation_null_seed42/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/directions.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/source_metadata.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/source_validation.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/clean_video.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/source.npz",
+      "kind": "file",
+      "label": "runs/hand_orientation_v2_null_seed42/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/quality_frames.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/hands_comparison.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_v2_null_seed42/hands_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/preview.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_v2_null_seed42/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/hands.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/hands.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/target.npz",
+      "kind": "file",
+      "label": "runs/hand_orientation_v2_null_seed42/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_v2_null_seed42/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/validation.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/proof.mp4",
+      "kind": "video",
+      "label": "runs/hand_orientation_v2_null_seed42/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/hand_orientation_v2_null_seed42/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/video.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/retarget.json",
+      "kind": "json",
+      "label": "runs/hand_orientation_v2_null_seed42/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/hand_orientation_v2_null_seed42/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/target_before_hands.npz",
+      "kind": "file",
+      "label": "runs/hand_orientation_v2_null_seed42/target_before_hands.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/hand_review/hands_00.png",
+      "kind": "image",
+      "label": "runs/hand_orientation_v2_null_seed42/hand_review/hands_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/hand_orientation_v2_null_seed42/hand_review/hands_01.png",
+      "kind": "image",
+      "label": "runs/hand_orientation_v2_null_seed42/hand_review/hands_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed42/comparison.json",
+      "kind": "json",
+      "label": "hands_comparison_seed42/comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed42/preview.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed42/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed42/feet_proof.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed42/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed42/proof.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed42/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "hands_comparison_seed42/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed43/comparison.json",
+      "kind": "json",
+      "label": "hands_comparison_seed43/comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed43/preview.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed43/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed43/feet_proof.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed43/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed43/proof.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed43/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed43/contact_sheet.png",
+      "kind": "image",
+      "label": "hands_comparison_seed43/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed44/comparison.json",
+      "kind": "json",
+      "label": "hands_comparison_seed44/comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed44/preview.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed44/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed44/feet_proof.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed44/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed44/proof.mp4",
+      "kind": "video",
+      "label": "hands_comparison_seed44/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_comparison_seed44/contact_sheet.png",
+      "kind": "image",
+      "label": "hands_comparison_seed44/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed42/comparison.json",
+      "kind": "json",
+      "label": "hands_v3_comparison_seed42/comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed42/preview.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed42/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed42/feet_proof.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed42/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed42/proof.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed42/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "hands_v3_comparison_seed42/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed43/comparison.json",
+      "kind": "json",
+      "label": "hands_v3_comparison_seed43/comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed43/preview.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed43/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed43/feet_proof.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed43/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed43/proof.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed43/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed43/contact_sheet.png",
+      "kind": "image",
+      "label": "hands_v3_comparison_seed43/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed44/comparison.json",
+      "kind": "json",
+      "label": "hands_v3_comparison_seed44/comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed44/preview.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed44/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed44/feet_proof.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed44/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed44/proof.mp4",
+      "kind": "video",
+      "label": "hands_v3_comparison_seed44/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hands_v3_comparison_seed44/contact_sheet.png",
+      "kind": "image",
+      "label": "hands_v3_comparison_seed44/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/hand_publish_audit.json",
+      "kind": "json",
+      "label": "hand_publish_audit.json"
     }
   ]
 }

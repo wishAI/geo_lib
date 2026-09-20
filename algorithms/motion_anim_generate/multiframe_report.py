@@ -54,9 +54,10 @@ def main():
         'encoder_access': 'User authorized full encoder use; authenticated exact-revision probe returned HTTP403. Parent retries only after account approval.',
         'artifacts': [artifact(OUT/'runs/animation_contact_v3_seed42/clean_preview.mp4', 'video'),
                       artifact(OUT/'contact_comparison_seed42/preview.mp4', 'video')]}
-    receipt=OUT/'parent_review_receipt.json'
+    receipt=OUT/'parent_gui_review.json'
     if receipt.exists():
         report['parent_playback_review']=json.loads(receipt.read_text())
+        report['parent_playback_receipt']={**artifact(receipt), 'sha256':sha256(receipt)}
         report['review_method']='All clean frames inspected in chronological sheets plus selected foot/source diagnostics. Parent real-time playback receipt recorded separately below.'
     write_json(OUT/'multiframe_comparison.json', report)
     node('multiframe_contact_review', [f'animation_contact_v3_seed{s}:validated' for s, _ in PAIRS],
