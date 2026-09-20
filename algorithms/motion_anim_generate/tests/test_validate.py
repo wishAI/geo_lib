@@ -59,6 +59,7 @@ def test_semantic_valid_invalid_examples():
     assert semantics('turn',p,names,yaw*0,t)['status']=='failed'
     p[:,3,2]=.1;p[:,3,0]=.07*np.sin(t*6)
     assert semantics('wave',p,names,yaw*0,t)['status']=='passed'
+    assert semantics('idle',p,names,yaw*0,t)['status']=='failed'
     p[:,3,0]=0
     assert semantics('wave',p,names,yaw*0,t)['status']=='failed'
 
@@ -67,3 +68,13 @@ def test_segment_collision_crossing_parallel_disjoint():
     assert segment_distance(a,b,c,d)<1e-8
     assert segment_distance(a,b,a+[0,1,0],b+[0,1,0])==pytest.approx(1)
     assert segment_distance(a,b,a+[0,0,2],b+[0,0,2])==pytest.approx(2)
+
+
+def test_malformed_error_array_rejected(robot,still):
+    still['errors_m']=np.zeros(15)
+    assert 'shape_or_duration' in checks(validate(still,robot))
+
+
+def test_quaternion_base_inconsistency_rejected(robot,still):
+    still['base'][3,0,0]=2
+    assert 'base_rotation_mismatch' in checks(validate(still,robot))

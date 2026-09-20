@@ -6,7 +6,7 @@ import shutil
 import time
 from state import ROOT, OUT, progress, node, artifact, sha256, write_json
 from retarget import solve
-from validate import validate_file, validate_source
+from validate import validate_file, validate_source, compare_semantics
 from render import render
 
 
@@ -23,6 +23,7 @@ def process(run, action, source_kind, speed_bounded=False):
          metrics={'retarget_rmse_m':ret['retarget_rmse_m']},artifacts=[artifact(run/'retarget.json')])
     progress('validating',active_run=run.name,metrics=ret,next_step='Render complete front/side comparison')
     val=validate_file(run,action)
+    compare_semantics(run)
     progress('rendering',active_run=run.name,metrics=val['metrics'],next_step='Review contact sheet and full-duration video')
     render(run,f'{source_kind} | {run.name} | {action} | NOT robot control')
     artifacts=[artifact(run/'validation.json'),artifact(run/'retarget.json'),artifact(run/'proof.mp4','video'),artifact(run/'contact_sheet.png','image'),artifact(run/'video.json')]
@@ -31,7 +32,7 @@ def process(run, action, source_kind, speed_bounded=False):
     # Stable GUI preview aliases, with provenance in validation/report, original runs retained.
     for name in ['validation.json','proof.mp4','contact_sheet.png']:
         shutil.copyfile(run/name,OUT/name)
-    write_json(OUT/'latest.json',{'run':str(run),'source_kind':source_kind,'local_inference':source_kind=='local Kimodo inference',
+    write_json(OUT/'latest.json',{'run':str(run),'source_kind':source_kind,'local_inference':source_kind.startswith('local Kimodo'),
                                 'elapsed_s':time.monotonic()-start,'artifacts':artifacts})
     progress('evidence_ready_for_review',active_run=run.name,metrics=val['metrics'],artifacts=artifacts,
              active_process=None,next_step='Review evidence; gated text encoder still required for requested local prompt suite')
@@ -39,7 +40,7 @@ def process(run, action, source_kind, speed_bounded=False):
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--upstream-example',choices=['02_multi_text_prompt','05_root_path'])
+    parser=argparse.ArgumentParser();parser.add_argument('--upstream-example',required=True,choices=['02_multi_text_prompt','05_root_path'])
     parser.add_argument('--run-id',required=True);parser.add_argument('--action',choices=['idle','walk','turn','wave','composite'],default='composite')
     parser.add_argument('--speed-bounded',action='store_true')
     args=parser.parse_args()

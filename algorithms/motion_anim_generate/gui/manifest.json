@@ -3,7 +3,7 @@
   "icon": "cube",
   "name": "Motion Anim Generate",
   "eyebrow": "NVIDIA KIMODO \u00b7 LANDAU V10",
-  "summary": "Pinned Kimodo/SOMA to canonical Landau. First real upstream walk/turn retarget fails kinematic checks; local prompt generation awaits authorized text embeddings. Inspect full evidence and progress.",
+  "summary": "Real local Kimodo unconditional diffusion and SOMA-to-Landau evidence; retargeting currently fails kinematic screening. Text-conditioned actions require authorized encoder/embeddings.",
   "accent": "#408d83",
   "runtime": "tk2",
   "runtimeLabel": "TK2 \u00b7 Astra High \u00b7 Standard \u00b7 isolated worker",
@@ -53,6 +53,60 @@
           "label": "Retarget metrics",
           "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_v1/retarget.json",
           "kind": "json"
+        }
+      ]
+    },
+    {
+      "id": "cuda_probe",
+      "name": "Probe isolated CUDA worker",
+      "description": "Dispatch via parent-provisioned service in dedicated checkout; one worker at a time. Requires host D-Bus access.",
+      "target": "tk2",
+      "targets": [
+        "tk2"
+      ],
+      "resource": "isaac",
+      "command": [
+        "python3",
+        "/home/wishai/.cache/geo-lib-motion-20260920/source/algorithms/motion_anim_generate/dispatch.py",
+        "probe"
+      ],
+      "artifacts": [
+        {
+          "label": "CUDA Torch probe",
+          "kind": "json",
+          "path": "algorithms/motion_anim_generate/outputs/backend_gpu/torch_probe.json"
+        },
+        {
+          "label": "Latest real motion provenance",
+          "kind": "json",
+          "path": "algorithms/motion_anim_generate/outputs/latest.json"
+        }
+      ]
+    },
+    {
+      "id": "unconditional_smoke",
+      "name": "Generate unconditional smoke (no action semantics)",
+      "description": "Dispatch via parent-provisioned service in dedicated checkout; one worker at a time. Requires host D-Bus access.",
+      "target": "tk2",
+      "targets": [
+        "tk2"
+      ],
+      "resource": "isaac",
+      "command": [
+        "python3",
+        "/home/wishai/.cache/geo-lib-motion-20260920/source/algorithms/motion_anim_generate/dispatch.py",
+        "unconditional-smoke"
+      ],
+      "artifacts": [
+        {
+          "label": "CUDA Torch probe",
+          "kind": "json",
+          "path": "algorithms/motion_anim_generate/outputs/backend_gpu/torch_probe.json"
+        },
+        {
+          "label": "Latest real motion provenance",
+          "kind": "json",
+          "path": "algorithms/motion_anim_generate/outputs/latest.json"
         }
       ]
     }
@@ -107,6 +161,106 @@
       "label": "Velocity-bounded alternative \u00b7 retarget.json",
       "kind": "json",
       "path": "algorithms/motion_anim_generate/outputs/runs/upstream_walk_turn_speed_bounded/retarget.json"
+    },
+    {
+      "label": "unconditional_cpu_seed42 \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/source_metadata.json"
+    },
+    {
+      "label": "unconditional_cpu_seed42 \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/validation.json"
+    },
+    {
+      "label": "unconditional_cpu_seed42 \u00b7 semantic_comparison.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/semantic_comparison.json"
+    },
+    {
+      "label": "unconditional_cpu_seed42 \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/proof.mp4"
+    },
+    {
+      "label": "unconditional_cpu_seed42 \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_seed42/contact_sheet.png"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed42 \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/source_metadata.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed42 \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/validation.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed42 \u00b7 semantic_comparison.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/semantic_comparison.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed42 \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/proof.mp4"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed42 \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed42/contact_sheet.png"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed43 \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/source_metadata.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed43 \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/validation.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed43 \u00b7 semantic_comparison.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/semantic_comparison.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed43 \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/proof.mp4"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed43 \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed43/contact_sheet.png"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed44 \u00b7 source_metadata.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/source_metadata.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed44 \u00b7 validation.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/validation.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed44 \u00b7 semantic_comparison.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/semantic_comparison.json"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed44 \u00b7 proof.mp4",
+      "kind": "video",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/proof.mp4"
+    },
+    {
+      "label": "unconditional_cpu_6s_seed44 \u00b7 contact_sheet.png",
+      "kind": "image",
+      "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/contact_sheet.png"
     }
   ]
 }

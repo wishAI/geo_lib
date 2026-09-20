@@ -9,7 +9,7 @@ TOLERANCES = dict(time_step_s=1e-5, quaternion_norm=1e-4, quaternion_step_rad=.3
                   joint_limit_rad=1e-5, locked_joint_rad=1e-6, joint_acceleration_rad_s2=80.,
                   root_step_m=.08, foot_contact_height_m=.012, floor_penetration_m=.005,
                   foot_sliding_m_s=.08, retarget_rmse_m=.03, retarget_peak_m=.08,
-                  idle_drift_m=.04, walk_forward_m=.15, walk_foot_excursion_m=.015,
+                  idle_drift_m=.04, idle_limb_excursion_m=.03, walk_forward_m=.15, walk_foot_excursion_m=.015,
                   turn_angle_rad=np.pi/4, turn_drift_m=.35, wave_height_above_chest_m=.04,
                   wave_hand_excursion_m=.04, wave_direction_changes=2)
 
@@ -37,7 +37,10 @@ def semantics(action, positions, names, yaw, times, thresholds=TOLERANCES):
     forward=float(delta@heading);yaw_change=float(yaw[-1]-yaw[0])
     metrics={'forward_displacement_m':forward,'root_drift_m':drift,'yaw_change_rad':yaw_change}
     if action=='idle':
-        good=drift<=thresholds['idle_drift_m'] and abs(yaw_change)<.25
+        relative=positions-root[:,None]
+        excursion=float(np.max(np.linalg.norm(relative-relative[0],axis=-1)))
+        metrics['limb_excursion_m']=excursion
+        good=drift<=thresholds['idle_drift_m'] and abs(yaw_change)<.25 and excursion<=thresholds['idle_limb_excursion_m']
     elif action=='walk':
         feet=positions[:,[ix['foot_l'],ix['foot_r']]]-root[:,None]
         excursion=float(np.max(np.ptp(feet[:,:,:2],axis=0)))
@@ -76,12 +79,18 @@ def validate(data, robot=None, action='idle', thresholds=None):
         if key not in data:
             add('missing_field',-1,field=key);return report
         arr=np.asarray(data[key])
+        if not np.issubdtype(arr.dtype,np.number):
+            add('invalid_dtype',-1,field=key);continue
         if not np.isfinite(arr).all():
             bad=np.unique(np.argwhere(~np.isfinite(arr))[:,0]) if arr.ndim else [-1]
             for f in bad:add('nonfinite',f,field=key)
     if violations:return report
     q=np.asarray(data['q']);times=np.asarray(data['times']);bases=np.asarray(data['base']);quat=np.asarray(data['base_quat_xyzw'])
+    if times.ndim!=1:
+        add('shape_or_duration',-1);return report
     n=len(times)
+    if np.asarray(data['errors_m']).ndim!=2 or np.asarray(data['errors_m']).shape[0]!=n or np.asarray(data['errors_m']).shape[1]<1:
+        add('shape_or_duration',-1);return report
     if n<3 or q.shape!=(n,len(r.names)) or bases.shape!=(n,4,4) or quat.shape!=(n,4):
         add('shape_or_duration',-1);return report
     if 'joint_names' not in data or list(data['joint_names'])!=r.names:
@@ -178,3 +187,20 @@ def validate_source(path):
             'checks':['finite source arrays','global rotation orthogonality and determinant, 1e-3 tolerance'],
             'not_checked':['source physical feasibility','source joint limits: SOMA is not Landau'],
             'frame_rate_contract_hz':30}
+
+
+def compare_semantics(run):
+    from retarget import load_source, MAP, C
+    import json
+    src,skeleton=load_source(run/'source.npz');ix={x[0]:i for i,x in enumerate(skeleton)}
+    ret=json.loads((run/'retarget.json').read_text());scale=ret['root_trajectory_scale']
+    source=np.stack([src['posed_joints'][:,ix[s]]@C.T*scale for s,_,_ in MAP],axis=1)
+    names=[t for _,t,_ in MAP]
+    with np.load(run/'target.npz') as d:
+        target=d['fitted'];times=d['times'];base=d['base']
+    yaw=np.unwrap(np.arctan2(base[:,1,0],base[:,0,0]))
+    report={'heuristic_only':True,'source_units':'SOMA positions uniformly scaled to Landau leg length for threshold comparability',
+            'source_scale':scale,'prompt_success_claim':False,
+            'actions':{a:{'source':semantics(a,source,names,yaw,times),'target':semantics(a,target,names,yaw,times)} for a in ('idle','walk','turn','wave')}}
+    write_json(run/'semantic_comparison.json',report)
+    return report
