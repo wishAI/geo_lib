@@ -30,3 +30,9 @@ def test_stance_targets_preserve_intended_source_motion_and_swing():
     assert residual.max()<1e-12 and raw.max()>0 and source_drift.max()>0
     residual,_,_=stance_displacement(distorted,source,stance)
     assert residual.max()==pytest.approx(.02)
+
+
+def test_clip_boundary_is_not_a_contact_transition():
+    target=np.zeros((10,3));source=target.copy()
+    _,weight=stance_targets(target,source,np.ones(10,dtype=bool))
+    assert np.array_equal(weight,np.ones(10))

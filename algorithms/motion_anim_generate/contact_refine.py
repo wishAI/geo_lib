@@ -24,7 +24,12 @@ def stance_targets(target,source,contact,ramp=3):
         if b-a<2:continue
         offset=np.mean(target[a:b+1,:2]-source[a:b+1,:2],axis=0)
         desired[a:b+1,:2]=source[a:b+1,:2]+offset
-        for f in range(a,b+1):weight[f]=min(1.,(f-a+1)/ramp,(b-f+1)/ramp)
+        for f in range(a,b+1):
+            # Clip boundaries are not observed contact transitions. Ramping a
+            # stance that spans the whole clip creates artificial start/end drift.
+            entering=1. if a==0 else (f-a+1)/ramp
+            leaving=1. if b==len(target)-1 else (b-f+1)/ramp
+            weight[f]=min(1.,entering,leaving)
     return desired,weight
 
 
