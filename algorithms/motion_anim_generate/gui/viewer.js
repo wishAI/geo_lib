@@ -10,10 +10,11 @@ const style = `
 `;
 
 export async function mount(root, { onPreview, onEvolution }) {
-  root.innerHTML = `<style>${style}</style><main class="motion-page"><a class="motion-back" href="#/">← All sandboxes</a><header><div><h1>Landau motion</h1><p>Generated animation, ready to watch.</p></div><button class="motion-action" data-refresh>Refresh clips</button></header><section class="motion-player"><video controls playsinline preload="metadata" aria-label="Landau animation"></video><div class="motion-error" hidden></div><div class="motion-caption"><div><h2 data-title>Latest animation</h2><p data-description>Loading available clips…</p></div><a data-open target="_blank" rel="noopener">Open video ↗</a></div></section><nav class="motion-gallery" aria-label="Animation clips"></nav><details><summary>Details &amp; experiment history</summary><div class="motion-details"><p>Quality checks describe smoothness, pose fidelity and visible intersections. They do not require physical balance or robot-control feasibility. Current samples are generated without a text prompt.</p><button class="motion-action" data-comparison>Source comparison</button><button class="motion-action" data-before-after hidden>Before / after</button><button class="motion-action" data-quality>Quality report</button><button class="motion-action" data-history>Experiment history</button><button class="motion-action" data-progress>Backend progress</button><p>The main player shows Landau only. Open the source comparison to inspect the original side-by-side debug video.</p></div></details></main>`;
+  root.innerHTML = `<style>${style}</style><main class="motion-page"><a class="motion-back" href="#/">← All sandboxes</a><header><div><h1>Landau motion</h1><p>Generated animation, ready to watch.</p></div><button class="motion-action" data-refresh>Refresh clips</button></header><section class="motion-player"><video controls playsinline preload="metadata" aria-label="Landau animation"></video><div class="motion-error" hidden></div><div class="motion-caption"><div><h2 data-title>Latest animation</h2><p data-description>Loading available clips…</p></div><a data-open target="_blank" rel="noopener">Open video ↗</a></div></section><nav class="motion-gallery" aria-label="Animation clips"></nav><details><summary>Details &amp; experiment history</summary><div class="motion-details"><p>Quality checks describe smoothness, pose fidelity and visible intersections. They do not require physical balance or robot-control feasibility. Current samples are generated without a text prompt.</p><button class="motion-action" data-comparison>Source comparison</button><button class="motion-action" data-before-after hidden>Latest before / after</button><button class="motion-action" data-quality>Quality report</button><button class="motion-action" data-history>Experiment history</button><button class="motion-action" data-progress>Backend progress</button><p>The main player shows Landau only. Open the source comparison to inspect the original side-by-side debug video.</p></div></details></main>`;
   const video = root.querySelector('video');
   let current = base + 'proof.mp4';
   let inventory = [];
+  let comparison = base + 'facing_foot_comparison/preview.mp4';
   const show = (path, title, description, updated = '') => {
     current = path;
     root.querySelector('[data-title]').textContent = title;
@@ -32,7 +33,8 @@ export async function mount(root, { onPreview, onEvolution }) {
     if (!response.ok) throw new Error('Could not load clips');
     inventory = (await response.json()).artifacts;
     if (!root.isConnected) return;
-    root.querySelector('[data-before-after]').hidden = !inventory.some(a => a.exists && a.path === base + 'facing_foot_comparison/preview.mp4');
+    comparison = ['contact_comparison_seed42/preview.mp4', 'facing_foot_comparison/preview.mp4'].map(path => base + path).find(path => inventory.some(a => a.exists && a.path === path));
+    root.querySelector('[data-before-after]').hidden = !comparison;
     const available = inventory.filter(a => a.exists && a.kind === 'video' && a.path.endsWith('/proof.mp4'));
     const latest = available.find(a => a.path === base + 'proof.mp4');
     const generated = available.filter(a => a.path.includes('/runs/') && !a.path.includes('/upstream_')).sort((a,b)=>String(b.modifiedAt).localeCompare(String(a.modifiedAt))).slice(0,5);
@@ -51,7 +53,7 @@ export async function mount(root, { onPreview, onEvolution }) {
   }
   root.querySelector('[data-refresh]').addEventListener('click',()=>refresh().catch(e=>root.querySelector('[data-description]').textContent=e.message));
   root.querySelector('[data-comparison]').addEventListener('click',()=>onPreview(current,'video'));
-  root.querySelector('[data-before-after]').addEventListener('click',()=>onPreview(base+'facing_foot_comparison/preview.mp4','video'));
+  root.querySelector('[data-before-after]').addEventListener('click',()=>onPreview(comparison,'video'));
   root.querySelector('[data-quality]').addEventListener('click',()=>onPreview(current.replace(/proof\.mp4$/, 'validation.json'),'json'));
   root.querySelector('[data-history]').addEventListener('click',onEvolution);
   root.querySelector('[data-progress]').addEventListener('click',()=>onPreview(base+'backend_progress.json','json'));
