@@ -2501,6 +2501,11 @@
       "path": "algorithms/motion_anim_generate/outputs/contact_comparison_seed44/contact_sheet.png",
       "kind": "image",
       "label": "contact_comparison_seed44 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/constraint_preflight/preflight.json",
+      "kind": "json",
+      "label": "Constraint constructor preflight (no inference)"
     }
   ]
 }

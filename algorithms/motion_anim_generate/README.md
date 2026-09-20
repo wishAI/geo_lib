@@ -78,3 +78,21 @@ timeout 1800 outputs/encoder_venv/bin/python encoder_prepare.py encode
 ```
 
 Downloads use standard SDK credentials in memory, immutable exact revisions, task-local paths and hash inventories. A derived MNTP directory rewrites only its local base path while retaining the canonical model name required for official prompt framing. Original snapshots stay intact. CPU BF16 runs the unmodified official wrapper, first MNTP merge then supervised adapter, internal batch_size1, exporting verified float32 `[4,1,4096]` embeddings with pins/hashes/dtypes/RSS/timing. The existing GPU worker consumes that bundle. The parent dispatches unique job JSON only after embeddings and host occupancy are verified. `encoder_large_files.pending.json` supplies the parent's Nextcloud registration handoff; do not duplicate the existing motion-checkpoint transfer.
+
+Constraint-only smoke (no training or text encoder): the pinned `model/cfg.py`
+regular-CFG weight0 branch clears both text and the motion mask. The official
+separated branch with weights `[0,2]` retains only constraint guidance. Worker
+`--pose-anchor --seconds 2 --steps 30 --seed 42 --run-id UNIQUE` constructs an
+official `FullBodyConstraintSet` at frame30 from retained seed43 frame30, maps
+77 source joints to the30 internal SOMA names and subtracts horizontal pelvis
+translation in SOMA XZ coordinates. Global rotations are supplied to the API
+but upstream does not constrain them; their error is reported separately.
+
+One bounded job generates a matched-null source with separated weights `[0,0]`
+and the same CUDA seed/constraint input/heading, then the guided source. It saves
+both, reports anchor RMS/max/root/heading errors and adjacent-frame continuity,
+and renders the guided Landau target. Expected diagnostic values are RMS50mm,
+max100mm and50% improvement; these test constraint following, not animation
+acceptance. No output is clamped. Constraint evidence does not automatically
+replace the reviewed default preview. `constraint_preflight/preflight.json`
+only verifies CPU constructor/metric plumbing; it is not inference evidence.

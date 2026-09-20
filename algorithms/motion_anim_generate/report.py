@@ -52,7 +52,10 @@ def main():
     write_json(OUT/'feasibility.json',report)
     node('animation_feasibility',parents,'passed',label='Real Landau animations rendered; visual notes available',
          artifacts=[artifact(OUT/'feasibility.json'),artifact(OUT/'preview.mp4','video')],metrics={'rendered_clips':len(runs)})
-    progress('corrected_animation_reviewed_text_access_pending',active_process=None,active_run='animation_contact_v3_seed42',
+    promoted=OUT/'runs'/report['recommended_run']
+    promoted_val=json.loads((promoted/'validation.json').read_text())
+    promoted_meta=json.loads((promoted/'source_metadata.json').read_text())
+    progress('corrected_animation_reviewed_text_access_pending',active_process=None,active_run=report['recommended_run'],metrics=promoted_val['metrics'],config=promoted_meta,
         next_step=report['next_step'],blockers=blockers['observations'],gpu_dispatch=blockers['parent_dispatch'],
         measured_results=[{k:r[k] for k in ('id','clip_status','duration_s','inference_s','metrics','quality_notes')} for r in runs],
         artifacts=[artifact(OUT/'feasibility.json'),artifact(OUT/'preview.mp4','video'),artifact(OUT/'facing_foot_comparison/proof.mp4','video'),artifact(OUT/'evolution.json')])

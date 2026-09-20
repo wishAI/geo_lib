@@ -10,7 +10,7 @@ from validate import validate_file, validate_source, compare_semantics
 from render import render
 
 
-def process(run, action, source_kind, speed_bounded=False, anchor_rigid=True, temporal_contact=True,animation_only=True,foot_orientation=True):
+def process(run, action, source_kind, speed_bounded=False, anchor_rigid=True, temporal_contact=True,animation_only=True,foot_orientation=True,promote=True):
     if animation_only:speed_bounded=False
     meta=json.loads((run/'source_metadata.json').read_text())
     write_json(run/'source_validation.json',validate_source(run/'source.npz'))
@@ -42,11 +42,12 @@ def process(run, action, source_kind, speed_bounded=False, anchor_rigid=True, te
                artifact(run/'clean_preview.mp4','video'),artifact(run/'clean_contact_sheet.png','image'),artifact(run/'clean_video.json')]
     node(valid_id,[target_id],'passed',label=run.name+' · animation rendered; see quality notes',
          metrics=val['metrics'],artifacts=artifacts,parameters={'source_kind':source_kind,'action':action})
-    # Stable GUI preview aliases, with provenance in validation/report, original runs retained.
-    for name in ['validation.json','proof.mp4','contact_sheet.png','preview.mp4','clean_preview.mp4','clean_contact_sheet.png']:
-        shutil.copyfile(run/name,OUT/name)
-    write_json(OUT/'latest.json',{'run':str(run),'source_kind':source_kind,'local_inference':source_kind.startswith('local Kimodo'),
-                                'elapsed_s':time.monotonic()-start,'artifacts':artifacts})
+    if promote:
+        # Stable GUI preview aliases, with provenance in validation/report, original runs retained.
+        for name in ['validation.json','proof.mp4','contact_sheet.png','preview.mp4','clean_preview.mp4','clean_contact_sheet.png']:
+            shutil.copyfile(run/name,OUT/name)
+        write_json(OUT/'latest.json',{'run':str(run),'source_kind':source_kind,'local_inference':source_kind.startswith('local Kimodo'),
+                                    'elapsed_s':time.monotonic()-start,'artifacts':artifacts})
     progress('evidence_ready_for_review',active_run=run.name,metrics=val['metrics'],artifacts=artifacts,
              active_process=None,next_step='Review evidence; gated text encoder still required for requested local prompt suite')
     return val
