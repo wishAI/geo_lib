@@ -12,3 +12,5 @@ Implement the user-requested NVIDIA Kimodo feasibility experiment for Landau v10
 - Publish outputs/backend_progress.json and outputs/evolution.json at meaningful transitions, with source commit, model revision, seeds, asset/checkpoint/config hashes, actual results, blockers and next step. GUI manifest must expose actual videos and reports. Never label pending work successful.
 - Run bounded experiments without overlapping existing heavy GPU/Isaac jobs. Inspect live jobs first. Preserve the stopped walking task.
 - Commit only this sandbox's source files on the dedicated task branch. The Mac supervisor pulls source via Git and evidence via explicit artifact sync every 20 minutes. Do not mutate the parent developer checkout, GUI cache or unrelated source.
+
+Latest user GUI override: do not expose an evolution tree or training UI in this animation sandbox. Keep videos, comparisons and collapsed quality checks. Preserve reproducibility internally; the walking sandbox remains separate.

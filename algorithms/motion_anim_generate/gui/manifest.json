@@ -3,7 +3,7 @@
   "icon": "cube",
   "name": "Motion Anim Generate",
   "eyebrow": "NVIDIA KIMODO \u00b7 LANDAU V10",
-  "summary": "Watch generated Landau animations and compare clips. Quality notes and experiment history are available in Details.",
+  "summary": "Watch generated Landau animations and compare clips. Quality notes and source comparisons are available in Details.",
   "accent": "#408d83",
   "runtime": "tk2",
   "runtimeLabel": "TK2",
@@ -14,11 +14,6 @@
     "debug video",
     "motion validity"
   ],
-  "inspector": {
-    "type": "evolutionTree",
-    "label": "Motion experiments",
-    "path": "algorithms/motion_anim_generate/outputs/evolution.json"
-  },
   "examples": [
     {
       "id": "inspect_backend",

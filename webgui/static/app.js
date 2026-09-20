@@ -226,7 +226,7 @@
       const root = app.querySelector('#motion-animation-viewer');
       void import('/api/artifact?path=algorithms/motion_anim_generate/gui/viewer.js').then(module => {
         if (root.isConnected) return module.mount(root, {
-          onPreview: previewArtifact, onEvolution: () => openEvolutionTree(sandbox),
+          onPreview: previewArtifact,
         });
       }).catch(error => { if (root.isConnected) root.textContent = 'Animation viewer unavailable: ' + error.message; });
       return;
