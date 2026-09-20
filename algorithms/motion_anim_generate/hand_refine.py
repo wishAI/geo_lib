@@ -38,7 +38,7 @@ def calibration(robot):
     return result
 
 
-def refine(parent,run):
+def refine(parent,run,smoothing_sigma=1.5):
     r=Robot();cal=calibration(r);src,sk=load_source(run/'source.npz');ix={n:i for i,(n,_) in enumerate(sk)}
     with np.load(parent/'target.npz') as data:d={k:data[k] for k in data.files}
     ret=json.loads((parent/'retarget.json').read_text());C=np.asarray(ret['source_coordinate_matrix'])
@@ -62,7 +62,7 @@ def refine(parent,run):
         fit=least_squares(residual,initial,
             bounds=(r.lower[active],r.upper[active]),max_nfev=25,ftol=1e-6)
         corrected[f,active]=fit.x;success.append(bool(fit.success))
-    delta=gaussian_filter1d(corrected[:,active]-original[:,active],.6,axis=0,mode='nearest')
+    delta=gaussian_filter1d(corrected[:,active]-original[:,active],smoothing_sigma,axis=0,mode='nearest')
     corrected[:,active]=np.clip(original[:,active]+delta,r.lower[active],r.upper[active])
     after=np.array([axes(q,f) for f,q in enumerate(corrected)])
     poses=[r.fk(q,b) for q,b in zip(corrected,base)]
@@ -87,7 +87,7 @@ def refine(parent,run):
             'Two available revolutes per hand cannot match every3D hand orientation exactly within canonical joint ranges.']}
     d.update(q=corrected,fitted=fitted,hand_correction_q=corrected-original)
     np.savez_compressed(run/'target.npz',**d);write_json(run/'hands.json',report)
-    ret['hand_orientation_refinement']={'active_joints':report['active_joints'],'max_landmark_position_change_m':drift,'orientation_weight_m':.05,'pose_prior_m_rad':.002,'temporal_correction_prior_m_rad':.003,'correction_sigma_frames':.6}
+    ret['hand_orientation_refinement']={'active_joints':report['active_joints'],'max_landmark_position_change_m':drift,'orientation_weight_m':.05,'pose_prior_m_rad':.002,'temporal_correction_prior_m_rad':.003,'correction_sigma_frames':smoothing_sigma}
     write_json(run/'retarget.json',ret)
     return report
 
@@ -138,7 +138,8 @@ def render_hands(parent,run):
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--parent-run',required=True);p.add_argument('--run-id',required=True);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--parent-run',required=True);p.add_argument('--run-id',required=True);p.add_argument('--smoothing-sigma',type=float,default=1.5);a=p.parse_args()
+    if not 0<a.smoothing_sigma<=3:raise ValueError('Smoothing must be bounded to(0,3] frames')
     for value in (a.parent_run,a.run_id):
         if not value.replace('_','').replace('-','').isalnum():raise ValueError('Invalid run ID')
     parent=OUT/'runs'/a.parent_run;run=OUT/'runs'/a.run_id;run.mkdir(exist_ok=False)
@@ -149,7 +150,7 @@ def main():
         hand_refine_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip())
     write_json(run/'source_metadata.json',metadata)
     progress('hand_orientation_refinement',active_run=run.name,active_process='CPU forearm/wrist IK',next_step='Measure hand orientation before/after and inspect actual mesh motion')
-    report=refine(parent,run)
+    report=refine(parent,run,a.smoothing_sigma)
     from validate import validate_file,compare_semantics
     from quality import measure
     from render import render
