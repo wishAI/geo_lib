@@ -105,14 +105,24 @@ one learned pose anchor without text; it does not demonstrate a prompted action
 suite or arbitrary root paths. The next specified experiment is a two-second,
 seed43,30-step matched-null test of five official root waypoints spanning0.4m;
 the worker supports `--root-path --seconds 2 --steps 30 --seed 43 --run-id UNIQUE`.
-Its ready request is `outputs/backend_gpu/jobs/rootpath20260920a.json`; parent
-dispatch and actual inference results are pending. CPU preflight verifies that
+Job `rootpath20260920a` completed on the parent worker in11.6407s. Matched-null
+waypoint RMS0.243873876m fell to guided0.015565482m (93.62% reduction), with
+maximum0.023113106m. Guided smooth-root displacement was[0.01237248,0.38138810]m
+for requested[0,0.4]m; actual hips displaced[0.06566092,0.29871315]m.
+CPU preflight verifies that
 the official conditioning mask selects exactly ten XZ values at five frames,
 with no vertical or heading constraint. Metrics compare the actual constrained
 `smooth_root_pos` feature and retain pelvis sway separately. Every-frame linear
 interpolation error is diagnostic; only the five supplied anchors are guided.
-Source and target quality will be reviewed separately after execution. No new
-default clip is promoted by this constraint experiment.
+`path_evidence.py` retargets the saved matched-null source and renders full
+source/path and Landau comparisons without another inference call. All60 frames
+per clip have numeric diagnostics,24 evenly spaced views, selected worst/contact
+views and foot closeups. `outputs/path_feasibility.json` records actual reviews,
+settings, hashes and remaining animation concerns. Same retarget settings are
+used; source-derived trajectory scales differ by only3.13e-8. Guided Landau has
+twelve heuristic sliding frames and remaining upper-body mismatch. Sparse root
+following does not prove natural walking or childlike gait. No new default clip
+is promoted and no further experiment is scheduled.
 
 ## Hand orientation follow-up
 
@@ -134,7 +144,10 @@ outputs/venv/bin/python review.py UNIQUE
 The published candidates are `animation_hands_v3_seed42/43/44`; the GUI default
 remains reviewed `animation_contact_v3_seed42`. All540 candidate clean frames,
 at least24 evenly spaced frames per clip and worst hand frames were inspected
-in chronological sheets. New hand-variant real-time playback remains pending.
+in chronological sheets. The actual `outputs/parent_gui_review.json` now verifies
+six-second Mac GUI playback to the end for all three hand clips, with exact
+matching video hashes and no media errors; its visual-inspection limits remain
+explicit. New path-video real-time playback is not claimed.
 Residual hand-direction mismatch and high/compressed arm placement remain.
 Canonical right upper-arm roll is perpendicular to its bone whereas left roll
 aligns; the canonical URDF is preserved. Exact hand/torso mesh intersections and

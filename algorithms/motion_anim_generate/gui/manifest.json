@@ -4431,6 +4431,351 @@
       "path": "algorithms/motion_anim_generate/outputs/hand_publish_audit.json",
       "kind": "json",
       "label": "hand_publish_audit.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/directions.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/source_metadata.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/source_validation.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/clean_video.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/path_landau_comparison.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_cuda_seed43/path_landau_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/constraint_config.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/constraint_config.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/source.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_cuda_seed43/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/quality_frames.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/preview.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_cuda_seed43/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/target_raw.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_cuda_seed43/target_raw.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_cuda_seed43/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/target.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_cuda_seed43/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_cuda_seed43/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/validation.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/constraint_metrics.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/constraint_metrics.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/proof.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_cuda_seed43/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/path_comparison.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/path_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/video.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/retarget.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/path_source_comparison.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_cuda_seed43/path_source_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/matched_null_source.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_cuda_seed43/matched_null_source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/retarget_comparison_config.json",
+      "kind": "json",
+      "label": "runs/constraint_root_cuda_seed43/retarget_comparison_config.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/constraint_target.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_cuda_seed43/constraint_target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/path_review/source_sequence_01.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/path_review/source_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/path_review/source_sequence_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/path_review/source_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_cuda_seed43/path_review/source_sequence_02.png",
+      "kind": "image",
+      "label": "runs/constraint_root_cuda_seed43/path_review/source_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/directions.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/source_metadata.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/source_validation.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/clean_video.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/source.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_null_cuda_seed43/source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/quality_frames.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/preview.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_null_cuda_seed43/preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/target_raw.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_null_cuda_seed43/target_raw.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/feet_proof.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_null_cuda_seed43/feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/target.npz",
+      "kind": "file",
+      "label": "runs/constraint_root_null_cuda_seed43/target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/clean_preview.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_null_cuda_seed43/clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/validation.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/proof.mp4",
+      "kind": "video",
+      "label": "runs/constraint_root_null_cuda_seed43/proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/contact_sheet.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/semantic_comparison.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/video.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/retarget.json",
+      "kind": "json",
+      "label": "runs/constraint_root_null_cuda_seed43/retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/feet_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/feet_01.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/evenly24_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_root_null_cuda_seed43/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "runs/constraint_root_null_cuda_seed43/review/full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/path_feasibility.json",
+      "kind": "json",
+      "label": "path_feasibility.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/path_source_visual_review.json",
+      "kind": "json",
+      "label": "path_source_visual_review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/path_landau_visual_review.json",
+      "kind": "json",
+      "label": "path_landau_visual_review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/backend_gpu/results/rootpath20260920a.json",
+      "kind": "json",
+      "label": "backend_gpu/results/rootpath20260920a.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/backend_gpu/results/rootpath20260920a.log",
+      "kind": "file",
+      "label": "backend_gpu/results/rootpath20260920a.log"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/path_publish_audit.json",
+      "kind": "json",
+      "label": "path_publish_audit.json"
     }
   ]
 }

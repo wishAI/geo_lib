@@ -53,6 +53,10 @@ def main():
     if hands.exists():
         report['hand_refinement']=json.loads(hands.read_text())
         report['next_step']='Review published three-seed hand variants in native GUI playback; contact-v3 seed42 remains default. Root-waypoint plan is unexecuted. Text suite awaits account approval.'
+    path_report=OUT/'path_feasibility.json'
+    if path_report.exists():
+        report['root_path']=json.loads(path_report.read_text())
+        report['next_step']='Bounded path and hand evidence published; no new experiments. Contact-v3 seed42 remains default. Text-prompted suite remains incomplete pending confirmed encoder account approval.'
     comparison=OUT/'facing_foot_comparison/comparison.json'
     if comparison.exists():report['facing_foot_comparison']=json.loads(comparison.read_text())
     write_json(OUT/'feasibility.json',report)

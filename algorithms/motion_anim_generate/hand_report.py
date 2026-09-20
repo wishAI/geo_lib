@@ -59,8 +59,16 @@ def main():
             'Canonical right upper-arm roll is perpendicular to its bone while left roll aligns with it; canonical assets remain unchanged.',
             'Finger articulation is locked; hand basis fidelity is measured, individual finger fidelity is unavailable.',
             'Exact mesh intersections are unavailable. Rotating hand surfaces may affect hand/torso overlap despite unchanged wrist positions and capsule proxies.',
-            'Dense frame review and full-duration decoding are recorded separately from real-time GUI playback; new hand-variant playback remains pending.'],
+            'Dense frame review and full-duration decoding are recorded separately from real-time GUI playback; parent receipt below documents playback coverage and limits.'],
         'visual_reviews': [read(OUT/'hand_visual_review_42.json'), read(OUT/'hand_visual_review_43_44.json')]}
+    receipt=OUT/'parent_gui_review.json'
+    if receipt.exists() and 'hand_candidates_playback' in read(receipt):
+        playback=read(receipt)['hand_candidates_playback']
+        for clip in playback['clips']:
+            if sha256(OUT/'runs'/clip['run']/'clean_preview.mp4') != clip['sha256']:
+                raise ValueError('Parent playback receipt does not match local video')
+        report['parent_playback_review']=playback
+        report['parent_receipt']={**artifact(receipt),'sha256':sha256(receipt)}
     write_json(OUT/'hand_comparison.json', report)
     node('multiframe_hand_review', [f'animation_hands_v3_seed{s}:validated' for s in (42,43,44)],
          'passed', label='Three-seed hand orientation review; residuals retained',
