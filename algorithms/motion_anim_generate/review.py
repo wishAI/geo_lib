@@ -31,7 +31,7 @@ def foot_video(run):
                 for col,axis in enumerate([0,1]):
                     ox=col*480;oy=row*250+32
                     def project(v):
-                        v=np.asarray(v);return np.stack([ox+240+(v[...,axis]-center[axis])*1100,oy+200-v[...,2]*1100],axis=-1)
+                        v=np.asarray(v);return np.stack([ox+240+(v[...,axis]-center[axis])*800,oy+200-v[...,2]*800],axis=-1)
                     draw.rectangle((ox+2,oy,ox+478,oy+242),outline='#b6c4ce')
                     draw.line([(ox+3,oy+200),(ox+477,oy+200)],fill='#478861',width=2)
                     draw.text((ox+8,oy+5),('SOMA scaled' if row==0 else 'Landau soles')+(' | XZ from -Y' if col==0 else ' | YZ from +X'),font=font,fill='#344956')

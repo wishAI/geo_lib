@@ -57,3 +57,24 @@ The executed unconditional path uses upstream CFG weight zero (`out_uncond`), so
 Mac supervisor owns Git integration and artifact sync every20 minutes. Native `preview.mp4` aliases must be preserved rather than overwritten by debug crops. Files over5 MiB follow the root Nextcloud contract; `outputs/large_files.pending.json` supplies registration metadata. Environment/cache/vendor directories stay out of ordinary artifact sync. Run `./geo storage audit` before handoff. Do not push or edit parent checkouts/helpers.
 
 References: [official source](https://github.com/nv-tlabs/kimodo), [official docs](https://research.nvidia.com/labs/sil/projects/kimodo/docs/), [selected public model](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.1).
+
+## Multi-frame improvement and official encoder preparation
+
+`quality.py RUN_ID...` checks every frame, with mean/p50/p95/p99/max, worst frame/time and contiguous flagged intervals. It records facing, source-relative sole/foot yaw, heel/toe heights, stance drift/sliding, swing-height changes, limb directions, landmark error and temporal discontinuities. Raw source and target sliding are retained alongside added drift: source translation and toe-off are not automatically errors. Thresholds select frames for visual review, not physical acceptance.
+
+`contact_refine.py --parent-run BASELINE --run-id NEW_ID` tests a bounded source-aware stance correction on retained motion. It modifies leg joints only, follows actual source displacement during each stance, retains foot orientation/height and smooths only the correction. Whole-clip stance does not receive artificial touchdown/liftoff ramps. Original target, exact source and numerical failures remain saved. `review.py RUN_ID...` renders full-duration foot closeups, selects at least24 evenly spaced plus worst/contact/turn frames, and provides all decoded frames as sequential sheets. Review metadata explicitly distinguishes dense frame inspection from real-time player playback.
+
+The parent confirmed normal SDK credentials exist, but the exact pinned Llama config returned **HTTP403 GatedRepoError**. User authorization does not grant Hugging Face account access. Do not retry until the parent reports account approval. No alternate encoder or masking algorithm is substituted.
+
+An isolated encoder environment is necessary: Transformers5.1.0 bypasses the pinned official bidirectional-mask override. The [official LLM2Vec dependency range](https://github.com/McGill-NLP/llm2vec/blob/6bbd52528bee4936786ff0e9eb8a569698b1c731/setup.py) supports4.44.2. `requirements-encoder.txt` pins that compatible runtime; its task-local environment reads shared task Torch/utilities without changing the diffusion environment. `encoder_check.py` uses tiny random CPU fixtures to verify future-token influence, padding exclusion, MNTP/supervised loading order and exact official prompt framing. These fixtures are dependency tests, never generated-animation or pretrained-embedding evidence.
+
+From the sandbox directory, **after account approval**, the preparation flow is:
+
+```sh
+outputs/venv/bin/python encoder_prepare.py setup
+outputs/venv/bin/python encoder_prepare.py download
+# Bounded CPU execution; no GPU overlap, no network during encoding:
+timeout 1800 outputs/encoder_venv/bin/python encoder_prepare.py encode
+```
+
+Downloads use standard SDK credentials in memory, immutable exact revisions, task-local paths and hash inventories. A derived MNTP directory rewrites only its local base path while retaining the canonical model name required for official prompt framing. Original snapshots stay intact. CPU BF16 runs the unmodified official wrapper, first MNTP merge then supervised adapter, internal batch_size1, exporting verified float32 `[4,1,4096]` embeddings with pins/hashes/dtypes/RSS/timing. The existing GPU worker consumes that bundle. The parent dispatches unique job JSON only after embeddings and host occupancy are verified. `encoder_large_files.pending.json` supplies the parent's Nextcloud registration handoff; do not duplicate the existing motion-checkpoint transfer.

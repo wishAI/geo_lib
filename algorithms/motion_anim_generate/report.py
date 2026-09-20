@@ -18,7 +18,7 @@ def main():
         compare_semantics(run)
         paths=[run/name for name in ('source.npz','target.npz','source_metadata.json','retarget.json','source_validation.json',
             'validation.json','semantic_comparison.json','directions.json','proof.mp4','contact_sheet.png','video.json',
-            'preview.mp4','clean_preview.mp4','clean_contact_sheet.png','clean_video.json','original_proof.mp4','original_video.json') if (run/name).exists()]
+            'quality_frames.json','review.json','feet_proof.mp4','preview.mp4','clean_preview.mp4','clean_contact_sheet.png','clean_video.json','original_proof.mp4','original_video.json') if (run/name).exists()]
         runs.append({'id':run.name,'clip_status':'generated_and_rendered','source_kind':meta['source_kind'],
             'seed':meta.get('seed',meta.get('meta',{}).get('seed')),'duration_s':val['duration_s'],
             'model_revision':meta.get('pins',{}).get('model',{}).get('revision',meta.get('model_revision')),
@@ -33,7 +33,7 @@ def main():
     blockers=json.loads((OUT/'blockers.json').read_text())
     report={'status':'animation_pipeline_demonstrated_text_prompt_suite_awaiting_access','purpose':'animation generation and retargeting',
         'feasibility_conclusion':'Pinned Kimodo has generated real CPU and CUDA motion. Copied Landau animations render at full duration. Corrected root-frame and foot-orientation mapping substantially improve facing and foot pose. Visual quality concerns remain inspectable; actuator limits and arbitrary landmark RMSE are not rejection gates.',
-        'recommended_run':'animation_feet_facing_6s42','preview':'algorithms/motion_anim_generate/outputs/preview.mp4',
+        'recommended_run':'animation_contact_v3_seed42','preview':'algorithms/motion_anim_generate/outputs/preview.mp4',
         'requested_text_suite':{'status':'awaiting_authorized_encoder_or_exact_embeddings','actions':['idle','walk','turn','wave'],
             'smoke':{'seed':42,'seconds':2,'steps':30},'representative':{'seeds':[42,43,44],'seconds':6,'steps':100},
             'reason':'Gated Meta-Llama-3 encoder inaccessible; no official public prompt embeddings found. Unconditional samples are not claimed as requested actions.'},
@@ -44,13 +44,15 @@ def main():
             'Original debug XZ depth sorting disagreed with its projection; updated before/after use identical correctly labeled fixed cameras.',
             'Position-only arm matching and contact heuristics remain approximate; foot sliding persists in the moving clip.',
             'Exact mesh self-intersection and source-to-target finger fidelity are unavailable. Capsule and contact diagnostics are heuristics.'],
-        'next_step':'Inspect native clean preview and same-source comparison; resume conditional suite only with authorized pinned encoder or exact prompt embeddings.'}
+        'next_step':'Inspect three-seed native clean/contact comparisons; test official constraint-only generation next. Prompt suite awaits HF account approval.'}
+    multiframe=OUT/'multiframe_comparison.json'
+    if multiframe.exists():report['multiframe_review']=json.loads(multiframe.read_text())
     comparison=OUT/'facing_foot_comparison/comparison.json'
     if comparison.exists():report['facing_foot_comparison']=json.loads(comparison.read_text())
     write_json(OUT/'feasibility.json',report)
     node('animation_feasibility',parents,'passed',label='Real Landau animations rendered; visual notes available',
          artifacts=[artifact(OUT/'feasibility.json'),artifact(OUT/'preview.mp4','video')],metrics={'rendered_clips':len(runs)})
-    progress('corrected_animation_reviewed_text_access_pending',active_process=None,active_run='animation_feet_facing_6s42',
+    progress('corrected_animation_reviewed_text_access_pending',active_process=None,active_run='animation_contact_v3_seed42',
         next_step=report['next_step'],blockers=blockers['observations'],gpu_dispatch=blockers['parent_dispatch'],
         measured_results=[{k:r[k] for k in ('id','clip_status','duration_s','inference_s','metrics','quality_notes')} for r in runs],
         artifacts=[artifact(OUT/'feasibility.json'),artifact(OUT/'preview.mp4','video'),artifact(OUT/'facing_foot_comparison/proof.mp4','video'),artifact(OUT/'evolution.json')])

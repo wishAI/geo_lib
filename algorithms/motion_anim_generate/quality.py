@@ -25,7 +25,7 @@ def summary(values,times,threshold=None,mask=None):
     bad=use&(values>threshold) if threshold is not None else np.zeros(len(values),dtype=bool)
     return {'sample_count':len(indices),'mean':float(v.mean()),'p50':float(np.percentile(v,50)),
             'p95':float(np.percentile(v,95)),'p99':float(np.percentile(v,99)),
-            'maximum':float(v.max()),'worst_frame':worst,'worst_time_s':float(times[worst]),
+            'minimum':float(v.min()),'maximum':float(v.max()),'worst_frame':worst,'worst_time_s':float(times[worst]),
             'review_threshold':threshold,'flagged_frames':int(bad.sum()),
             'flagged_intervals':[{'first_frame':a,'last_frame':b,'start_s':float(times[a]),'end_s':float(times[b])} for a,b in intervals(bad)]}
 
