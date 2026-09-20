@@ -1,8 +1,7 @@
 """Contract checks for scratch IK and preservation of physical model/state."""
 import unittest
-import numpy as np
-
 try:
+    import numpy as np
     import mujoco
     from algorithms.urdf_learn_wasd_walk.mujoco_backend import build_model, initialize
     from algorithms.urdf_learn_wasd_walk.mujoco_ragdoll_teacher import WalkingTeacher
