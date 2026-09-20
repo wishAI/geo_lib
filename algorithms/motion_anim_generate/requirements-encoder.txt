@@ -1,0 +1,6 @@
+transformers==4.44.2
+tokenizers==0.19.1
+peft==0.12.0
+accelerate==0.33.0
+huggingface_hub==0.24.7
+# Read-only shared task runtime: torch==2.7.1+cu128 and remaining utilities.
