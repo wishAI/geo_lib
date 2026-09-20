@@ -2506,6 +2506,346 @@
       "path": "algorithms/motion_anim_generate/outputs/constraint_preflight/preflight.json",
       "kind": "json",
       "label": "Constraint constructor preflight (no inference)"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/directions.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_source_comparison.mp4",
+      "kind": "video",
+      "label": "constraint_pose_cuda_seed42 \u00b7 constraint_source_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/source_metadata.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/source_validation.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/clean_video.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_config.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 constraint_config.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/source.npz",
+      "kind": "file",
+      "label": "constraint_pose_cuda_seed42 \u00b7 source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/quality_frames.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/preview.mp4",
+      "kind": "video",
+      "label": "constraint_pose_cuda_seed42 \u00b7 preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/target_raw.npz",
+      "kind": "file",
+      "label": "constraint_pose_cuda_seed42 \u00b7 target_raw.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/feet_proof.mp4",
+      "kind": "video",
+      "label": "constraint_pose_cuda_seed42 \u00b7 feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/target.npz",
+      "kind": "file",
+      "label": "constraint_pose_cuda_seed42 \u00b7 target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "constraint_pose_cuda_seed42 \u00b7 clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/validation.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_metrics.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 constraint_metrics.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/proof.mp4",
+      "kind": "video",
+      "label": "constraint_pose_cuda_seed42 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "constraint_pose_cuda_seed42 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_landau_comparison.mp4",
+      "kind": "video",
+      "label": "constraint_pose_cuda_seed42 \u00b7 constraint_landau_comparison.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_comparison.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 constraint_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/semantic_comparison.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/video.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/retarget.json",
+      "kind": "json",
+      "label": "constraint_pose_cuda_seed42 \u00b7 retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "constraint_pose_cuda_seed42 \u00b7 clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/matched_null_source.npz",
+      "kind": "file",
+      "label": "constraint_pose_cuda_seed42 \u00b7 matched_null_source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_target.npz",
+      "kind": "file",
+      "label": "constraint_pose_cuda_seed42 \u00b7 constraint_target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_review/source_sequence_01.png",
+      "kind": "image",
+      "label": "constraint_review \u00b7 source_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_review/source_sequence_00.png",
+      "kind": "image",
+      "label": "constraint_review \u00b7 source_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/constraint_review/source_sequence_02.png",
+      "kind": "image",
+      "label": "constraint_review \u00b7 source_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/feet_00.png",
+      "kind": "image",
+      "label": "review \u00b7 feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/feet_01.png",
+      "kind": "image",
+      "label": "review \u00b7 feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "review \u00b7 full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/evenly24_00.png",
+      "kind": "image",
+      "label": "review \u00b7 evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "review \u00b7 full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "review \u00b7 worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_cuda_seed42/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "review \u00b7 full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/directions.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 directions.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/source_metadata.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 source_metadata.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/source_validation.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 source_validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/clean_video.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 clean_video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/source.npz",
+      "kind": "file",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 source.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/quality_frames.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 quality_frames.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 review.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/preview.mp4",
+      "kind": "video",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/target_raw.npz",
+      "kind": "file",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 target_raw.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/feet_proof.mp4",
+      "kind": "video",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 feet_proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/target.npz",
+      "kind": "file",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 target.npz"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/clean_preview.mp4",
+      "kind": "video",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 clean_preview.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/validation.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 validation.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/proof.mp4",
+      "kind": "video",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 proof.mp4"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/contact_sheet.png",
+      "kind": "image",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/semantic_comparison.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 semantic_comparison.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/video.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 video.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/retarget.json",
+      "kind": "json",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 retarget.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/clean_contact_sheet.png",
+      "kind": "image",
+      "label": "constraint_pose_null_cuda_seed42 \u00b7 clean_contact_sheet.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/feet_00.png",
+      "kind": "image",
+      "label": "review \u00b7 feet_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/feet_01.png",
+      "kind": "image",
+      "label": "review \u00b7 feet_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/full_sequence_02.png",
+      "kind": "image",
+      "label": "review \u00b7 full_sequence_02.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/evenly24_00.png",
+      "kind": "image",
+      "label": "review \u00b7 evenly24_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/full_sequence_00.png",
+      "kind": "image",
+      "label": "review \u00b7 full_sequence_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/worst_transitions_00.png",
+      "kind": "image",
+      "label": "review \u00b7 worst_transitions_00.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/runs/constraint_pose_null_cuda_seed42/review/full_sequence_01.png",
+      "kind": "image",
+      "label": "review \u00b7 full_sequence_01.png"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/constraint_feasibility.json",
+      "kind": "json",
+      "label": "outputs \u00b7 constraint_feasibility.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/parent_review_receipt.json",
+      "kind": "json",
+      "label": "outputs \u00b7 parent_review_receipt.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/checkpoint_sync.json",
+      "kind": "json",
+      "label": "outputs \u00b7 checkpoint_sync.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/multiframe_publish_audit.json",
+      "kind": "json",
+      "label": "outputs \u00b7 multiframe_publish_audit.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/backend_gpu/results/poseanchor20260920a.json",
+      "kind": "json",
+      "label": "results \u00b7 poseanchor20260920a.json"
+    },
+    {
+      "path": "algorithms/motion_anim_generate/outputs/backend_gpu/jobs/poseanchor20260920a.json",
+      "kind": "json",
+      "label": "jobs \u00b7 poseanchor20260920a.json"
     }
   ]
 }

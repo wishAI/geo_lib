@@ -44,9 +44,11 @@ def main():
             'Original debug XZ depth sorting disagreed with its projection; updated before/after use identical correctly labeled fixed cameras.',
             'Position-only arm matching and contact heuristics remain approximate; foot sliding persists in the moving clip.',
             'Exact mesh self-intersection and source-to-target finger fidelity are unavailable. Capsule and contact diagnostics are heuristics.'],
-        'next_step':'Inspect three-seed native clean/contact comparisons; test official constraint-only generation next. Prompt suite awaits HF account approval.'}
+        'next_step':'Inspect three-seed native clean/contact comparisons; pose-only CUDA smoke is demonstrated separately. Root-waypoint experiment is specified but unexecuted; prompt suite awaits HF account approval.'}
     multiframe=OUT/'multiframe_comparison.json'
     if multiframe.exists():report['multiframe_review']=json.loads(multiframe.read_text())
+    constraint=OUT/'constraint_feasibility.json'
+    if constraint.exists():report['constraint_only']=json.loads(constraint.read_text())
     comparison=OUT/'facing_foot_comparison/comparison.json'
     if comparison.exists():report['facing_foot_comparison']=json.loads(comparison.read_text())
     write_json(OUT/'feasibility.json',report)
