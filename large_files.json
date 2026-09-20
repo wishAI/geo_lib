@@ -201,6 +201,12 @@
       "cloudPath": "assets/3d_char_details/landau_v10/revision4/body_validation_dc53929b23575a82.json",
       "size": 6104,
       "sha256": "dc53929b23575a823a02d9247da80affd4f529ce50eaa538a5be361d51ffe782"
+    },
+    {
+      "repoPath": "algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
+      "cloudPath": "remote_outputs/algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
+      "size": 1133185036,
+      "sha256": "ef0a0ca45a6089ab4532dde609785771ae3f38755b4ae6cf314b0213e07cd4a3"
     }
   ]
 }
