@@ -20,7 +20,7 @@ export async function mount(root, { onPreview, onEvolution }) {
     root.querySelector('[data-description]').textContent = description;
     root.querySelector('[data-open]').href = url(path);
     root.querySelector('.motion-error').hidden = true;
-    const preview = inventory.find(a => a.path === path.replace(/proof\.mp4$/, 'preview.mp4') && a.exists);
+    const preview = ['clean_preview.mp4', 'preview.mp4'].map(name => inventory.find(a => a.path === path.replace(/proof\.mp4$/, name) && a.exists)).find(Boolean);
     const displayPath = preview?.path || path;
     root.querySelector('[data-open]').href = url(displayPath);
     video.src = url(displayPath) + '&v=' + encodeURIComponent(updated);
@@ -38,8 +38,8 @@ export async function mount(root, { onPreview, onEvolution }) {
     const clips = [...(latest ? [latest] : []), ...generated];
     if (!clips.length) {root.querySelector('[data-description]').textContent='No video has synced yet. Check back shortly.';return;}
     root.querySelector('.motion-gallery').innerHTML = clips.map((a,i) => {
-      const poster = a.path.replace(/proof\.mp4$/, 'contact_sheet.png');
-      const hasPoster = inventory.some(x => x.path === poster && x.exists);
+      const poster = ['clean_contact_sheet.png', 'contact_sheet.png'].map(name => a.path.replace(/proof\.mp4$/, name)).find(path => inventory.some(x => x.path === path && x.exists));
+      const hasPoster = Boolean(poster);
       return `<button class="motion-clip" data-clip="${escape(a.path)}" aria-pressed="false">${hasPoster?`<img src="${url(poster)}" alt="" loading="lazy">`:''}<span>${i===0&&latest?'Latest animation':`Generated take ${i+(latest?0:1)}`}</span></button>`;
     }).join('');
     const description = 'Landau animation · original motion and timing';
