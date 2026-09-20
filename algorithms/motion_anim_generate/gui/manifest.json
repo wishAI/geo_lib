@@ -261,6 +261,31 @@
       "label": "unconditional_cpu_6s_seed44 \u00b7 contact_sheet.png",
       "kind": "image",
       "path": "algorithms/motion_anim_generate/outputs/runs/unconditional_cpu_6s_seed44/contact_sheet.png"
+    },
+    {
+      "label": "feasibility.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/feasibility.json"
+    },
+    {
+      "label": "blockers.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/blockers.json"
+    },
+    {
+      "label": "large_files.pending.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/large_files.pending.json"
+    },
+    {
+      "label": "repeatability.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/repeatability.json"
+    },
+    {
+      "label": "unconditional_suite.json",
+      "kind": "json",
+      "path": "algorithms/motion_anim_generate/outputs/unconditional_suite.json"
     }
   ]
 }

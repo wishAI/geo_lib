@@ -91,7 +91,12 @@ def main():
               'cfg_type':'regular','cfg_weight':0. if args.unconditional else 2.,'pins':expected,
               'model_sha256':sha256(OUT/'models/Kimodo-SOMA-RP-v1.1/model.safetensors'),
               'embedding_sha256':sha256(args.embeddings) if args.embeddings else None,
-              'command':sys.argv,'gpu':probe,'semantic_claim':not args.unconditional}
+              'command':sys.argv,'gpu':probe,'semantic_claim':not args.unconditional,
+              'task_source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+              'task_dirty_files':subprocess.check_output(['git','status','--porcelain','--','.'],cwd=ROOT,text=True).splitlines(),
+              'implementation_sha256':{p.name:sha256(p) for p in ROOT.glob('*.py')},
+              'runtime_lock_sha256':sha256(ROOT/'requirements-runtime.txt'),
+              'retarget_speed_bounded':args.speed_bounded}
     write_json(run/'source_metadata.json',metadata)
     progress('local_inference',config=metadata,active_run=args.run_id,next_step='Retarget real diffusion output and validate; unconditional smoke cannot pass requested semantics')
     torch.manual_seed(args.seed);torch.cuda.manual_seed_all(args.seed);np.random.seed(args.seed)
