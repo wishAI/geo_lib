@@ -19,6 +19,10 @@ def main():
         if not candidates:
             continue
         source = max(candidates, key=lambda p: p.stat().st_mtime)
+        native = relative.replace('/proof.mp4', '/clean_preview.mp4')
+        if any((root / native).is_file() for root in (ROOT, CLOUD)):
+            # Native full-body render takes precedence over this legacy crop.
+            continue
         target = ROOT / relative.replace('/proof.mp4', '/preview.mp4')
         stamp = target.with_suffix('.json')
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
