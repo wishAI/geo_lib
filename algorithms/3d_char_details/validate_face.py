@@ -163,11 +163,12 @@ def run():
     lip_ids=[i for i,_ in mapping];counts=edge_counts(body)
     assert len(set(lip_ids))==len(lip_ids), 'Mouth rim collapsed onto duplicate lip vertices'
     assert all(counts[tuple(sorted((a,b)))]==1 for a,b in zip(lip_ids,lip_ids[1:]+lip_ids[:1])), 'Body has no matching real mouth aperture'
-    profile={}
+    profile={};upper_rim_mask=None
     if evidence['mouth'].get('source_seam'):
         shift=np.array(objects['Lash_L'].matrix_world.translation)
         local_rim=base-shift
         expected=np.interp(local_rim[:,0],evidence['mouth']['crease_x'],evidence['mouth']['crease_z'])
+        upper_rim_mask=local_rim[:,2]-expected>.000002
         trace_error=float(np.max(abs(local_rim[:,2]-expected)))
         assert trace_error<.00007, ('Mouth lost measured source crease',trace_error)
         current_tree=mesh_tree(body,points(body,world=True))
@@ -194,12 +195,16 @@ def run():
         values={'jawDrop':value};v=points(cavity,values,True);a=v[rim];b=points(body,values,True)[lip_ids]
         gap=float(np.max(np.linalg.norm(a-b,axis=1)))
         assert gap<1e-6, ('jaw',value,'cavity/lip gap',gap)
+        if upper_rim_mask is not None:
+            upper_drift=float(np.max(np.linalg.norm(a[upper_rim_mask]-base[upper_rim_mask],axis=1)))
+            assert upper_drift<1e-7, ('Jaw opening flattened or moved the upper muzzle curve',value,upper_drift)
         area=abs(float(np.sum(a[:,0]*np.roll(a[:,2],-1)-np.roll(a[:,0],-1)*a[:,2])))/2
         assert math.isfinite(area) and area>1e-8, ('jaw',value,'invalid aperture',area)
         depth=float(v[:,1].max()-a[:,1].min())
         assert depth>.005, 'Mouth lacks recessed interior depth'
         mouth.append({'jawDrop':value,'projected_aperture_area':area,'aperture_height':float(np.ptp(a[:,2])),
-                      'cavity_depth':depth,'max_lip_cavity_gap':gap})
+                      'cavity_depth':depth,'max_lip_cavity_gap':gap,
+                      'upper_rim_max_displacement':upper_drift if upper_rim_mask is not None else None})
     assert mouth[0]['projected_aperture_area']<mouth[1]['projected_aperture_area']<mouth[2]['projected_aperture_area']
     shape_states=[]
     body.data.calc_loop_triangles()

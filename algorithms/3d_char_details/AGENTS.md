@@ -439,8 +439,10 @@ chin adjustment, tapered to preserve surrounding geometry. Existing chin
 topology remains; authored normals follow the deformation Jacobian. The prior
 model is in `checkpoints/pre_rabbit_muzzle_20260921/`. Check neutral front,
 oblique and true side profiles (`mouth_refined_profile`), plus half/full opening.
-The full-width bowl was also rejected: jaw opening settles the central upper
-seam into a shallow arc and opens a smaller tapered region beneath it. The
+The full-width bowl and flattened open upper edge were also rejected. Jaw
+opening keeps the measured upper mouth curve fixed and opens a smaller tapered
+lower region beneath its two lobes. The lower rim independently relaxes into
+one smooth arc rather than carrying a central W-shaped spike downward. The
 outer cheek seams stay nearly closed. Keep signed mouth controls and cavity
 attachment; fold checks alone do not certify likeness.
 

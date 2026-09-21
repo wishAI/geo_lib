@@ -289,10 +289,14 @@ def mouth(body,shift):
                 # Open the center beneath the muzzle, retaining the outer
                 # cheek seams. A full-width semicircle reads as a cut-out grin.
                 opening=max(0.,1-(p[0]/.023)**2)
-                upper_curve=.6288+.001*(p[0]/.027)**2
-                settle=(upper_curve-crease(p[0]))*float(smooth(0,.5,opening))
-                drop=.013*opening**1.3 if math.sin(a)<0 else 0.
-                delta=np.array([0,.002*lower,settle-drop])
+                # The upper rim stays on the measured rabbit crease at every
+                # jaw value; only the lower rim opens beneath its two lobes.
+                is_lower=math.sin(a)<0
+                drop=.013*opening**1.3 if is_lower else 0.
+                # The lower lip forms one tapered bowl, not a copied W-shaped
+                # notch; this does not move or flatten the upper mouth edge.
+                lower_settle=(.6288+.001*(p[0]/.027)**2-crease(p[0]))*float(smooth(0,.5,opening)) if is_lower else 0.
+                delta=np.array([0,.002*lower,lower_settle-drop])
                 va,vb,u=outer_donors[i%n]
                 edge_delta=(k[va]-oldv[va])*(1-u)+(k[vb]-oldv[vb])*u
                 v[new_start+i]=np.asarray(verts[new_start+i])+edge_delta*(1-t)+delta*t

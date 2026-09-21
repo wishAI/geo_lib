@@ -190,3 +190,6 @@ lower lip/chin according to `side_muzzle_reference.png`. Do not substitute an
 analytic contour or a broad smooth depth field. Inspect front, oblique and true
 side (`mouth_refined_profile`) views, plus half/full openings. Transport smooth
 normals consistently when changing the chin so the patch border does not show.
+
+During jaw opening, preserve the measured upper rim exactly. Open only the
+lower rim; do not flatten the upper muzzle curve into a shallow arc.
