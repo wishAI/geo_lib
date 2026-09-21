@@ -32,9 +32,15 @@ def validate_settings(value):
         elif isinstance(item, float) and not math.isfinite(item):
             raise ValueError('Preset contains a non-finite value')
     visit(value)
-    for key in ('morphs', 'bones', 'parts', 'outfit', 'links', 'bodyFrame'):
+    for key in ('morphs', 'bones', 'parts', 'outfit', 'links', 'bodyFrame', 'garmentFit'):
         if key in value and not isinstance(value[key], dict):
             raise ValueError('Invalid preset field: '+key)
+    height = value.get('bodyFrame', {}).get('shoulderHeight', 0)
+    if isinstance(height, bool) or not isinstance(height, (int, float)) or abs(height) > .03:
+        raise ValueError('Invalid shoulder joint height')
+    follow = value.get('garmentFit', {}).get('shoulderFollow', True)
+    if not isinstance(follow, bool):
+        raise ValueError('Invalid shoulder following')
     if len(json.dumps(value, allow_nan=False).encode()) > 200_000:
         raise ValueError('Preset is too large')
     return value

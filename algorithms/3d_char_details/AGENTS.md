@@ -148,3 +148,204 @@ before and after segmentation. Original garment Basis source-position error is 0
 The accepted starting local assets remain in `outputs/landau_v10/checkpoints/6446c39/`.
 Use current local master/GLB. Do not hydrate older archive entries over them.
 `discarded_autofit/` contains rejected diagnostic outputs only, not current assets.
+
+## September 12: connected manual clothing fitting
+
+Accepted segmentation/running source checkpoint: `3cf1e6e` (committed before
+this work). Current local Blender/GLB assets remain unchanged. The user's new
+request explicitly permits manual shared scaling, clothing joint-angle edits
+and seam constraints; it supersedes the earlier segmentation-only GUI scope.
+
+`gui/garment-fit.js` treats Vest → Sleeves → Cuffs and Trousers → Boots as two
+logical outfits while keeping all eight meshes/material sections replaceable.
+Neutral attachment uses each outfit parent's rigid placement for its children,
+restoring original shared source boundaries without reshaping the garments.
+Fit edits bake onto a fresh copy of rest positions, then child seam vertices
+follow their parent positions and skin weights. Corrections spread over the
+child's connectivity graph. The two outfits are not joined at the waist.
+
+Each card shows its outfit scale (.5–2); child shared controls are locked by
+default. Unlocking permits editing the same authoritative parent value, not
+breaking the seam. Boot top width/depth/height follow trouser calf width/depth/
+length. Cuffs inherit sleeve length/forearm room. Movement and shoulder controls
+show their owner. Local child movement adjusts the free end with its attachment
+held. Unlinking sleeves also exposes independent cuffs. Clothing-only shoulder,
+elbow, hip and knee angles use audited original USD joints; they never rotate
+the body rig. Matching sleeve angles mirror anatomically left/right.
+
+Preset field `garmentFit` stores scales, angles and shared-control locks. Existing
+history snapshots stay immutable; legacy presets still load, with shared
+boundaries now governed by their parent values. Export bakes the fitted garment
+positions/weights and stores fitting settings in extras, retaining the original
+facial morphs and current skeletal pose. Clothing morph targets are omitted from
+that edited export to avoid applying the same fit twice. The native master and
+source GLB still retain the original tailoring targets.
+
+`validate_garment_fit.py` checks all six interfaces through 65 run samples,
+parent/child values, independent sides, scale, angles, body preservation,
+repeatability, preset round trips, rest-frame edits and GLB export/reimport.
+Neutral source error < 7e-8 after rigid attachment; sampled seam error 0;
+export/reimport world-position error < 7e-8. These are attachment checks, not a
+body-collision or cloth-simulation certificate. Body fit remains manual.
+Safari was used for visual/GUI QA because the in-app browser failed WebGL context
+creation. Shared scale/locks and running/reset were checked; the user's original
+manual values were restored after the scale test. Saved history was not edited.
+
+### September 13 control corrections
+
+Clothing width/depth/room properties now accept -1…1 via `outfitMinimum()`;
+zero is still the authored neutral, and negative values narrow the garment.
+Both slider ranges and preset validation use the same limit. No source asset
+or stored history was rebased. Chest narrowing is checked on the actual GLB.
+
+Clothing angles have independent `garmentFit.jointLinks.arms/legs`, both true
+by default, regardless of garment tailoring links. Each joint section offers
+“Adjust both L / R”; disabling it exposes individual leg controls or permits
+individual sleeve angles. Paired edits/resets write both sides. Legacy unequal
+angles remain unchanged on load and show “mixed” until edited; explicitly
+relinking uses the displayed side (left for trousers). Joint foldouts remain
+open during link changes. Browser checks confirmed negative chest width and
+both knee values; test values were restored afterward.
+
+### Collar and independent front/back depth
+
+The Vest card now has neckline width, front depth, back depth and collar height
+controls, all signed -1…1. Source-space height and lateral falloffs confine these
+edits to the collar/upper-neckline region, with zero change below source Z=.52.
+The accepted face/body/master assets remain untouched.
+
+All eight legacy clothing depth controls are replaced in the property cards by
+front/back pairs. Their saved legacy keys remain accepted: normal two-sided
+targets initialize both sides to the previous value; chest depth initializes
+only the front, and heel depth only the back, matching their authored geometry.
+The newly available chest-back and heel-front fields default to zero. No saved
+fit is silently rebased. Boot shaft depth aliases preserve front/back ownership
+through the trouser calf controls. Negative values remain supported.
+
+Validation covers every depth pair, exact legacy-fit expansion, collar-region
+isolation, front-depth independence from the rear, preset round trips, running
+seams and export/reimport. Blender MCP inspection was unavailable (broken pipe)
+in this turn; current local GLB geometry was used for all functional checks.
+
+### Lower-neck body transition and sleeve attachment controls
+
+The user clarified that “between neck and chest” means the **body**, not the
+clothing collar. Shape now groups four `bodyTransition*` controls under
+“Lower neck / upper chest”: width, front depth, back depth and height.
+`gui/body-transition.js` installs zero-neutral morphs on the existing connected
+skin before rest-frame capture; the band is Y=.710–.818 in glTF coordinates,
+with a lateral fade that excludes the arms. Existing face/body morph indices,
+source assets and saved values stay intact. The original Neck width control
+is retained. Body placement also transports the new morph normals.
+
+The Vest and Sleeve cards expose “Shoulder / sleeve join”: attachment outward,
+height, front/back depth and opening height. These `vestArmhole*` fields use
+source-shape falloffs on the outer upper vest. Vest owns the seam values;
+sleeves show the shared values under the existing parent-control lock. Seam
+constraints carry the sleeves/cuffs and remain active during running. No new
+clothing geometry or automatic body fit was added. All nine fields are signed,
+zero-neutral, individually resettable, preset-compatible and exported.
+
+The current source Blender/GLB files are unchanged; editor GLB export includes
+the added body morphs and bakes the clothing fit. Blender MCP was unavailable
+for this turn. `validate_garment_fit.py` checks regional isolation, both signs,
+shared values, running seams and GLB export/reimport on the current local asset.
+
+The in-app browser loaded successfully for this check. Both new groups were
+visible; transition width and attachment front depth were exercised, working
+values survived reload, and the temporary values were reset afterward.
+No saved history entries were changed.
+
+
+## September 14: retain the existing body, open the underarm grooves
+
+The user explicitly said not to rebuild the character; retain the gray-body
+model shown in the structural previews. `repair_underarms.py` is a localized
+repair of that mesh, not model generation. Do not return to full-body rebuilds.
+It measures front/back concave cross-section features, follows their diagonal
+underarm groove with a narrow curved relief, rounds the shoulder termination,
+and closes/smooths only the local cut surfaces. Constant-X cuts through the
+breast and broad nearest-point skin smoothing were rejected.
+
+Current local master/GLB includes the repair. The prior asset/report snapshot is
+`outputs/landau_v10/checkpoints/pre_underarm_20260914/`. Face, hands and anterior
+body protection covers 40,376 vertices with zero position, morph and weight
+error; both axillae have zero boundary edges. The existing 276 facial interface
+boundary edges remain. This is local repair, not whole-character retopology.
+Preserve exact weights for untouched vertices; snapshot numeric vertex-group
+IDs before removing live Blender groups. New shape keys must explicitly start
+at value zero: an intermediate preview with all shape controls active was
+rejected and never became the current asset. Boolean cap faces use existing
+body material 0; remove the cutter's empty material slot.
+
+`gui/editing-pose.js` supplies the default T editing baseline without rebasing
+rest joints, inverse binds, garment coordinates or the Running clip. Manual
+bone values are offsets; `editingPose: "t" | "a"` is preset-persistent, with T
+as the default for legacy presets. The source A pose is still selectable.
+Running/scrubbing uses its authored pose and reset restores the editing pose.
+Existing clothing source correspondence, fitting controls and immutable preset
+history stay intact. Export uses the current editing pose and shared skeleton.
+
+`export_clothing.py` accepts a validated localized repair and retains original
+facial preservation checks, updated protected-body hashes and compatible preset
+hashes. Checks passed on the new GLB: asset, placement, motion, connected clothing,
+65 running samples, six seams, and T-pose export/reimport. Gray front/back proofs
+are `underarm_gray_neutral*.png`; do not use the rejected intermediate previews.
+Current large assets are local, still subject to the pending archive contract.
+
+## September 21: shoulder pivots and garment shoulder weights
+
+The user requested adjustable shoulder joints and a fix for the blue shoulder
+patch exposed when switching the current manual fit from A to T.
+
+- Shape → Shoulder joints → Shoulder joint height stores
+  `bodyFrame.shoulderHeight` (-.03…+.03, zero default). It moves both upper-arm
+  stretch/twist rest origins vertically, scaled with the body frame. Neutral
+  mesh positions, elbow/wrist world landmarks and the head stay fixed. Rebind
+  and recalculate the T editing baseline before restoring animation. This is
+  a rotation-pivot adjustment, not a new body shape or clavicle-motion solver.
+- The exposed patch was body penetration, not a disconnected garment seam.
+  The original USD clothing weights could follow the upper arm where the
+  fitted FBX body mainly followed the upper spine. `garment-fit.js` now updates
+  shoulder weights from the closest body-rest triangle with barycentric
+  interpolation and a smooth regional fade. It evaluates body morphs without
+  current skeletal animation; repeated edits do not accumulate weights.
+- Clothing → Upper outfit → Follow body at shoulders controls this correction
+  (`garmentFit.shoulderFollow`, default true, false restores original weights).
+  Updates happen after manual fit/body-shape edits. Exact seam weights are
+  reapplied afterward. It does not change manual rest geometry, regenerate
+  garments, shrink the skin or hide faces. Presets and edited GLB exports retain
+  the new settings/binding/weights; the source Blender and GLB stay untouched.
+- Current exported user fit: 1,801 shoulder samples; A-clear points penetrating
+  in T dropped 186→3. At 65 run times ×451 sampled vertices, new penetration
+  samples fell 2,329→1,019. One worst running depth increased by .000112 model
+  units; residual intersections remain. Do not claim full collision-free fit.
+  The large patch disappeared in matched oblique browser comparison.
+- Checks: `validate_editor.py`, `validate_garment_fit.py`, `validate_motion.py`,
+  `python3 -m unittest algorithms.3d_char_details.test_presets`, and
+  `validate_shoulder.py <exported-preset.json> --output <report.json>`.
+  Six seams remain exact through 328 tested poses, and nonzero shoulder
+  GLB export/reimport position error is below 7e-8. Browser checks covered
+  A/T, toggle off/on, shoulder height, reload persistence, running and reset.
+
+### September 21 underarm regression correction
+
+The broad shoulder transfer above introduced an axilla regression: adjacent
+vest vertices chose opposite sides of the close arm/torso surfaces. A 1.1 mm
+rest edge stretched to 29× in T-pose, creating the user's sharp underarm folds.
+Do not restore the broad Y=.60–.66 transfer ramp or treat low penetration counts
+alone as a pass. Shoulder transfer now starts at unscaled body Y=.70 and reaches
+full weight at .73; the lower vest retains its original continuous weights.
+The body triangle search remains broader than the target blend so the closest
+source triangle is not discarded at the band's boundary.
+
+For the current fit, all 5,160 lower-vest vertices retain exact original weights.
+The 2,160 axilla edges return exactly to the original deformation (maximum stretch
+2.31869×, 99th percentile 1.77861×), while new T shoulder penetrations remain
+186→3. `shoulder-check.mjs` now guards both edge distortion and penetration, plus
+all 26 protected body/facial meshes and morphs. Final 65-frame running results
+are 2,329→2,263 new penetration samples, worst depth unchanged; the earlier 56%
+running improvement belonged to the rejected broad transfer and no longer
+applies. All six seams and nonzero-shoulder GLB export checks still pass.
+Low-angle browser comparison confirms the introduced spikes are removed;
+original fit folds/intersections are not a full cloth-collision pass.

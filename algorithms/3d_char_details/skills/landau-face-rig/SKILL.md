@@ -130,3 +130,20 @@ add correction morphs or simulate cloth. The accepted face/body/neck remain exac
 The new source-seam segmenter and 60 Hz running preview are described in AGENTS.md.
 Research notes are future options; no cloth/collision certification is implied.
 Keep the current local assets and the 6446c39 checkpoint; do not hydrate archives.
+
+## Connected manual fitting (September 12)
+
+The user accepted segmentation at `3cf1e6e` and requested connected outfit
+properties, shared scale and clothing-only joint angles. `gui/garment-fit.js`
+now enforces parent/child attachments during manual fitting and skinning. This
+supersedes the earlier ban on adding fitting controls/constraints; automatic
+body fitting, replacement clothing and simulated cloth remain out of scope.
+The source master, source GLB and protected body/face data are unchanged. See
+AGENTS.md for the shared-value hierarchy, export bake and validation contract.
+
+September 13: the body lower-neck/upper-chest transition is an explicit Shape
+group (`body-transition.js`), distinct from clothing Collar / neckline. Its
+local morphs preserve the welded skin and face above glTF Y=.818. They are
+installed before body rest-frame capture, retained in presets and exported.
+The source Blender/GLB stays unchanged. Vest-owned shoulder attachment fields
+in `garment-fit.js` carry the connected sleeves; see AGENTS.md for validation.

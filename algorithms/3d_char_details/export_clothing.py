@@ -16,13 +16,20 @@ ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'outputs/landau_v10'
 
 
-def run():
+def run(body_repair=None):
     scene=bpy.data.scenes['Scene'];bpy.context.window.scene=scene
     rig=bpy.data.objects['Landau_Rig']
     report=json.loads((OUT/'asset_report.json').read_text())
     clothing=json.loads((OUT/'clothing_rebuild.json').read_text())
     protected=runpy.run_path(str(ROOT/'rebuild_clothing.py'))['protected_hashes'](scene)
-    assert protected==clothing['protected_before'],'Accepted face/body/neck data changed'
+    if body_repair is None:
+        assert protected==clothing.get('protected_after_underarm_repair',clothing['protected_before']),'Accepted face/body/neck data changed'
+    else:
+        assert {n:h for n,h in protected.items() if n!='Body_Complete'}=={n:h for n,h in clothing['protected_before'].items() if n!='Body_Complete'},'Protected face changed'
+        assert body_repair['protected_position_error']==0 and body_repair['protected_morph_error']==0
+        assert body_repair['protected_weight_error']==0 and body_repair['after']['axilla_boundary']==0
+        report['body_reconstruction']['underarm_repair']=body_repair
+        clothing['protected_after_underarm_repair']=protected
     meshes=[o for o in scene.objects if o.type=='MESH']
     rig.animation_data.action=None
     for p in rig.pose.bones:p.matrix_basis=Matrix.Identity(4)

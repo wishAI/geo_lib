@@ -14,11 +14,12 @@ export function bodyPlacement(model,bones){
   if(o.isBone)joints.push({bone:o,world:o.matrixWorld.clone(),position:o.position.clone(),quaternion:o.quaternion.clone(),scale:o.scale.clone()});
   if(!o.isMesh)return;
   o.geometry=o.geometry.clone();
-  const g=o.geometry;meshes.push({o,world:o.matrixWorld.clone(),inverse:o.matrixWorld.clone().invert(),position:g.attributes.position.clone(),normal:g.attributes.normal?.clone(),morph:(g.morphAttributes.position||[]).map(a=>a.clone())});
+  const g=o.geometry;meshes.push({o,world:o.matrixWorld.clone(),inverse:o.matrixWorld.clone().invert(),position:g.attributes.position.clone(),normal:g.attributes.normal?.clone(),morph:(g.morphAttributes.position||[]).map(a=>a.clone()),normalMorph:(g.morphAttributes.normal||[]).map(a=>a.clone()),transitionIndices:Object.entries(o.morphTargetDictionary||{}).filter(([n])=>n.startsWith('bodyTransition')).map(([,i])=>i)});
   if(o.skeleton)skeletons.add(o.skeleton);
  });
- return (scale=1,offset=0)=>{
-  model.userData.bodyFrame={scale,offset,pivot:pivot.toArray()};
+ return (scale=1,offset=0,shoulderHeight=0)=>{
+  if(!Number.isFinite(shoulderHeight)||Math.abs(shoulderHeight)>.03)throw new Error('Invalid shoulder joint height');
+  model.userData.bodyFrame={scale,offset,shoulderHeight,pivot:pivot.toArray()};
   for(const m of meshes){
    const g=m.o.geometry,base=m.position,p=new THREE.Vector3(),q=new THREE.Vector3(),n=new THREE.Vector3();
    for(let i=0;i<base.count;i++){
@@ -33,14 +34,31 @@ export function bodyPlacement(model,bones){
      const t=THREE.MathUtils.clamp((p.y-low)/(high-low),0,1),dw=(t>0&&t<1)?-6*t*(1-t)/(high-low):0,a=1+weight(p.y)*(scale-1);
      const bx=dw*((scale-1)*(p.x-pivot.x)+offset),by=dw*(scale-1)*(p.y-pivot.y),bz=dw*(scale-1)*(p.z-pivot.z);
      n.set(n.x/a,(n.y-(bx*n.x+bz*n.z)/a)/(a+by),n.z/a).normalize().transformDirection(m.inverse);g.attributes.normal.setXYZ(i,n.x,n.y,n.z);
+     for(const k of m.transitionIndices){
+      if(!m.normalMorph[k])continue;
+      const target=new THREE.Vector3().fromBufferAttribute(m.morph[k],i);if(g.morphTargetsRelative)target.add(new THREE.Vector3().fromBufferAttribute(base,i));target.applyMatrix4(m.world);
+      const tn=new THREE.Vector3().fromBufferAttribute(m.normalMorph[k],i);if(g.morphTargetsRelative)tn.add(new THREE.Vector3().fromBufferAttribute(m.normal,i));tn.transformDirection(m.world);
+      const tt=THREE.MathUtils.clamp((target.y-low)/(high-low),0,1),dd=(tt>0&&tt<1)?-6*tt*(1-tt)/(high-low):0,aa=1+weight(target.y)*(scale-1);
+      const xx=dd*((scale-1)*(target.x-pivot.x)+offset),yy=dd*(scale-1)*(target.y-pivot.y),zz=dd*(scale-1)*(target.z-pivot.z);
+      tn.set(tn.x/aa,(tn.y-(xx*tn.x+zz*tn.z)/aa)/(aa+yy),tn.z/aa).normalize().transformDirection(m.inverse);
+      if(g.morphTargetsRelative)tn.sub(n);g.morphAttributes.normal[k].setXYZ(i,tn.x,tn.y,tn.z);
+     }
     }
    }
    g.attributes.position.needsUpdate=true;if(g.attributes.normal)g.attributes.normal.needsUpdate=true;
    for(const a of g.morphAttributes.position||[])a.needsUpdate=true;
+   for(const k of m.transitionIndices)if(g.morphAttributes.normal?.[k])g.morphAttributes.normal[k].needsUpdate=true;
    g.computeBoundingBox();g.computeBoundingSphere();
   }
   const rest=new Map();
-  for(const j of joints){const matrix=j.world.clone(),p=new THREE.Vector3().setFromMatrixPosition(matrix);matrix.setPosition(map(p,scale,offset));rest.set(j.bone,matrix);}
+  for(const j of joints){
+   const matrix=j.world.clone(),p=map(new THREE.Vector3().setFromMatrixPosition(matrix),scale,offset);
+   // Change the upper-arm pivot, keeping the neutral surface and elbow/hand
+   // landmarks fixed. The coincident twist root must follow the same pivot.
+   // Rebinding below prevents a rest-pose translation of the skin or clothes.
+   if(/^arm_(stretch|twist)_[lr]$/.test(j.bone.name))p.y+=shoulderHeight*scale;
+   matrix.setPosition(p);rest.set(j.bone,matrix);
+  }
   for(const j of joints){const parent=rest.get(j.bone.parent)||j.bone.parent.matrixWorld;const local=parent.clone().invert().multiply(rest.get(j.bone));local.decompose(j.bone.position,j.bone.quaternion,j.bone.scale);}
   model.updateMatrixWorld(true);for(const s of skeletons)s.calculateInverses();
   // applyBone() restores animation after this call; rest rotations are unchanged.

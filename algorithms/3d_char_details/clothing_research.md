@@ -1,7 +1,8 @@
 # Clothing deformation research — September 11, 2026
 
-The implementation keeps separate garment surfaces and records corresponding
-source seam vertices, without automatically fitting or constraining them. Garment identity is established before assigning
+The segmentation keeps separate garment surfaces and records corresponding
+source seam vertices. The September 12 GUI applies parent/child attachment
+constraints during user-controlled fitting; it does not automatically fit to the body. Garment identity is established before assigning
 weights. The source is a fused sculpt, so geometric adjacency alone does not imply
 that every interface is physically sewn. Replaceable parts retain separate objects;
 concealed overlap and seam constraints must be distinguished during motion QA.
@@ -17,8 +18,9 @@ concealed overlap and seam constraints must be distinguished during motion QA.
   attachments, bounded movement and collision constraints support local cloth
   simulation. This is a historical design reference, not a runtime dependency.
 - [Blender cloth shape controls](https://docs.blender.org/manual/en/latest/physics/cloth/settings/shape.html)
-  provide sewing springs and pin groups. A future fixed-seam implementation could
-  match the full boundary position and normalized skin vector. Independent
+  provide sewing springs and pin groups. The connected-fitting GUI
+  matches source boundary positions and normalized skin vectors, with corrections
+  spread over child surface connectivity. Independent
   materials and UV splits do not require a physical gap.
 - [Lewis, Cordner and Fong, Pose Space Deformation](https://www.scribblethink.org/Work/PSD/PSD.pdf)
   describes correcting deformation as a function of pose. A possible later extension
@@ -58,7 +60,9 @@ overlaps must be explicitly identified; do not relabel visible failures as layer
 
 The original sculpt shoe Basis and per-corner UVs are preserved. This change does not fit, scale, reshape or add collision corrections to shoes. Source texture colors are not used to identify shoe panels or piping.
 
-The user clarified the scope: segmentation only for clothing; fitting stays in the
-sandbox properties. Research is retained as future guidance. The running preview
-contains the supplied skeletal animation only. It does not claim fitted seams or
+The user initially restricted clothing work to segmentation, then explicitly
+requested connected manual fitting on September 12. The GUI now shares scale,
+exposes clothing-only rest angles and constrains attachment boundaries. Collision
+response, pose-space correctives and cloth simulation remain future options.
+The running preview uses the supplied skeletal animation and does not claim
 collision-free clothing.

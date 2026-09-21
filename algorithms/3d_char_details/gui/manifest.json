@@ -3,7 +3,7 @@
   "icon": "sliders",
   "name": "3d char details",
   "eyebrow": "CHARACTER SANDBOX",
-  "summary": "Geometry-based clothing segmentation, original garment shapes, manual fitting controls and supplied running-animation preview.",
+  "summary": "T-pose character editing with connected outfit fitting, clothing joint angles and running preview.",
   "accent": "#8b699d",
   "runtime": "local",
   "runtimeLabel": "Local 3D editor",
@@ -199,7 +199,7 @@
           "kind": "json"
         },
         {
-          "label": "Original clothing · segmented material regions",
+          "label": "Original clothing \u00b7 segmented material regions",
           "path": "algorithms/3d_char_details/outputs/landau_v10/clothing_source_materials.png",
           "kind": "image"
         },
@@ -223,6 +223,59 @@
           "path": "algorithms/3d_char_details/gui/motion-player.js",
           "kind": "file",
           "syncOnly": true
+        },
+        {
+          "label": "garment-fit.js",
+          "path": "algorithms/3d_char_details/gui/garment-fit.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "body-transition.js",
+          "path": "algorithms/3d_char_details/gui/body-transition.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "editing-pose.js",
+          "path": "algorithms/3d_char_details/gui/editing-pose.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "Underarm repair validation",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/underarm_repair.json",
+          "kind": "json"
+        },
+        {
+          "label": "Underarm structure \u00b7 front",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/underarm_gray_neutral.png",
+          "kind": "image"
+        },
+        {
+          "label": "Underarm structure \u00b7 back",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/underarm_gray_neutral_back.png",
+          "kind": "image"
+        }
+      ]
+    },
+    {
+      "id": "validate_garment_fit",
+      "name": "Validate connected clothing",
+      "description": "Check parent/child controls, fitting, running seam continuity, preservation and reset.",
+      "target": "local",
+      "targets": [
+        "local"
+      ],
+      "command": [
+        "python3",
+        "algorithms/3d_char_details/validate_garment_fit.py"
+      ],
+      "artifacts": [
+        {
+          "label": "Connected clothing validation",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/garment_fit_validation.json",
+          "kind": "json"
         }
       ]
     }
