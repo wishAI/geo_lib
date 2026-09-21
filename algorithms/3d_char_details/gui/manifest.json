@@ -3,7 +3,7 @@
   "icon": "sliders",
   "name": "3d char details",
   "eyebrow": "CHARACTER SANDBOX",
-  "summary": "T-pose character editing with connected outfit fitting, clothing joint angles and running preview.",
+  "summary": "Source-shaped rabbit muzzle with an opening mouth, independent eyes, paired upper-lid blinking, responsive outfit fitting and running preview.",
   "accent": "#8b699d",
   "runtime": "local",
   "runtimeLabel": "Local 3D editor",
@@ -255,6 +255,77 @@
         {
           "label": "Underarm structure \u00b7 back",
           "path": "algorithms/3d_char_details/outputs/landau_v10/underarm_gray_neutral_back.png",
+          "kind": "image"
+        },
+        {
+          "label": "facial-controls.js",
+          "path": "algorithms/3d_char_details/gui/facial-controls.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "Open mouth reference 1",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/open_mouth/\u622a\u5c4f2026-09-21 18.09.28.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "Open mouth reference 2",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/open_mouth/\u622a\u5c4f2026-09-21 18.10.11.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "Open mouth reference 3",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/open_mouth/\u622a\u5c4f2026-09-21 18.11.17.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "Opening mouth",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/mouth_open.png",
+          "kind": "image"
+        },
+        {
+          "label": "Half-open mouth",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/mouth_half.png",
+          "kind": "image"
+        },
+        {
+          "label": "Closed eyes \u00b7 oblique",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/blink_oblique.png",
+          "kind": "image"
+        },
+        {
+          "label": "Facial geometry validation",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/facial_validation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Facial repair contract",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/facial_repair.json",
+          "kind": "json"
+        },
+        {
+          "label": "ocular-rendering.js",
+          "path": "algorithms/3d_char_details/gui/ocular-rendering.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "Smooth mouth close-up",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/mouth_refined_neutral.png",
+          "kind": "image"
+        },
+        {
+          "label": "Side muzzle reference",
+          "path": "algorithms/3d_char_details/inputs/landau_v10/side_muzzle_reference.png",
+          "kind": "image",
+          "syncOnly": true
+        },
+        {
+          "label": "Muzzle and jaw profile",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/mouth_refined_profile.png",
           "kind": "image"
         }
       ]

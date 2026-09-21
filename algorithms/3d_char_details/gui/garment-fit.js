@@ -94,11 +94,46 @@ export function shoulderFollowWeight(p,frame={scale:1,offset:0}){
  return smooth(.03,.05,x)*(1-smooth(.16,.20,x))*smooth(.70,.73,y)*(1-smooth(.79,.815,y));
 }
 
+// Build from the current rest-space triangles. Near-first traversal gives the same
+// closest triangle without scanning the entire torso for every garment vertex.
+function shoulderTree(triangles){
+ const box=new T.Box3();for(const t of triangles)box.union(t.box);
+ if(triangles.length<=12)return {box,triangles};
+ const size=box.getSize(new T.Vector3()),axis=size.x>=size.y&&size.x>=size.z?'x':size.y>=size.z?'y':'z';
+ triangles.sort((a,b)=>(a.box.min[axis]+a.box.max[axis])-(b.box.min[axis]+b.box.max[axis])||a.order-b.order);
+ const mid=triangles.length>>1;
+ return {box,left:shoulderTree(triangles.slice(0,mid)),right:shoulderTree(triangles.slice(mid))};
+}
+function boxDistanceSquared(b,p){
+ const dx=Math.max(b.min.x-p.x,0,p.x-b.max.x),dy=Math.max(b.min.y-p.y,0,p.y-b.max.y),dz=Math.max(b.min.z-p.z,0,p.z-b.max.z);
+ return dx*dx+dy*dy+dz*dz;
+}
+function nearestShoulder(tree,p,closest){
+ let best=null,distance=Infinity;
+ function visit(node,bound){
+  if(bound>distance)return;
+  if(node.triangles){for(const t of node.triangles){
+   if(boxDistanceSquared(t.box,p)>distance)continue;
+   t.triangle.closestPointToPoint(p,closest);const d=closest.distanceToSquared(p);
+   if(d<distance||(d===distance&&(!best||t.order<best.order))){distance=d;best=t;}
+  }return;}
+  const a=boxDistanceSquared(node.left.box,p),b=boxDistanceSquared(node.right.box,p);
+  if(a<=b){visit(node.left,a);visit(node.right,b);}else{visit(node.right,b);visit(node.left,a);}
+ }
+ visit(tree,0);return best;
+}
+
 function shoulderSkin(parts){
  const body=[];
  parts.get('Body_Complete')?.object.traverse(o=>{if(o.isSkinnedMesh)body.push({o,world:o.matrixWorld.clone()});});
  const closest=new T.Vector3(),bary=new T.Vector3();
+ let tree=null,signature,buffers=[];
  return (garments,frame)=>{
+  // Garment-only edits reuse the torso search. Invalidate for every body morph,
+  // geometry/buffer revision and rest-frame edit; animated pose is irrelevant.
+  const current=body.flatMap(({o})=>[o.geometry.attributes.position,o.geometry.index,...o.geometry.morphAttributes.position||[]]);
+  const key=JSON.stringify([frame.scale,frame.offset,body.map(({o})=>[o.geometry.uuid,o.geometry.attributes.position.version,o.geometry.index?.version,o.geometry.morphTargetsRelative,(o.geometry.morphAttributes.position||[]).map(a=>a.version),o.morphTargetInfluences])]);
+  if(key!==signature||current.length!==buffers.length||current.some((a,i)=>a!==buffers[i])){
   const triangles=[];
   for(const {o,world}of body){
    const g=o.geometry,base=g.attributes.position,idx=g.index;
@@ -114,21 +149,15 @@ function shoulderSkin(parts){
     // narrowing the blend would exclude the actual closest torso triangle.
     if(!abc.some(p=>{const y=.806+(p.y-.806)/frame.scale,x=Math.abs((p.x+.004865-(frame.offset||0))/frame.scale);return y>.57&&y<.84&&x<.25;}))continue;
     const triangle=new T.Triangle(...abc),box=new T.Box3().setFromPoints(abc);
-    if(triangle.getArea()>1e-12)triangles.push({o,ids,triangle,box});
+    if(triangle.getArea()>1e-12)triangles.push({o,ids,triangle,box,order:triangles.length});
    }
   }
-  if(!triangles.length)return;
+  tree=triangles.length?shoulderTree(triangles):null;signature=key;buffers=current;
+  }
+  if(!tree)return;
   for(const name of ['Vest','Sleeve_L','Sleeve_R'])for(const node of garments.get(name).nodes){
    const amount=shoulderFollowWeight(node.current,frame);if(!amount)continue;
-   let best=null,distance=Infinity;
-   for(const t of triangles){
-    // Bounds rejection avoids most triangle queries without a persistent
-    // spatial cache that could go stale after a body or clothing shape edit.
-    const p=node.current,b=t.box,dx=Math.max(b.min.x-p.x,0,p.x-b.max.x),dy=Math.max(b.min.y-p.y,0,p.y-b.max.y),dz=Math.max(b.min.z-p.z,0,p.z-b.max.z);
-    if(dx*dx+dy*dy+dz*dz>=distance)continue;
-    t.triangle.closestPointToPoint(p,closest);const d=closest.distanceToSquared(p);
-    if(d<distance){distance=d;best=t;}
-   }
+   const best=nearestShoulder(tree,node.current,closest);
    if(!best)continue;
    best.triangle.closestPointToPoint(node.current,closest);best.triangle.getBarycoord(closest,bary);
    const target=new Map(),g=best.o.geometry;
@@ -232,17 +261,24 @@ export function garmentFit(model,parts,report){
    const {part,g}=r,scale=cfg.scales[part.group.id],shift=placements[part.group.root].clone().sub(placements[part.name]).multiplyScalar(frame.scale);
    g.attributes.skinIndex.copy(r.skin);g.attributes.skinWeight.copy(r.weights);
    const rootMove=new T.Vector3(0,(settings.outfit?.[part.group.root]?.[part.group.root==='Vest'?'vestRaise':'trouserRaise']??settings.morphs?.[part.group.root==='Vest'?'vestRaise':'trouserRaise']??0)*(part.group.root==='Vest'?.075:.12)*frame.scale,(settings.outfit?.[part.group.root]?.[part.group.root==='Vest'?'vestForward':'trouserForward']??settings.morphs?.[part.group.root==='Vest'?'vestForward':'trouserForward']??0)*.07*frame.scale);
+   const matrix=new T.Matrix3().setFromMatrix4(r.world),targets=[];
+   // Resolve ownership and control values once per mesh, not for each vertex.
+   for(const [name,k]of Object.entries(r.o.morphTargetDictionary||{})){
+    if(part.name===part.group.root&&/(Raise|Forward)$/.test(name))continue;
+    if(sharedOwner(part.name,name)[0]!==part.name||!r.morph[k])continue;
+    if(DEPTH_CONTROLS.includes(name)){
+     const [frontName,backName]=depthNames(name),front=outfitValue(settings,part.name,frontName),back=outfitValue(settings,part.name,backName);
+     if(front||back)targets.push({name,k,front,back});
+    }else{const value=outfitValue(settings,part.name,name);if(value)targets.push({name,k,value});}
+   }
+   const shoulders=part.name==='Vest'?Object.keys(SHOULDER_CONTROLS).map(n=>[n,outfitValue(settings,part.name,n)]).filter(([,v])=>v):[];
+   const collars=part.name==='Vest'?Object.keys(COLLAR_CONTROLS).map(n=>[n,outfitValue(settings,part.name,n)]).filter(([,v])=>v):[];
    for(let i=0;i<r.base.count;i++){
     const base=xyz(r.base,i).applyMatrix4(r.world).add(shift),p=base.clone();
-    for(const [name,k]of Object.entries(r.o.morphTargetDictionary||{})){
-     // Root translations are applied to the entire assembly after rotation.
-     if(part.name===part.group.root&&/(Raise|Forward)$/.test(name))continue;
-     // Child aliases are driven by the parent surface, not a second, unrelated morph.
-     if(sharedOwner(part.name,name)[0]!==part.name)continue;
-     if(!r.morph[k])continue;
-     const delta=xyz(r.morph[k],i);if(!g.morphTargetsRelative)delta.sub(xyz(r.base,i));delta.applyMatrix3(new T.Matrix3().setFromMatrix4(r.world));
-     if(DEPTH_CONTROLS.includes(name)){
-      const [frontName,backName]=depthNames(name),front=outfitValue(settings,part.name,frontName),back=outfitValue(settings,part.name,backName),source=r.nodes[i].source;
+    for(const {name,k,value,front,back}of targets){
+     const delta=xyz(r.morph[k],i);if(!g.morphTargetsRelative)delta.sub(xyz(r.base,i));delta.applyMatrix3(matrix);
+     if(front!==undefined){
+      const source=r.nodes[i].source;
       if(name==='vestChestDepth'){
        p.addScaledVector(delta,front);
        p.z-=back*.04*Math.exp(-Math.pow((source.y-.49)/.075,2))* (1-smooth(-.03,-.02,source.z))*frame.scale;
@@ -250,10 +286,10 @@ export function garmentFit(model,parts,report){
        p.addScaledVector(delta,back);
        p.z+=front*.035*smooth(0,.025,source.z)*Math.exp(-Math.pow(source.z/.05,2))*(1-smooth(.065,.11,source.y))*frame.scale;
       }else{const w=depthFrontWeight(part.name,source);p.addScaledVector(delta,w*front+(1-w)*back);}
-     }else p.addScaledVector(delta,outfitValue(settings,part.name,name));
+     }else p.addScaledVector(delta,value);
     }
-    if(part.name==='Vest')for(const name of Object.keys(SHOULDER_CONTROLS)){const value=outfitValue(settings,part.name,name);if(value)p.addScaledVector(shoulderDelta(r.nodes[i].source,name),value*frame.scale);}
-    if(part.name==='Vest')for(const name of Object.keys(COLLAR_CONTROLS)){const value=outfitValue(settings,part.name,name);if(value)p.addScaledVector(collarDelta(r.nodes[i].source,name),value*frame.scale);}
+    for(const [name,value]of shoulders)p.addScaledVector(shoulderDelta(r.nodes[i].source,name),value*frame.scale);
+    for(const [name,value]of collars)p.addScaledVector(collarDelta(r.nodes[i].source,name),value*frame.scale);
 
     const transform=p=>rotate(p,part,r.nodes[i].source).sub(groupPivots[part.group.id]).multiplyScalar(scale).add(groupPivots[part.group.id]).add(rootMove);
     const node=r.nodes[i];if(node.refs[0][0]===r&&node.refs[0][1]===i){node.base=transform(base);node.current=transform(p);}

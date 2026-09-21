@@ -349,3 +349,106 @@ running improvement belonged to the rejected broad transfer and no longer
 applies. All six seams and nonzero-shoulder GLB export checks still pass.
 Low-angle browser comparison confirms the introduced spikes are removed;
 original fit folds/intersections are not a full cloth-collision pass.
+
+## September 21: opening mouth, independent eyes and blink repair
+
+The user explicitly authorized facial topology changes. `repair_face.py` is a
+localized postprocess of `checkpoints/pre_face_20260921/landau_character.blend`;
+do not rerun the obsolete full-body builder to reproduce this revision.
+
+- A 297-face mouth-crease patch becomes an annulus with an actual lip opening,
+  recessed oral bag, concealed upper/lower teeth and jaw-following tongue.
+  The 39-vertex lip boundary matches the cavity at jaw 0/.5/1. Unused incision
+  vertices are removed. The neck remains welded; other facial component
+  interfaces and the separate mouth rim are intentional, not whole-body closure.
+- `EyeShell_L/R` are independent closed smooth non-spherical eyeballs. The old
+  raised `Iris_L/R` supports are removed; RoundIris/Pupil/glints follow one
+  symmetric sclera-only surface with offsets .000025/.000050/.000075. Eye parts
+  remain stationary during blink; gaze uses the ocular surface only.
+- Original Lash_L/R neutral vertices and topology remain exact. Shared guides,
+  mirrored target-surface correspondence and matched closed-lid surfaces repair
+  the closure. `gui/facial-controls.js` clamps blink + .45*squint and evaluates
+  `_blinkArcL/R = 4*b*(1-b)` for intermediate clearance. These corrective morphs
+  are exported; another engine must evaluate the same rule when animating.
+- `validate_face.py` measures actual geometry and compares against the checkpoint.
+  Closed-lash mirrored distance p95 improved .008089 → .000396 model units;
+  maximum residual is .001457, so do not claim mathematically exact symmetry.
+  Five-state attachment error is zero; no lower lid or replacement lashes.
+- `export_clothing.py(facial_repair=...)` records scoped preservation separately
+  from the historical body-integration face hashes. 51,571 protected body
+  vertices retain their positions/morphs. Clothing, rest rig and Running remain.
+  Known-compatible presets ignore only retired Iris support part entries;
+  immutable saved history is untouched.
+- The exporter retains authored body split normals during jawDrop by omitting
+  only that target's NORMAL delta. Check final shading in WebGL: Blender's GLB
+  importer does not restore morph normals, so reimport renders check geometry
+  but are not an exact shading oracle. Proof reports identify the asset hash.
+
+Three user-supplied mouth references are preserved byte-for-byte under
+`inputs/landau_v10/open_mouth/`, copied from `~/Downloads/open_mouth`, and listed
+in the Ref picker. They guide the dark red interior, small tongue and concealed
+teeth; this is a custom facial prototype, not a phoneme/production lip-sync rig.
+
+Checks: `validate_asset.py`, Blender `validate_face.py`, `validate_body.py`,
+`verify_likeness.py` (add `-- --glb` for actual GLB reimport proofs),
+`validate_editor.py`, `validate_motion.py`, `validate_garment_fit.py`, preset
+unit tests and `node algorithms/3d_char_details/gui/facial-controls-check.mjs`.
+Local master/GLB supersede the archives; retain the checkpoint and do not hydrate
+older large_files entries over this repair. Cloud archival remains pending.
+
+### Close-up mouth and zoom-depth follow-up
+
+The user's distant-eye screenshot exposed depth quantization in the editor's
+fixed .005 near plane. `gui/ocular-rendering.js` adapts camera clipping to orbit
+distance and uses small ordered depth-buffer offsets on iris/pupil/highlights.
+Eye geometry stays separate and shallow; depth testing still lets lids occlude
+it. These are viewport settings, not portable glTF polygon-offset properties.
+`ocular-rendering-check.mjs` checks the complete supported zoom range. Actual
+eye triangle/vertex sampling found positive separation, not intersecting layers.
+
+The follow-up mouth replaces 342 local source faces and has a 176-vertex lip
+boundary. Smooth curve coordinates, constrained lip strips and filtered depth
+replace the earlier coarse 39-point annulus. `mouth_constraints.py` prevents
+folds jointly across jawDrop [0,1] and mouthLength/mouthCurvature [-1,1], with
+fixed outer/lip boundaries and a small interior Basis correction. It audits
+the continuous parameter box after float32 key serialization. Do not remove
+this gate or treat fixed normals alone as a geometry repair.
+
+Shape → Mouth exposes length (±20% at the lip) and curvature (corners down/up).
+They remain active across expression presets, persist with other shape edits,
+and export as native morph targets. `validate_face.py` checks combined settings
+and lip/cavity attachment; `validate_asset.py` also checks actual GLB triangles
+at 45 combinations. There are 51,546 unchanged protected body vertices in this
+larger local patch; the original rig, lashes, clothing and history remain.
+The previous local model is retained in `checkpoints/pre_face_smooth_20260921/`.
+
+### Rabbit muzzle likeness and slider performance correction
+
+The user rejected both human-like lip relief and the subsequent completely
+smooth muzzle. Preserve the original sculpt's projecting upper muzzle. The
+mouth line now comes from `muzzle_features.py`: dense front-facing depth samples,
+the lower concave foot of the strongest depth transition, mirrored averaging,
+and sub-millimeter filtering. `repair_face.py` samples the original surface
+along that measured crease; it does not replace the muzzle with a polynomial
+or sinusoidal surface. Lip support vertices follow actual curve normals to
+avoid crossing at the sloped mouth corners.
+
+The user-provided `inputs/landau_v10/side_muzzle_reference.png` guides the profile:
+a modest .0015 model-unit upper projection and up to .004 inward lower-muzzle/
+chin adjustment, tapered to preserve surrounding geometry. Existing chin
+topology remains; authored normals follow the deformation Jacobian. The prior
+model is in `checkpoints/pre_rabbit_muzzle_20260921/`. Check neutral front,
+oblique and true side profiles (`mouth_refined_profile`), plus half/full opening.
+The full-width bowl was also rejected: jaw opening settles the central upper
+seam into a shallow arc and opens a smaller tapered region beneath it. The
+outer cheek seams stay nearly closed. Keep signed mouth controls and cavity
+attachment; fold checks alone do not certify likeness.
+
+The new mouth controls had unnecessarily invoked full garment fitting on every
+input. `editor.js` skips that path for mouthLength/mouthCurvature. In
+`garment-fit.js`, a bounded spatial index and rest-surface cache replace repeated
+brute-force shoulder searches; active control values are resolved once per mesh.
+Actual-GLB comparison across eight settings preserved positions, normals and
+weights exactly. Warm garment inputs improved from 573–719 ms to 86–98 ms;
+body/rest-surface changes invalidate the cache. Existing seam, motion, reset and
+export checks still apply. Side reference selection shows the entire image.

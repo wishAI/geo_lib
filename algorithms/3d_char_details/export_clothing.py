@@ -16,14 +16,65 @@ ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'outputs/landau_v10'
 
 
-def run(body_repair=None):
+def preserve_jaw_split_normals(path):
+    """Match the native master's authored smooth face shading during jawDrop.
+
+    Blender retains custom split normals on this sculpt when applying its jaw
+    shape. Recomputed glTF morph normals otherwise introduce polygon creases at
+    the original coarse muzzle boundary. Omit only this target's NORMAL delta
+    on the body; positions, skinning and every other morph normal stay intact.
+    Missing morph NORMAL means a zero offset under the glTF specification.
+    """
+    data=path.read_bytes();size=struct.unpack_from('<I',data,12)[0]
+    document=json.loads(data[20:20+size]);changed=0
+    body_meshes={n['mesh'] for n in document['nodes'] if n.get('name')=='Body_Complete' and 'mesh' in n}
+    for index,mesh in enumerate(document['meshes']):
+        if index not in body_meshes:continue
+        names=mesh.get('extras',{}).get('targetNames',[])
+        if 'jawDrop' not in names:continue
+        for primitive in mesh['primitives']:
+            target=primitive['targets'][names.index('jawDrop')]
+            if 'NORMAL' in target:del target['NORMAL'];changed+=1
+    assert changed, 'Body jaw morph missing from exported asset'
+    raw=json.dumps(document,separators=(',',':')).encode();raw+=b' '*((-len(raw))%4)
+    rest=data[20+size:]
+    path.write_bytes(struct.pack('<4sII',b'glTF',2,20+len(raw)+len(rest))+struct.pack('<II',len(raw),0x4E4F534A)+raw+rest)
+
+
+def run(body_repair=None, facial_repair=None):
     scene=bpy.data.scenes['Scene'];bpy.context.window.scene=scene
     rig=bpy.data.objects['Landau_Rig']
     report=json.loads((OUT/'asset_report.json').read_text())
     clothing=json.loads((OUT/'clothing_rebuild.json').read_text())
     protected=runpy.run_path(str(ROOT/'rebuild_clothing.py'))['protected_hashes'](scene)
-    if body_repair is None:
-        assert protected==clothing.get('protected_after_underarm_repair',clothing['protected_before']),'Accepted face/body/neck data changed'
+    baseline=clothing.get('protected_after_facial_repair',clothing.get('protected_after_underarm_repair',clothing['protected_before']))
+    assert body_repair is None or facial_repair is None, 'Publish body and facial repairs separately'
+    if facial_repair is not None:
+        allowed={'Body_Complete','Mouth_Interior','Teeth_Upper','Teeth_Lower','Tongue'}|{prefix+'_'+side for prefix in (
+            'EyeShell','Iris','RoundIris','Pupil','Catchlight','CatchlightSmall','Lash','UpperLid','LashBed') for side in ('L','R')}
+        unchanged={n:h for n,h in baseline.items() if n not in allowed}
+        assert all(protected.get(n)==h for n,h in unchanged.items()), 'Facial repair changed an unrelated protected mesh'
+        assert facial_repair['source_glb_sha256'] in {report['glb_sha256'],report.get('facial_repair',{}).get('source_glb_sha256')}, 'Facial repair uses a different source asset'
+        evidence=facial_repair['protected_objects_before']
+        assert evidence and evidence==facial_repair['protected_objects_after'], 'Unrelated object preservation failed'
+        assert unchanged.keys()<=evidence.keys(), 'Incomplete unrelated-object evidence'
+        assert facial_repair['protected_body_vertices']>0, 'Missing protected body vertices'
+        for field in ('protected_body_position_error','protected_body_morph_error','protected_body_weight_error','original_lash_neutral_error'):
+            assert facial_repair[field]==0, 'Facial repair preservation failed: '+field
+        assert facial_repair['rest_joints_changed'] is False, 'Facial repair changed rest joints'
+        assert isinstance(facial_repair['method'],str) and facial_repair['method'].strip()
+        for field in ('eyes','mouth','blink'):
+            assert isinstance(facial_repair[field],dict) and facial_repair[field], 'Missing facial evidence: '+field
+        removed=(set(baseline)-set(protected))|set(report.get('facial_repair',{}).get('removed_objects',[]))
+        assert removed<={'Iris_L','Iris_R'}, 'Unexpected facial component removal'
+        facial_repair=dict(facial_repair,removed_objects=sorted(removed))
+        report['facial_repair']=facial_repair
+        report['neutral_preservation']['scope']='Historical body integration, before the separately recorded facial repair.'
+        report['body_reconstruction']['facial_preservation_scope']='Historical body integration; current authorized facial changes are recorded in facial_repair.'
+        clothing['protected_after_facial_repair']=protected
+        report['limitations']=[s for s in report['limitations'] if not s.startswith('Jaw drop is a closed-mouth deformation')]
+    elif body_repair is None:
+        assert protected==baseline,'Accepted face/body/neck data changed'
     else:
         assert {n:h for n,h in protected.items() if n!='Body_Complete'}=={n:h for n,h in clothing['protected_before'].items() if n!='Body_Complete'},'Protected face changed'
         assert body_repair['protected_position_error']==0 and body_repair['protected_morph_error']==0
@@ -52,6 +103,7 @@ def run(body_repair=None):
     report['preset_compatible_hashes']=list(dict.fromkeys(report.get('preset_compatible_hashes',[])+[report['glb_sha256']]))
     report['limitations']=[s for s in report['limitations'] if not s.startswith('Original clothes and boots')]
     report['limitations'].append('Original garment shapes and rigid placements are retained for manual fitting. Running preview does not automatically fit garments, simulate cloth, or guarantee clearance after manual edits.')
+    report['limitations']=list(dict.fromkeys(report['limitations']))
     report['validation'].update(triangles=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in meshes),
         mesh_count=len(meshes),bones=len(rig.data.bones),invalid_skin_vertices=sum(abs(sum(g.weight for g in v.groups)-1)>1e-4 or len(v.groups)>4 for o in meshes for v in o.data.vertices),errors=[])
     assert report['validation']['invalid_skin_vertices']==0
@@ -69,6 +121,9 @@ def run(body_repair=None):
         export_animations=True,export_animation_mode='ACTIVE_ACTIONS',export_nla_strips_merged_animation_name='Running',
         export_frame_range=True,export_anim_slide_to_zero=True,export_morph_animation=False,
         export_morph=True,export_skins=True,export_extras=True,export_image_format='AUTO')
+    if report.get('facial_repair'):
+        preserve_jaw_split_normals(temporary)
+        report['facial_repair']['jaw_normal_mode']='Native authored split normals; zero body jawDrop normal delta'
     # os.replace replaces a symlink itself; it cannot overwrite its archive target.
     os.replace(temporary,OUT/'landau_character.glb')
     rig.animation_data.action=None

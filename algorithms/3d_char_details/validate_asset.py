@@ -21,6 +21,24 @@ def validate():
     assert hashlib.sha256(data).hexdigest()==report['glb_sha256'], 'Report is for a different GLB'
     assert not any('uri' in x for x in gltf.get('buffers',[])+gltf.get('images',[])), 'External asset dependency'
     body_report=report.get('body_reconstruction')
+    facial_repair=report.get('facial_repair')
+    removed_facial_objects=set()
+    if facial_repair:
+        digest=facial_repair['source_glb_sha256']
+        assert len(digest)==64 and all(c in '0123456789abcdef' for c in digest), 'Invalid facial source digest'
+        assert digest in report.get('preset_compatible_hashes',[]), 'Facial source is not retained as a compatible preset asset'
+        evidence=facial_repair['protected_objects_before']
+        assert evidence and evidence==facial_repair['protected_objects_after'], 'Facial repair changed protected objects'
+        assert all(len(h)==64 and all(c in '0123456789abcdef' for c in h) for h in evidence.values()), 'Invalid facial preservation digest'
+        assert facial_repair['protected_body_vertices']>0, 'Missing protected body evidence'
+        for field in ('protected_body_position_error','protected_body_morph_error','protected_body_weight_error','original_lash_neutral_error'):
+            assert facial_repair[field]==0, 'Facial preservation failed: '+field
+        assert facial_repair['rest_joints_changed'] is False, 'Facial repair changed rest joints'
+        assert isinstance(facial_repair['method'],str) and facial_repair['method'].strip()
+        for field in ('eyes','mouth','blink'):
+            assert isinstance(facial_repair[field],dict) and facial_repair[field], 'Missing facial evidence: '+field
+        removed_facial_objects=set(facial_repair['removed_objects'])
+        assert removed_facial_objects<={'Iris_L','Iris_R'}, 'Unexpected facial component removal'
     if body_report:
         assert report['version']==body_report['revision'] and body_report['revision'] in [3,4,5], 'Unexpected body revision'
         preservation=report['neutral_preservation']
@@ -77,6 +95,8 @@ def validate():
     bone_counts=[len(s['joints']) for s in gltf['skins']]
     assert max(bone_counts)==71
     assert {'eyeBlinkL','eyeBlinkR','mouthSmile','jawDrop','eyeLookUpL','eyeSize','cheekFullness'}<=controls
+    if facial_repair and facial_repair['mouth'].get('shape_controls'):
+        assert {'mouthLength','mouthCurvature'}<=controls, 'Mouth shape controls missing from export'
     assert triangles==report['validation']['triangles'], 'Unexpected extra or missing exported geometry'
     assert len(gltf['meshes'])==report['validation']['mesh_count'], 'Unexpected inspection meshes in export'
     assert len(gltf['scenes'])==1, 'Export must contain only the active character scene'
@@ -87,6 +107,24 @@ def validate():
         assert 'Body_UnderClothes' not in nodes, 'Obsolete body approximation remains'
         body=nodes[body_name];extras=body.get('extras',{})
         assert 'mesh' in body and 'skin' in body, 'Complete body is not independently skinned'
+        if facial_repair and facial_repair['mouth'].get('shape_controls'):
+            mesh=gltf['meshes'][body['mesh']];names=mesh['extras']['targetNames']
+            for primitive in mesh['primitives']:
+                base=values(primitive['attributes']['POSITION'])
+                delta=[values(primitive['targets'][names.index(n)]['POSITION']) for n in ('jawDrop','mouthLength','mouthCurvature')]
+                affected={i for i in range(len(base)) if any(abs(v)>1e-10 for d in delta[1:] for v in d[i])}
+                indices=[v[0] for v in values(primitive['indices'])]
+                patch=[indices[i:i+3] for i in range(0,len(indices),3) if affected.intersection(indices[i:i+3])]
+                used={i for face in patch for i in face}
+                for jaw in (0,.25,.5,.75,1):
+                    for width in (-1,0,1):
+                        for curve in (-1,0,1):
+                            weights=(jaw,width,curve)
+                            p={i:tuple(base[i][axis]+sum(w*d[i][axis] for w,d in zip(weights,delta)) for axis in (0,1)) for i in used}
+                            for a,b,c in patch:
+                                u,v=p[a],p[b];z=p[c]
+                                area=(v[0]-u[0])*(z[1]-u[1])-(v[1]-u[1])*(z[0]-u[0])
+                                assert area>=-1e-12, ('Exported mouth folds',weights,area)
         assert extras.get('complete_under_outfit') and not extras.get('default_hidden'), 'Complete body is hidden or incomplete'
         assert extras.get('part_type')=='inferred_body', 'Body visibility metadata missing'
         joints=gltf['skins'][body['skin']]['joints']
@@ -103,7 +141,12 @@ def validate():
             mesh_ids.add(garment['mesh'])
             assert gltf['skins'][garment['skin']]['joints']==joints, 'Garment skeleton differs: '+name
         joined=set(body_report.get('continuous_skin',{}).get('joined_objects',[]))
-        assert before.keys()-joined<=nodes.keys(), 'Protected facial objects missing from export'
+        assert before.keys()-joined-removed_facial_objects<=nodes.keys(), 'Protected facial objects missing from export'
+        if facial_repair:
+            assert not removed_facial_objects.intersection(nodes), 'Removed iris support remains in export'
+            assert facial_repair['protected_objects_after'].keys()<=nodes.keys(), 'Protected facial-repair objects missing from export'
+            assert report['neutral_preservation'].get('scope','').startswith('Historical body integration'), 'Historical face preservation lacks scope'
+            assert {'EyeShell_L','EyeShell_R','RoundIris_L','RoundIris_R','Pupil_L','Pupil_R'}<=nodes.keys(), 'Independent ocular components missing'
         if body_report['revision']==5:
             assert joined=={'Head','Face_Cream'} and not joined.intersection(nodes)
             assert body_report['continuous_skin']['neck_boundary_edges']==0
@@ -118,6 +161,12 @@ def validate():
     if body_report:
         result.update({'body_revision':body_report['revision'],'complete_body_visible':True,'garments_share_body_skeleton':True,
             'protected_facial_objects':len(before),'head_rigid_lift':body_report['head_rigid_lift']})
+        if facial_repair:
+            result.update({'source_neutral_positions':'Authorized local mouth, ocular and blink repair; unrelated objects and protected body vertices preserved.',
+                'facial_repair':True,'historical_body_integration_facial_objects':len(before),
+                'protected_facial_objects':len(facial_repair['protected_objects_after']),
+                'protected_body_vertices':facial_repair['protected_body_vertices'],
+                'removed_facial_objects':sorted(removed_facial_objects)})
     else:
         result.update({'triangles_including_hidden_body':triangles,'visible_source_triangles':50000})
     print(json.dumps(result,indent=2));return result
