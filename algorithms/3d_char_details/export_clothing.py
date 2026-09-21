@@ -16,13 +16,13 @@ ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'outputs/landau_v10'
 
 
-def preserve_jaw_split_normals(path):
-    """Match the native master's authored smooth face shading during jawDrop.
+def preserve_facial_split_normals(path, mouth=None):
+    """Keep authored jaw shading and transport smooth profile-control normals.
 
     Blender retains custom split normals on this sculpt when applying its jaw
     shape. Recomputed glTF morph normals otherwise introduce polygon creases at
     the original coarse muzzle boundary. Omit only this target's NORMAL delta
-    on the body; positions, skinning and every other morph normal stay intact.
+    on the body; profile targets use the smooth field Jacobians below.
     Missing morph NORMAL means a zero offset under the glTF specification.
     """
     data=path.read_bytes();size=struct.unpack_from('<I',data,12)[0]
@@ -36,8 +36,48 @@ def preserve_jaw_split_normals(path):
             target=primitive['targets'][names.index('jawDrop')]
             if 'NORMAL' in target:del target['NORMAL'];changed+=1
     assert changed, 'Body jaw morph missing from exported asset'
-    raw=json.dumps(document,separators=(',',':')).encode();raw+=b' '*((-len(raw))%4)
     rest=data[20+size:]
+    if mouth and mouth.get('surface_cleanup'):
+        # Morph normals from the coarse source triangles reintroduce facets.
+        # Transport the smooth authored normals by each profile field's
+        # inverse-transpose Jacobian instead. This is a native glTF NORMAL
+        # target, so the editor and exported files use the same smooth result.
+        import numpy as np
+        helper=runpy.run_path(str(ROOT/'repair_face.py'))
+        binary=bytearray(rest[8:]);shift=np.array(bpy.data.objects['Lash_L'].matrix_world.translation)
+        def read(index):
+            a=document['accessors'][index];v=document['bufferViews'][a['bufferView']]
+            assert a['componentType']==5126 and a['type']=='VEC3' and 'sparse' not in a
+            offset=v.get('byteOffset',0)+a.get('byteOffset',0);stride=v.get('byteStride',12)
+            return np.array([struct.unpack_from('<3f',binary,offset+i*stride) for i in range(a['count'])])
+        def append(values):
+            binary.extend(b'\0'*((-len(binary))%4));offset=len(binary)
+            raw=np.asarray(values,dtype='<f4').tobytes();binary.extend(raw)
+            view=len(document['bufferViews']);document['bufferViews'].append({'buffer':0,'byteOffset':offset,'byteLength':len(raw)})
+            index=len(document['accessors']);document['accessors'].append({'bufferView':view,'componentType':5126,'count':len(values),'type':'VEC3'})
+            return index
+        def source(v):return np.column_stack([v[:,0],-v[:,2],v[:,1]])
+        def gltf(v):return np.column_stack([v[:,0],v[:,2],-v[:,1]])
+        def crease(x):return float(np.interp(x,mouth['crease_x'],mouth['crease_z']))
+        fields={'muzzleLength':lambda p:-.014*helper['muzzle_influence'](p),
+                'jawRecess':lambda p:.006*helper['jaw_influence'](p,crease)}
+        for index in body_meshes:
+            mesh=document['meshes'][index];names=mesh['extras']['targetNames']
+            for primitive in mesh['primitives']:
+                p=source(read(primitive['attributes']['POSITION']))-shift
+                n=source(read(primitive['attributes']['NORMAL']))
+                for name,field in fields.items():
+                    target=primitive['targets'][names.index(name)]
+                    step=.00001
+                    grad=np.column_stack([(field(p+a)-field(p-a))/(2*step) for a in np.eye(3)*step])
+                    ny=n[:,1]/(1+grad[:,1])
+                    moved=np.column_stack([n[:,0]-grad[:,0]*ny,ny,n[:,2]-grad[:,2]*ny])
+                    moved/=np.linalg.norm(moved,axis=1)[:,None]
+                    target['NORMAL']=append(gltf(moved-n))
+        document['buffers'][0]['byteLength']=len(binary)
+        binary.extend(b'\0'*((-len(binary))%4))
+        rest=struct.pack('<II',len(binary),0x004E4942)+bytes(binary)
+    raw=json.dumps(document,separators=(',',':')).encode();raw+=b' '*((-len(raw))%4)
     path.write_bytes(struct.pack('<4sII',b'glTF',2,20+len(raw)+len(rest))+struct.pack('<II',len(raw),0x4E4F534A)+raw+rest)
 
 
@@ -52,6 +92,13 @@ def run(body_repair=None, facial_repair=None):
     if facial_repair is not None:
         allowed={'Body_Complete','Mouth_Interior','Teeth_Upper','Teeth_Lower','Tongue'}|{prefix+'_'+side for prefix in (
             'EyeShell','Iris','RoundIris','Pupil','Catchlight','CatchlightSmall','Lash','UpperLid','LashBed') for side in ('L','R')}
+        control_only=facial_repair.get('control_only_objects_before',{})
+        if control_only:
+            assert facial_repair.get('control_only_morphs')==['muzzleLength']
+            assert set(control_only)<={'Nose','Brow_L','Brow_R','InnerEar_L','InnerEar_R'}
+            current=runpy.run_path(str(ROOT/'rebuild_clothing.py'))['protected_hashes'](scene,excluded_shape_keys=('muzzleLength',))
+            assert control_only==facial_repair['control_only_objects_after']=={n:current[n] for n in control_only}, 'Muzzle-only edit changed unrelated face data'
+            allowed.update(control_only)
         unchanged={n:h for n,h in baseline.items() if n not in allowed}
         assert all(protected.get(n)==h for n,h in unchanged.items()), 'Facial repair changed an unrelated protected mesh'
         assert facial_repair['source_glb_sha256'] in {report['glb_sha256'],report.get('facial_repair',{}).get('source_glb_sha256')}, 'Facial repair uses a different source asset'
@@ -122,8 +169,10 @@ def run(body_repair=None, facial_repair=None):
         export_frame_range=True,export_anim_slide_to_zero=True,export_morph_animation=False,
         export_morph=True,export_skins=True,export_extras=True,export_image_format='AUTO')
     if report.get('facial_repair'):
-        preserve_jaw_split_normals(temporary)
+        preserve_facial_split_normals(temporary,report['facial_repair']['mouth'])
         report['facial_repair']['jaw_normal_mode']='Native authored split normals; zero body jawDrop normal delta'
+        if report['facial_repair']['mouth'].get('surface_cleanup'):
+            report['facial_repair']['profile_normal_mode']='Smooth authored normals transported by profile-field Jacobians'
     # os.replace replaces a symlink itself; it cannot overwrite its archive target.
     os.replace(temporary,OUT/'landau_character.glb')
     rig.animation_data.action=None

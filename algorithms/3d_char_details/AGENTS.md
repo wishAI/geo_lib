@@ -454,3 +454,36 @@ Actual-GLB comparison across eight settings preserved positions, normals and
 weights exactly. Warm garment inputs improved from 573–719 ms to 86–98 ms;
 body/rest-surface changes invalidate the cache. Existing seam, motion, reset and
 export checks still apply. Side reference selection shows the entire image.
+
+
+### Local lower-face finish and independent profile controls
+
+The accepted mouth contour stays pinned. A local quadratic fit to regularly
+spaced source depth samples removes lower-muzzle/chin dents in depth only; it
+does not simplify topology or alter the X/Z mouth outline. Samples do not cross
+the mouth crease. Blend fitted normals into the original normals with the same
+local falloff, rather than retaining noisy source normals in the cleaned area.
+The starting master is retained in `checkpoints/pre_surface_profile_20260921/`.
+
+Shape → Muzzle and mouth includes Muzzle projection (positive outward) and
+Jaw inward (positive recession). The body muzzle field is compact and exactly
+zero above source Z=.666; the jaw field is zero at and above the mouth seam.
+The authorized muzzleLength key replaces its old broad forehead-reaching field;
+other protected morphs remain exact. Both profile controls persist across
+expression presets and bypass garment fitting, like mouth length/curvature.
+Check combined profile/mouth settings and lip-to-cavity attachment in the actual
+GLB, plus neutral and open-mouth oblique/profile views in WebGL.
+
+
+The initial narrow chin recession was rejected because it hollowed the middle
+and left the lower chin projecting. Use a broad lower-jaw field instead: the
+lower falloff lies below the visible chin, the front-depth weight stays flat
+across the visible surface, and the field fades broadly into the cheeks. Neutral
+recession is .004 at the lower jaw; jawRecess adds up to .006.
+The amount grows gradually down the full jaw rather than reaching its maximum
+in a short band below the lip, which left a second horizontal crease. `validate_face.py` checks sampled
+chin convexity at neutral/half/full recession as well as the pinned mouth line.
+Profile morph NORMAL targets in `export_clothing.py` use the inverse-transpose
+Jacobian of the same fields to avoid reintroducing coarse triangle shading.
+Blender reimport does not restore these normals; inspect final profile shading
+in WebGL. The original upper muzzle relief remains intact.

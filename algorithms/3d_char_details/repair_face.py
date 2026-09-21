@@ -72,12 +72,62 @@ def surface(bvh,x,z):
     return hit.y
 
 
+def muzzle_influence(points):
+    """Compact upper-muzzle support: exactly zero above the nose and on chin."""
+    x,y,z=np.asarray(points).T
+    return (np.exp(-2*(x/.082)**2)*smooth(.617,.635,z)
+            *(1-smooth(.653,.666,z))*(1-smooth(.035,.060,abs(x)))
+            *(1-smooth(-.09,-.06,y)))
+
+
+def jaw_influence(points,crease):
+    x,y,z=np.asarray(points).T
+    # Spread recession down the whole jaw as a gentle tilt. A short smoothstep
+    # under the lip creates a second horizontal crease even with smooth normals.
+    d=np.maximum(0,np.array([crease(a) for a in x])-z-.0005)
+    growth=(d-.001*(1-np.exp(-d/.001)))/.050
+    u=np.clip(growth-.9,0,.2)
+    growth=np.minimum(growth,.9)+u-u*u/.4
+    return (smooth(.558,.577,z)*(1-smooth(.030,.095,abs(x)))
+            *(1-smooth(-.060,.020,y))*growth)
+
+
+def finish_lower_surface(points,bvh,crease,recession):
+    """Local quadratic depth fit; mouth line and lateral silhouette stay pinned."""
+    local=np.asarray(points);x,y,z=local.T
+    weight=(smooth(.548,.577,z)*(1-smooth(.045,.090,abs(x)))
+            *smooth(.001,.006,np.array([crease(a) for a in x])-z)
+            *(1-smooth(-.085,-.060,y)))
+    selected=np.flatnonzero(weight>0)
+    gx=np.arange(-.108,.1081,.00075);gz=np.arange(.540,.6351,.00075)
+    depth=np.full((len(gz),len(gx)),np.nan)
+    for j,b in enumerate(gz):
+        for i,a in enumerate(gx):
+            hit=bvh.ray_cast(Vector((float(a),-2,float(b))),Vector((0,1,0)))[0]
+            if hit is not None:depth[j,i]=hit.y
+    xx,zz=np.meshgrid(gx,gz);valid=(depth<-.065)&(zz<np.array([crease(a) for a in gx])[None,:]-.0008)
+    delta=np.zeros(len(local));normal=np.zeros_like(local);radius=.018
+    for i in selected:
+        ix=np.flatnonzero(abs(gx-x[i])<radius);iz=np.flatnonzero(abs(gz-z[i])<radius)
+        dx=(xx[np.ix_(iz,ix)]-x[i])/radius;dz=(zz[np.ix_(iz,ix)]-z[i])/radius
+        keep=valid[np.ix_(iz,ix)]&(dx*dx+dz*dz<1)
+        a,b=dx[keep],dz[keep];v=depth[np.ix_(iz,ix)][keep]
+        if len(v)<12:weight[i]=0;continue
+        design=np.column_stack([np.ones(len(v)),a,b,a*a,a*b,b*b])
+        w=np.exp(-1.5*(a*a+b*b));fit=np.linalg.lstsq(design*w[:,None],v*w,rcond=None)[0]
+        target=fit[0]+recession[i]
+        delta[i]=np.clip(target-y[i],-.002,.002)*weight[i]
+        normal[i]=[fit[1]/radius,-1,fit[2]/radius]
+        normal[i]/=np.linalg.norm(normal[i])
+    return delta,normal,weight
+
+
 def shape_controls(o,shift=None):
     """Keep authored head/eye proportion controls coherent on new geometry."""
     base=coords(o);v=base.copy() if shift is None else base-shift;x,y,z=v.T
     deltas={}
     p=v.copy();p[:,0]*=1+.12*smooth(.56,.62,z);p[:,1]*=1+.08*smooth(.56,.62,z);deltas['headWidth']=p-v
-    w=np.exp(-2*((x/.082)**2+((z-.642)/.05)**2))*(1-smooth(-.09,-.02,y));p=v.copy();p[:,1]-=.014*w;deltas['muzzleLength']=p-v
+    w=muzzle_influence(v);p=v.copy();p[:,1]-=.014*w;deltas['muzzleLength']=p-v
     w=np.exp(-2*((x/.09)**2+((z-.70)/.09)**2))*(1-smooth(-.07,0,y));p=v.copy();p[:,0]*=1+.075*w;deltas['faceWidth']=p-v
     w=sum(1-smooth(1,1.7,np.sqrt(((x-s*.064)/.041)**2+((z-.691)/.040)**2)) for s in [-1,1])*(1-smooth(-.07,-.03,y));p=v.copy();p[:,2]+=(z-.691)*.15*w;deltas['eyeSize']=p-v
     w=np.exp(-2*(((abs(x)-.073)/.033)**2+((z-.643)/.031)**2))*(1-smooth(-.07,-.02,y));p=v.copy();p[:,0]+=np.sign(x)*.004*w;p[:,1]-=.004*w;deltas['cheekFullness']=p-v
@@ -209,7 +259,7 @@ def mouth(body,shift):
             # fuller upper muzzle over a recessed lower lip/chin. Both vanish
             # at the actual seam and original outer patch boundary.
             offset=p[2]-crease(p[0]);fade=float(smooth(0,.5,t))*math.exp(-2*(p[0]/.04)**4)
-            upper=.0015*math.exp(-((offset-.007)/.006)**2)*float(smooth(0,.003,offset))
+            upper=.0025*math.exp(-((offset-.007)/.006)**2)*float(smooth(0,.003,offset))
             p[1]-=upper*fade
             row.append(len(verts));verts.append((p+shift).tolist());samples.append((p,t,a))
         rings.append(row)
@@ -335,7 +385,7 @@ def mouth(body,shift):
     local_vertices=np.asarray(verts)-shift
     def chin_recession(points):
         x,y,z=np.asarray(points).T
-        return .004*smooth(.578,.594,z)*(1-smooth(.615,.629,z))*(1-smooth(.024,.043,abs(x)))*(1-smooth(-.110,-.095,y))
+        return .004*jaw_influence(points,crease)
     recession=chin_recession(local_vertices)
     step=.00001;axes=np.eye(3)*step
     gradient=np.column_stack([(chin_recession(local_vertices+a)-chin_recession(local_vertices-a))/(2*step) for a in axes])
@@ -350,6 +400,22 @@ def mouth(body,shift):
         values=np.array([v.co[:] for v in block.data]);values[:,1]+=recession
         block.data.foreach_set('co',np.asarray(values,dtype=np.float32).ravel())
     verts=np.asarray(verts);verts[:,1]+=recession;mesh.vertices.foreach_set('co',verts.astype(np.float32).ravel());verts=verts.tolist()
+    # Suppress original lower-face dents without changing the accepted X/Z
+    # contour, mouth line, connectivity, skinning or expression deltas.
+    cleanup,clean_normals,clean_weight=finish_lower_surface(np.asarray(verts)-shift,bvh,crease,recession)
+    corrected_original.update(np.flatnonzero(cleanup[:len(oldv)]!=0).tolist())
+    for block in body.data.shape_keys.key_blocks:
+        values=np.array([v.co[:] for v in block.data]);values[:,1]+=cleanup
+        block.data.foreach_set('co',np.asarray(values,dtype=np.float32).ravel())
+    verts=np.asarray(verts);verts[:,1]+=cleanup;mesh.vertices.foreach_set('co',verts.astype(np.float32).ravel());verts=verts.tolist()
+    # Replace the broad legacy field. Only this authorized morph may differ
+    # outside the local neutral-surface repair (it previously reached forehead).
+    neutral=np.asarray(verts);local_neutral=neutral-shift
+    muzzle=neutral.copy();muzzle[:,1]-=.014*muzzle_influence(local_neutral)
+    key(body,'muzzleLength',muzzle).slider_min=-1
+    jaw_weight=jaw_influence(local_neutral,crease)
+    jaw=neutral.copy();jaw[:,1]+=.006*jaw_weight
+    key(body,'jawRecess',jaw).slider_min=-1
     body.data.shape_keys.update_tag();mesh.update()
     # Copy every unchanged corner; new lip skin uses the cream material and
     # smooth area normals. The material does not rely on misleading source UVs.
@@ -385,6 +451,14 @@ def mouth(body,shift):
                 edge=source_normals[a]*(1-u)+source_normals[b]*u
                 w=float(smooth(0,.45,t));normal=edge*(1-w)+np.array(mesh.vertices[vi].normal)*w
             normal/=max(np.linalg.norm(normal),1e-12);normals.append(normal.tolist())
+    # Depth-fit normals remove the original shading noise too. Blend across
+    # the same smooth boundary as the positional cleanup, with the seam pinned.
+    for li,loop in enumerate(mesh.loops):
+        vi=loop.vertex_index;w=clean_weight[vi]
+        if w:
+            fitted=profile_normal(clean_normals[vi],vi);fitted/=np.linalg.norm(fitted)
+            normal=np.asarray(normals[li])*(1-w)+fitted*w
+            normals[li]=(normal/np.linalg.norm(normal)).tolist()
     mesh.normals_split_custom_set(normals)
     # Bag starts at the actual lip contact vertices, travels inward, and closes
     # behind the teeth/tongue. Upper/lower rim displacements match the skin.
@@ -402,12 +476,12 @@ def mouth(body,shift):
     cavity=make('Mouth_Interior',bag,fs,material('Oral cavity',(.13,.005,.012),.9),Matrix.Identity(4));key(cavity,'jawDrop',opened)
     # Share every expression delta along the lip rim so smiling/puckering does
     # not detach the inside of the mouth from its visible edge.
-    for name,_,_,_ in keys:
-        if name in {'Basis','jawDrop'}:continue
+    for name in [k.name for k in body.data.shape_keys.key_blocks]:
+        if name in {'Basis','jawDrop','mouthLength','mouthCurvature'}:continue
         values=np.array(bag)
         delta=np.array([body.data.shape_keys.key_blocks[name].data[i].co[:] for i in rings[-1]])-lip
         for j in range(7):values[j*n:(j+1)*n]+=delta*(1-j/6)
-        if np.max(abs(values-np.array(bag)))>1e-8:key(cavity,name,values)
+        if np.max(abs(values-np.array(bag)))>1e-8:key(cavity,name,values).slider_min=body.data.shape_keys.key_blocks[name].slider_min
     for name,delta in mouth_deltas.items():
         values=np.array(bag)
         for j in range(7):values[j*n:(j+1)*n]+=delta*(1-j/6)
@@ -421,13 +495,13 @@ def mouth(body,shift):
     oval('Teeth_Lower',(0,-.116,.623),(.017,.004,.002),ivory,np.array([0,.002,-.014]))
     oval('Tongue',(0,-.114,.625),(.014,.010,.003),material('Tongue rose',(.43,.075,.105),.55),np.array([0,.001,-.010]))
     protected=set(range(len(oldv)))-{i for p in chosen for i in old.polygons[p].vertices}-corrected_original
-    errors=[float(np.max(abs(np.array([v.co[:] for v in body.data.shape_keys.key_blocks[name].data])[:len(oldv)][list(protected)]-k[list(protected)]))) for name,k,_,_ in keys]
+    errors=[float(np.max(abs(np.array([v.co[:] for v in body.data.shape_keys.key_blocks[name].data])[:len(oldv)][list(protected)]-k[list(protected)]))) for name,k,_,_ in keys if name!='muzzleLength']
     assert max(errors)==0
     unused=remove_unused_vertices(body)
     body['facial_revision']='opening_mouth_smooth_eyes_v1'
-    return dict(removed_surface_faces=len(chosen),removed_unused_vertices=unused,lip_boundary_vertices=n,source_cut_boundary_vertices=boundary_count,shape_controls=['mouthLength','mouthCurvature'],fold_audit=fold_audit,crease_x=gx.tolist(),crease_z=gz,
+    return dict(removed_surface_faces=len(chosen),removed_unused_vertices=unused,lip_boundary_vertices=n,source_cut_boundary_vertices=boundary_count,shape_controls=['mouthLength','mouthCurvature','muzzleLength','jawRecess'],surface_cleanup={'method':'Local quadratic source-depth fit, seam pinned', 'max_depth_change':float(np.max(abs(cleanup))),'vertices':int(np.count_nonzero(cleanup))},protected_morph_exceptions=['muzzleLength'],fold_audit=fold_audit,crease_x=gx.tolist(),crease_z=gz,
                 muzzle_profile='Measured source crease and projecting upper muzzle; recessed lower lip/chin from side reference',
-                source_seam=seam_report,upper_muzzle_projection=.0015,lower_muzzle_recession=float(recession.max()),lower_original_vertices_adjusted=len(corrected_original),
+                source_seam=seam_report,upper_muzzle_projection=.0025,lower_muzzle_recession=float(recession.max()),lower_original_vertices_adjusted=len(corrected_original),
                 max_open_height=float(np.ptp(lip_open[:,2])),oral_depth=.035,real_surface_opening=True,
                 cavity='Recessed closed bag, upper/lower teeth and jaw-following tongue',protected_body_vertices=len(protected),
                 protected_body_position_error=0,protected_body_morph_error=max(errors),protected_body_weight_error=0)
@@ -581,6 +655,19 @@ def ocular_and_blink(transform):
     return dict(surface_coefficients=coeff.tolist(),detail_max_offset=.000075,removed_raised_supports=['Iris_L','Iris_R'],sides=stats)
 
 
+def synchronize_muzzle_controls(scene,shift):
+    """Every eye layer/lash stays still; nose and muzzle use one compact field."""
+    for obj in scene.objects:
+        if obj.type!='MESH' or obj.name in {'Body_Complete','Mouth_Interior'}:continue
+        if not obj.data.shape_keys or 'muzzleLength' not in obj.data.shape_keys.key_blocks:continue
+        base=np.array([v.co[:] for v in obj.data.shape_keys.key_blocks['Basis'].data])
+        world=np.array([tuple(obj.matrix_world@Vector(p)) for p in base])-shift
+        amount=.014*muzzle_influence(world)
+        if obj.name not in {'Nose','Teeth_Upper','Teeth_Lower','Tongue'}:amount[:]=0
+        axis=np.array(obj.matrix_world.to_3x3().inverted()@Vector((0,-1,0)))
+        key(obj,'muzzleLength',base+amount[:,None]*axis).slider_min=-1
+
+
 def run(publish=False):
     bpy.context.window.scene=bpy.data.scenes['Scene'];scene=bpy.context.scene
     body=bpy.data.objects['Body_Complete'];rig=bpy.data.objects['Landau_Rig']
@@ -593,14 +680,19 @@ def run(publish=False):
     scene.frame_set(0);bpy.context.view_layer.update()
     transform=bpy.data.objects['Lash_L'].matrix_world.copy();shift=np.array(transform.translation)
     hashfn=runpy.run_path(str(ROOT/'rebuild_clothing.py'))['protected_hashes']
-    before=hashfn(scene)
+    before=hashfn(scene);before_without_muzzle=hashfn(scene,excluded_shape_keys=('muzzleLength',))
     protected={n:h for n,h in before.items() if n!='Body_Complete' and not n.startswith(('EyeShell_','Iris_','RoundIris_','Pupil_','Catchlight','Lash_','UpperLid_','LashBed_'))}
     source=json.loads((OUT/'checkpoints/pre_face_20260921/asset_report.json').read_text())['glb_sha256']
     mouth_report=mouth(body,shift);eyes=ocular_and_blink(transform)
-    after=hashfn(scene)
+    synchronize_muzzle_controls(scene,shift)
+    after=hashfn(scene);after_without_muzzle=hashfn(scene,excluded_shape_keys=('muzzleLength',))
+    control_only={n:before_without_muzzle[n] for n in protected if before[n]!=after[n]}
+    assert control_only=={n:after_without_muzzle[n] for n in control_only}
+    protected={n:h for n,h in protected.items() if n not in control_only}
     assert protected=={n:after[n] for n in protected}
     result=dict(method='Source-traced rabbit muzzle with recessed lower profile and oral cavity; symmetric smooth sclera surface; source lash transport with shared guides',
                 source_glb_sha256=source,protected_objects_before=protected,protected_objects_after={n:after[n] for n in protected},
+                control_only_objects_before=control_only,control_only_objects_after={n:after_without_muzzle[n] for n in control_only},control_only_morphs=['muzzleLength'],
                 original_lash_neutral_error=0,rest_joints_changed=False,mouth=mouth_report,eyes=eyes,
                 blink={'method':'Shared bilateral aperture guide; original lash topology; mid-blink clearance morph','states':[0,.25,.5,.75,1]},
                 **{k:v for k,v in mouth_report.items() if k.startswith('protected_')})

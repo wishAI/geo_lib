@@ -193,3 +193,12 @@ normals consistently when changing the chin so the patch border does not show.
 
 During jaw opening, preserve the measured upper rim exactly. Open only the
 lower rim; do not flatten the upper muzzle curve into a shallow arc.
+
+
+For lower-muzzle/chin cleanup, preserve the accepted mouth contour and filter
+only local source depth. Fit normals from that filtered field too; transporting
+noisy source normals retains the dents' shading. Avoid decimation as a substitute
+for this cleanup. Muzzle projection must be compact and synchronized across
+components: explicitly zero inherited muzzle targets on eyes, glints, brows and
+lashes. Jaw inward is a separate persistent shape control with the lip pinned,
+not an expression preset or a garment-fit trigger.

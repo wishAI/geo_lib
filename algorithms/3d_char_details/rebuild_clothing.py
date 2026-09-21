@@ -16,7 +16,8 @@ GARMENTS=('Vest','Sleeve_L','Sleeve_R','Cuff_L','Cuff_R','Trousers','Boot_L','Bo
 helpers=runpy.run_path(str(ROOT/'rebuild_body.py'))
 
 
-def protected_hashes(scene):
+def protected_hashes(scene, excluded_shape_keys=()):
+    """Hash all protected data; scoped control-only repairs name their exception."""
     result={}
     for o in scene.objects:
         if o.type!='MESH' or o.name in GARMENTS:continue
@@ -24,7 +25,7 @@ def protected_hashes(scene):
         for values in [[v.co[:] for v in o.data.vertices], [list(p.vertices) for p in o.data.polygons],
             [list(n.vector) for n in o.data.corner_normals],
             [[(g.group,g.weight) for g in v.groups] for v in o.data.vertices],
-            [[k.name,[v.co[:] for v in k.data]] for k in o.data.shape_keys.key_blocks] if o.data.shape_keys else [],
+            [[k.name,[v.co[:] for v in k.data]] for k in o.data.shape_keys.key_blocks if k.name not in excluded_shape_keys] if o.data.shape_keys else [],
             [[x.color[:] for x in a.data] for a in o.data.color_attributes],
             [m.name for m in o.data.materials]]:
             h.update(json.dumps(values).encode())

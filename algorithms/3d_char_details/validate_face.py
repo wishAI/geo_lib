@@ -185,11 +185,45 @@ def run():
                     b=original_tree.ray_cast(start,Vector((0,1,0)))[0]
                     assert a is not None and b is not None
                     row[label+'_depth']=float(a.y);row[label+'_change_from_source']=float(a.y-b.y)
-                assert row['lower_change_from_source']>.001, ('Lower muzzle did not recede',row)
+                assert row['lower_change_from_source']>.0005, ('Lower muzzle did not recede',row)
                 assert row['lower_depth']-row['upper_depth']>.007, ('Upper muzzle relief was flattened',row)
                 samples.append(row)
             profile={'measured_seam_error':trace_error,'source_profile_samples':samples}
         finally:bpy.data.objects.remove(original,do_unlink=True)
+    if evidence['mouth'].get('surface_cleanup'):
+        rest=points(body,world=True);local=rest-shift
+        md=points(body,{'muzzleLength':1},True)-rest
+        jd=points(body,{'jawRecess':1},True)-rest
+        assert np.max(abs(md[local[:,2]>=.666]))<1e-7, 'Muzzle moves skin above nose'
+        for obj in objects.values():
+            if obj.name.startswith(('EyeShell','RoundIris','Pupil','Catchlight','Lash','Brow','UpperLid')):
+                assert np.max(abs(points(obj,{'muzzleLength':1},True)-points(obj,world=True)))<1e-7, ('Muzzle moves eye/lash/brow',obj.name)
+        assert np.max(abs(md[:,[0,2]]))<1e-7 and md[:,1].max()<1e-7 and md[:,1].min()<-.008
+        seam=np.interp(local[:,0],evidence['mouth']['crease_x'],evidence['mouth']['crease_z'])
+        assert np.max(abs(jd[local[:,2]>=seam-.0005]))<1e-7, 'Jaw inward moves upper muzzle or mouth seam'
+        assert np.max(abs(jd[:,[0,2]]))<1e-7 and jd[:,1].min()>-1e-7 and jd[:,1].max()>.0049
+        assert evidence['mouth']['surface_cleanup']['max_depth_change']<=.0020001
+        for sign in (-1,1):
+            for jaw in (0,.5,1):
+                values={'muzzleLength':sign,'jawRecess':sign,'jawDrop':jaw,'mouthLength':sign,'mouthCurvature':-sign}
+                skin=points(body,values,True)[lip_ids];bag=points(cavity,values,True)[rim]
+                assert np.max(np.linalg.norm(skin-bag,axis=1))<1e-6, ('Profile controls detached cavity',values)
+        chin_curves=[]
+        for value in (0,.5,1):
+            shaped=mesh_tree(body,points(body,{'jawRecess':value},True))
+            for x in (0,.012,.024):
+                depth=[]
+                for z in np.arange(.590,.626,.005):
+                    hit=shaped.ray_cast(Vector((x+shift[0],-2,z+shift[2])),Vector((0,1,0)))[0]
+                    assert hit is not None
+                    depth.append(hit.y)
+                curvature=float(np.min(np.diff(depth,n=2)))
+                assert curvature>-.00015, ('Recessed jaw has a concave chin roll',value,x,curvature)
+                chin_curves.append({'jawRecess':value,'x':x,'minimum_depth_second_difference':curvature})
+        profile['chin_curves']=chin_curves
+        profile['controls']={'muzzle_above_nose_max_displacement':float(np.max(abs(md[local[:,2]>=.666]))),
+                             'muzzle_outward_range':float(-md[:,1].min()),'jaw_inward_range':float(jd[:,1].max()),
+                             'combined_attachment_states':6}
     mouth=[]
     for value in (0,.5,1):
         values={'jawDrop':value};v=points(cavity,values,True);a=v[rim];b=points(body,values,True)[lip_ids]

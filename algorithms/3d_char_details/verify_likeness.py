@@ -90,14 +90,14 @@ def main():
         set_blink(1)
         helpers['render_view']('blink_oblique',(.7,-2,.70+lift),target=(0,0,.70+lift),scale=.36)
         set_blink(0)
-        for name,jaw,length,curve,side in [('neutral',0,0,0,0),('oblique',0,0,0,.6),('profile',0,0,0,2),('open',1,0,0,0),('wide',.5,1,1,0),('short',.5,-1,-1,0)]:
+        for name,jaw,length,curve,side in [('neutral',0,0,0,0),('oblique',0,0,0,.6),('profile',0,0,0,2),('open',1,0,0,0),('wide',.5,1,1,0),('short',.5,-1,-1,0),('profile_inward',0,0,0,2)]:
             for o in bpy.context.scene.objects:
                 if o.type=='MESH' and o.data.shape_keys:
                     for k in o.data.shape_keys.key_blocks:
-                        k.value={'jawDrop':jaw,'mouthLength':length,'mouthCurvature':curve}.get(k.name,0)
+                        k.value={'jawDrop':jaw,'mouthLength':length,'mouthCurvature':curve,'muzzleLength':.5 if name=='profile_inward' else 0,'jawRecess':.5 if name=='profile_inward' else 0}.get(k.name,0)
                     o.data.shape_keys.update_tag();o.data.update()
             bpy.context.view_layer.update()
-            helpers['render_view']('mouth_refined_'+name,(side,-.08 if name=='profile' else -2,.633+lift),target=(0,-.08 if name=='profile' else 0,.633+lift),scale=.14 if name=='profile' else .105)
+            helpers['render_view']('mouth_refined_'+name,(side,-.08 if name.startswith('profile') else -2,.633+lift),target=(0,-.08 if name.startswith('profile') else 0,.633+lift),scale=.14 if name.startswith('profile') else .105)
         set_blink(0)
     result={'blink_static_ocular_parts':sorted(independent),'original_lash_attachment':joins,
         'states_rendered':[0,.5,1],'head_rigid_lift':lift,'lower_lid_geometry':False,'replacement_eyelashes':False}

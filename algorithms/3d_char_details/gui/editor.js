@@ -17,7 +17,7 @@ const ROOT='algorithms/3d_char_details/';
 const asset=p=>`/api/artifact?path=${encodeURIComponent(ROOT+p)}`;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pretty=s=>s.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/_/g,' ').replace(/([a-z])([LR])$/,'$1 · $2');
-const SHAPES=new Set(['headWidth','bodyWidth','earLength','muzzleLength','faceWidth','eyeSize','cheekFullness','mouthLength','mouthCurvature']);
+const SHAPES=new Set(['headWidth','bodyWidth','earLength','muzzleLength','faceWidth','eyeSize','cheekFullness','mouthLength','mouthCurvature','jawRecess']);
 const OUTFIT_GROUPS=[
   ['Torso',{vestChestWidth:'Chest width',vestChestDepth:'Chest depth',vestWaistWidth:'Waist width',vestWaistDepth:'Waist depth',vestShoulderWidth:'Shoulder width',vestLength:'Vest length',skirtFlare:'Skirt flare'}],
   ['Arms',{sleeveUpperRoom:'Upper sleeve room',sleeveForearmRoom:'Forearm sleeve room',sleeveLength:'Sleeve length',cuffOpening:'Cuff opening'}],
@@ -79,7 +79,7 @@ export function mount(root) {
     for(const input of root.querySelectorAll(`input[data-morph="${name}"]`)){input.value=value;input.nextElementSibling.value=Number(value).toFixed(2);}
     // The mouth targets change only the face. Rebuilding clothing and its
     // shoulder weights here stalled every mouth-slider input for over 500 ms.
-    if(persist){if(SHAPES.has(name)&&name!=='mouthLength'&&name!=='mouthCurvature')applyFit();touch();}
+    if(persist){if(SHAPES.has(name)&&!['mouthLength','mouthCurvature','muzzleLength','jawRecess'].includes(name))applyFit();touch();}
   }
   function partColor(name,m){const colors=settings.parts[name]?.materialColors||{};const aliases=report?.clothing_segmentation?.garments?.[name]?.legacy_material_names||[];return colors[m.name]||aliases.map(n=>colors[n]).find(Boolean)||baseMaterials.get(m).color;}
   function applyParts(){for(const [name,p] of parts){const cfg=settings.parts[name]||{};p.object.visible=cfg.visible??p.defaultVisible;for(const m of p.materials)m.color.set(partColor(name,m));}}
@@ -226,7 +226,7 @@ export function mount(root) {
   canvas.addEventListener('pointerup',e=>{if(!model||!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>4)return;const r=canvas.getBoundingClientRect();const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hits=ray.intersectObject(model,true).filter(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});if(hits.length){let o=hits[0].object;while(o&&!parts.has(o.name))o=o.parent;if(o)selectPart(o.name);}},{signal:abort.signal});
   const ready=(async()=>{try{
     const response=await fetch(asset('outputs/landau_v10/asset_report.json'),{signal:abort.signal});if(!response.ok)throw new Error('Asset report unavailable.');report=await response.json();
-    adjustmentMeta={...report.body_reconstruction?.adjustment_controls,mouthLength:{label:'Mouth length',min:-1,max:1},mouthCurvature:{label:'Mouth curvature',min:-1,max:1}};
+    adjustmentMeta={...report.body_reconstruction?.adjustment_controls,muzzleLength:{label:'Muzzle projection',min:-1,max:1},jawRecess:{label:'Jaw inward',min:-1,max:1},mouthLength:{label:'Mouth length',min:-1,max:1},mouthCurvature:{label:'Mouth curvature',min:-1,max:1}};
     for(const [n,m]of Object.entries(adjustmentMeta)){if(m.kind==='body')SHAPES.add(n);if(m.kind==='outfit')OUTFIT.add(n);}
     const gltf=await new GLTFLoader().loadAsync(asset('outputs/landau_v10/landau_character.glb'));if(dead){releaseTree(gltf.scene);return;}
     model=gltf.scene;model.name='Landau_v10';scene.add(model);
@@ -242,7 +242,7 @@ export function mount(root) {
     });
     helper=new THREE.SkeletonHelper(model);helper.visible=false;helper.material.depthTest=false;helper.renderOrder=10;scene.add(helper);
     query('[data-face-sliders]').innerHTML=[...morphs.keys()].filter(n=>!n.startsWith('_')&&!SHAPES.has(n)&&!OUTFIT.has(n)).sort().map(n=>control(n)).join('');
-    query('[data-shape-sliders]').innerHTML=`<section class="char-collar-controls"><h4>Mouth</h4><p class="char-hint">Length: shorter to wider. Curvature: corners down to corners up. Jaw opening is in Face.</p>${['mouthLength','mouthCurvature'].filter(n=>morphs.has(n)).map(n=>control(n)).join('')}</section><section class="char-collar-controls"><h4>Lower neck / upper chest</h4>${Object.keys(BODY_TRANSITION_CONTROLS).map(n=>control(n)).join('')}</section>`+[...morphs.keys()].filter(n=>SHAPES.has(n)&&!(n in BODY_TRANSITION_CONTROLS)&&!['mouthLength','mouthCurvature'].includes(n)).sort().map(n=>control(n)).join('');
+    query('[data-shape-sliders]').innerHTML=`<section class="char-collar-controls"><h4>Muzzle and mouth</h4><p class="char-hint">Positive projection moves the muzzle outward; positive Jaw inward recesses the lower jaw. Length adjusts mouth width; curvature adjusts its corners. Jaw opening is in Face.</p>${['muzzleLength','jawRecess','mouthLength','mouthCurvature'].filter(n=>morphs.has(n)).map(n=>control(n)).join('')}</section><section class="char-collar-controls"><h4>Lower neck / upper chest</h4>${Object.keys(BODY_TRANSITION_CONTROLS).map(n=>control(n)).join('')}</section>`+[...morphs.keys()].filter(n=>SHAPES.has(n)&&!(n in BODY_TRANSITION_CONTROLS)&&!['muzzleLength','jawRecess','mouthLength','mouthCurvature'].includes(n)).sort().map(n=>control(n)).join('');
     query('[data-part-list]').innerHTML=[...parts].filter(([,p])=>p.kind!=='clothing').map(([n,p])=>`<div class="char-part"><input type="checkbox" aria-label="Show ${esc(pretty(n))}" data-visible="${esc(n)}" ${p.defaultVisible?'checked':''}><button data-part="${esc(n)}">${esc(n==='Body_Complete'?'Connected skin':pretty(n))}</button></div>`).join('');
     query('[data-frame-sliders]').innerHTML=widget({label:'Body scale',attrs:'data-body-frame="scale"',min:.75,max:1.25,value:1,reset:'data-reset-frame="scale"',op:'scale',scope:'world'})+widget({label:'Body left / right',attrs:'data-body-frame="offset"',min:-.05,max:.05,step:.001,reset:'data-reset-frame="offset"',op:'move',scope:'world',axis:'x'})+`<h4>Shoulder joints</h4>`+widget({label:'Shoulder joint height',attrs:'data-body-frame="shoulderHeight"',min:-.03,max:.03,step:.001,reset:'data-reset-frame="shoulderHeight"',op:'move',scope:'world',axis:'y'})+`<p class="char-hint">Raises or lowers both arm pivots. The neutral A-pose surface stays fixed; inspect the change in T-pose or motion.</p>`;
     editPose=editingPose(model,bones);placeBody=bodyPlacement(model,bones);fit=garmentFit(model,parts,report);

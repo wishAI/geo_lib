@@ -33,6 +33,9 @@ def validate():
         assert facial_repair['protected_body_vertices']>0, 'Missing protected body evidence'
         for field in ('protected_body_position_error','protected_body_morph_error','protected_body_weight_error','original_lash_neutral_error'):
             assert facial_repair[field]==0, 'Facial preservation failed: '+field
+        if facial_repair.get('control_only_objects_before'):
+            assert facial_repair['control_only_morphs']==['muzzleLength']
+            assert facial_repair['control_only_objects_before']==facial_repair['control_only_objects_after']
         assert facial_repair['rest_joints_changed'] is False, 'Facial repair changed rest joints'
         assert isinstance(facial_repair['method'],str) and facial_repair['method'].strip()
         for field in ('eyes','mouth','blink'):
@@ -91,12 +94,18 @@ def validate():
                 skinned+=1
             for index in [attrs['POSITION']]+[t['POSITION'] for t in primitive.get('targets',[])]:
                 assert all(math.isfinite(x) for row in values(index) for x in row), 'Non-finite deformation'
+            for t in primitive.get('targets',[]):
+                if 'NORMAL' in t:assert all(math.isfinite(x) for row in values(t['NORMAL']) for x in row), 'Non-finite morph normal'
             assert len(names)==len(primitive.get('targets',[]))
+            if facial_repair and facial_repair['mouth'].get('surface_cleanup') and name.startswith(('EyeShell','RoundIris','Pupil','Catchlight','Lash','Brow','UpperLid')) and 'muzzleLength' in names:
+                assert all(abs(x)<1e-7 for row in values(primitive['targets'][names.index('muzzleLength')]['POSITION']) for x in row), name+' moves with muzzle projection'
     bone_counts=[len(s['joints']) for s in gltf['skins']]
     assert max(bone_counts)==71
     assert {'eyeBlinkL','eyeBlinkR','mouthSmile','jawDrop','eyeLookUpL','eyeSize','cheekFullness'}<=controls
     if facial_repair and facial_repair['mouth'].get('shape_controls'):
         assert {'mouthLength','mouthCurvature'}<=controls, 'Mouth shape controls missing from export'
+    if facial_repair and facial_repair['mouth'].get('surface_cleanup'):
+        assert {'muzzleLength','jawRecess'}<=controls, 'Profile controls missing from export'
     assert triangles==report['validation']['triangles'], 'Unexpected extra or missing exported geometry'
     assert len(gltf['meshes'])==report['validation']['mesh_count'], 'Unexpected inspection meshes in export'
     assert len(gltf['scenes'])==1, 'Export must contain only the active character scene'
