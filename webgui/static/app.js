@@ -17,7 +17,7 @@
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatBytes = value => value == null ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) + 'B';
-  const statusWord = value => value ? 'online' : 'offline';
+  const statusWord = value => value == null ? 'checking' : value ? 'online' : 'offline';
   const ICON_NAMES = new Set(['logo', 'mac', 'tk2', 'cloud', 'refresh', 'sync', 'search', 'arrow', 'back', 'close', 'play', 'stop', 'terminal', 'result', 'file', 'check', 'warning', 'layers', 'cube', 'robot', 'joint', 'focus', 'sliders', 'milestones', 'headset', 'point-cloud', 'arm', 'route', 'map', 'vector', 'walk', 'nest']);
   const icon = (name, className = '') => {
     const resolved = ICON_NAMES.has(name) ? name : 'cube';
@@ -61,11 +61,18 @@
     const status = state.status;
     const cloud = status?.nextcloud;
     const chips = [
-      ['Mac', 'mac', true],
-      ['TK2', 'tk2', Boolean(status?.tk2?.online)],
-      ['Cloud', 'cloud', Boolean(cloud?.available)],
+      ['Local', 'mac', true],
+      ['TK2 SSH', 'tk2', status ? Boolean(status.tk2?.online) : null],
+      ['Cloud', 'cloud', status ? Boolean(cloud?.available) : null],
     ];
     statusRack.innerHTML = chips.map(([label, iconName, online]) => `<span class="status-chip ${statusWord(online)}" title="${escapeHtml(label)} ${statusWord(online)}">${icon(iconName)}<i></i><span>${label}</span></span>`).join('');
+    for (const [, iconName, online] of chips) {
+      const node = document.querySelector(`.hero-visual .node-${iconName}`);
+      if (node) {
+        node.classList.remove('online', 'offline', 'checking');
+        node.classList.add(statusWord(online));
+      }
+    }
   }
 
   function homeView() {
@@ -132,11 +139,11 @@
 
   function milestonePanel(sandbox) {
     if (!sandbox.milestones?.length) return '';
-    return `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('milestones')}</span><div><p class="eyebrow">CLEAN RESTART</p><h2>Milestone ladder</h2></div></div><span class="runtime-badge">${icon('warning')}history removed</span></header><div class="panel-body milestone-list">${sandbox.milestones.map((item, index) => `<div class="milestone"><span class="milestone-number">${index + 1}</span><div><b>${escapeHtml(item.name || item.id)}</b><small>${escapeHtml(item.passWhen || item.stage || '')}</small></div><span class="milestone-state" title="${escapeHtml(item.status || 'not started')}">${icon('milestones')}</span></div>`).join('')}</div></section>`;
+    return `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('milestones')}</span><div><p class="eyebrow">CUMULATIVE VALIDATION</p><h2>Milestone ladder</h2></div></div><span class="runtime-badge">${sandbox.milestones.filter(item => item.status === 'passed').length} / ${sandbox.milestones.length} passed</span></header><div class="panel-body milestone-list">${sandbox.milestones.map((item, index) => `<div class="milestone"><span class="milestone-number">${index + 1}</span><div><b>${escapeHtml(item.name || item.id)}</b><small>${escapeHtml(item.passWhen || item.stage || '')}</small></div><span class="milestone-state" title="${escapeHtml(item.status || 'not started')}">${escapeHtml((item.status || 'not started').replaceAll('_', ' '))}</span></div>`).join('')}</div></section>`;
   }
 
   function artifactPanel(sandbox) {
-    const artifacts = state.artifacts[sandbox.id] || [];
+    const artifacts = (state.artifacts[sandbox.id] || []).filter(item => !item.evolutionOnly);
     return `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('result')}</span><h3>Results</h3></div><button class="button button-light button-icon-only" type="button" data-refresh-artifacts aria-label="Refresh results" title="Refresh results">${icon('refresh')}</button></header><div class="panel-body"><div class="artifact-grid">${artifacts.length ? artifacts.map(artifact => `<button type="button" class="artifact${artifact.exists ? '' : ' unavailable'}" ${artifact.exists ? `data-artifact="${escapeHtml(artifact.path)}" data-kind="${escapeHtml(artifact.kind || '')}"` : 'disabled'}><span class="artifact-icon">${icon(artifactIcon(artifact.kind))}</span><span class="artifact-copy"><b>${escapeHtml(artifact.label || artifact.path.split('/').pop())}</b><small>${artifact.exists ? `${escapeHtml(artifact.source)} · ${formatBytes(artifact.size)}` : 'Waiting for a run'}</small></span>${artifact.exists ? icon('arrow', 'artifact-arrow') : ''}</button>`).join('') : `<div class="empty-state">${icon('result')}<span>No declared results</span></div>`}</div></div></section>`;
   }
 
@@ -146,6 +153,7 @@
 
   function consolePanel(sandbox) {
     const job = latestJobFor(sandbox);
+    if (sandbox.trainingDashboard && !job) return `<section class="panel"><header class="panel-head"><div class="panel-title">${icon('tk2')}<h3>Training status</h3></div></header><div class="panel-body" data-walk-runtime>Loading latest worker result…</div></section>`;
     return `<section class="panel run-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('terminal')}</span><h3>Live run</h3></div>${job && ['queued', 'running', 'cancelling'].includes(job.status) ? `<button class="button button-danger button-with-icon" type="button" data-cancel-job>${icon('stop')}<span>Stop</span></button>` : ''}</header>${job ? `<div class="job-strip"><span class="job-status ${escapeHtml(job.status)}"><i></i>${escapeHtml(job.status)}</span><span class="job-target">${icon(targetIcon(job.target))}${escapeHtml(job.target)}</span></div><pre class="job-console" id="job-console">${escapeHtml(job.log || 'Starting…')}</pre>` : `<div class="empty-console visual-empty">${icon('terminal')}<b>Ready</b><span>Run an example to stream output here.</span></div>`}</section>`;
   }
 
@@ -185,9 +193,45 @@
     try {
       const path = sandbox.inspector?.path;
       if (!path) throw new Error('Evolution artifact path is missing.');
-      const payload = state.evolution[sandbox.id] || await api(`/api/artifact?path=${encodeURIComponent(path)}`);
+      const payload = await api(`/api/artifact?path=${encodeURIComponent(path)}`);
       state.evolution[sandbox.id] = payload;
-      if (container.isConnected) container.innerHTML = evolutionPreviewMarkup(payload);
+      if (container.isConnected) {
+        container.innerHTML = evolutionPreviewMarkup(payload);
+        container.querySelectorAll('[data-open-workbench="evolution"]').forEach(button => button.addEventListener('click', () => void openEvolutionTree(sandbox)));
+        const runtime = document.querySelector('[data-walk-runtime]');
+        if (runtime && payload.progress?.sessionState === 'paused_by_user') {
+          runtime.innerHTML = '<b>Paused by request</b><p>No training worker is active.</p><small>Resume from the next unresolved milestone when ready.</small>';
+        } else if (runtime && payload.progress?.job) {
+          const job = payload.progress.job;
+          runtime.innerHTML = `<b>${escapeHtml(job.state || 'No active job')}</b><p>${escapeHtml((job.job_id || '').replaceAll('-', ' '))}</p><small>${job.wall_s ? `${Number(job.wall_s).toFixed(1)} s elapsed · ` : ''}${job.exit_code == null ? 'Worker in progress' : `Exit ${escapeHtml(job.exit_code)} · see validation before judging the checkpoint`}</small>`;
+        }
+        const observations = (payload.nodes || []).filter(node => node.status !== 'running' && Number(node.metrics?.duration_s) > 0);
+        observations.sort((a, b) => String(b.startedAt || '').replace(/\D/g, '').localeCompare(String(a.startedAt || '').replace(/\D/g, '')));
+        const current = observations[0] || payload.nodes?.find(node => node.id === payload.currentNodeId);
+        if (sandbox.trainingDashboard && current) {
+          // The tree attaches only existing, provenance-checked videos. A separately
+          // loading inventory must not temporarily hide that evidence.
+          const video = current.artifacts?.find(item => item.kind === 'video');
+          const certified = (payload.nodes || []).filter(node => node.kind === 'milestone' && node.status === 'completed').sort((a,b) => (b.step || 0) - (a.step || 0))[0];
+          const certifiedVideo = certified?.artifacts?.find(item => item.kind === 'video');
+          const latest = document.querySelector('[data-walk-latest]');
+          const metric = current.metrics || {};
+          const shownMetrics = metric.teleop_blocks_completed != null ? [
+            ['Recorded', `${Number(metric.duration_s).toFixed(2)} / 60 s`],
+            ['Command blocks', `${metric.teleop_blocks_completed} / 5 complete`],
+            ['Left-turn response', metric.duration_s <= 6 ? 'Not reached' : `${(metric.teleop_left_turn_rad * 180 / Math.PI).toFixed(1)}°${metric.duration_s < 18 ? ' · partial' : ''}`],
+            ['Right-turn response', metric.duration_s <= 32 ? 'Not reached' : `${(metric.teleop_right_turn_rad * 180 / Math.PI).toFixed(1)}°${metric.duration_s < 44 ? ' · partial' : ''}`],
+            ['Falls', metric.fall_count], ['Resets', metric.reset_count],
+          ] : metric.final_heading_rad != null ? [
+            ['Turn angle', `${(metric.final_heading_rad * 180 / Math.PI).toFixed(1)}° / 90°`],
+            ['Hold error', `${(metric.hold_max_heading_error_rad * 180 / Math.PI).toFixed(1)}°`],
+            ['Hold drift', `${(metric.hold_max_drift_m * 1000).toFixed(1)} mm`],
+            ['Falls', metric.fall_count], ['Resets', metric.reset_count], ['Recorded', `${metric.duration_s} s`],
+          ] : Object.entries(metric).slice(0,6);
+          if (latest) latest.innerHTML = `<header class="panel-head"><div><p class="eyebrow">LATEST OBSERVED RESULT</p><h2>${escapeHtml(current.label)}</h2></div><span class="job-status ${escapeHtml(current.status)}">${escapeHtml(current.status)}</span></header><div class="panel-body">${certifiedVideo ? `<p class="walk-certified"><b>Latest passed: ${escapeHtml(certified.label)}</b> <button class="button button-light" type="button" data-certified-video="${escapeHtml(certifiedVideo.path)}">View proof video</button></p>` : ''}<p>${escapeHtml(current.result)}</p>${video ? `<video class="walk-proof" controls playsinline preload="metadata" src="/api/artifact?path=${encodeURIComponent(video.path)}"></video>` : '<p class="evidence-missing">No video recorded for this attempt. Open the tree to inspect earlier evidence.</p>'}<div class="walk-metric-strip">${shownMetrics.map(([key,value]) => `<div><small>${escapeHtml(key.replaceAll('_',' '))}</small><b>${escapeHtml(typeof value === 'number' ? Number(value.toFixed(4)) : value)}</b></div>`).join('')}</div><p>${escapeHtml(payload.progress?.next_step || '')}</p></div>`;
+          latest?.querySelector('[data-certified-video]')?.addEventListener('click', event => void previewArtifact(event.currentTarget.dataset.certifiedVideo, 'video'));
+        }
+      }
     } catch (error) {
       if (container.isConnected) container.innerHTML = `<div class="warning-box">Evolution lineage unavailable: ${escapeHtml(error.message)}</div>`;
     }
@@ -196,24 +240,31 @@
   function sandboxView(sandbox) {
     const resultCount = declaredArtifactCount(sandbox);
     const examples = visibleExamples(sandbox);
+    const walking = sandbox.trainingDashboard;
+    const passedMilestones = (sandbox.milestones || []).filter(item => item.status === 'passed').length;
+    const activeMilestone = (sandbox.milestones || []).find(item => item.status === 'in progress' || item.status === 'in_progress');
     app.innerHTML = `
       <a href="#/" class="back-link">${icon('back')}<span>All sandboxes</span></a>
       <section class="sandbox-hero" style="--accent:${escapeHtml(sandbox.accent || '#1f5b4b')}">
         <div class="sandbox-identity"><span class="sandbox-identity-icon">${icon(sandbox.icon || 'cube')}</span><div><p class="eyebrow">${escapeHtml(sandbox.eyebrow || 'ALGORITHM SANDBOX')}</p><h1>${escapeHtml(sandbox.name)}</h1><p class="sandbox-summary">${escapeHtml(sandbox.summary)}</p></div></div>
-        <div class="sandbox-stats">
+        <div class="sandbox-stats ${walking ? 'walking-stats' : ''}">
           <div>${icon(targetIcon(sandbox.runtime))}<span>Runtime</span><b>${escapeHtml(sandbox.runtimeLabel || sandbox.runtime || 'Local Mac')}</b></div>
-          <div>${icon('play')}<span>Examples</span><b>${examples.length}</b></div>
-          <div>${icon('result')}<span>Results</span><b>${resultCount}</b></div>
+          <div>${icon('play')}<span>${walking ? 'Milestones passed' : 'Examples'}</span><b>${walking ? `${passedMilestones} / ${(sandbox.milestones || []).length}` : examples.length}</b></div>
+          <div>${icon('result')}<span>${walking ? 'Current target' : 'Results'}</span><b>${walking ? escapeHtml(activeMilestone?.name || 'All passed') : resultCount}</b></div>
         </div>
       </section>
       <div class="workspace-grid">
         <div class="workspace-main">
+          ${walking ? '<section class="panel walk-latest" data-walk-latest><div class="panel-body">Loading latest evidence…</div></section>' : ''}
           ${evolutionPreviewPanel(sandbox)}
-          ${visualToolsPanel(sandbox)}
+          ${walking ? '<details class="panel walk-details"><summary>Isaac launch tools · separate pipeline</summary>' : ''}
+          ${walking ? '' : visualToolsPanel(sandbox)}
           ${examples.length ? `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('play')}</span><div><p class="eyebrow">ALLOWLISTED</p><h2>Runnable examples</h2></div></div><span class="panel-count">${examples.length}</span></header><div class="panel-body example-list">${examples.map(example => exampleCard(sandbox, example)).join('')}</div></section>` : milestonePanel(sandbox)}
+          ${walking ? '</details><details class="panel walk-details"><summary>Milestones · certified evidence</summary>' : ''}
           ${examples.length && sandbox.milestones?.length ? milestonePanel(sandbox) : ''}
+          ${walking ? '</details><details class="panel walk-details"><summary>Robot model and joints</summary>' + visualToolsPanel(sandbox) + '</details>' : ''}
         </div>
-        <aside class="workspace-side">${consolePanel(sandbox)}${artifactPanel(sandbox)}</aside>
+        <aside class="workspace-side">${consolePanel(sandbox)}${walking ? '<details class="panel walk-details"><summary>Validation files</summary>' : ''}${artifactPanel(sandbox)}${walking ? '</details>' : ''}${walking && sandbox.approaches?.length ? `<details class="panel walk-details"><summary>Approaches and priorities</summary><div class="panel-body">${sandbox.approaches.map(item => `<article class="walk-approach"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.status)}</small><p>${escapeHtml(item.detail)}</p></article>`).join('')}</div></details>` : ''}</aside>
       </div>`;
     bindSandbox(sandbox);
     void loadEvolutionPreview(sandbox);
@@ -259,8 +310,12 @@
     try {
       const path = sandbox.inspector?.path;
       if (!path) throw new Error('This sandbox does not declare an evolution artifact.');
-      const payload = await api(`/api/artifact?path=${encodeURIComponent(path)}`);
+      const [payload, inventory] = await Promise.all([
+        api(`/api/artifact?path=${encodeURIComponent(path)}`),
+        api(`/api/artifacts/${encodeURIComponent(sandbox.id)}`),
+      ]);
       state.evolution[sandbox.id] = payload;
+      state.artifacts[sandbox.id] = inventory.artifacts;
       if (!window.GeoEvolutionTree) throw new Error('Evolution Tree renderer is unavailable.');
       window.GeoEvolutionTree.mount(evolutionDialogContent, {
         data: payload,
@@ -582,14 +637,18 @@
 
   async function refreshAll(announce = false) {
     try {
-      const [catalog, status, jobs] = await Promise.all([api('/api/catalog'), api('/api/status'), api('/api/jobs')]);
+      // Cloud or SSH availability must not block local evidence review.
+      void api('/api/status').then(status => {
+        state.status = status;
+        renderStatus();
+      }).catch(error => { if (announce) toast(error.message, true); });
+      const [catalog, jobs] = await Promise.all([api('/api/catalog'), api('/api/jobs')]);
       state.catalog = catalog.sandboxes;
-      state.status = status;
       state.jobs = jobs.jobs;
       renderStatus();
       renderRoute();
       ensureJobPolling();
-      if (announce) toast('Mac, TK2, storage, jobs, and results refreshed');
+      if (announce) toast('Jobs and results refreshed; connection status updates separately');
     } catch (error) {
       app.innerHTML = `<section class="loading-view"><p class="eyebrow">CONNECTION ERROR</p><h1>Geo Lab is not ready.</h1><p>${escapeHtml(error.message)}</p></section>`;
       toast(error.message, true);

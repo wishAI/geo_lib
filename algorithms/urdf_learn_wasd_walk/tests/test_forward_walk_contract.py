@@ -9,7 +9,7 @@ from algorithms.urdf_learn_wasd_walk import forward_walk, forward_walk_contract 
 def _forward_prerequisites_are_current() -> bool:
     ledger = json.loads((model_spec.ALGORITHM_ROOT / "milestones.json").read_text())
     status = {item["id"]: item["status"] for item in ledger["milestones"]}
-    return all(status.get(item) == "passed" for item in ("stand_zero_signal_30s_no_reset", contract.PARENT_MILESTONE_ID))
+    return ledger.get("lineage") == contract.LINEAGE and all(status.get(item) == "passed" for item in ("stand_zero_signal_30s_no_reset", contract.PARENT_MILESTONE_ID))
 
 
 def passing_forward() -> dict:
@@ -124,6 +124,14 @@ class ForwardWalkContractTests(unittest.TestCase):
         ledger = json.loads((model_spec.ALGORITHM_ROOT / "milestones.json").read_text())
         recorded = next(item for item in ledger["milestones"] if item["id"] == contract.PARENT_MILESTONE_ID)
         self.assertEqual(parent["sha256"], recorded["checkpoint"]["sha256"])
+
+    def test_walking_distance_has_no_standing_time_deadline(self):
+        metrics = passing_forward()
+        metrics.update(duration_s=45., control_steps=2250, policy_inference_steps=2250)
+        self.assertEqual(contract.evaluate_forward_gate(metrics), [])
+        for duration in (0., -1., float('nan'), float('inf')):
+            metrics['duration_s'] = duration
+            self.assertIn('walking duration must be finite and positive', contract.evaluate_forward_gate(metrics))
 
     def test_forward_gate_requires_distance_gait_and_no_events(self) -> None:
         self.assertEqual(contract.evaluate_forward_gate(passing_forward()), [])

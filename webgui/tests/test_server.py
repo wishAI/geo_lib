@@ -76,10 +76,14 @@ class ManifestTests(unittest.TestCase):
         root = server.REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk"
         payload = json.loads((root / "milestones.json").read_text(encoding="utf-8"))
         self.assertEqual(len(payload["milestones"]), 12)
-        self.assertEqual(payload["milestones"][0]["status"], "in_progress")
-        self.assertEqual({item["status"] for item in payload["milestones"][1:]}, {"not_started"})
+        statuses = [item["status"] for item in payload["milestones"]]
+        first_unresolved = next((i for i, status in enumerate(statuses) if status != "passed"), len(statuses))
+        if first_unresolved < len(statuses):
+            self.assertEqual(statuses[first_unresolved], "in_progress")
+            self.assertTrue(all(status == "not_started" for status in statuses[first_unresolved + 1:]))
         self.assertEqual(payload["assetContract"]["meshTreeSha256"], "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73")
-        self.assertEqual(payload["invalidatedLineage"]["meshTreeSha256"], "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435")
+        invalidated = payload.get("invalidatedLineages", []) + [payload.get("invalidatedLineage", {})]
+        self.assertIn("b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435", {item.get("meshTreeSha256") for item in invalidated})
         self.assertFalse(payload["historyCarriedForward"])
         manifest = server.manifest_map()["urdf_learn_wasd_walk"]
         self.assertEqual(
@@ -113,8 +117,14 @@ class StorageAndRobotTests(unittest.TestCase):
     def test_large_file_manifest_is_deduplicated_and_complete(self) -> None:
         manifest = storage.load_manifest()
         self.assertEqual(manifest["thresholdBytes"], 5 * 1024 * 1024)
-        self.assertEqual(len(manifest["files"]), 12)
-        self.assertEqual(len({item["cloudPath"] for item in manifest["files"]}), 3)
+        textures = [item for item in manifest["files"] if item["cloudPath"].startswith("assets/landau_v10/textures/")]
+        self.assertEqual(len(textures), 12)
+        self.assertEqual(len({item["cloudPath"] for item in textures}), 3)
+        self.assertEqual(len({item["repoPath"] for item in manifest["files"]}), len(manifest["files"]))
+        cloud_identities = {}
+        for item in manifest["files"]:
+            identity = (item["size"], item["sha256"])
+            self.assertEqual(cloud_identities.setdefault(item["cloudPath"], identity), identity)
         self.assertTrue(all(len(item["sha256"]) == 64 for item in manifest["files"]))
 
     def test_repo_has_no_tracked_file_over_threshold(self) -> None:
@@ -172,3 +182,25 @@ class StorageAndRobotTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class EvolutionArtifactTests(unittest.TestCase):
+    def test_run_video_inventory_rejects_traversal_and_checkpoints(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            prefix = 'algorithms/walk/outputs/'
+            folder = root / prefix
+            folder.mkdir(parents=True)
+            video = folder / 'attempt.mp4'
+            video.write_bytes(b'video')
+            paths = [prefix + 'attempt.mp4', prefix + 'model.pt', prefix + '../secret.json', '/tmp/secret.json', 'algorithms/other/outputs/proof.mp4']
+            tree = folder / 'evolution.json'
+            tree.write_text(json.dumps({'nodes': [{'label': 'Attempt', 'artifacts': [{'path': p} for p in paths]}]}))
+            manifest = {'id': 'walk', 'inspector': {'type': 'evolutionTree', 'path': prefix + 'evolution.json'}}
+            with patch.object(server, 'REPO_ROOT', root), patch.object(server, 'discover_manifests', return_value=[manifest]), patch.object(storage, 'cloud_root', return_value=root / 'cloud'):
+                self.assertEqual([a['path'] for a in server.evolution_artifacts(manifest)], [prefix + 'attempt.mp4'])
+                self.assertIn(prefix + 'attempt.mp4', server.declared_artifact_paths())
+                self.assertTrue(server.artifact_inventory('walk')[0]['exists'])
+                video.unlink()
+                video.symlink_to(root / 'secret.mp4')
+                self.assertEqual(server.evolution_artifacts(manifest), [])

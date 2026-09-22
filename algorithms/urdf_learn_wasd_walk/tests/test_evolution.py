@@ -258,6 +258,41 @@ class EvolutionTests(unittest.TestCase):
             self.assertFalse(node["experimentParameters"]["gate_eligible"])
             self.assertEqual(payload["currentNodeId"], node["id"])
 
+class EvidenceIdentityTests(unittest.TestCase):
+    def test_stale_or_corrupt_video_is_not_attached(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            video = folder / 'proof.mp4'
+            video.write_bytes(b'video')
+            proof = {'lineage': 'old', 'run_identity': 'run', 'video_inspection': {'sha256': evolution._digest(video)}}
+            (folder / 'proof_validation.json').write_text(json.dumps(proof))
+            self.assertEqual(evolution._proof_artifacts(folder, 'node', {'lineage': 'new', 'run_identity': 'run'}), [])
+            proof['lineage'] = 'new'
+            (folder / 'proof_validation.json').write_text(json.dumps(proof))
+            self.assertEqual(len(evolution._proof_artifacts(folder, 'node', {'lineage': 'new', 'run_identity': 'run'})), 1)
+            video.write_bytes(b'changed')
+            self.assertEqual(evolution._proof_artifacts(folder, 'node', {'lineage': 'new', 'run_identity': 'run'}), [])
+
+    def test_iso_dates_sort_after_older_compact_run_dates(self):
+        self.assertGreater(evolution._chronology({'startedAt': '2026-09-22T01:00:00Z'}), evolution._chronology({'startedAt': '20260905T120000Z'}))
+
+    def test_same_rollout_video_requires_unchanged_evidence(self):
+        for key, filename in (("evaluation_sha256", "evaluation.json"),
+                              ("result_sha256", "result.json"),
+                              ("dynamics_sha256", "dynamics.json"),
+                              ("model_xml_sha256", "model.xml")):
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory() as temporary:
+                folder = Path(temporary)
+                for name in ('proof.mp4', 'trajectory.npz', filename):
+                    (folder / name).write_bytes(b'original')
+                metadata = {field: evolution._digest(folder / name) for field, name in (
+                    ('video_sha256', 'proof.mp4'), ('trajectory_sha256', 'trajectory.npz'),
+                    (key, filename))}
+                (folder / 'proof_metadata.json').write_text(json.dumps(metadata))
+                self.assertEqual(len(evolution._proof_artifacts(folder, 'node', {})), 2)
+                (folder / filename).write_bytes(b'changed')
+                self.assertEqual(evolution._proof_artifacts(folder, 'node', {}), [])
+
 
 if __name__ == "__main__":
     unittest.main()

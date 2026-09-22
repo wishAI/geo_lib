@@ -343,8 +343,8 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(28px, 4vw, 58px)
 .mesh-stage { position: relative; min-height: 430px; overflow: hidden; touch-action: none; background: radial-gradient(circle at 50% 43%,#f9fbf8,#cfdcd5); }
 .mesh-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-.evolution-layout { min-height: 100%; display: grid; grid-template-columns: minmax(0,1fr) minmax(310px,390px); background: #e8eee9; }
-.evolution-main { min-width: 0; display: grid; grid-template-rows: auto minmax(390px,1fr) auto; }
+.evolution-layout { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) minmax(310px,390px); background: #e8eee9; }
+.evolution-main { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto; }
 .evolution-toolbar { min-height: 78px; padding: 13px 17px; display: flex; align-items: center; justify-content: space-between; gap: 15px; color: var(--ink); background: var(--paper); border-bottom: 1px solid var(--line); }
 .evolution-toolbar > div:first-child { min-width: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: baseline; }
 .evolution-toolbar .eyebrow { grid-column: 1 / -1; }
@@ -473,7 +473,8 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(28px, 4vw, 58px)
   .mesh-lab-layout { grid-template-columns: 1fr; }
   .mesh-settings { border-right: 0; border-bottom: 1px solid var(--line); }
   .mesh-comparison { min-height: 620px; }
-  .evolution-layout { grid-template-columns: 1fr; }
+  .evolution-layout { height: auto; min-height: 100%; grid-template-columns: 1fr; }
+  .evolution-main { height: 620px; }
   .evolution-side { max-height: 520px; border-left: 0; border-top: 1px solid var(--line); }
 }
 @media (min-width: 721px) and (max-width: 1060px) {
@@ -545,3 +546,33 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: clamp(28px, 4vw, 58px)
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation-duration: .01ms !important; }
 }
+
+/* Walking review prioritizes observable behavior over launch/debug metadata. */
+.walk-proof, .evolution-proof { width: 100%; max-height: 440px; background: #111; border-radius: 12px; display: block; margin: 12px 0; }
+.walk-proof { aspect-ratio: 4 / 3; object-fit: contain; }
+.walk-details > summary, .evolution-properties summary, .evolution-compare > summary { cursor: pointer; padding: 16px; font-weight: 650; }
+.walk-details > .panel { border: 0; box-shadow: none; margin: 0; }
+.walk-metric-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.walk-metric-strip div { display: grid; gap: 4px; }
+.walk-metric-strip small { color: var(--muted); overflow-wrap: anywhere; }
+.evidence-missing { padding: 14px; background: #f5f0e6; border-radius: 10px; color: #705836; }
+.evolution-result { line-height: 1.5; }
+.evolution-properties details dl, .evolution-properties details .evolution-checkpoint { padding: 0 16px; }
+.evolution-side { min-width: 340px; }
+@media (max-width: 760px) { .walk-metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .evolution-side { min-width: 0; } }
+
+.walk-approach { padding: 10px 0; border-bottom: 1px solid #ddd8cd; }
+.walk-approach small { display: block; color: #6f756c; margin-top: 4px; }
+.walk-approach p { font-size: 13px; line-height: 1.5; }
+
+.walk-certified { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line, #ddd8cd); }
+.sandbox-identity, .sandbox-identity > div, .sandbox-stats, .sandbox-stats > div { min-width: 0; }
+.sandbox-stats b { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .sandbox-hero { grid-template-columns: minmax(0, 1fr); }
+  .sandbox-stats { grid-template-columns: minmax(0, 1.2fr) minmax(0, .7fr) minmax(0, .7fr); }
+}
+
+.walking-stats { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, 1.1fr); }
+.walking-stats .icon { grid-row: 1; }
+.walking-stats b { grid-column: 1 / -1; overflow-wrap: normal; }

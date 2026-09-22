@@ -1,12 +1,12 @@
 {
   "id": "urdf_learn_wasd_walk",
   "icon": "walk",
-  "name": "Learn WASD Walk",
-  "eyebrow": "CLEAN TRAINING RESTART",
-  "summary": "Landau locomotion is being re-certified from the first hard gate against the exact 8,864-triangle rabbit-ear mesh package shown by USD → Parallel URDF.",
+  "name": "Landau walking",
+  "eyebrow": "WALKING LAB \u00b7 EVIDENCE AND EXPERIMENTS",
+  "summary": "Current walking progress, experiment lineage, and the videos behind each result.",
   "accent": "#cb6b42",
   "runtime": "tk2-clean",
-  "runtimeLabel": "TK2 · rabbit-ear asset re-certification",
+  "runtimeLabel": "TK2 \u00b7 MuJoCo \u00b7 balanced_hands_v1",
   "capabilities": [
     "passive stand",
     "policy stand",
@@ -23,39 +23,114 @@
     {
       "id": "comparison_train",
       "sourceSync": "preserve-runtime",
-      "name": "M2 control diagnostic · model-specific PPO smoke",
-      "description": "Official G1 first; Landau is a separate diagnostic branch, never a milestone promotion. 64 envs × 2 iterations. Models and checkpoints stay on TK2.",
+      "name": "M2 control diagnostic \u00b7 model-specific PPO smoke",
+      "description": "Official G1 first; Landau is a separate diagnostic branch, never a milestone promotion. 64 envs \u00d7 2 iterations. Models and checkpoints stay on TK2.",
       "target": "tk2",
-      "targets": ["tk2"],
+      "targets": [
+        "tk2"
+      ],
       "resource": "isaac",
-      "command": ["./geo", "walk", "compare-model", "--mode", "train", "--model", "{model}", "--num-envs", "64", "--iterations", "2", "--headless"],
-      "parameters": [{
-        "id": "model", "label": "Robot model / URDF asset", "type": "select",
-        "choices": ["unitree_g1", "landau_current"], "default": "unitree_g1",
-        "choiceLabels": {"unitree_g1": "Unitree G1 · official Isaac Lab minimal USD", "landau_current": "Landau · current rabbit-ear URDF"},
-        "choiceDetails": {"unitree_g1": "Isaac-Velocity-Flat-G1-v0 · official USD dependency hash pending host asset audit; not the local MJCF-derived G1.", "landau_current": "URDF SHA 859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca · mesh SHA a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73 · +Y forward"}
-      }],
+      "command": [
+        "./geo",
+        "walk",
+        "compare-model",
+        "--mode",
+        "train",
+        "--model",
+        "{model}",
+        "--num-envs",
+        "64",
+        "--iterations",
+        "2",
+        "--headless"
+      ],
+      "parameters": [
+        {
+          "id": "model",
+          "label": "Robot model / URDF asset",
+          "type": "select",
+          "choices": [
+            "unitree_g1",
+            "landau_current"
+          ],
+          "default": "unitree_g1",
+          "choiceLabels": {
+            "unitree_g1": "Unitree G1 \u00b7 official Isaac Lab minimal USD",
+            "landau_current": "Landau \u00b7 current rabbit-ear URDF"
+          },
+          "choiceDetails": {
+            "unitree_g1": "Isaac-Velocity-Flat-G1-v0 \u00b7 official USD dependency hash pending host asset audit; not the local MJCF-derived G1.",
+            "landau_current": "URDF SHA 859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca \u00b7 mesh SHA a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73 \u00b7 +Y forward"
+          }
+        }
+      ],
       "artifacts": [
-        {"label": "G1 diagnostic training / asset identity", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/unitree_g1/official_smoke_20260906/training.json", "kind": "json"},
-        {"label": "Landau diagnostic training / asset identity", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/landau_current/official_smoke_20260906/training.json", "kind": "json"}
+        {
+          "label": "G1 diagnostic training / asset identity",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/unitree_g1/official_smoke_20260906/training.json",
+          "kind": "json"
+        },
+        {
+          "label": "Landau diagnostic training / asset identity",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/landau_current/official_smoke_20260906/training.json",
+          "kind": "json"
+        }
       ]
     },
     {
       "id": "comparison_evaluate",
       "sourceSync": "preserve-runtime",
-      "name": "M2 control diagnostic · checkpoint evaluation",
+      "name": "M2 control diagnostic \u00b7 checkpoint evaluation",
       "description": "Same evaluation loop; exact per-model checkpoint and asset hashes, direct bilateral contacts, 500 control steps. Diagnostic results cannot pass Landau gates.",
-      "target": "tk2", "targets": ["tk2"], "resource": "isaac",
-      "command": ["./geo", "walk", "compare-model", "--mode", "evaluate", "--model", "{model}", "--steps", "500", "--headless"],
-      "parameters": [{"id": "model", "label": "Robot model / URDF asset", "type": "select", "choices": ["unitree_g1", "landau_current"], "default": "unitree_g1", "choiceLabels": {"unitree_g1": "Unitree G1 · official Isaac Lab minimal USD", "landau_current": "Landau · current rabbit-ear URDF"}}],
+      "target": "tk2",
+      "targets": [
+        "tk2"
+      ],
+      "resource": "isaac",
+      "command": [
+        "./geo",
+        "walk",
+        "compare-model",
+        "--mode",
+        "evaluate",
+        "--model",
+        "{model}",
+        "--steps",
+        "500",
+        "--headless"
+      ],
+      "parameters": [
+        {
+          "id": "model",
+          "label": "Robot model / URDF asset",
+          "type": "select",
+          "choices": [
+            "unitree_g1",
+            "landau_current"
+          ],
+          "default": "unitree_g1",
+          "choiceLabels": {
+            "unitree_g1": "Unitree G1 \u00b7 official Isaac Lab minimal USD",
+            "landau_current": "Landau \u00b7 current rabbit-ear URDF"
+          }
+        }
+      ],
       "artifacts": [
-        {"label": "G1 diagnostic evaluation / asset hash", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/unitree_g1/official_smoke_20260906/evaluation.json", "kind": "json"},
-        {"label": "Landau diagnostic evaluation / asset hash", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/landau_current/official_smoke_20260906/evaluation.json", "kind": "json"}
+        {
+          "label": "G1 diagnostic evaluation / asset hash",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/unitree_g1/official_smoke_20260906/evaluation.json",
+          "kind": "json"
+        },
+        {
+          "label": "Landau diagnostic evaluation / asset hash",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/landau_current/official_smoke_20260906/evaluation.json",
+          "kind": "json"
+        }
       ]
     },
     {
       "id": "validate_passive_stand",
-      "name": "Validate passive stand · 30 s",
+      "name": "Validate passive stand \u00b7 30 s",
       "description": "Run camera-free dynamics first, then a separate viewport proof replay; final evidence appears only when both exact components pass.",
       "target": "tk2",
       "targets": [
@@ -90,15 +165,16 @@
           "kind": "video"
         },
         {
-          "label": "Start · middle · end contact sheet",
+          "label": "Start \u00b7 middle \u00b7 end contact sheet",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
           "kind": "image"
         }
-      ]
+      ],
+      "sourceSync": "preserve-runtime"
     },
     {
       "id": "train_policy_stand",
-      "name": "Train policy stand · PPO",
+      "name": "Train policy stand \u00b7 PPO",
       "description": "Train the compact manager-based proprioceptive policy. Checkpoints stay on TK2 and Nextcloud; training never marks the gate passed.",
       "target": "tk2",
       "targets": [
@@ -121,11 +197,12 @@
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/training.json",
           "kind": "json"
         }
-      ]
+      ],
+      "sourceSync": "preserve-runtime"
     },
     {
       "id": "validate_policy_stand",
-      "name": "Validate policy stand · 30 s",
+      "name": "Validate policy stand \u00b7 30 s",
       "description": "Evaluate the same checkpoint camera-free, then record a separate deterministic viewport proof and finalize cumulatively.",
       "target": "tk2",
       "targets": [
@@ -160,15 +237,16 @@
           "kind": "video"
         },
         {
-          "label": "Policy start · middle · end contact sheet",
+          "label": "Policy start \u00b7 middle \u00b7 end contact sheet",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_30s_no_reset/contact_sheet.png",
           "kind": "image"
         }
-      ]
+      ],
+      "sourceSync": "preserve-runtime"
     },
     {
       "id": "train_forward_walk",
-      "name": "Train +Y forward walk · PPO",
+      "name": "Train +Y forward walk \u00b7 PPO",
       "description": "Expand the proven stand actor with semantic command inputs and fine-tune on flat standing and +Y forward commands.",
       "target": "tk2",
       "targets": [
@@ -191,11 +269,12 @@
           "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/training.json",
           "kind": "json"
         }
-      ]
+      ],
+      "sourceSync": "preserve-runtime"
     },
     {
       "id": "validate_forward_walk",
-      "name": "Validate cumulative forward gate · 5 m",
+      "name": "Validate cumulative forward gate \u00b7 5 m",
       "description": "Re-pass policy standing with the candidate, run camera-free +Y forward dynamics, render the full gate, and finalize only when all components pass.",
       "target": "tk2",
       "targets": [
@@ -235,62 +314,63 @@
           "kind": "video"
         },
         {
-          "label": "5 m start · middle · end",
+          "label": "5 m start \u00b7 middle \u00b7 end",
           "path": "algorithms/urdf_learn_wasd_walk/outputs/gate_5m_no_reset/contact_sheet.png",
           "kind": "image"
         }
-      ]
+      ],
+      "sourceSync": "preserve-runtime"
     }
   ],
   "milestones": [
     {
       "id": "stand_zero_signal_30s_no_reset",
-      "name": "Passive stand · 30 s",
+      "name": "Passive stand \u00b7 30 s",
       "stage": "stand",
       "passWhen": "Zero actions, zero command, zero resets or done events.",
-      "status": "in progress"
+      "status": "passed"
     },
     {
       "id": "stand_30s_no_reset",
-      "name": "Policy stand · 30 s",
+      "name": "Policy stand \u00b7 30 s",
       "stage": "stand",
       "passWhen": "Policy control with zero falls, resets, or done events.",
-      "status": "not started"
+      "status": "passed"
     },
     {
       "id": "gate_5m_no_reset",
-      "name": "Forward gate · 5 m",
+      "name": "Forward gate \u00b7 5 m",
       "stage": "fwd_only",
       "passWhen": "Walking pose preserved with no reset.",
-      "status": "not started"
+      "status": "passed"
     },
     {
       "id": "gate_10m_no_reset",
-      "name": "Forward gate · 10 m",
+      "name": "Forward gate \u00b7 10 m",
       "stage": "fwd_only",
       "passWhen": "Same checkpoint re-passes all earlier gates.",
-      "status": "not started"
+      "status": "passed"
     },
     {
       "id": "yaw_turn_90deg_hold",
-      "name": "Turn 90° and hold",
+      "name": "Turn 90\u00b0 and hold",
       "stage": "fwd_yaw",
       "passWhen": "Turn, settle, and hold without reset.",
-      "status": "not started"
+      "status": "passed"
     },
     {
       "id": "teleop_60s_forward_turn",
-      "name": "Teleop · 60 s",
+      "name": "Teleop \u00b7 60 s",
       "stage": "fwd_yaw",
       "passWhen": "Forward and turn commands without reset or frozen joints.",
-      "status": "not started"
+      "status": "passed"
     },
     {
       "id": "gate_10m_four_directions_no_reset",
-      "name": "Four directions · 10 m",
+      "name": "Four directions \u00b7 10 m",
       "stage": "fwd_yaw",
       "passWhen": "One checkpoint clears forward, left, right, and backward.",
-      "status": "not started"
+      "status": "in progress"
     },
     {
       "id": "triangle_path_follow_no_reset",
@@ -308,7 +388,7 @@
     },
     {
       "id": "terrain_5m_no_reset",
-      "name": "Rough terrain · 5 m",
+      "name": "Rough terrain \u00b7 5 m",
       "stage": "game",
       "passWhen": "Cross the small map without reset.",
       "status": "not started"
@@ -322,7 +402,7 @@
     },
     {
       "id": "game_10m_no_reset",
-      "name": "Mixed game gate · 10 m",
+      "name": "Mixed game gate \u00b7 10 m",
       "stage": "game",
       "passWhen": "Terrain and obstacles with a preserved walking pose.",
       "status": "not started"
@@ -332,9 +412,73 @@
     "type": "urdf",
     "urdfCandidates": [
       {
-        "label": "Landau v10 · clean training input",
+        "label": "Landau v10 \u00b7 clean training input",
         "path": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/landau_v10_parallel_mesh.urdf"
       }
     ]
-  }
+  },
+  "milestonePath": "algorithms/urdf_learn_wasd_walk/milestones.json",
+  "trainingDashboard": true,
+  "approaches": [
+    {
+      "name": "Bounded mass redistribution",
+      "status": "Frozen; both standing gates passed",
+      "detail": "balanced_hands_v1 moves 0.190 kg from fingers to pelvis/spine, preserves total 1.829753 kg and collision geometry."
+    },
+    {
+      "name": "Learned periodic gait with balance feedback",
+      "status": "5 m milestone passed: 6.494 m in 45 s",
+      "detail": "Exact checkpoint passed both standing rechecks, 47 left/48 right swings, no fall/reset. Joint speed 3.30 rad/s, peak force 2.86 body weights. Full proof video attached."
+    },
+    {
+      "name": "Robust gait search",
+      "status": "Six cumulative milestones certified; paused by user",
+      "detail": "Bounded parameter search over a learned gait and frozen standing PPO. Each candidate is checked in four starting states; milestone promotion requires an independent exact-checkpoint run and cumulative proof videos."
+    },
+    {
+      "name": "Command response and restart training",
+      "status": "Certified: 60 s forward/turn and stop/restart",
+      "detail": "Learned left/right corrections, restart ramp/phase and per-stop memory passed independent evaluation. Separate right-turn hold feedback preserves the certified left-turn behavior. The exact checkpoint re-passed M1\u2013M5 with reviewed videos."
+    },
+    {
+      "name": "Standing PPO transferred to walking",
+      "status": "Tested; no qualifying walking",
+      "detail": "Corrected action units and frozen normalization, then tested exploration, hip-roll range and tilt reward. Candidates stayed near standing or regressed."
+    },
+    {
+      "name": "Fresh walking PPO with frozen standing branch",
+      "status": "Tested; standing preserved, walking failed",
+      "detail": "Independent fresh moving actor with physical observation scaling retained the trained zero-command standing controller."
+    },
+    {
+      "name": "Actuator-only support diagnostics",
+      "status": "Completed; evidence retained",
+      "detail": "Hip-roll preloads and leg-shortening pulses exposed support transitions and tipping. Scripted diagnostics are not trained-policy passes."
+    },
+    {
+      "name": "Residual PPO around a verified gait",
+      "status": "Candidate after a robust gait is verified",
+      "detail": "Use the learned feedback gait as a starting controller for command tracking and balance corrections."
+    },
+    {
+      "name": "Retargeted motion imitation",
+      "status": "Alternative",
+      "detail": "Requires a collision-clear reference compatible with the character proportions and actuator limits."
+    },
+    {
+      "name": "Whole-body control or trajectory optimization",
+      "status": "Alternative",
+      "detail": "Generate feasible support transitions and foot-placement targets before policy learning."
+    },
+    {
+      "name": "Physical randomization",
+      "status": "Later robustness work",
+      "detail": "Small mass, friction and gain variations after nominal acceptance; any changed nominal model requires fresh standing certification."
+    },
+    {
+      "name": "Verified G1 training baseline",
+      "status": "Reference preserved",
+      "detail": "G1 fresh training and evaluation have their own checkpoints, timing and videos; they do not count as Landau milestone passes."
+    }
+  ]
 }

@@ -58,7 +58,9 @@
 
   function metricLabel(node, primaryMetric) {
     const value = node.metrics?.[primaryMetric];
-    return value == null ? 'awaiting metric' : `${formatMetric(value)} m`;
+    if (value != null && primaryMetric === 'duration_s') return `${formatMetric(value)} s recorded`;
+    if (value != null && primaryMetric === 'final_heading_rad') return `${formatMetric(value * 180 / Math.PI)}° turned`;
+    return value == null ? (node.metrics?.duration_s != null ? `${formatMetric(node.metrics.duration_s)} s recorded` : 'no measurement') : `${formatMetric(value)} m`;
   }
 
   function propertyPane(node, nodes, artifacts, primaryMetric, onPreview) {
@@ -69,6 +71,9 @@
       const canPreview = Boolean(inventory?.exists);
       return `<button class="evolution-artifact" type="button" ${canPreview ? `data-evolution-artifact="${escapeHtml(artifact.path)}" data-kind="${escapeHtml(artifact.kind)}"` : 'disabled'}><span>${escapeHtml(artifact.kind)}</span><b>${escapeHtml(artifact.path.split('/').pop())}</b><small>${canPreview ? `${escapeHtml(inventory.source)} · ${formatBytes(inventory.size)}` : 'metadata only / not synced for preview'}</small></button>`;
     }).join('');
+    const video = (node.artifacts || []).find(item => item.kind === 'video' && available.get(item.path)?.exists);
+    const poster = (node.artifacts || []).find(item => item.kind === 'image' && available.get(item.path)?.exists);
+    const evidence = video ? `<video class="evolution-proof" controls playsinline preload="metadata" ${poster ? `poster="/api/artifact?path=${encodeURIComponent(poster.path)}"` : ''} src="/api/artifact?path=${encodeURIComponent(video.path)}"></video><small>${escapeHtml(video.label || 'Recorded simulation · inspect motion and contacts')}</small>` : `<p class="evidence-missing">${node.evidenceNote ? escapeHtml(node.evidenceNote) : 'No video recorded for this attempt. Metrics alone do not establish a visual pass.'}</p>`;
     const metrics = Object.entries(node.metrics || {}).map(([key, value]) => `<div><span>${escapeHtml(key)}</span><b>${formatMetric(value)}</b></div>`).join('');
     const parentLabels = (node.parentIds || []).map(id => nodes.get(id)?.label || id).join(', ') || 'none';
     const storage = node.checkpointStorage;
@@ -79,10 +84,12 @@
     queueMicrotask(() => document.querySelectorAll('[data-evolution-artifact]').forEach(button => button.addEventListener('click', () => onPreview(button.dataset.evolutionArtifact, button.dataset.kind))));
     return `<div class="evolution-properties">
       <div class="evolution-node-heading"><span class="evolution-status ${escapeHtml(node.status)}">${escapeHtml(node.status)}</span><p>${escapeHtml(node.kind)} · step ${escapeHtml(node.step)}</p><h3>${escapeHtml(node.label)}</h3></div>
-      <dl><div><dt>Observed result</dt><dd>${escapeHtml(node.result || 'No result recorded')}</dd></div><div><dt>Model / asset hash</dt><dd>${escapeHtml(node.model || 'Landau')} · <code>${escapeHtml(node.assetTreeSha256 || node.meshTreeSha256 || 'see validation artifact')}</code></dd></div><div><dt>Approach</dt><dd>${escapeHtml(node.approach || 'Not recorded')}</dd></div><div><dt>Parent</dt><dd>${escapeHtml(parentLabels)}</dd></div><div><dt>Source revision</dt><dd><code>${escapeHtml(node.sourceRevision || 'not recorded')}</code></dd></div></dl>
-      ${checkpoint}
+      <p class="evolution-result">${escapeHtml(node.result || 'No result recorded')}</p>
+      <section class="evolution-evidence"><h4>Video evidence</h4>${evidence}</section>
+      <details><summary>Model, checkpoint and provenance</summary><dl><div><dt>Model / asset hash</dt><dd>${escapeHtml(node.model || 'Landau')} · <code>${escapeHtml(node.assetTreeSha256 || node.meshTreeSha256 || 'see validation artifact')}</code></dd></div><div><dt>Approach</dt><dd>${escapeHtml(node.approach || 'Not recorded')}</dd></div><div><dt>Parent</dt><dd>${escapeHtml(parentLabels)}</dd></div><div><dt>Source revision</dt><dd><code>${escapeHtml(node.sourceRevision || 'not recorded')}</code></dd></div></dl>
+      ${checkpoint}</details>
       <section><h4>Observed metrics</h4><div class="evolution-metrics">${metrics || `<div><span>${escapeHtml(primaryMetric)}</span><b>—</b></div>`}</div></section>
-      <section><h4>Artifacts</h4><div class="evolution-artifacts">${artifactRows || '<p>No artifacts recorded for this node.</p>'}</div></section>
+      <details><summary>Evidence files</summary><div class="evolution-artifacts">${artifactRows || '<p>No artifacts recorded for this node.</p>'}</div></details>
     </div>`;
   }
 
@@ -128,13 +135,17 @@
       <section class="evolution-main">
         <header class="evolution-toolbar"><div><p class="eyebrow">REAL ARTIFACT LINEAGE</p><b>${escapeHtml(data.lineage || 'unknown')}</b><span>${all.length} nodes · ${data.summary?.failedCount || 0} rejected · ${formatBytes(data.summary?.checkpointBytes)}</span></div><div><button class="button button-light" type="button" data-evolution-fit>Fit current</button>${all.length > visible.length ? `<button class="button" type="button" data-evolution-show-all>Show all ${all.length}</button>` : ''}</div></header>
         <div class="evolution-canvas" tabindex="0"><svg width="${graph.width}" height="${graph.height}" viewBox="0 0 ${graph.width} ${graph.height}" aria-label="Checkpoint evolution tree"><g>${edges}</g><g>${nodeMarkup}</g></svg></div>
-        <section class="evolution-compare"><header><div><p class="eyebrow">NODE COMPARISON</p><h3>Compare outcomes</h3></div><label>Against<select data-evolution-compare><option value="">Choose node</option>${optionsMarkup}</select></label></header>${comparisonPane(selected, nodes.get(model.compareId), nodes, data.primaryMetric)}</section>
+        <details class="evolution-compare"><summary>Compare outcomes</summary><header><div><p class="eyebrow">NODE COMPARISON</p><h3>Compare outcomes</h3></div><label>Against<select data-evolution-compare><option value="">Choose node</option>${optionsMarkup}</select></label></header>${comparisonPane(selected, nodes.get(model.compareId), nodes, data.primaryMetric)}</details>
       </section>
       <aside class="evolution-side">${propertyPane(selected, nodes, options.artifacts, data.primaryMetric, options.onPreview)}</aside>
     </div>`;
 
     const selectNode = id => { model.selectedId = id; mount(container, options); };
     const ordered = visible.map(node => node.id);
+    const canvas = container.querySelector('.evolution-canvas');
+    const selectedPoint = graph.point(model.selectedId);
+    canvas.scrollTop = Math.max(0, selectedPoint.y - canvas.clientHeight / 2);
+    canvas.scrollLeft = Math.max(0, selectedPoint.x - canvas.clientWidth / 2);
     container.querySelectorAll('[data-evolution-node]').forEach(element => {
       element.addEventListener('click', () => selectNode(element.dataset.evolutionNode));
       element.addEventListener('keydown', event => {
