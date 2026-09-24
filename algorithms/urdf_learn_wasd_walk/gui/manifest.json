@@ -21,6 +21,39 @@
   },
   "examples": [
     {
+      "id": "comparison_train",
+      "sourceSync": "preserve-runtime",
+      "name": "M2 control diagnostic · model-specific PPO smoke",
+      "description": "Official G1 first; Landau is a separate diagnostic branch, never a milestone promotion. 64 envs × 2 iterations. Models and checkpoints stay on TK2.",
+      "target": "tk2",
+      "targets": ["tk2"],
+      "resource": "isaac",
+      "command": ["./geo", "walk", "compare-model", "--mode", "train", "--model", "{model}", "--num-envs", "64", "--iterations", "2", "--headless"],
+      "parameters": [{
+        "id": "model", "label": "Robot model / URDF asset", "type": "select",
+        "choices": ["unitree_g1", "landau_current"], "default": "unitree_g1",
+        "choiceLabels": {"unitree_g1": "Unitree G1 · official Isaac Lab minimal USD", "landau_current": "Landau · current rabbit-ear URDF"},
+        "choiceDetails": {"unitree_g1": "Isaac-Velocity-Flat-G1-v0 · official USD dependency hash pending host asset audit; not the local MJCF-derived G1.", "landau_current": "URDF SHA 859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca · mesh SHA a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73 · +Y forward"}
+      }],
+      "artifacts": [
+        {"label": "G1 diagnostic training / asset identity", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/unitree_g1/official_smoke_20260906/training.json", "kind": "json"},
+        {"label": "Landau diagnostic training / asset identity", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/landau_current/official_smoke_20260906/training.json", "kind": "json"}
+      ]
+    },
+    {
+      "id": "comparison_evaluate",
+      "sourceSync": "preserve-runtime",
+      "name": "M2 control diagnostic · checkpoint evaluation",
+      "description": "Same evaluation loop; exact per-model checkpoint and asset hashes, direct bilateral contacts, 500 control steps. Diagnostic results cannot pass Landau gates.",
+      "target": "tk2", "targets": ["tk2"], "resource": "isaac",
+      "command": ["./geo", "walk", "compare-model", "--mode", "evaluate", "--model", "{model}", "--steps", "500", "--headless"],
+      "parameters": [{"id": "model", "label": "Robot model / URDF asset", "type": "select", "choices": ["unitree_g1", "landau_current"], "default": "unitree_g1", "choiceLabels": {"unitree_g1": "Unitree G1 · official Isaac Lab minimal USD", "landau_current": "Landau · current rabbit-ear URDF"}}],
+      "artifacts": [
+        {"label": "G1 diagnostic evaluation / asset hash", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/unitree_g1/official_smoke_20260906/evaluation.json", "kind": "json"},
+        {"label": "Landau diagnostic evaluation / asset hash", "path": "algorithms/urdf_learn_wasd_walk/outputs/model_comparison/landau_current/official_smoke_20260906/evaluation.json", "kind": "json"}
+      ]
+    },
+    {
       "id": "validate_passive_stand",
       "name": "Validate passive stand · 30 s",
       "description": "Run camera-free dynamics first, then a separate viewport proof replay; final evidence appears only when both exact components pass.",

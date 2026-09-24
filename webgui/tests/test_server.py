@@ -13,6 +13,26 @@ from webgui import server, storage
 
 
 class ManifestTests(unittest.TestCase):
+    def test_model_selector_is_allowlisted_and_preserves_authoritative_runtime(self):
+        manifest = server.manifest_map()["urdf_learn_wasd_walk"]
+        example = next(e for e in manifest["examples"] if e["id"] == "comparison_train")
+        for model in ("unitree_g1", "landau_current"):
+            command = server.build_example_command(manifest, example, {"model": model}, "tk2")
+            self.assertEqual(command[command.index("--model") + 1], model)
+        with self.assertRaises(ValueError):
+            server.build_example_command(manifest, example, {"model": "../other"}, "tk2")
+        manager = server.JobManager()
+        with patch("webgui.server.threading.Thread.start"):
+            job = manager.start_example(manifest["id"], example["id"], "tk2", {"model": "unitree_g1"})
+        job = manager.get(job["id"])
+        self.assertTrue(job.preserve_runtime)
+        with patch("webgui.server.storage.sync_source_tk2") as sync, \
+             patch("webgui.server.subprocess.Popen", side_effect=OSError("test: no external process")):
+            manager._run(job)
+            sync.assert_not_called()
+        self.assertEqual(job.status, "failed")
+        self.assertTrue(all(not a["path"].endswith(".pt") for a in job.artifacts))
+
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
         icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship", "sliders", "pawn"}

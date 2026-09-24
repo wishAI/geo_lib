@@ -253,6 +253,7 @@ def _build_parser() -> argparse.ArgumentParser:
     walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
     walk_subparsers.add_parser("evolution", help="Rebuild the real checkpoint and experiment evolution tree.")
     walk_subparsers.add_parser("inspect", help="Audit the retained URDF and print the robot control contract.")
+    walk_subparsers.add_parser("compare-model", help="Run an isolated official G1/Landau M2 diagnostic.")
     walk_subparsers.add_parser(
         "validate-passive", help="Run camera-free dynamics, viewport proof, and final assembly sequentially."
     )
@@ -758,6 +759,22 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             return LaunchSpec(
                 "direct",
                 [sys.executable, "algorithms/urdf_learn_wasd_walk/model_spec.py", *extra_args],
+            )
+        if args.walk_cmd == "compare-model":
+            model = _extract_option_value(extra_args, "--model")
+            experiment = _extract_option_value(extra_args, "--experiment") or "official_smoke_20260906"
+            mode = _extract_option_value(extra_args, "--mode")
+            if model not in {"unitree_g1", "landau_current"} or mode not in {"train", "evaluate"}:
+                raise SystemExit("compare-model requires an allowlisted --model and --mode")
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", experiment):
+                raise SystemExit("unsafe comparison experiment name")
+            output_dir = REPO_ROOT / "algorithms/urdf_learn_wasd_walk/outputs/model_comparison" / model / experiment
+            return LaunchSpec(
+                "isaac", ["algorithms/urdf_learn_wasd_walk/model_comparison.py", *extra_args],
+                env={"TERM": "xterm"},
+                success_artifact=output_dir / ("training.json" if mode == "train" else "evaluation.json"),
+                failure_artifact=output_dir / f"{mode}_failure.json",
+                console_log=output_dir / f"{mode}_console.log",
             )
         if args.walk_cmd in {
             "validate-passive", "validate-passive-dynamics", "render-passive-proof", "finalize-passive"

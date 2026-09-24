@@ -7,6 +7,41 @@ from algorithms.urdf_learn_wasd_walk import evolution
 
 
 class EvolutionTests(unittest.TestCase):
+    def test_initialization_crash_is_a_failed_experiment_not_a_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "milestones.json"
+            ledger.write_text(json.dumps({
+                "lineage": "current", "invalidatedLineages": [{"lineage": "stale"}],
+                "milestones": [
+                    {"id": "stand_zero_signal_30s_no_reset", "status": "passed"},
+                    {"id": "stand_30s_no_reset", "status": "in_progress"},
+                ],
+            }))
+            output = root / "outputs"
+            for lineage in ("current", "stale", "unknown"):
+                folder = output / lineage
+                folder.mkdir(parents=True)
+                (folder / "train_failure.json").write_text(json.dumps({
+                    "lineage": lineage, "milestone": "stand_30s_no_reset",
+                    "status": "failed_to_execute", "run_identity": "20260906T090000Z",
+                    "runtime_stage": "fixed_root_gravity_settling",
+                    "exception": {"type": "ValueError", "message": "unsettled joint"},
+                }))
+            tree = evolution.build_evolution(output, ledger)
+            failures = [n for n in tree["nodes"] if n["id"].startswith("failure:")]
+            self.assertEqual(len(failures), 2)
+            for node in failures:
+                self.assertEqual(node["status"], "failed")
+                self.assertEqual(node["kind"], "experiment")
+                self.assertEqual(node["metrics"], {})
+                self.assertNotIn("checkpointSha256", node)
+            current = next(n for n in failures if n["lineage"] == "current")
+            stale = next(n for n in failures if n["lineage"] == "stale")
+            self.assertEqual(tree["currentNodeId"], current["id"])
+            self.assertTrue(stale["parentIds"][0].startswith("invalidated:"))
+            self.assertIn("invalidated asset lineage", stale["result"])
+
     def test_real_artifacts_define_parentage_and_models_are_metadata_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
