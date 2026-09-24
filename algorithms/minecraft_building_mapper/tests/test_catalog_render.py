@@ -177,7 +177,8 @@ class CatalogAndRenderTests(unittest.TestCase):
             catalog_path = root / "catalog.json"
             write_catalog(build_legacy_catalog(bc3, [pack]), catalog_path)
             world = write_world(root / "world", legacy_chunk(1, 0, biome_id=1))
-            (world / "region/r.1.0.mca").write_bytes(b"")
+            (world / "region/r.1.0.mca").write_bytes(b"truncated")
+            (world / "region/r.2.0.mca").write_bytes(b"")
             inventory = inventory_world_to_output(
                 world_path=world, dimension="minecraft:overworld", catalog_path=catalog_path,
                 output=root / "inventory",

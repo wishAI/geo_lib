@@ -48,6 +48,18 @@ class WorldTests(unittest.TestCase):
         heights = _modern_surface_heights({"Heightmaps": {"WORLD_SURFACE": packed}}, list(range(-4, 20)))
         self.assertEqual(set(heights), {67})
 
+    def test_1_17_heightmap_uses_full_world_height_when_air_sections_are_omitted(self) -> None:
+        bits = 9
+        per_long = 64 // bits
+        packed = [0] * ((256 + per_long - 1) // per_long)
+        for index in range(256):
+            packed[index // per_long] |= 63 << ((index % per_long) * bits)
+        heights = _modern_surface_heights(
+            {"DataVersion": 2730, "Level": {"Heightmaps": {"WORLD_SURFACE": packed}}},
+            list(range(0, 8)),
+        )
+        self.assertEqual(set(heights), {62})
+
     def test_directory_and_zip_worlds_are_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root_path = write_world(Path(temporary) / "world", legacy_chunk())

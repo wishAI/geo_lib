@@ -396,8 +396,16 @@ def _modern_surface_heights(
     packed = heightmaps.get("WORLD_SURFACE", heightmaps.get("world_surface"))
     if not isinstance(packed, list) or not packed:
         return None
-    minimum_y = min(section_ids) * 16
-    world_height = (max(section_ids) - min(section_ids) + 1) * 16
+    data_version = int(chunk.get("DataVersion", body.get("DataVersion", 0)) or 0)
+    # Heightmaps encode offsets across the dimension's complete build height,
+    # not merely the nonempty sections serialized in this chunk. A 1.17 ocean
+    # chunk may contain only sections 0..7 but still uses 9-bit values for the
+    # full 0..255 world; inferring 8 bits from those sections creates regular
+    # vertical stripes and bogus surface heights.
+    if data_version >= 2825 or min(section_ids) < 0:
+        minimum_y, world_height = -64, 384
+    else:
+        minimum_y, world_height = 0, 256
     bits = max(1, world_height.bit_length())
     palette_size = 1 << bits
     return [
@@ -550,7 +558,19 @@ class AnvilWorld:
         if not self.fs.exists(relative):
             return None
         stream = self.fs.open(relative)
-        reader = RegionReader(stream, fs=self.fs, region_x=region_x, region_z=region_z, dimension_dir=self.dimension.region_dir)
+        try:
+            # World editors can leave zero-byte edge stubs when pre-generating
+            # a rectangular map. They contain no Anvil header or chunks, so
+            # ignore them while preserving errors for every nonempty truncated
+            # region file.
+            if not stream.read(1):
+                stream.close()
+                return None
+            stream.seek(0)
+            reader = RegionReader(stream, fs=self.fs, region_x=region_x, region_z=region_z, dimension_dir=self.dimension.region_dir)
+        except Exception:
+            stream.close()
+            raise
         self._regions[key] = (stream, reader)
         return reader
 
