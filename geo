@@ -252,6 +252,7 @@ def _build_parser() -> argparse.ArgumentParser:
     walk_subparsers = walk_parser.add_subparsers(dest="walk_cmd", required=True)
     walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
     walk_subparsers.add_parser("evolution", help="Rebuild the real checkpoint and experiment evolution tree.")
+    walk_subparsers.add_parser("mujoco-milestone", help="Initialize or certify the explicit MuJoCo model milestone lineage.")
     walk_subparsers.add_parser("inspect", help="Audit the retained URDF and print the robot control contract.")
     walk_subparsers.add_parser("compare-model", help="Run an isolated official G1/Landau M2 diagnostic.")
     walk_subparsers.add_parser(
@@ -749,6 +750,8 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 "direct",
                 [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
             )
+        if args.walk_cmd == "mujoco-milestone":
+            return LaunchSpec("direct", [sys.executable, "-m", "algorithms.urdf_learn_wasd_walk.mujoco_milestones", *extra_args])
         if args.walk_cmd == "evolution":
             return LaunchSpec(
                 "direct",

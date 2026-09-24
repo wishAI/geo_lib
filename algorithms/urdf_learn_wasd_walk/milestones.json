@@ -1,21 +1,207 @@
 {
-  "version": 1,
-  "lineage": "rabbit_ear_parallel_mesh_recertification_2026_09_05",
-  "implementationStatus": "milestone_1_passed_milestone_2_in_progress",
+  "version": 2,
+  "lineage": "landau_balanced_hands_mujoco_20260922",
+  "backend": "mujoco_warp_cuda",
+  "implementationStatus": "milestone_6_passed_milestone_7_in_progress",
   "historyCarriedForward": false,
   "assetContract": {
     "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
     "meshTreeSha256": "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73",
     "headMeshSha256": "afc898c0e79b82313768a0e08bd096619b64c54f8505734f0ef2b59ee0315370",
     "triangleCount": 8864,
-    "source": "repository algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10 lowpoly_surface package visually verified with rabbit ears"
+    "source": "repository algorithms/usd_parallel_urdf/outputs/urdf_packages/landau_v10 lowpoly_surface package visually verified with rabbit ears",
+    "modelXmlSha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2",
+    "massProfile": "balanced_hands_v1",
+    "massVariant": {
+      "profile": "balanced_hands_v1",
+      "total_mass_before_kg": 1.829753,
+      "total_mass_after_kg": 1.829753,
+      "geometry_changed": false,
+      "inertial_origins_changed": false,
+      "method": "uniform per-link density scaling",
+      "changes": {
+        "root_x": {
+          "before_kg": 0.04,
+          "after_kg": 0.11600000000000002
+        },
+        "spine_01_x": {
+          "before_kg": 0.02,
+          "after_kg": 0.05800000000000001
+        },
+        "spine_02_x": {
+          "before_kg": 0.02,
+          "after_kg": 0.05800000000000001
+        },
+        "spine_03_x": {
+          "before_kg": 0.08,
+          "after_kg": 0.11800000000000001
+        },
+        "thumb1_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "thumb2_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "thumb3_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index1_base_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index1_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index2_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index3_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle1_base_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle1_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle2_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle3_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring1_base_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring1_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring2_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring3_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky1_base_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky1_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky2_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky3_r": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "thumb1_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "thumb2_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "thumb3_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index1_base_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index1_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index2_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "index3_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle1_base_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle1_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle2_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "middle3_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring1_base_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring1_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring2_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "ring3_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky1_base_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky1_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky2_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        },
+        "pinky3_l": {
+          "before_kg": 0.02,
+          "after_kg": 0.015
+        }
+      },
+      "milestone_pass": false
+    },
+    "physicsIdentity": {
+      "mujoco_version": "3.5.0",
+      "warp_version": "1.12.0",
+      "mujoco_warp_version": "3.5.0"
+    },
+    "initialControlSha256": "7a9e8c90bbe29bf1cf37f48e8274fa1c8823cf731d3105f92767d0260608d515"
   },
-  "invalidatedLineage": {
-    "label": "False latest · no rabbit ears",
-    "lineage": "latest_parallel_mesh_recertification_2026_09_05",
-    "meshTreeSha256": "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435",
-    "invalidatedAt": "20260905T071500Z",
-    "reason": "The TK2 deployed-current package was not the repository usd_parallel_urdf package: all 68 STL files differed, the walk viewer had 3,578 triangles instead of 8,864, and the rabbit-ear silhouette was absent. Its checkpoints and evidence are retained only as rejected history."
+  "previousBackendLedger": {
+    "kind": "archived_isaac_milestones",
+    "path": "algorithms/urdf_learn_wasd_walk/outputs/milestone_lineages/rabbit_ear_parallel_mesh_recertification_2026_09_05/milestones.json",
+    "sha256": "1da745f8ecfbe3006753a9e5445b4fbb33ca3c9f177398334ec28d6e8b893189"
   },
   "invalidatedLineages": [
     {
@@ -26,63 +212,89 @@
       "reason": "The prior package used 68 stale visual/collision STL files; its checkpoints and gate evidence do not describe the latest usd_parallel_urdf robot."
     },
     {
-      "label": "False latest · no rabbit ears",
+      "label": "False latest \u00b7 no rabbit ears",
       "lineage": "latest_parallel_mesh_recertification_2026_09_05",
       "meshTreeSha256": "b69eb237022c9f390ff5ebcf8014ecdc13e21d2b9ba9ca0ba234a46dcb2f1435",
       "invalidatedAt": "20260905T071500Z",
       "reason": "The TK2 deployed-current package was not the repository usd_parallel_urdf package: all 68 STL files differed, the walk viewer had 3,578 triangles instead of 8,864, and the rabbit-ear silhouette was absent. Its checkpoints and evidence are retained only as rejected history."
     }
   ],
+  "acceptance": {
+    "standing_max_drift_m": 0.03,
+    "standing_max_heading_change_deg": 5.0,
+    "standing_duration_s": 30.0,
+    "assistance": 0.0,
+    "same_checkpoint_cumulative_validation": true
+  },
   "milestones": [
     {
       "order": 1,
       "id": "stand_zero_signal_30s_no_reset",
       "stage": "stand",
       "status": "passed",
-      "passedAt": "20260906T040937.552748Z",
+      "passedAt": "2026-09-22T02:40:40.658128+00:00",
       "checkpoint": {
-        "identity": "robot_spec_sha256:c1add53ff396a73e8d052dba4811f310f54ee73fd82364c401f17cb0620b330a",
-        "kind": "derived_static_pose_passive_pd_configuration",
-        "policy_checkpoint": null
+        "kind": "passive_pd_configuration",
+        "identity": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
       },
-      "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
-      "meshTreeSha256": "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73",
-      "seed": 42,
       "metrics": {
         "duration_s": 30.0,
         "reset_count": 0,
         "done_count": 0,
         "fall_count": 0,
-        "max_reference_tilt_rad": 0.15107966,
-        "root_height_drop_m": 0.0032107,
-        "horizontal_drift_m": 0.01844052,
-        "minimum_support_polygon_margin_m": 0.00694931
+        "max_reference_tilt_rad": 0.030683376949392063,
+        "root_height_drop_m": 0.0008864598881531127,
+        "horizontal_drift_m": 0.0034853374674831527,
+        "max_abs_action": 0.0,
+        "max_abs_command": 0.0,
+        "policy_calls": 0,
+        "max_joint_speed_rad_s": 1.069050908088684,
+        "max_motor_torque_nm": 0.8229138851165771,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.0000774503687553,
+        "peak_support_body_weight_ratio": 1.419476941090787,
+        "nonfoot_contacts": [],
+        "minimum_support_polygon_margin_m": 0.027968997212043666,
+        "first_support_exit_time_s": null,
+        "mean_support_force_body_weight_ratio": 1.0000774503687553,
+        "peak_support_force_body_weight_ratio": 1.419476941090787,
+        "max_heading_change_degrees": 0.2099063213656232
       },
       "evidence": [
         {
           "kind": "validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/validation.json",
-          "sha256": "e78ac85460c17900a1ee3b781774a31466900c14a9e806869064c61fc54a80c0"
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/milestone_validation.json",
+          "sha256": "1fad15067c119802ebcdc0b800d341fe4d9f6fbdd9bd6e983d055471edf43633"
         },
         {
           "kind": "dynamics_validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/dynamics_validation.json",
-          "sha256": "77d38a1f2e698fdeb4b14a17b918d41bea53be5fc12e976336e756454b88a8ee"
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/dynamics.json",
+          "sha256": "72b40a7edef99ad3a88f13930c62da4a7e67306186b2643d6b5562bd526e0b25"
         },
         {
           "kind": "proof_validation",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof_validation.json",
-          "sha256": "876bcaad4284d3d69989f2bf024099af545c8e1c38c1dd1713b3d60e608b539b"
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/proof_metadata.json",
+          "sha256": "e2db4ac2c7fe9f909715d130ce0f07eea6d0fca02cad0e31a49a1e8cbd16ccff"
+        },
+        {
+          "kind": "visual_review",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/visual_review.json",
+          "sha256": "5604ad312af7edc2e95c9dc694e1d4db5701425999bba1e588146e556b08ba75"
         },
         {
           "kind": "video",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/proof.mp4",
-          "sha256": "e8d78b721750d68334aa1024d5c3de84a3a5d68f785a0c237e7d4a95e14047c9"
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/proof.mp4",
+          "sha256": "73773787401b92e70c6ec2ed32dc81ed25a80aadea12c4d50cb28f0b48dc82e4"
         },
         {
-          "kind": "contact_sheet",
-          "path": "algorithms/urdf_learn_wasd_walk/outputs/stand_zero_signal_30s_no_reset/contact_sheet.png",
-          "sha256": "0f6c6e7259f7adc59e46b7cce7129dcf215c4ec6172d44d5ea77b12bdc94768e"
+          "kind": "trajectory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/trajectory.npz",
+          "sha256": "dd9e0854a48cb4d2c9321fe4baffb1ce6c8402ce513f2c87ff8e3499b60d6049"
+        },
+        {
+          "kind": "model",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m1/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
         }
       ]
     },
@@ -90,38 +302,1341 @@
       "order": 2,
       "id": "stand_30s_no_reset",
       "stage": "stand",
-      "status": "in_progress"
+      "status": "passed",
+      "passedAt": "2026-09-22T02:43:03.293261+00:00",
+      "checkpoint": {
+        "kind": "rsl_rl_ppo",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_stand500/model_100.pt",
+        "sha256": "3dacb989e957812f366e99691f1be13a431463a000bd29e5e9345b89cf992188"
+      },
+      "metrics": {
+        "duration_s": 30.0,
+        "reset_count": 0,
+        "done_count": 0,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.032126057694093296,
+        "root_height_drop_m": 0.0009204941403198608,
+        "horizontal_drift_m": 0.004036966739536607,
+        "max_abs_action": 0.21930132806301117,
+        "max_abs_command": 0.0,
+        "policy_calls": 1500,
+        "max_joint_speed_rad_s": 1.0616086721420288,
+        "max_motor_torque_nm": 0.8280044198036194,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.00009133505429,
+        "peak_support_body_weight_ratio": 1.3576662682266933,
+        "nonfoot_contacts": [],
+        "minimum_support_polygon_margin_m": 0.02791177165402158,
+        "first_support_exit_time_s": null,
+        "mean_support_force_body_weight_ratio": 1.00009133505429,
+        "peak_support_force_body_weight_ratio": 1.3576662682266933,
+        "max_heading_change_degrees": 0.434560176467997
+      },
+      "evidence": [
+        {
+          "kind": "validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/milestone_validation.json",
+          "sha256": "bb4d4fa256cfbfe4d9bc8a21683f027c7bf5c21783533ce7743b3ac4dc500fe1"
+        },
+        {
+          "kind": "dynamics_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/dynamics.json",
+          "sha256": "4f0dcd1362b88c5433c7dc51ddc66e21b748206d02a534a310d1dceb4733272d"
+        },
+        {
+          "kind": "proof_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/proof_metadata.json",
+          "sha256": "276b19266cb56c46f29d07b5fcaf8cddb01c888e136332677dde38f5d0af0283"
+        },
+        {
+          "kind": "visual_review",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/visual_review.json",
+          "sha256": "3fabd84803b5aba7355c8a0d3f3fdf289542d5efdcccd878f79dcaebc27fbcb4"
+        },
+        {
+          "kind": "video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/proof.mp4",
+          "sha256": "2a2995684fe407df2e4cb2e812e41fbf56c99ce1c6522fb462e23b6223c1cf70"
+        },
+        {
+          "kind": "trajectory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/trajectory.npz",
+          "sha256": "b21959585a2c9997b31d8ca82e99fceb48d8d7bb5cecae800a02ee2babb5242e"
+        },
+        {
+          "kind": "model",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/milestone_20260922_m2/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        }
+      ]
     },
     {
       "order": 3,
       "id": "gate_5m_no_reset",
       "stage": "fwd_only",
-      "status": "not_started",
-      "previousStatus": "in_progress_on_invalidated_mesh_tree"
+      "status": "passed",
+      "passedAt": "2026-09-22T08:26:50.266371+00:00",
+      "checkpoint": {
+        "kind": "periodic_feedback_cem",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_matched_distance1024/model_9.pt",
+        "sha256": "dc320411bde440312c170779f07ea90904d16c2ba46b47d2a9b6b1fdbba79358"
+      },
+      "metrics": {
+        "duration_s": 45.0,
+        "reset_count": 0,
+        "done_count": 0,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.2807604940483188,
+        "root_height_drop_m": 0.0041789608609009155,
+        "horizontal_drift_m": 6.50152910870638,
+        "max_abs_action": 0.9339298605918884,
+        "max_abs_command": 0.2,
+        "policy_calls": 2250,
+        "max_joint_speed_rad_s": 3.2985548973083496,
+        "max_motor_torque_nm": 2.8051857948303223,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.0007868242293534,
+        "peak_support_body_weight_ratio": 2.857513189027387,
+        "nonfoot_contacts": [],
+        "action_target_range_rad": {
+          "left_hip_pitch_joint": [
+            -0.2506322288513184,
+            0.15673286437988282
+          ],
+          "left_hip_yaw_joint": [
+            -0.09404170989990235,
+            0.08023964881896972
+          ],
+          "left_hip_roll_joint": [
+            -0.3684684753417969,
+            0.3597126007080078
+          ],
+          "left_knee_joint": [
+            0.0,
+            0.40183612823486337
+          ],
+          "left_ankle_pitch_joint": [
+            -0.21998788833618166,
+            0.1637766456604004
+          ],
+          "left_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "right_hip_pitch_joint": [
+            -0.25017059326171875,
+            0.15675094604492187
+          ],
+          "right_hip_yaw_joint": [
+            -0.09404170989990235,
+            0.08023964881896972
+          ],
+          "right_hip_roll_joint": [
+            -0.3684684753417969,
+            0.3597126007080078
+          ],
+          "right_knee_joint": [
+            0.0,
+            0.40183677673339846
+          ],
+          "right_ankle_pitch_joint": [
+            -0.2269856643676758,
+            0.1501866340637207
+          ],
+          "right_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_yaw_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_roll_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_pitch_joint": [
+            -0.07471438884735107,
+            0.003192017376422882
+          ],
+          "left_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ],
+          "right_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ]
+        },
+        "raw_actor_output_range": {
+          "left_hip_pitch_joint": [
+            -3.1329028606414795,
+            1.9591608047485352
+          ],
+          "left_hip_yaw_joint": [
+            -1.1755213737487793,
+            1.0029956102371216
+          ],
+          "left_hip_roll_joint": [
+            -4.605855941772461,
+            4.496407508850098
+          ],
+          "left_knee_joint": [
+            0.0,
+            5.022951602935791
+          ],
+          "left_ankle_pitch_joint": [
+            -2.7498486042022705,
+            2.047208070755005
+          ],
+          "left_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "right_hip_pitch_joint": [
+            -3.1271324157714844,
+            1.9593868255615234
+          ],
+          "right_hip_yaw_joint": [
+            -1.1755213737487793,
+            1.0029956102371216
+          ],
+          "right_hip_roll_joint": [
+            -4.605855941772461,
+            4.496407508850098
+          ],
+          "right_knee_joint": [
+            0.0,
+            5.0229597091674805
+          ],
+          "right_ankle_pitch_joint": [
+            -2.8373208045959473,
+            1.8773329257965088
+          ],
+          "right_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_yaw_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_roll_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_pitch_joint": [
+            -0.9339298605918884,
+            0.039900217205286026
+          ],
+          "left_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ],
+          "right_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ]
+        },
+        "semantic_forward_displacement_m": 6.494000115142822,
+        "semantic_strafe_displacement_m": 0.3127990663051605,
+        "left_foot_liftoff_count": 47,
+        "right_foot_liftoff_count": 48,
+        "mean_contact_foot_slip_mps": 0.03294192098830249,
+        "simultaneous_air_fraction": 0.017955555555555554,
+        "leg_joint_excursion_rad": {
+          "left_hip_pitch_joint": 0.39715197309851646,
+          "left_hip_yaw_joint": 0.1308899037539959,
+          "left_hip_roll_joint": 0.566572904586792,
+          "left_knee_joint": 0.3669179081916809,
+          "left_ankle_pitch_joint": 0.3666206859052181,
+          "left_toe_joint": 4.9060414312407374e-05,
+          "right_hip_pitch_joint": 0.3979129269719124,
+          "right_hip_yaw_joint": 0.12436286732554436,
+          "right_hip_roll_joint": 0.5609564483165741,
+          "right_knee_joint": 0.36844007670879364,
+          "right_ankle_pitch_joint": 0.36448943242430687,
+          "right_toe_joint": 4.500748218561057e-05,
+          "waist_yaw_joint": 0.035616254433989525,
+          "waist_roll_joint": 0.09161802753806114,
+          "waist_pitch_joint": 0.05249536968767643,
+          "left_shoulder_pitch_joint": 0.05192782497033477,
+          "right_shoulder_pitch_joint": 0.05035585816949606
+        },
+        "policy_inference_steps": 2250,
+        "control_steps": 2250,
+        "left_completed_swings": 47,
+        "right_completed_swings": 48,
+        "max_simultaneous_flight_s": 0.012,
+        "max_heading_deviation_rad": 0.4114068867724677,
+        "left_peak_clearance_m": 0.04428426535080756,
+        "right_peak_clearance_m": 0.04313223111524085
+      },
+      "evidence": [
+        {
+          "kind": "validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/milestone_validation.json",
+          "sha256": "81b88774695d8643e8812aeaaf9d3dde6937ee44603101901ca3469b16815e40"
+        },
+        {
+          "kind": "dynamics_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/dynamics.json",
+          "sha256": "69cf6726bacc1c1946c376f2b4b12996218bf81242ec7e63eeafb7e99ba66315"
+        },
+        {
+          "kind": "proof_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/proof_metadata.json",
+          "sha256": "1004c7a852c2765929ee3b9f19d4b7bb1c66ef035944f3f3b1eab1085ce777e0"
+        },
+        {
+          "kind": "visual_review",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/visual_review.json",
+          "sha256": "cfc3a4c2a32b4ee64e7b489fe028dbba95870576cc9585d2f2cd77f5e5682318"
+        },
+        {
+          "kind": "video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/proof.mp4",
+          "sha256": "97b5a87d60b68c06a1a4c62dabea2f53db6269b23085339f9946ccd8a97b88d6"
+        },
+        {
+          "kind": "trajectory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/trajectory.npz",
+          "sha256": "9d8389e5f9ea78a50b707572414c6b37c79bf07c2bb68d6f4dac1ab1b5b42449"
+        },
+        {
+          "kind": "model",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "walking_foot_trace",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/foot_trace.json",
+          "sha256": "05b501abc7c421b09b93fd3de245b4b584331140b9f0b1d2d792b7815e6ef579"
+        },
+        {
+          "kind": "controller_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/controller_source.py",
+          "sha256": "0262fe5812556a35be94ab0203f086efcaf4273319c01f64337a505e74eb256f"
+        },
+        {
+          "kind": "checkpoint_training_metadata",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_matched_distance1024/training.json",
+          "sha256": "2e74e16261d748e62e951a7efff7cd59d4ffebcac5c0df096c170a69a992babf"
+        },
+        {
+          "kind": "trained_gait_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_gate45/gait_source.py",
+          "sha256": "06aba7b19d171c548c5d45e8dd82e170e0652c855f301770041d3e3e79b957e5"
+        }
+      ],
+      "developmentProgressBeforeCertification": {
+        "summary": "Independent 30 s stepping reference reached 4.2644 m with 31 qualifying swings per foot and no fall/reset. All automated checks except 5 m distance passed. Continue stride and startup refinement within physical limits.",
+        "checkpoint_sha256": "dc320411bde440312c170779f07ea90904d16c2ba46b47d2a9b6b1fdbba79358",
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_eval/dynamics.json",
+        "evaluation_sha256": "4c1468c653a6526d96c6fef2900fd447cbb8fb3ce0949ee4b41d58920cf1a8c8",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_matched9_eval/proof.mp4",
+        "video_sha256": "6a2a2c67711fef566b056babd4bdd1f7e22744890707273723bef63888aa327e",
+        "canonical_pass": false,
+        "forward_candidate": {
+          "forward_m": 2.3138019225463866,
+          "duration_s": 30,
+          "canonical_pass": false,
+          "failures": [
+            "semantic +Y forward displacement did not reach 5 m",
+            "forward heading deviated more than 30 degrees",
+            "joint velocity exceeded URDF limit",
+            "peak support exceeded 3 body weights"
+          ],
+          "checkpoint_sha256": "b551988a953e75046f642c21e38cebad9ce3dd50b42ab56962b4a09c98437cc1",
+          "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_feedback_forward17_eval/dynamics.json",
+          "evaluation_sha256": "619e2f0ec96663ba393fcbdc7a594c26a0bd16a26b952fd02ab35e6b274cb9f5",
+          "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_feedback_forward17_eval/proof.mp4",
+          "video_sha256": "a823f515114d61d7ccb04e20d0dcc2b009d6a741346479a384fd6f59087cdcb9"
+        }
+      },
+      "progress": {
+        "summary": "Certified:6.494m in45seconds,47left/48right swings, no fall/reset/done; both standing prerequisites rechecked on the exact checkpoint.",
+        "canonical_pass": true
+      }
     },
     {
       "order": 4,
       "id": "gate_10m_no_reset",
       "stage": "fwd_only",
-      "status": "not_started"
+      "status": "passed",
+      "passedAt": "2026-09-22T09:24:40.922755+00:00",
+      "checkpoint": {
+        "kind": "periodic_feedback_cem",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_heading_fine80/model_0.pt",
+        "sha256": "163d5a125843c1ec8791814cca6f4f6bc00d96c21b0a11f94fdcc9a4182963a9"
+      },
+      "metrics": {
+        "duration_s": 80.0,
+        "reset_count": 0,
+        "done_count": 0,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.25155306458944476,
+        "root_height_drop_m": 0.0033479231011200317,
+        "horizontal_drift_m": 10.49172804681701,
+        "max_abs_action": 0.8555994033813477,
+        "max_abs_command": 0.2,
+        "policy_calls": 4000,
+        "max_joint_speed_rad_s": 3.039156913757324,
+        "max_motor_torque_nm": 2.4950947761535645,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.00118815133134,
+        "peak_support_body_weight_ratio": 2.9587616600636677,
+        "nonfoot_contacts": [],
+        "action_target_range_rad": {
+          "left_hip_pitch_joint": [
+            -0.2394058227539063,
+            0.13745010375976563
+          ],
+          "left_hip_yaw_joint": [
+            -0.054582462310791016,
+            0.04562593460083008
+          ],
+          "left_hip_roll_joint": [
+            -0.3422397613525391,
+            0.3352095413208008
+          ],
+          "left_knee_joint": [
+            0.0,
+            0.3959522247314453
+          ],
+          "left_ankle_pitch_joint": [
+            -0.22046831130981448,
+            0.1498795795440674
+          ],
+          "left_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "right_hip_pitch_joint": [
+            -0.23827566146850584,
+            0.13766287803649901
+          ],
+          "right_hip_yaw_joint": [
+            -0.054582462310791016,
+            0.04562593460083008
+          ],
+          "right_hip_roll_joint": [
+            -0.3422397613525391,
+            0.3352095413208008
+          ],
+          "right_knee_joint": [
+            0.0,
+            0.3959519958496094
+          ],
+          "right_ankle_pitch_joint": [
+            -0.2227630424499512,
+            0.1371173858642578
+          ],
+          "right_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_yaw_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_roll_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_pitch_joint": [
+            -0.0681703233718872,
+            5.1978537812829017e-05
+          ],
+          "left_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ],
+          "right_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ]
+        },
+        "raw_actor_output_range": {
+          "left_hip_pitch_joint": [
+            -2.992572784423828,
+            1.7181262969970703
+          ],
+          "left_hip_yaw_joint": [
+            -0.6822807788848877,
+            0.570324182510376
+          ],
+          "left_hip_roll_joint": [
+            -4.277997016906738,
+            4.19011926651001
+          ],
+          "left_knee_joint": [
+            0.0,
+            4.949402809143066
+          ],
+          "left_ankle_pitch_joint": [
+            -2.7558538913726807,
+            1.8734947443008423
+          ],
+          "left_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "right_hip_pitch_joint": [
+            -2.9784457683563232,
+            1.7207859754562378
+          ],
+          "right_hip_yaw_joint": [
+            -0.6822807788848877,
+            0.570324182510376
+          ],
+          "right_hip_roll_joint": [
+            -4.277997016906738,
+            4.19011926651001
+          ],
+          "right_knee_joint": [
+            0.0,
+            4.949399948120117
+          ],
+          "right_ankle_pitch_joint": [
+            -2.7845380306243896,
+            1.7139673233032227
+          ],
+          "right_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_yaw_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_roll_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_pitch_joint": [
+            -0.8521290421485901,
+            0.0006497317226603627
+          ],
+          "left_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ],
+          "right_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ]
+        },
+        "semantic_forward_displacement_m": 10.489976086364747,
+        "semantic_strafe_displacement_m": 0.1917266696691513,
+        "left_foot_liftoff_count": 88,
+        "right_foot_liftoff_count": 88,
+        "mean_contact_foot_slip_mps": 0.026589842128516603,
+        "simultaneous_air_fraction": 0.01395,
+        "leg_joint_excursion_rad": {
+          "left_hip_pitch_joint": 0.36214644089341164,
+          "left_hip_yaw_joint": 0.09029621258378029,
+          "left_hip_roll_joint": 0.5145485103130341,
+          "left_knee_joint": 0.3602977693080902,
+          "left_ankle_pitch_joint": 0.3478624075651169,
+          "left_toe_joint": 4.322220411268063e-05,
+          "right_hip_pitch_joint": 0.36252927780151367,
+          "right_hip_yaw_joint": 0.0861823558807373,
+          "right_hip_roll_joint": 0.5158494114875793,
+          "right_knee_joint": 0.3616913855075836,
+          "right_ankle_pitch_joint": 0.3457532227039337,
+          "right_toe_joint": 4.113670001970604e-05,
+          "waist_yaw_joint": 0.03109731711447239,
+          "waist_roll_joint": 0.08167735859751701,
+          "waist_pitch_joint": 0.04394025122746825,
+          "left_shoulder_pitch_joint": 0.044974543154239655,
+          "right_shoulder_pitch_joint": 0.04086568905040622
+        },
+        "policy_inference_steps": 4000,
+        "control_steps": 4000,
+        "left_completed_swings": 87,
+        "right_completed_swings": 88,
+        "max_simultaneous_flight_s": 0.014,
+        "max_heading_deviation_rad": 0.40501224828561044,
+        "left_peak_clearance_m": 0.03955709841078997,
+        "right_peak_clearance_m": 0.03937992578585561
+      },
+      "evidence": [
+        {
+          "kind": "validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/milestone_validation.json",
+          "sha256": "09af6233e5c2b8b9be6b3d0481efbc7bac4eeda38ad4245a687e7f7e1470a82d"
+        },
+        {
+          "kind": "dynamics_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/dynamics.json",
+          "sha256": "aa0efb943d60abfc5ccfa77561b80969cc1e98d846cef31c6511aa3f42d0e4f9"
+        },
+        {
+          "kind": "proof_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/proof_metadata.json",
+          "sha256": "ff78efc60e9009a2fe7929b38fd5458689f4c7a2393d716a0144009c3aa79f7d"
+        },
+        {
+          "kind": "visual_review",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/visual_review.json",
+          "sha256": "b275d5d8dd8260c4db44adc38826590f4ae31643a255f8cfe0a35332bbbab0a7"
+        },
+        {
+          "kind": "video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/proof.mp4",
+          "sha256": "4dcb933ba78bfb35f02c9bb0caf30a556319597ec2b62331e274d16ac61a517e"
+        },
+        {
+          "kind": "trajectory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/trajectory.npz",
+          "sha256": "505afbcfd5074643ced2f5b84cd431537df1c9e0d92ef127da579bac3a983712"
+        },
+        {
+          "kind": "model",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "walking_foot_trace",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/foot_trace.json",
+          "sha256": "caf599ed9ab8638fb6972ad7014d527b306d332d0227cf4f1092d080eaff09ae"
+        },
+        {
+          "kind": "controller_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/controller_source.py",
+          "sha256": "b1f82a04f6722032d797e7f0ae4b907dbf263d8cebd096c28643cf7a1e5ac8da"
+        },
+        {
+          "kind": "checkpoint_training_metadata",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_heading_fine80/training.json",
+          "sha256": "56606fb191734c31e33cab50252b7801ee8d496548a36b6f7194bf0e28e29b1a"
+        },
+        {
+          "kind": "trained_gait_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        }
+      ],
+      "developmentProgressBeforeCertification": {
+        "summary": "10.490m in80s,.192m lateral, no fall/reset/done, all automated checks and visual review passed. Fresh5m recheck passed; standing prerequisite evidence is being completed.",
+        "canonical_pass": false,
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/proof.mp4",
+        "checkpoint_sha256": "163d5a125843c1ec8791814cca6f4f6bc00d96c21b0a11f94fdcc9a4182963a9"
+      },
+      "progress": {
+        "summary": "Certified: 10.490 m in 80 s, 0.192 m lateral drift, no fall/reset/done. Exact checkpoint re-passed both standing gates and 5 m; all four proof videos accepted.",
+        "canonical_pass": true,
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_headingfine_gate10m80/proof.mp4",
+        "checkpoint_sha256": "163d5a125843c1ec8791814cca6f4f6bc00d96c21b0a11f94fdcc9a4182963a9"
+      }
     },
     {
       "order": 5,
       "id": "yaw_turn_90deg_hold",
       "stage": "fwd_yaw",
-      "status": "not_started"
+      "status": "passed",
+      "progress": {
+        "canonical_pass": true,
+        "summary": "Certified:89.355degree turn,0.863degree maximum hold error,22.7mm hold drift, no fall/reset/done. Exact checkpoint re-passed both30s standing gates,5.827m and10.465m; all five proof videos accepted.",
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/proof.mp4"
+      },
+      "passedAt": "2026-09-22T10:52:17.101832+00:00",
+      "checkpoint": {
+        "kind": "periodic_feedback_cem",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_turn_44_cem/model_3.pt",
+        "sha256": "cd23250da76dbeb515047f8aa0fdb853c91b01282de2b46b0a2f2a489ba7104d"
+      },
+      "metrics": {
+        "duration_s": 56.0,
+        "reset_count": 0,
+        "done_count": 0,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.25241631984040686,
+        "root_height_drop_m": 0.0032310383927154906,
+        "horizontal_drift_m": 5.324171437800797,
+        "max_abs_action": 0.8455488085746765,
+        "max_abs_command": 0.2,
+        "policy_calls": 2800,
+        "max_joint_speed_rad_s": 3.0040090084075928,
+        "max_motor_torque_nm": 2.3963699340820312,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.0007282968073994,
+        "peak_support_body_weight_ratio": 2.863264987028066,
+        "nonfoot_contacts": [],
+        "action_target_range_rad": {
+          "left_hip_pitch_joint": [
+            -0.23852108001708985,
+            0.1374006748199463
+          ],
+          "left_hip_yaw_joint": [
+            -0.059036865234375,
+            0.04370199680328369
+          ],
+          "left_hip_roll_joint": [
+            -0.33583473205566405,
+            0.3326700592041016
+          ],
+          "left_knee_joint": [
+            -0.008035637140274055,
+            0.3959522247314453
+          ],
+          "left_ankle_pitch_joint": [
+            -0.21729904174804687,
+            0.14946624755859375
+          ],
+          "left_toe_joint": [
+            -0.016528024673461914,
+            0.0017063741385936737
+          ],
+          "right_hip_pitch_joint": [
+            -0.23883884429931643,
+            0.1376770877838135
+          ],
+          "right_hip_yaw_joint": [
+            -0.05141295909881592,
+            0.041040987968444825
+          ],
+          "right_hip_roll_joint": [
+            -0.33583473205566405,
+            0.3326700592041016
+          ],
+          "right_knee_joint": [
+            0.0,
+            0.3959518814086914
+          ],
+          "right_ankle_pitch_joint": [
+            -0.22990587234497073,
+            0.13873549461364745
+          ],
+          "right_toe_joint": [
+            -0.010046346187591553,
+            0.017118239402770997
+          ],
+          "waist_yaw_joint": [
+            -0.03232083797454834,
+            0.01311988353729248
+          ],
+          "waist_roll_joint": [
+            -0.04815601348876953,
+            0.0014825642108917236
+          ],
+          "waist_pitch_joint": [
+            -0.06764390468597413,
+            0.008310125470161437
+          ],
+          "left_shoulder_pitch_joint": [
+            -0.017010462284088135,
+            0.01012919783592224
+          ],
+          "right_shoulder_pitch_joint": [
+            -0.006225597858428955,
+            0.012304443120956422
+          ]
+        },
+        "raw_actor_output_range": {
+          "left_hip_pitch_joint": [
+            -2.981513500213623,
+            1.7175084352493286
+          ],
+          "left_hip_yaw_joint": [
+            -0.7379608154296875,
+            0.5462749600410461
+          ],
+          "left_hip_roll_joint": [
+            -4.197934150695801,
+            4.1583757400512695
+          ],
+          "left_knee_joint": [
+            -0.1004454642534256,
+            4.949402809143066
+          ],
+          "left_ankle_pitch_joint": [
+            -2.716238021850586,
+            1.8683280944824219
+          ],
+          "left_toe_joint": [
+            -0.20660030841827393,
+            0.02132967673242092
+          ],
+          "right_hip_pitch_joint": [
+            -2.985485553741455,
+            1.7209635972976685
+          ],
+          "right_hip_yaw_joint": [
+            -0.642661988735199,
+            0.5130123496055603
+          ],
+          "right_hip_roll_joint": [
+            -4.197934150695801,
+            4.1583757400512695
+          ],
+          "right_knee_joint": [
+            0.0,
+            4.949398517608643
+          ],
+          "right_ankle_pitch_joint": [
+            -2.873823404312134,
+            1.7341936826705933
+          ],
+          "right_toe_joint": [
+            -0.1255793273448944,
+            0.21397799253463745
+          ],
+          "waist_yaw_joint": [
+            -0.40401047468185425,
+            0.163998544216156
+          ],
+          "waist_roll_joint": [
+            -0.6019501686096191,
+            0.018532052636146545
+          ],
+          "waist_pitch_joint": [
+            -0.8455488085746765,
+            0.10387656837701797
+          ],
+          "left_shoulder_pitch_joint": [
+            -0.21263077855110168,
+            0.12661497294902802
+          ],
+          "right_shoulder_pitch_joint": [
+            -0.07781997323036194,
+            0.15380553901195526
+          ]
+        },
+        "semantic_forward_displacement_m": 3.9752730510101317,
+        "semantic_strafe_displacement_m": -3.4976248741149902,
+        "left_foot_liftoff_count": 52,
+        "right_foot_liftoff_count": 53,
+        "mean_contact_foot_slip_mps": 0.023006804388981224,
+        "simultaneous_air_fraction": 0.00925,
+        "leg_joint_excursion_rad": {
+          "left_hip_pitch_joint": 0.3598318547010422,
+          "left_hip_yaw_joint": 0.0800958164036274,
+          "left_hip_roll_joint": 0.5067083984613419,
+          "left_knee_joint": 0.36024877429008484,
+          "left_ankle_pitch_joint": 0.3454050347208977,
+          "left_toe_joint": 0.015659558735933388,
+          "right_hip_pitch_joint": 0.3626541942358017,
+          "right_hip_yaw_joint": 0.07238126173615456,
+          "right_hip_roll_joint": 0.5059539824724197,
+          "right_knee_joint": 0.36155782639980316,
+          "right_ankle_pitch_joint": 0.35449646040797234,
+          "right_toe_joint": 0.02534409426152706,
+          "waist_yaw_joint": 0.062342338263988495,
+          "waist_roll_joint": 0.08757906407117844,
+          "waist_pitch_joint": 0.06823910400271416,
+          "left_shoulder_pitch_joint": 0.044571673730388284,
+          "right_shoulder_pitch_joint": 0.041516426019370556
+        },
+        "policy_inference_steps": 2800,
+        "control_steps": 2800,
+        "left_completed_swings": 52,
+        "right_completed_swings": 52,
+        "max_simultaneous_flight_s": 0.014,
+        "max_heading_deviation_rad": 1.7698572230543423,
+        "left_peak_clearance_m": 0.038841848248009805,
+        "right_peak_clearance_m": 0.039566164057015366,
+        "hold_max_heading_error_rad": 0.015057466602210967,
+        "hold_max_drift_m": 0.022728047524529112,
+        "hold_max_horizontal_speed_mps": 0.0010910979021554953,
+        "hold_max_yaw_speed_rad_s": 0.007807232905179262,
+        "hold_duration_s": 5.0,
+        "hold_max_abs_command": 0.0,
+        "final_heading_rad": 1.5595444283825746
+      },
+      "evidence": [
+        {
+          "kind": "validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/milestone_validation.json",
+          "sha256": "b987db39686976271c47d4a0de6766e343b3bda4491b5fc5c657badc34d8ca0a"
+        },
+        {
+          "kind": "dynamics_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/dynamics.json",
+          "sha256": "ded616d7b3064de497de7be9b201ae807db374285e38f1d3b344a2e44c538590"
+        },
+        {
+          "kind": "proof_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/proof_metadata.json",
+          "sha256": "1d7fb94dcebad2120097fe93c5d5c38cc4cb04b3bd744a4ee92d5639f3199b61"
+        },
+        {
+          "kind": "visual_review",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/visual_review.json",
+          "sha256": "835c4476fcc02e7a5161ed5df42d15fc887ba00e5ea322c88686d6815d5bbfe4"
+        },
+        {
+          "kind": "video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/proof.mp4",
+          "sha256": "62d98866604e81161dca1eb313e86f24a9889828124d3565a7fdce4b2d51d33f"
+        },
+        {
+          "kind": "trajectory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/trajectory.npz",
+          "sha256": "632c3757fe94ac4381d5279e82b5ebb78e331006a09f2d6f96a5e775d0f338da"
+        },
+        {
+          "kind": "model",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "walking_foot_trace",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/foot_trace.json",
+          "sha256": "475cca61968ec7be7bed7ba0b74ed40477f11e0b14b5eb282f345912219db3e0"
+        },
+        {
+          "kind": "controller_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/controller_source.py",
+          "sha256": "0e81eee6bdb4ca58fbeb21f0b9409c2306621a300e2b9ea53c8c75cd0f92c7d6"
+        },
+        {
+          "kind": "checkpoint_training_metadata",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_turn_44_cem/training.json",
+          "sha256": "fc142f7d2135ae8239860506ad8cf795e24185ac621ac6db78a52f87c6dab42d"
+        },
+        {
+          "kind": "trained_gait_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        },
+        {
+          "kind": "trained_turn_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/turn_source.py",
+          "sha256": "f4a4b878d45228f1dd8c3afc65b78952e8aa0492dd67cb56c14711b61474922b"
+        },
+        {
+          "kind": "turn_validator_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/turn_validator_source.py",
+          "sha256": "f4a4b878d45228f1dd8c3afc65b78952e8aa0492dd67cb56c14711b61474922b"
+        },
+        {
+          "kind": "command_and_policy_trace",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/policy_trace.npz",
+          "sha256": "98b9625387b9d4138f4b024774ef3bda2615fa99b73c2d2afd628a79afed94e8"
+        },
+        {
+          "kind": "standing_handoff_memory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/controller_memory.json",
+          "sha256": "0adf34b8ac0954c64a4fe739296f147266ba3c7506844fc7e6f24d83532b548f"
+        }
+      ],
+      "developmentProgressBeforeCertification": {
+        "canonical_pass": false,
+        "summary": "Independent56s turn passed:89.355degrees, hold error0.863degrees,22.7mm hold drift, no fall/reset/done. Video reviewed and accepted. Fresh exact-checkpoint cumulative standing and5m/10m checks underway.",
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_turn44_3_eval/proof.mp4"
+      }
     },
     {
       "order": 6,
       "id": "teleop_60s_forward_turn",
       "stage": "fwd_yaw",
-      "status": "not_started"
+      "status": "passed",
+      "progress": {
+        "canonical_pass": true,
+        "summary": "Certified: 60 s scripted joystick replay, 27.0 degree left and 21.4 degree right response, successful stop/restart, 18.5 mm final stop drift. Exact checkpoint re-passed both 30 s standing gates, 5.835 m, 10.516 m, and 91.378 degree turn-and-hold. All six proof videos reviewed.",
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/proof.mp4"
+      },
+      "priorRejectedCandidate": {
+        "canonical_pass": false,
+        "summary": "Independent60s joystick replay passed, but the samecheckpoint failed its cumulative90degree turn-and-hold at49.544s while settling. Promotion withheld. Retraining with certifiedM5 left-turn/hold parameters frozen and separate right-turn hold feedback.",
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_refine5_eval/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_refine5_eval/proof.mp4",
+        "cumulative_failure": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop5_m5/dynamics.json"
+      },
+      "passedAt": "2026-09-22T13:02:20.057133+00:00",
+      "checkpoint": {
+        "kind": "periodic_feedback_cem",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
+        "sha256": "0c07a031b1921995f5c17e4a14f9a7dfee3d6854d376da4f2b0c205f2c63fb13"
+      },
+      "metrics": {
+        "duration_s": 60.0,
+        "reset_count": 0,
+        "done_count": 0,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.26171076211906774,
+        "root_height_drop_m": 0.003335167707138098,
+        "horizontal_drift_m": 5.250807568774589,
+        "max_abs_action": 0.8455542325973511,
+        "max_abs_command": 0.2,
+        "policy_calls": 3000,
+        "max_joint_speed_rad_s": 2.981574535369873,
+        "max_motor_torque_nm": 2.5351037979125977,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.0010715837753335,
+        "peak_support_body_weight_ratio": 2.7626953428366523,
+        "nonfoot_contacts": [],
+        "action_target_range_rad": {
+          "left_hip_pitch_joint": [
+            -0.2393520736694336,
+            0.13780832290649414
+          ],
+          "left_hip_yaw_joint": [
+            -0.055119190216064456,
+            0.06810404777526856
+          ],
+          "left_hip_roll_joint": [
+            -0.3354889678955078,
+            0.3309015274047852
+          ],
+          "left_knee_joint": [
+            -0.006046105027198795,
+            0.3959296417236329
+          ],
+          "left_ankle_pitch_joint": [
+            -0.22219511032104494,
+            0.14983868598937988
+          ],
+          "left_toe_joint": [
+            -0.021328012943267822,
+            0.0008428705483675003
+          ],
+          "right_hip_pitch_joint": [
+            -0.2387379837036133,
+            0.13756406784057618
+          ],
+          "right_hip_yaw_joint": [
+            -0.05210928440093994,
+            0.0699449872970581
+          ],
+          "right_hip_roll_joint": [
+            -0.3354889678955078,
+            0.3309015274047852
+          ],
+          "right_knee_joint": [
+            -0.004557193517684938,
+            0.3959211730957032
+          ],
+          "right_ankle_pitch_joint": [
+            -0.2263174057006836,
+            0.14278111457824708
+          ],
+          "right_toe_joint": [
+            -0.011297798156738282,
+            0.016798851490020753
+          ],
+          "waist_yaw_joint": [
+            -0.031428589820861816,
+            0.013455429077148438
+          ],
+          "waist_roll_joint": [
+            -0.0505684232711792,
+            0.005789366364479065
+          ],
+          "waist_pitch_joint": [
+            -0.06764433860778808,
+            0.008187743425369263
+          ],
+          "left_shoulder_pitch_joint": [
+            -0.018937379121780396,
+            0.0067165189981460574
+          ],
+          "right_shoulder_pitch_joint": [
+            -0.007780358195304871,
+            0.010179195404052734
+          ]
+        },
+        "raw_actor_output_range": {
+          "left_hip_pitch_joint": [
+            -2.99190092086792,
+            1.7226040363311768
+          ],
+          "left_hip_yaw_joint": [
+            -0.6889898777008057,
+            0.8513005971908569
+          ],
+          "left_hip_roll_joint": [
+            -4.193612098693848,
+            4.1362690925598145
+          ],
+          "left_knee_joint": [
+            -0.0755763128399849,
+            4.94912052154541
+          ],
+          "left_ankle_pitch_joint": [
+            -2.7774388790130615,
+            1.8729835748672485
+          ],
+          "left_toe_joint": [
+            -0.2666001617908478,
+            0.010535881854593754
+          ],
+          "right_hip_pitch_joint": [
+            -2.984224796295166,
+            1.7195508480072021
+          ],
+          "right_hip_yaw_joint": [
+            -0.6513660550117493,
+            0.8743123412132263
+          ],
+          "right_hip_roll_joint": [
+            -4.193612098693848,
+            4.1362690925598145
+          ],
+          "right_knee_joint": [
+            -0.05696491897106171,
+            4.949014663696289
+          ],
+          "right_ankle_pitch_joint": [
+            -2.828967571258545,
+            1.7847639322280884
+          ],
+          "right_toe_joint": [
+            -0.14122247695922852,
+            0.2099856436252594
+          ],
+          "waist_yaw_joint": [
+            -0.3928573727607727,
+            0.16819286346435547
+          ],
+          "waist_roll_joint": [
+            -0.63210529088974,
+            0.07236707955598831
+          ],
+          "waist_pitch_joint": [
+            -0.8455542325973511,
+            0.10234679281711578
+          ],
+          "left_shoulder_pitch_joint": [
+            -0.23671723902225494,
+            0.08395648747682571
+          ],
+          "right_shoulder_pitch_joint": [
+            -0.09725447744131088,
+            0.12723994255065918
+          ]
+        },
+        "semantic_forward_displacement_m": 5.066167511688232,
+        "semantic_strafe_displacement_m": -1.295599102973938,
+        "left_foot_liftoff_count": 46,
+        "right_foot_liftoff_count": 46,
+        "mean_contact_foot_slip_mps": 0.019876716130240352,
+        "simultaneous_air_fraction": 0.0081,
+        "leg_joint_excursion_rad": {
+          "left_hip_pitch_joint": 0.36468955129384995,
+          "left_hip_yaw_joint": 0.08001269213855267,
+          "left_hip_roll_joint": 0.503358006477356,
+          "left_knee_joint": 0.3602130711078644,
+          "left_ankle_pitch_joint": 0.3508763089776039,
+          "left_toe_joint": 0.020028804618050344,
+          "right_hip_pitch_joint": 0.3629356734454632,
+          "right_hip_yaw_joint": 0.08012834191322327,
+          "right_hip_roll_joint": 0.5053313821554184,
+          "right_knee_joint": 0.36169207096099854,
+          "right_ankle_pitch_joint": 0.352390730753541,
+          "right_toe_joint": 0.02511950023472309,
+          "waist_yaw_joint": 0.06659010425209999,
+          "waist_roll_joint": 0.09162669628858566,
+          "waist_pitch_joint": 0.06759097427129745,
+          "left_shoulder_pitch_joint": 0.04815006768330932,
+          "right_shoulder_pitch_joint": 0.04164542816579342
+        },
+        "policy_inference_steps": 3000,
+        "control_steps": 3000,
+        "left_completed_swings": 44,
+        "right_completed_swings": 45,
+        "max_simultaneous_flight_s": 0.014,
+        "max_heading_deviation_rad": 0.6227437476352959,
+        "left_peak_clearance_m": 0.04044011895049964,
+        "right_peak_clearance_m": 0.039691589702563826,
+        "teleop_response": {
+          "blocks": [
+            {
+              "label": "forward",
+              "start_s": 0.0,
+              "end_s": 6.0,
+              "yaw_sign": 0,
+              "complete": true,
+              "forward_progress_m": 0.5704000252721162,
+              "heading_change_rad": -0.15443096985150745,
+              "max_heading_excursion_rad": 0.3418660022238696,
+              "completed_swings": {
+                "left": 5,
+                "right": 5
+              }
+            },
+            {
+              "label": "left",
+              "start_s": 6.0,
+              "end_s": 18.0,
+              "yaw_sign": 1,
+              "complete": true,
+              "forward_progress_m": 1.5705216857356021,
+              "heading_change_rad": 0.4704615675675485,
+              "max_heading_excursion_rad": 0.5897288513677093,
+              "completed_swings": {
+                "left": 13,
+                "right": 13
+              }
+            },
+            {
+              "label": "restart_forward",
+              "start_s": 27.0,
+              "end_s": 32.0,
+              "yaw_sign": 0,
+              "complete": true,
+              "forward_progress_m": 0.6489224503195081,
+              "heading_change_rad": 0.21625382758433176,
+              "max_heading_excursion_rad": 0.21625382758433176,
+              "completed_swings": {
+                "left": 5,
+                "right": 6
+              }
+            },
+            {
+              "label": "right",
+              "start_s": 32.0,
+              "end_s": 44.0,
+              "yaw_sign": -1,
+              "complete": true,
+              "forward_progress_m": 1.5477229399852788,
+              "heading_change_rad": -0.37279694012394876,
+              "max_heading_excursion_rad": 0.37279694012394876,
+              "completed_swings": {
+                "left": 14,
+                "right": 13
+              }
+            },
+            {
+              "label": "straight_after_turn",
+              "start_s": 44.0,
+              "end_s": 48.0,
+              "yaw_sign": 0,
+              "complete": true,
+              "forward_progress_m": 0.5152385166563939,
+              "heading_change_rad": 0.20649992056219013,
+              "max_heading_excursion_rad": 0.21255199255064233,
+              "completed_swings": {
+                "left": 4,
+                "right": 5
+              }
+            }
+          ],
+          "holds": [
+            {
+              "start_s": 20.0,
+              "end_s": 25.0,
+              "complete": true,
+              "drift_m": 0.0036341726937866646,
+              "settled_speed_mps": 0.0007319489208702602,
+              "heading_drift_rad": 0.014278481375915086
+            },
+            {
+              "start_s": 50.0,
+              "end_s": 60.0,
+              "complete": true,
+              "drift_m": 0.01845703953094644,
+              "settled_speed_mps": 0.0011251393092268558,
+              "heading_drift_rad": 0.07912601687531978
+            }
+          ]
+        }
+      },
+      "evidence": [
+        {
+          "kind": "validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/milestone_validation.json",
+          "sha256": "21132c7f34764f8a07f95e4b11e8886b97ec7b2fbf5ac7fc3dee660b25b336f1"
+        },
+        {
+          "kind": "dynamics_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/dynamics.json",
+          "sha256": "c01d0d4a089ac8ff989ee1817ec7b9196d2597a4213540cfac84952a472ff8b0"
+        },
+        {
+          "kind": "proof_validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/proof_metadata.json",
+          "sha256": "ffdd2d2b9189231c26a8b7308c52667cdb0d95082f0a125a0b13a46b4f073ee9"
+        },
+        {
+          "kind": "visual_review",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/visual_review.json",
+          "sha256": "f4046584d96595b46b03568b712c21dcee0c686db6d198657a596f93e384a9b3"
+        },
+        {
+          "kind": "video",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/proof.mp4",
+          "sha256": "efb5901ce6cdb53920e1f1aa4d14fec3a1c7b401f5b6b518c0e6ef58726e162b"
+        },
+        {
+          "kind": "trajectory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/trajectory.npz",
+          "sha256": "82d38c57712547d9dbda922a2f7d21c74d0b8544ffc1358983c4f1de79e189f9"
+        },
+        {
+          "kind": "model",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "walking_foot_trace",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/foot_trace.json",
+          "sha256": "b413eef4bb288114a145c13df4d91f04176dc7fad73b2e972c73985ec82cde42"
+        },
+        {
+          "kind": "controller_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/controller_source.py",
+          "sha256": "b49084e2a60dfc6802f92720a8f3cbf54cbe35efec513602928e4b50b9ec3eb4"
+        },
+        {
+          "kind": "checkpoint_training_metadata",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/training.json",
+          "sha256": "7894721f03b748263c9a167cb7321d29f3836cbe5051ba20d9bd3e93bf5eaf0a"
+        },
+        {
+          "kind": "trained_gait_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        },
+        {
+          "kind": "trained_turn_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/turn_source.py",
+          "sha256": "cb9b0b3aa6d4fe869b91620e761e1e48b00504f3f8165419e870d76bc6c519b0"
+        },
+        {
+          "kind": "teleop_validator_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/teleop_validator_source.py",
+          "sha256": "d21914b1dd33a03767734823cf3597ca025aa73daad347740966e883c4e59dda"
+        },
+        {
+          "kind": "command_and_policy_trace",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/policy_trace.npz",
+          "sha256": "4cb41472a58cae494e43f58bc3dc19d04763f9d6cec091576c7e509afd3d6359"
+        },
+        {
+          "kind": "joystick_protocol",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/command_protocol_source.py",
+          "sha256": "d21914b1dd33a03767734823cf3597ca025aa73daad347740966e883c4e59dda"
+        },
+        {
+          "kind": "command_memory",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/controller_memory.json",
+          "sha256": "90da67ca3b33e01ef12625fdd9cfc39598cacfa28b6d2605429fd641d176b69f"
+        }
+      ],
+      "developmentProgressBeforeCertification": {
+        "canonical_pass": false,
+        "summary": "Corrected checkpoint independently passed both the 90-degree turn-and-hold and 60-second joystick replay. Fresh cumulative passive standing, policy standing, 5 m and 10 m validation underway; promotion pending all evidence.",
+        "evaluation": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/dynamics.json",
+        "video": "/home/wishai/vscode/geo_lib/algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/rsl_transfer_20260922_teleop_preserve1_m6/proof.mp4"
+      }
     },
     {
       "order": 7,
       "id": "gate_10m_four_directions_no_reset",
       "stage": "fwd_yaw",
-      "status": "not_started"
+      "status": "in_progress",
+      "progress": {
+        "canonical_pass": false,
+        "summary": "Next unresolved gate. Work paused by user before M7 implementation or training."
+      }
     },
     {
       "order": 8,
@@ -153,5 +1668,18 @@
       "stage": "game",
       "status": "not_started"
     }
-  ]
+  ],
+  "sessionStatus": {
+    "state": "paused_by_user",
+    "updatedAt": "2026-09-22T13:05:41.503942+00:00",
+    "reason": "User requested stopping for today, recording status, committing and pushing. Do not launch training until the user resumes.",
+    "certifiedMilestones": 6,
+    "nextMilestone": "gate_10m_four_directions_no_reset",
+    "nextWork": "Define and validate four 10 m directional gates through semantic commands on the certified M6 checkpoint; no M7 implementation or run started.",
+    "checkpoint": {
+      "kind": "periodic_feedback_cem",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
+      "sha256": "0c07a031b1921995f5c17e4a14f9a7dfee3d6854d376da4f2b0c205f2c63fb13"
+    }
+  }
 }

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Minecraft Top Map</title>
+  <style>
+    :root { color-scheme: dark; font: 14px system-ui, sans-serif; background: #111820; color: #eaf1e8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; }
+    #map { position: fixed; inset: 0; cursor: grab; background: #0b1016; image-rendering: pixelated; }
+    #map.drag { cursor: grabbing; }
+    #tiles { position: absolute; transform-origin: 0 0; }
+    .tile { position: absolute; width: 256px; height: 256px; image-rendering: pixelated; }
+    .panel { position: fixed; z-index: 3; left: 16px; top: 16px; width: min(390px, calc(100vw - 32px)); padding: 14px; border: 1px solid #456052; border-radius: 12px; background: #142019e8; box-shadow: 0 12px 32px #0008; }
+    h1 { margin: 0 0 10px; font-size: 18px; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { display: grid; gap: 4px; color: #b7c6bb; font-size: 12px; }
+    select,input { width: 100%; border: 1px solid #456052; border-radius: 6px; padding: 7px; background: #0d1711; color: inherit; }
+    #status { margin: 10px 0 0; color: #b7c6bb; font-size: 12px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div id="map"><div id="tiles"></div></div>
+  <section class="panel">
+    <h1>Top-visible block map</h1>
+    <div class="controls">
+      <label>World<select id="world"></select></label>
+      <label>Dimension<select id="dimension"></select></label>
+      <label>Layer cutoff<input id="layer" value="surface" inputmode="numeric" aria-label="surface or Y coordinate"></label>
+      <label>Texture scale<select id="ppb"><option>1</option><option>2</option><option>4</option><option>8</option><option>16</option></select></label>
+    </div>
+    <p id="status">Loading world metadata…</p>
+  </section>
+  <script>
+    const map = document.querySelector('#map'), tiles = document.querySelector('#tiles');
+    const worldSelect = document.querySelector('#world'), dimensionSelect = document.querySelector('#dimension');
+    const layerInput = document.querySelector('#layer'), ppbSelect = document.querySelector('#ppb'), status = document.querySelector('#status');
+    let inventory = [], panX = innerWidth / 2, panY = innerHeight / 2, scale = 1, dragging = false, lastX = 0, lastY = 0;
+    const selection = () => ({ world: worldSelect.value, dimension: dimensionSelect.value, layer: layerInput.value.trim() || 'surface', ppb: ppbSelect.value });
+    function tileUrl(x,z, report=false) { const s=selection(), q=new URLSearchParams({...s,x,z}); return `${report?'/api/report':'/api/tile.png'}?${q}`; }
+    function redraw() {
+      tiles.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+      const ppb=Number(ppbSelect.value), tileSize=256*ppb;
+      const minX=Math.floor((-panX/scale)/tileSize)-1, maxX=Math.floor(((innerWidth-panX)/scale)/tileSize)+1;
+      const minZ=Math.floor((-panY/scale)/tileSize)-1, maxZ=Math.floor(((innerHeight-panY)/scale)/tileSize)+1;
+      const needed=new Set();
+      for(let z=minZ;z<=maxZ;z++) for(let x=minX;x<=maxX;x++) {
+        const id=`${x}:${z}`, key=`${worldSelect.value}:${dimensionSelect.value}:${layerInput.value}:${ppb}:${id}`; needed.add(key);
+        if(!tiles.querySelector(`[data-key="${CSS.escape(key)}"]`)) {
+          const image=document.createElement('img'); image.className='tile'; image.dataset.key=key; image.src=tileUrl(x,z);
+          image.style.left=`${x*tileSize}px`; image.style.top=`${z*tileSize}px`; image.style.width=image.style.height=`${tileSize}px`; tiles.append(image);
+        }
+      }
+      [...tiles.children].forEach(node => { if(!needed.has(node.dataset.key)) node.remove(); });
+      const centerX=Math.floor(((innerWidth/2-panX)/scale)/tileSize), centerZ=Math.floor(((innerHeight/2-panY)/scale)/tileSize);
+      fetch(tileUrl(centerX,centerZ,true)).then(r=>r.json()).then(r=>status.textContent=`Center tile ${centerX}, ${centerZ} · ${r.chunks.loaded} chunks · ${r.visibleBlocks} blocks · ${r.unknown.visibleBlocks} unknown`).catch(e=>status.textContent=e);
+    }
+    function dimensions() { const item=inventory.find(x=>x.id===worldSelect.value); dimensionSelect.innerHTML=(item?.dimensions||[]).map(x=>`<option>${x}</option>`).join(''); resetTiles(); }
+    function resetTiles() { tiles.replaceChildren(); redraw(); }
+    map.addEventListener('pointerdown', e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;map.classList.add('drag');map.setPointerCapture(e.pointerId)});
+    map.addEventListener('pointermove', e=>{if(!dragging)return;panX+=e.clientX-lastX;panY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;redraw()});
+    map.addEventListener('pointerup', ()=>{dragging=false;map.classList.remove('drag')});
+    map.addEventListener('wheel', e=>{e.preventDefault();const old=scale;scale=Math.max(.125,Math.min(16,scale*Math.exp(-e.deltaY*.001)));panX=e.clientX-(e.clientX-panX)*scale/old;panY=e.clientY-(e.clientY-panY)*scale/old;redraw()},{passive:false});
+    worldSelect.addEventListener('change', dimensions); dimensionSelect.addEventListener('change', resetTiles); ppbSelect.addEventListener('change', resetTiles);
+    layerInput.addEventListener('change', ()=>{if(layerInput.value!=='surface'&&!/^-?\d+$/.test(layerInput.value)){layerInput.value='surface'}resetTiles()});
+    addEventListener('resize', redraw);
+    fetch('/api/worlds').then(r=>r.json()).then(data=>{inventory=data.worlds;worldSelect.innerHTML=inventory.map(x=>`<option value="${x.id}">${x.metadata?.levelName||x.id}</option>`).join('');dimensions()}).catch(e=>status.textContent=e);
+  </script>
+</body>
+</html>

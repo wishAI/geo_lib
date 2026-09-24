@@ -1,0 +1,34 @@
+{
+  "id": "minecraft_building_mapper",
+  "icon": "layers",
+  "name": "Minecraft 2D Block Map",
+  "eyebrow": "READ-ONLY ANVIL TILE STREAMING",
+  "summary": "Stream exact-asset Anvil satellite tiles and whole-world overviews with biome tint, alpha/fluid depth, partial geometry, hillshade, and provenance coverage.",
+  "accent": "#4f8f55",
+  "runtime": "tk2",
+  "runtimeLabel": "TK2 worlds · Nextcloud map index",
+  "capabilities": ["Anvil", "satellite map", "exact textures", "read-only"],
+  "artifacts": [
+    {"label": "LunaMatrix full edited overworld", "path": "assets/minecraft_maps/lunamatrix/world_overview.png", "kind": "image"},
+    {"label": "LunaMatrix settlement detail", "path": "assets/minecraft_maps/lunamatrix/settlement_mosaic.png", "kind": "image"},
+    {"label": "LunaMatrix spawn detail", "path": "assets/minecraft_maps/lunamatrix/spawn_mosaic.png", "kind": "image"},
+    {"label": "LunaMatrix render report", "path": "assets/minecraft_maps/lunamatrix/overview_report.json", "kind": "json"},
+    {"label": "Bilicraft full overworld", "path": "assets/minecraft_maps/bilicraft/world_overview.png", "kind": "image"},
+    {"label": "Bilicraft town detail", "path": "assets/minecraft_maps/bilicraft/town_crop.png", "kind": "image"},
+    {"label": "Bilicraft town mosaic", "path": "assets/minecraft_maps/bilicraft/town_mosaic.png", "kind": "image"},
+    {"label": "Bilicraft render report", "path": "assets/minecraft_maps/bilicraft/overview_report.json", "kind": "json"}
+  ],
+  "viewer": {
+    "type": "minecraftMap",
+    "maps": [
+      {"id": "luna-overworld", "label": "LunaMatrix · full edited overworld", "path": "assets/minecraft_maps/lunamatrix/world_overview.png", "detail": "World-editor terrain plus explored towns · overworld only", "worldBounds": {"minX": -4544, "minZ": -4768, "maxXExclusive": 4096, "maxZExclusive": 4352}},
+      {"id": "luna-settlement", "label": "LunaMatrix · settlement", "path": "assets/minecraft_maps/lunamatrix/settlement_mosaic.png", "detail": "Town-scale exact-texture mosaic", "worldBounds": {"minX": 1024, "minZ": -512, "maxXExclusive": 1792, "maxZExclusive": -256}},
+      {"id": "luna-spawn", "label": "LunaMatrix · spawn", "path": "assets/minecraft_maps/lunamatrix/spawn_mosaic.png", "detail": "Spawn-scale exact-texture mosaic", "worldBounds": {"minX": 512, "minZ": -768, "maxXExclusive": 1024, "maxZExclusive": -512}},
+      {"id": "bilicraft-overworld", "label": "Bilicraft · overworld", "path": "assets/minecraft_maps/bilicraft/world_overview.png", "detail": "Minecraft 1.5.2 modded overworld", "worldBounds": {"minX": -13296, "minZ": -6688, "maxXExclusive": 4976, "maxZExclusive": 11904}},
+      {"id": "bilicraft-town", "label": "Bilicraft · town", "path": "assets/minecraft_maps/bilicraft/town_crop.png", "detail": "Town crop with mod textures"},
+      {"id": "bilicraft-town-blocks", "label": "Bilicraft · town blocks", "path": "assets/minecraft_maps/bilicraft/town_mosaic.png", "detail": "Higher-detail two-tile town mosaic", "worldBounds": {"minX": -768, "minZ": -4352, "maxXExclusive": -256, "maxZExclusive": -4096}}
+    ],
+    "extensions": {"regionSelection": true, "buildingRecognition": false}
+  },
+  "examples": []
+}
