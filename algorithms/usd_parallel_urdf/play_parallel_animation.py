@@ -213,7 +213,7 @@ def main() -> None:
     args = _parse_args()
     folder = Path(__file__).resolve().parent
     asset_paths = resolve_asset_paths(args.usd_path, folder / 'outputs')
-    urdf_path = args.urdf_path or asset_paths.mesh_urdf
+    urdf_path = args.urdf_path or asset_paths.mesh_package_urdf
     if not urdf_path.exists():
         raise RuntimeError(f'URDF does not exist yet: {urdf_path}')
     _ensure_gui_environment(args.headless)

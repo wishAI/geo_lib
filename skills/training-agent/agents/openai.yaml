@@ -1,0 +1,4 @@
+interface:
+  display_name: "Training Agent"
+  short_description: "Model training and checkpoint discipline"
+  default_prompt: "Use $training-agent to run disciplined model training, validation, checkpoint promotion, and durable experiment tracking."
