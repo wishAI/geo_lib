@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T15:28:41.774726+00:00",
+    "updatedAt": "2026-10-03T16:09:28.570350+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Finish cruise adaptation, compare old/new cruise with identical frozen active head on reserved late states, then full nominal backward proof if improved. Six certified milestones unchanged.",
+    "nextWork": "Diagnose signed_v2 tiltfall afterrapid signchanges; separate cycleheading sway from courseerror before changing navigation/controller. Six certifiedmilestones unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2386,7 +2386,7 @@
     },
     "cruiseAdaptation": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_adapt400",
-      "status": "running",
+      "status": "complete",
       "variant": "adapted_cruise_frozen_active_v1",
       "frozen_active_checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_margin400/model_399.pt",
       "cruise_initialization_checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_residual_ppo300/model_299.pt",
@@ -2396,7 +2396,65 @@
       "training_force_limit_bw": 2.9,
       "bank": "30 healthy late states at140\u2013145.8s fromfailedbackward;15even train/15odd reserved correlatedscreen; no paddedheadingteacher reward.",
       "smoke": "Two iterations passed. Initial fullcontroller tensors anddeployment sources exactlyequalmargin399.77 focusedCPU tests passed.",
-      "composition": "Same two69-input actors andcombined.02rad bound; cruise trainable, active/CEM/gait/standing frozen; separate explicit lineage and independent validator."
+      "composition": "Same two69-input actors andcombined.02rad bound; cruise trainable, active/CEM/gait/standing frozen; separate explicit lineage and independent validator.",
+      "statistics": {
+        "completed": 4659,
+        "failed": 2909,
+        "mean_interval_peak_bw": 1.1322810649871826,
+        "max_interval_peak_bw": 2.5561840534210205,
+        "mean_forward_mps": 0.1313370019197464,
+        "mean_abs_residual_rad": 0.010471347570419311
+      }
+    },
+    "cruiseAdaptedScreen": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_cruise_adapt399_screen/screen.json",
+      "sha256": "f9853edbc49c1c4b9605b556af4d30724c688290085713ed87a75f1d1614ea15",
+      "reference_passed": 43,
+      "candidate_passed": 60,
+      "episodes_each": 60,
+      "candidate_peak_bw": 2.959153175354004,
+      "reference_peak_bw": 3.2976744174957275,
+      "scope": "15 reserved late states,4 repeats each across2groups percontroller; same frozenactive399, originalcruise299 versusadaptedcruise399. No nominal acceptance claim."
+    },
+    "cruiseAdaptedBackward": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_cruise_adapt399_backward/dynamics.json",
+      "sha256": "8534f185493680d072f2a63d6a0d55241ae51933904c1e31446c128c8d37ca27",
+      "status": "failed gate; survived full240s",
+      "failures": [
+        "semantic +Y forward displacement did not reach 10 m",
+        "strafe drift exceeded 0.75 m",
+        "no crossing of the 10 m directional gate within 0.75 m"
+      ],
+      "metrics": {
+        "duration_s": 240.0,
+        "fall_count": 0,
+        "reset_count": 0,
+        "done_count": 0,
+        "peak_support_body_weight_ratio": 2.9404162805695564,
+        "direction_progress_m": -0.3306193134651184,
+        "direction_cross_track_m": 1.5609877109527588
+      },
+      "promoted": false,
+      "rejected_visual_review_sha256": "3d147d5be4ddae05438fa209a04294a74330e3e3eae07d83a7d1829ffe9adbaa"
+    },
+    "signedNavigation": {
+      "version": "signed_v2",
+      "status": "failed nominal tilt at95.882s; rendering",
+      "run": "m7_20261004_adapt399_signed_backward",
+      "checkpoint": "m7_20261003_cruise_adapt400/model_399.pt",
+      "diagnosis": "Legacy yaw clamps blocked right corrections afterovershoot: error-1.12deg90s,-24.95deg110s,-70.85deg130s; backwardwrap at140.60s caused largeleftloop.",
+      "implementation": "Opt-in serial navigator; permanent backwardhemisphere latch,3degreezero band, sameforward.2/yawcap/gain/gategeometry. Frozen controller andlegacytraining unchanged. Independent fulltrace commandreconstruction and extra sourcehash.",
+      "risk": "Negative yaw switches saved balancebranch anddisables leftcruise untilnextpositivepulse; requiresfreshnominalproofs.",
+      "tests": "53focused CPU tests passed, including unknownversion and alteredsource rejection; independentCPU code review found no blocker.",
+      "promoted": false,
+      "result": {
+        "duration_s": 95.882,
+        "peak_force_bw": 2.9322691630094675,
+        "fall_count": 1,
+        "progress_m": 1.468770227684021,
+        "cross_track_m": 5.10328483581543,
+        "diagnosis_pending": "Repeated positive/negative small yaw pulses from88.82s; investigate sway-driven branch switching."
+      }
     }
   }
 }

@@ -2,12 +2,19 @@
 
 This sandbox is being rebuilt from the clean restart contract one milestone at a time.
 
-Current milestone truth (2026-10-03): **6/12 milestones certified; work resumed
+Current milestone truth (2026-10-04): **6/12 milestones certified; work resumed
 on M7.** Four directions mean turning and walking toward world-direction 10 m
 gates from the same nominal pose, as confirmed by the user. The M7 diagnostic
 emits only semantic forward/yaw commands; it preserves the saved M6 controller.
-Each direction run keeps one yaw sign (right for the right gate, left for the
-left/backward gates) to avoid repeatedly switching balance modes near alignment.
+Legacy direction runs keep one yaw sign (right for the right gate, left for the
+left/backward gates). The opt-in `--direction-navigation signed_v2` experiment
+permits both correction signs after choosing the initial backward left arc once.
+It latches the first backward-facing hemisphere and uses a three-degree zero-yaw
+band, with the same forward speed, yaw cap, pursuit gain, and gate geometry.
+Legacy training commands and saved controller memory remain unchanged. Negative
+yaw switches the frozen controller to right-side balance settings, so this
+transition requires fresh force and full-route validation. The validator replays
+the navigator from the full trajectory and binds its additional source snapshot.
 Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
 for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
 Speed improvements require measured faster completion and the same quality checks.
@@ -375,7 +382,10 @@ frozen active donor separately from cruise initialization; independent validatio
 allows cruise weights to change while checking all frozen tensors. Training uses
 16 s late-state episodes, a 2.9 BW training margin, and no failed-trajectory
 heading teacher. The initial controller matches margin399 exactly; GPU smoke
-and provenance tests passed. Full nominal and cumulative proof is still required.
+and provenance tests passed. Its final actor passed 60/60 reserved late-state
+episodes at a 2.959 BW maximum, versus 43/60 for the original cruise actor with
+the same frozen active network. Full nominal backward evaluation is underway;
+all cumulative proofs remain required for this exact adapted checkpoint.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

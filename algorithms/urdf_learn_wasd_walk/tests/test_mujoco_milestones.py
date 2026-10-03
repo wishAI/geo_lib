@@ -137,6 +137,32 @@ class WalkingCertificateTests(StandingCertificateTests):
         with self.assertRaisesRegex(ValueError,'crossing differs|metric differs'):
             gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
 
+    def test_signed_direction_requires_known_version_and_trusted_source(self):
+        from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
+        cp=self.direction_fixture()
+        self.cfg['direction_navigation']='signed_v2'
+        self.record['identity']['config_sha256']=hashlib.sha256(json.dumps(self.cfg,sort_keys=True).encode()).hexdigest()
+        source=self.folder/'signed_navigation_source.py'
+        source.write_bytes(Path(signed.__file__).read_bytes())
+        self.record['signed_navigation_source_sha256']=gates.digest(source)
+        self.teleop_save()
+        gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        source.write_text(source.read_text()+'\n# changed\n')
+        self.record['signed_navigation_source_sha256']=gates.digest(source)
+        self.teleop_save()
+        with self.assertRaisesRegex(ValueError,'Signed navigation source mismatch'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        self.cfg['direction_navigation']='unknown'
+        self.record['identity']['config_sha256']=hashlib.sha256(json.dumps(self.cfg,sort_keys=True).encode()).hexdigest()
+        self.teleop_save()
+        with self.assertRaisesRegex(ValueError,'Unknown directional navigation'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        self.cfg['direction_navigation']='legacy'
+        self.record['identity']['config_sha256']=hashlib.sha256(json.dumps(self.cfg,sort_keys=True).encode()).hexdigest()
+        self.teleop_save()
+        with self.assertRaisesRegex(ValueError,'Legacy direction mislabeled'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+
     def test_direction_promotion_requires_four_distinct_runs_and_six_predecessors(self):
         checkpoint=self.folder/'candidate.pt';checkpoint.write_bytes(b'candidate')
         ledger=dict(lineage=gates.LINEAGE,milestones=[{'status':'passed'} for _ in range(6)]+

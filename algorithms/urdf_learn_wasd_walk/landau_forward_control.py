@@ -374,6 +374,13 @@ def evaluate(args):
     if sum((bool(turn_mode),bool(teleop_mode),bool(direction)))>1:raise ValueError('Choose one command test')
     if direction:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
+    direction_navigation=getattr(args,'direction_navigation','legacy')
+    if direction_navigation not in ('legacy','signed_v2') or (direction_navigation!='legacy' and not direction):
+        raise ValueError('Signed navigation requires a directional evaluation')
+    navigator=None
+    if direction_navigation=='signed_v2':
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import Navigator
+        navigator=Navigator(direction)
     if teleop_mode:
         from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop_contract
         teleop_profile=teleop_contract.command_profile
@@ -467,7 +474,9 @@ def evaluate(args):
             if direction_origin is None:direction_origin=data.xpos[pelvis,:2].copy()
             delta=data.xpos[pelvis,:2]-direction_origin
             result[60:62]=0.
-            result[63:66]=direction_contract.command(direction,delta,np.arctan2(rotation[1,0],rotation[0,0]),float(data.time),args.forward)
+            heading=np.arctan2(rotation[1,0],rotation[0,0])
+            result[63:66]=(navigator.command(delta,heading,float(data.time),args.forward) if navigator else
+                direction_contract.command(direction,delta,heading,float(data.time),args.forward))
         if command_memory is not None:
             adjusted,prior_obs=command_memory.observe(torch.from_numpy(result)[None],
                 torch.tensor(data.xpos[pelvis].copy(),dtype=torch.float32)[None],
@@ -513,7 +522,8 @@ def evaluate(args):
     run(SimpleNamespace(name=args.name,backend='mujoco_warp_cuda',seconds=args.seconds,dt=.002,seed=42,
         pose='geometric',gain_scale=1.,noslip_iterations=0,contact_timeconst=.004,assistance=0.,
         checkpoint=str(checkpoint),forward=args.forward,target_distance_m=getattr(args,'target_distance',5.),turn=turn_mode,
-        turn_hold_start=turn_implementation.HOLD_START if turn_mode else None,teleop=teleop_mode,direction=direction,render=False))
+        turn_hold_start=turn_implementation.HOLD_START if turn_mode else None,teleop=teleop_mode,direction=direction,
+        direction_navigation=direction_navigation,render=False))
     if teleop_mode:
         protocol_path=protocol_source if meta.get('memory_version')==2 else Path(teleop_contract.__file__)
         (backend.OUTPUT/args.name/'command_protocol_source.py').write_text(protocol_path.read_text())
@@ -565,6 +575,7 @@ def main():
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--turn',action='store_true',help='Evaluate the saved yaw-command profile and settled hold')
     p.add_argument('--direction',choices=('forward','left','right','backward'),help='M7: turn and walk through a world-direction 10 m gate')
+    p.add_argument('--direction-navigation',choices=('legacy','signed_v2'),default='legacy')
     p.add_argument('--teleop',action='store_true',help='Run the fixed60s joystick command replay')
     p.add_argument('--action-mapping',choices=('range_v1','legacy_radians_v2'),default='range_v1')
     p.add_argument('--moving-noise-floor',action='store_true')
@@ -572,6 +583,8 @@ def main():
     p.add_argument('--moving-tilt-weight',type=float,default=2.)
     p.add_argument('--initialization',choices=('transfer','fresh_moving'),default='transfer')
     args=p.parse_args()
+    if args.direction_navigation!='legacy' and (args.mode!='evaluate' or not args.direction):
+        raise ValueError('Signed navigation is serial evaluation only; legacy training memory is unchanged')
     if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=(240 if args.direction else 120):
         raise ValueError('Experiment exceeds bounded limits')
     if args.hip_roll_range not in (.2,.4):raise ValueError('Use an audited hip-roll range')

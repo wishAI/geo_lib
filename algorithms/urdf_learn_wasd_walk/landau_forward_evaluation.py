@@ -387,6 +387,12 @@ def run(args):
             protocol=Path(__file__).with_name('landau_direction_contract.py')
             (out/'direction_protocol_source.py').write_text(protocol.read_text())
             result['direction_protocol_source_sha256']=digest(protocol)
+            navigation=getattr(args,'direction_navigation','legacy')
+            if navigation not in ('legacy','signed_v2'):raise ValueError('Unknown direction navigation')
+            if navigation=='signed_v2':
+                source=Path(__file__).with_name('landau_signed_navigation.py')
+                (out/'signed_navigation_source.py').write_bytes(source.read_bytes())
+                result['signed_navigation_source_sha256']=digest(source)
             result['direction_interpretation']='turn and walk to world gate from unchanged nominal start pose'
         if teleop_mode:
             result['walking_acceptance'].pop('maximum_heading_deviation_degrees')

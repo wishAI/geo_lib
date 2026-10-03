@@ -478,7 +478,17 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
                 require(abs(value-metrics[key])<1e-4, 'Direction metric differs from trajectory: '+key)
             else:require(value==metrics[key], 'Direction crossing differs from trajectory')
         require(not dc.evaluate_gate({**metrics,**measured},duration), 'Reconstructed directional gate failed')
-        commands=np.array([dc.command(direction,xy[:2]-positions[0,:2],heading,float(age),cfg['forward'])
+        navigation=cfg.get('direction_navigation','legacy')
+        require(navigation in ('legacy','signed_v2'), 'Unknown directional navigation')
+        navigator=None
+        if navigation=='signed_v2':
+            from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
+            require(result.get('signed_navigation_source_sha256')==digest(folder/'signed_navigation_source.py')==digest(signed.__file__),
+                    'Signed navigation source mismatch')
+            navigator=signed.Navigator(direction)
+        else:require('signed_navigation_source_sha256' not in result, 'Legacy direction mislabeled with signed navigation')
+        commands=np.array([(navigator.command(xy[:2]-positions[0,:2],heading,float(age),cfg['forward']) if navigator else
+                           dc.command(direction,xy[:2]-positions[0,:2],heading,float(age),cfg['forward']))
                            for xy,heading,age in zip(positions[:-1],headings[:-1],pt)])
         require(np.allclose(obs[:,63:66],commands,atol=1e-6,rtol=0), 'Direction did not receive declared joystick commands')
         memory=read(folder/'controller_memory.json')
@@ -509,7 +519,10 @@ def reproduction_job(result, checkpoint):
         if walking:args+=['--forward',str(cfg['forward']),'--seconds',str(cfg['seconds']),'--target-distance',str(cfg.get('target_distance_m',5.))]
         if cfg.get('turn'):args+=['--turn']
         if cfg.get('teleop'):args+=['--teleop']
-        if cfg.get('direction'):args+=['--direction',cfg['direction']]
+        if cfg.get('direction'):
+            args+=['--direction',cfg['direction']]
+            if cfg.get('direction_navigation','legacy')!='legacy':
+                args+=['--direction-navigation',cfg['direction_navigation']]
     else:
         # Historical dynamics accidentally named the underlying backend module;
         # retain its exact adapter arguments and record the correct entry point.
@@ -619,6 +632,9 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
         result,metrics=check_walking(path,ledger,checkpoint,10.,direction=direction)
         require(datetime.fromisoformat(result['created_at']).timestamp()>=candidate_time, 'Direction replay predates checkpoint')
         directions[direction]={'metrics':metrics,'reproduction_job':reproduction_job(result,checkpoint)}
+        directions[direction]['navigation']=result['config'].get('direction_navigation','legacy')
+        if directions[direction]['navigation']=='signed_v2':
+            evidence.append(artifact(path/'signed_navigation_source.py',direction+'_signed_navigation_source.py'))
         for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4','trajectory.npz',
                      'policy_trace.npz','foot_trace.json','direction_protocol_source.py','controller_memory.json',
                      'turn_source.py','gait_source.py','controller_source.py','backend_source.py','model.xml'):
@@ -628,6 +644,7 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
             if read(checkpoint.parent/'training.json').get('residual_variant'):
                 evidence.append(artifact(path/'active_residual_source.py',direction+'_active_residual_source.py'))
     require(set(directions)==set(DIRECTIONS), 'All world directions required')
+    require(len({v['navigation'] for v in directions.values()})==1, 'All directions must use the same navigator version')
     for index,path in enumerate(cumulative_folders):
         path=Path(path)
         if index<2:result,_=check_standing(path,ledger,checkpoint if index else None)

@@ -60,5 +60,45 @@ class DirectionContractTests(unittest.TestCase):
         finally:turn.configure_profile(14.)
 
 
+class SignedNavigationTests(unittest.TestCase):
+    def test_backward_initial_arc_and_permanent_alignment_latch(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import Navigator
+        for heading in (-.2,0.,.2):
+            nav=Navigator('backward')
+            self.assertEqual(nav.command((.02,.2),heading,3.),contract.command('backward',(.02,.2),heading,3.))
+            self.assertFalse(nav.backward_aligned)
+            nav.command((0.,0.),2.,60.)
+            self.assertTrue(nav.backward_aligned)
+            self.assertLess(nav.command((0.,0.),-.2,200.)[2],0.)
+            self.assertTrue(nav.backward_aligned)
+
+    def test_signed_corrections_and_zero_band_at_each_gate(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import Navigator,HEADING_TOLERANCE_RAD
+        for direction,bearing in [('left',math.pi/2),('right',-math.pi/2),('backward',math.pi)]:
+            nav=Navigator(direction)
+            for offset in (-.8,.8):
+                yaw=nav.command((0.,0.),bearing+offset,100.)[2]
+                self.assertLess(yaw*offset,0.)
+                self.assertLessEqual(abs(yaw),contract.MAX_YAW_RATE)
+            for offset in (-.99,0.,.99):
+                self.assertEqual(nav.command((0.,0.),bearing+offset*HEADING_TOLERANCE_RAD,100.)[2],0.)
+            yaw=nav.command((0.,0.),bearing+HEADING_TOLERANCE_RAD+1e-5,100.)[2]
+            self.assertAlmostEqual(yaw,-3e-6,places=10)
+
+    def test_forward_and_initial_delay_preserve_full_speed(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import Navigator
+        for direction in contract.DIRECTIONS:
+            self.assertEqual(Navigator(direction).command((1.,2.),.8,2.),(.2,0.,0.))
+        self.assertEqual(Navigator('forward').command((1.,2.),.8,100.),(.2,0.,0.))
+        with self.assertRaises(ValueError):Navigator('unknown')
+
+    def test_signed_navigation_cannot_run_with_legacy_training_memory(self):
+        from unittest.mock import patch
+        from algorithms.urdf_learn_wasd_walk import landau_forward_control as control
+        with patch('sys.argv',['control','--name','unused','--checkpoint','unused','--direction-navigation','signed_v2']),patch.object(control,'train') as train:
+            with self.assertRaisesRegex(ValueError,'serial evaluation only'):control.main()
+            train.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()
