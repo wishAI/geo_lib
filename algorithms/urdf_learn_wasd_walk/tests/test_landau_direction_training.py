@@ -3,11 +3,43 @@ import unittest
 import torch
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
-from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters,cruise_rate_grid,cruise_balance_grid
+from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters,cruise_rate_grid,cruise_balance_grid,cruise_bias_grid,record_foot_support
 from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference,absolute_hold_fitness
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_diagnostic_sweep_cannot_overwrite_frozen_cruise_grids(self):
+        from unittest.mock import patch
+        from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+        for flag in ('--left-cruise-bias-grid','--left-cruise-rate-grid','--left-cruise-balance-only'):
+            argv=['turn','--name','scope_test','--checkpoint','/tmp/unused.pt',flag,'--diagnostic-sweep']
+            with patch('sys.argv',argv),patch.object(turn,'train') as train:
+                with self.assertRaisesRegex(ValueError,'cannot override'):turn.main()
+                train.assert_not_called()
+
+    def test_foot_audit_preserves_peak_and_integrates_both_feet(self):
+        import tempfile
+        import numpy as np
+        import warp as wp
+        with tempfile.TemporaryDirectory() as cache:
+            previous=wp.config.kernel_cache_dir;wp.config.kernel_cache_dir=cache
+            try:
+                normal=wp.array([[1.,2.],[3.,4.]],dtype=wp.float32,device='cpu')
+                peak=wp.zeros((2,2),dtype=wp.float32,device='cpu');impulse=wp.zeros_like(peak)
+                wp.launch(record_foot_support,dim=2,inputs=[normal,peak,impulse],device='cpu')
+                normal.assign(np.array([[2.,1.],[0.,5.]],dtype=np.float32))
+                wp.launch(record_foot_support,dim=2,inputs=[normal,peak,impulse],device='cpu')
+                np.testing.assert_array_equal(peak.numpy(),[[2.,2.],[3.,5.]])
+                np.testing.assert_allclose(impulse.numpy(),np.array([[3.,3.],[3.,9.]])*.002,rtol=1e-6)
+            finally:wp.config.kernel_cache_dir=previous
+
+    def test_cruise_bias_grid_preserves_prior_parameters_and_controls(self):
+        seed=torch.linspace(-.1,.1,22);seed[21]=0.
+        result=cruise_bias_grid(seed)
+        self.assertTrue(torch.equal(result[:,:21],seed[:21].repeat(8,1)))
+        self.assertTrue(torch.equal(result[0],seed));self.assertTrue(torch.equal(result[1],seed))
+        self.assertTrue(torch.equal(result[:,21],torch.tensor([0.,0.,-.009,-.006,-.003,.003,.006,.009])))
+
     def test_wide_cruise_grid_covers_support_timing_and_preserves_controls(self):
         seed=torch.zeros(20);seed[5:7]=torch.tensor([-.013,.018]);seed[15:17]=torch.tensor([.004,-.006])
         lows=torch.full((20,),-.25);highs=-lows
@@ -98,6 +130,8 @@ class DirectionTrainingTests(unittest.TestCase):
         active_feedback=torch.cat((params,torch.tensor([.05,.015])))
         zero_cruise=torch.cat((active_feedback,torch.zeros(1)))
         active_cruise=torch.cat((active_feedback,torch.tensor([.03])))
+        zero_bias=torch.cat((active_cruise,torch.zeros(1)))
+        active_bias=torch.cat((active_cruise,torch.tensor([.009])))
         unaffected=[i for i,n in enumerate(names) if 'hip_roll' not in n]
         hips=[i for i,n in enumerate(names) if 'hip_roll' in n]
         prior=make_actor(63);prior.eval()
@@ -129,6 +163,9 @@ class DirectionTrainingTests(unittest.TestCase):
                             zero_rate=commanded_action(base,walking,prior,single,standing,zero_cruise,names,scalar.reference,scalar.turned,scalar)
                             cruise=commanded_action(base,walking,prior,single,standing,active_cruise,names,scalar.reference,scalar.turned,scalar)
                             batched_cruise=commanded_action(base,walking,prior,batch_obs,batch_prior,active_cruise,names,memory.reference,memory.turned,memory)[i:i+1]
+                            zero_offset=commanded_action(base,walking,prior,single,standing,zero_bias,names,scalar.reference,scalar.turned,scalar)
+                            bias=commanded_action(base,walking,prior,single,standing,active_bias,names,scalar.reference,scalar.turned,scalar)
+                            batched_bias=commanded_action(base,walking,prior,batch_obs,batch_prior,active_bias,names,memory.reference,memory.turned,memory)[i:i+1]
                         self.assertTrue(torch.equal(zero,expected),'Zero extension changed baseline actions')
                         self.assertTrue(torch.equal(feedback,batched_feedback),'Residual scalar/batch behavior differs')
                         self.assertTrue(torch.equal(feedback[:,unaffected],expected[:,unaffected]))
@@ -139,6 +176,10 @@ class DirectionTrainingTests(unittest.TestCase):
                         self.assertTrue(torch.equal(cruise[:,unaffected],feedback[:,unaffected]))
                         expected_delta=scalar.left_cruise_blend*(.03*single[:,4]).clamp(-.05,.05)/.08
                         self.assertTrue(torch.allclose((cruise-feedback)[:,hips],expected_delta[:,None].expand(-1,2),atol=1e-6,rtol=0.))
+                        self.assertTrue(torch.equal(zero_offset,cruise))
+                        self.assertTrue(torch.equal(bias,batched_bias))
+                        self.assertTrue(torch.equal(bias[:,unaffected],cruise[:,unaffected]))
+                        self.assertTrue(torch.allclose((bias-cruise)[:,hips],torch.full((1,2),scalar.left_cruise_blend*.009/.08),atol=1e-6,rtol=0.))
 
     def test_gate_requires_crossing_width_and_keeps_terminal_result(self):
         gate=GateTracker('left',torch.zeros(3,3))

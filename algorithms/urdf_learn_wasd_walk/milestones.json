@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "Cruise sway refinement still failed two late force samples despite reaching backward gate. Bounded cruise-only rate-feedback diagnostic prepared; six milestones remain certified."
+        "summary": "Repeated sway, rate and signed-bias grids did not yield a reliable backward-gate pass. Preparing bounded cruise-only residual PPO; six milestones remain certified."
       }
     },
     {
@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T09:07:58.748605+00:00",
+    "updatedAt": "2026-10-03T09:46:41.553459+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Repeat a wider fixed cruise sway grid at the trained 0.20 command: p15 +/-0.018 rad and p16 +/-0.15 rad, two exact controls and an active-turn sway ablation. Rank gates and worst force across both repeats before independent evaluation.",
+    "nextWork": "Implement bounded state/phase-conditioned cruise-only PPO hip-roll residual around frozen20parameter controller. Prove inactive/zero parity, train from explicitly declared cruise-state resets, then require full nominal-start independent M7 and cumulative proofs.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1940,10 +1940,10 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_rate_grid/training.json",
-      "sha256": "ea9df3f581057d226f1bdfb99887fa4c03e0cd6c342fc612942895811409c2a7",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_bias_grid/training.json",
+      "sha256": "74fe67fc15fb27a6d759cfdde92fc1de6a2b57f7d2fefa9ef3fdea82c55f13e0",
       "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Repeated 8-candidate cruise-rate grid, four shared starts each and two unchanged controls. Neither generation met the extra force margin; no nonzero offset cleared all four starts in either repeat. Retain simpler 20-parameter cruise candidate."
+      "scope": "Signed cruise bias grid,32worlds,two identical repeats. No offset or duplicate zero control cleared all four starts in either repeat. Reject extension; retain20parameter incumbent, no promotion."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
@@ -1955,10 +1955,6 @@
       "sha256": "fa26b16cdd750a23958b97fc296e34a8f32a8b848e942003bb1a568f655da81d",
       "qualified": false,
       "promoted": false
-    },
-    "activeTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_wide_grid",
-      "scope": "256 worlds, four shared starts, two identical grid repeats; existing parameters only, all acceptance limits unchanged."
     }
   }
 }

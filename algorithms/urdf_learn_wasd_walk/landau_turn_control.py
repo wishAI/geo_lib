@@ -236,6 +236,8 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
             if p.shape[1]>=21 and memory is not None:
                 correction=(p[:,20]*obs[:,4]).clamp(-.05,.05)
                 moving[:,index[side+'_hip_roll_joint']]+=memory.left_cruise_blend*correction/.08
+            if p.shape[1]>=22 and memory is not None:
+                moving[:,index[side+'_hip_roll_joint']]+=memory.left_cruise_blend*p[:,21]/.08
     prior = standing_actor(TensorDict({'actor': prior_observation},
                                     batch_size=[len(prior_observation)]))
     hold_gain=p[:,3]
@@ -265,12 +267,14 @@ def install_physics_audit(batch, batches, count):
     import torch
     import warp as wp
     from algorithms.urdf_learn_wasd_walk import landau_gait_search as audit
+    from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction_audit
     dofs = wp.array([int(batch.model.joint(row['name']).dofadr[0])
                     for row in batch.spec['joints']], dtype=wp.int32, device='cuda:0')
     speed = wp.zeros(count, dtype=wp.float32, device='cuda:0')
     support = wp.zeros_like(speed); peak = wp.zeros_like(speed)
     nonfoot = wp.zeros(count, dtype=wp.int32, device='cuda:0')
     normal = wp.zeros((count, 2), dtype=wp.float32, device='cuda:0')
+    foot_peak=wp.zeros_like(normal);foot_impulse=wp.zeros_like(normal)
     current = wp.zeros_like(nonfoot); flight = wp.zeros_like(nonfoot); total = wp.zeros_like(nonfoot)
     feet = wp.from_torch(batch.contact_sides.to(torch.int32)); con = batch.wd.contact
     speed_inputs = [batch.wd.qvel, dofs, len(batch.spec['joints']), speed]
@@ -282,6 +286,7 @@ def install_physics_audit(batch, batches, count):
         wp.launch(audit.clear_support, dim=count, inputs=[support, normal])
         wp.launch(audit.sum_support, dim=batch.wd.naconmax, inputs=support_inputs)
         wp.launch(audit.record_support, dim=count, inputs=[support, peak])
+        wp.launch(direction_audit.record_foot_support,dim=count,inputs=[normal,foot_peak,foot_impulse])
         wp.launch(audit.record_airborne, dim=count, inputs=[normal, current, flight, total])
         wp.launch(batches.record_occupancy, dim=count, inputs=occupancy)
     audit_step()
@@ -292,7 +297,8 @@ def install_physics_audit(batch, batches, count):
             audit_step()
     batch.graph = capture.graph
     return {key: wp.to_torch(value) for key, value in dict(speed=speed, force=peak,
-        nonfoot=nonfoot, flight=flight, flight_total=total, flight_current=current).items()}
+        nonfoot=nonfoot, flight=flight, flight_total=total, flight_current=current,
+        foot_peak=foot_peak,foot_impulse=foot_impulse).items()}
 
 
 def train(args):
@@ -329,7 +335,8 @@ def train(args):
         if sm['checkpoints'][seed.name] != backend.digest(seed) or sm['parent_checkpoint_sha256'] != backend.digest(parent):
             raise ValueError('Turn seed provenance mismatch')
         sb = torch.load(seed, map_location='cpu', weights_only=False)
-    include_cruise_rate=args.left_cruise_rate_grid or (sb is not None and len(sb['turn_parameters'])>=21)
+    include_cruise_bias=args.left_cruise_bias_grid or (sb is not None and len(sb['turn_parameters'])>=22)
+    include_cruise_rate=args.left_cruise_rate_grid or include_cruise_bias or (sb is not None and len(sb['turn_parameters'])>=21)
     include_feedback=args.left_feedback_only or include_cruise_rate or (sb is not None and len(sb['turn_parameters'])>=20)
     include_left_yaw = args.left_yaw_only or include_feedback or (sb is not None and len(sb['turn_parameters']) >= 18)
     if include_left_yaw and not args.left_cruise_only:
@@ -346,6 +353,7 @@ def train(args):
     if include_left_yaw:TURN_PARAMETERS.update(left_yaw_scale=(.5,2.))
     if include_feedback:TURN_PARAMETERS.update(left_roll_feedback_delta=(-.05,.05),left_roll_rate_feedback_delta=(-.015,.015))
     if include_cruise_rate:TURN_PARAMETERS.update(left_cruise_rate_delta=(-.01,.03))
+    if include_cruise_bias:TURN_PARAMETERS.update(left_cruise_roll_bias=(-.009,.009))
     lows = torch.tensor([v[0] for v in TURN_PARAMETERS.values()], device='cuda')
     highs = torch.tensor([v[1] for v in TURN_PARAMETERS.values()], device='cuda')
     rate_scale=(math.pi/28)/TURN_RATE
@@ -356,6 +364,7 @@ def train(args):
     if include_left_yaw:initial=torch.cat((initial,initial.new_ones(1)))
     if include_feedback:initial=torch.cat((initial,initial.new_zeros(2)))
     if include_cruise_rate:initial=torch.cat((initial,initial.new_zeros(1)))
+    if include_cruise_bias:initial=torch.cat((initial,initial.new_zeros(1)))
     mean = 2*(initial-lows)/(highs-lows)-1.; std = torch.full_like(mean, args.search_std)
     if args.seed_checkpoint:
         seed_parameters=sb['turn_parameters'].to('cuda')
@@ -477,6 +486,13 @@ def train(args):
             meta['cruise_rate_grid']={'unchanged_control_candidates':[0,1],
                 'repeat_same_grid_each_generation':True,'maximum_residual_rad':.05,
                 'scope':'Bounded hip-roll angular-rate residual using existing left-cruise envelope; freeze first20parameters bit-exactly. Positive offsets reduce baseline damping magnitude without reversing its sign. No claimed force reduction before validation.'}
+        if args.left_cruise_bias_grid:
+            meta['left_turn_refinement']['searched_indices']=[21]
+            meta['cruise_bias_grid']={'unchanged_control_candidates':[0,1],
+                'repeat_same_grid_each_generation':True,'maximum_offset_rad':.009,
+                'scope':'Signed common hip-roll offset under existing cruise envelope; preserve first21parameters exactly. Test measured half-cycle asymmetry; no assumption that equal peak loads improve walking.'}
+        meta['late_foot_diagnostics']={'start_s':90.,'force_sampling_s':.002,'swing_sampling_s':.02,
+            'scope':'Per-foot peak/impulse after90s, including any yaw transitions. Swings are included by landing time; a swing begun before90s contributes its full duration. Diagnostic only; terminal worlds frozen and acceptance unchanged.'}
         if closed_direction:
             meta['objective']='Per-world closed-loop world gate, unchanged physics limits, force margin and completion time; separate serial proof required'
             meta['closed_loop_direction']=closed_direction
@@ -548,6 +564,7 @@ def train(args):
             z=direction_training.balance_grid(grid_center,candidates,args.search_std)
         if include_feedback and not args.left_feedback_only:z[:,18:20]=mean[18:20]
         if include_cruise_rate and not args.left_cruise_rate_grid:z[:,20]=mean[20]
+        if include_cruise_bias and not args.left_cruise_bias_grid:z[:,21]=mean[21]
         if args.left_feedback_only:
             frozen_count=17 if args.feedback_yaw_refine else 18
             z[:,:frozen_count]=grid_center[:frozen_count]
@@ -591,6 +608,10 @@ def train(args):
             grid=direction_training.cruise_rate_grid(seed_parameters)
             params=grid.repeat_interleave(replicas,dim=0)
             z=2*(grid-lows)/(highs-lows)-1.
+        if args.left_cruise_bias_grid:
+            grid=direction_training.cruise_bias_grid(seed_parameters)
+            params=grid.repeat_interleave(replicas,dim=0)
+            z=2*(grid-lows)/(highs-lows)-1.
         if args.left_feedback_only:params[:,:frozen_count]=seed_parameters[:frozen_count]
         if args.left_damping_grid:
             params[:,18]=seed_parameters[18]
@@ -628,6 +649,9 @@ def train(args):
         counts = torch.zeros((n,2), device='cuda', dtype=torch.long)
         air = torch.zeros((n,2), device='cuda'); peak = torch.zeros_like(air)
         touched = torch.zeros_like(air, dtype=torch.bool)
+        late_foot_peak=torch.zeros_like(air);late_foot_impulse=torch.zeros_like(air)
+        late_swing_sum=torch.zeros_like(air);late_swing_count=torch.zeros_like(counts)
+        late_duration=torch.zeros_like(duration)
         memory=direction_training.DirectionMemory(n,'cuda',closed_direction) if closed_direction else CommandMemory() if teleop else None
         gate=direction_training.GateTracker(closed_direction,batch.pos[:,batch.pelvis]) if closed_direction else None
         terminal_flight=torch.zeros_like(duration);slip_total=torch.zeros_like(duration)
@@ -637,6 +661,8 @@ def train(args):
         for step in range(round(args.seconds/.02)):
             age = step*.02; forward, yaw, reference = command_profile(age)
             active=alive & ~gate.completed if closed_direction else alive
+            if step==4500:
+                audit['foot_peak'].zero_();audit['foot_impulse'].zero_()
             if args.left_turn_refine and step==round(TURN_START/.02):
                 # force_max retains the complete episode; audit now accumulates
                 # a separate post-onset peak for the stricter training margin.
@@ -693,6 +719,10 @@ def train(args):
             failed |= (~torch.isfinite(batch.q).all(1))|(~torch.isfinite(batch.v).all(1))
             failed |= (audit['speed']>4.+1e-6)|(audit['force']>3.*body_weight)|(audit['nonfoot']!=0)|(audit['flight']>60)
             force_max = torch.maximum(force_max,torch.where(active,audit['force']/body_weight,0.))
+            if age>=90.:
+                late_foot_peak=torch.where(active[:,None],audit['foot_peak']/body_weight,late_foot_peak)
+                late_foot_impulse=torch.where(active[:,None],audit['foot_impulse'],late_foot_impulse)
+                late_duration+=active.float()*.02
             if args.left_turn_refine and age>=TURN_START:
                 post_turn_force_max=torch.maximum(post_turn_force_max,torch.where(active,audit['force']/body_weight,0.))
             speed_max = torch.maximum(speed_max,torch.where(active,audit['speed'],0.))
@@ -711,7 +741,11 @@ def train(args):
             measuring=active & alive
             yaw_error = torch.where(measuring,error,yaw_error); heading_final = torch.where(measuring,heading,heading_final)
             contacts,slip,clearance,_ = batch.feet(with_forces=True)
-            counts += (contacts&touched&(air>=.06)&(peak>=.015)&measuring[:,None]).long()
+            landed=contacts&touched&(air>=.06)&(peak>=.015)&measuring[:,None]
+            counts += landed.long()
+            if age>=90.:
+                late_swing_sum+=torch.where(landed,air,0.)
+                late_swing_count+=landed.long()
             slip_total+=torch.where(measuring,slip,0.)*.02
             air = torch.where(contacts,0.,air+.02); peak = torch.where(contacts,0.,torch.maximum(peak,clearance)); touched |= contacts
             if teleop:
@@ -790,6 +824,13 @@ def train(args):
             metrics['world_gates']=gate.record(members)
             metrics['failure_time_s']=[v if math.isfinite(v) else None for v in failure_time[members].tolist()]
         if args.left_turn_refine:metrics['post_turn_peak_support_bw']=post_turn_force_max[members].tolist()
+        def foot_diagnostics(group):
+            return {'duration_s':late_duration[group].tolist(),
+                'peak_normal_force_bw':late_foot_peak[group].tolist(),
+                'mean_normal_force_N':(late_foot_impulse[group]/late_duration[group,None].clamp_min(.02)).tolist(),
+                'completed_swings':late_swing_count[group].tolist(),
+                'mean_swing_duration_s_20ms':(late_swing_sum[group]/late_swing_count[group].clamp_min(1)).tolist()}
+        metrics['late_foot_diagnostics']=foot_diagnostics(members)
         if teleop:
             metrics['command_blocks']=[{'label':label,'forward_m':progress_value[members].tolist(),
                 'heading_change_rad':change[members].tolist(),'swings':swings[members].tolist()}
@@ -818,6 +859,7 @@ def train(args):
                 'failure_time_s':[v if math.isfinite(v) else None for v in failure_time[i*replicas:(i+1)*replicas].tolist()],
                 'world_gates':gate.record(slice(i*replicas,(i+1)*replicas)) if closed_direction else None,
                 'eligible':bool(eligible[i]),'score':float(score[i]),
+                'late_foot_diagnostics':foot_diagnostics(slice(i*replicas,(i+1)*replicas)),
                 'heading_rad':heading_final[i*replicas:(i+1)*replicas].tolist(),
                 'final_heading_error_rad':yaw_error[i*replicas:(i+1)*replicas].tolist(),
                 'hold_drift_m':hold_drift[i*replicas:(i+1)*replicas].tolist(),
@@ -884,6 +926,7 @@ def main():
     parser.add_argument('--left-cruise-balance-only',action='store_true',help='Search only post-left-turn sway amplitude/phase; preserve all other seed parameters exactly')
     parser.add_argument('--left-cruise-balance-grid',action='store_true',help='Repeat a wider physical-unit cruise sway grid with duplicate controls and the active-turn sway pair')
     parser.add_argument('--left-cruise-rate-grid',action='store_true',help='Compare six bounded cruise rate-feedback offsets with two unchanged controls')
+    parser.add_argument('--left-cruise-bias-grid',action='store_true',help='Compare six signed cruise hip-roll offsets with two unchanged controls')
     parser.add_argument('--left-feedback-only',action='store_true',help='Learn two bounded left-turn torso roll/rate feedback corrections; freeze prior18parameters')
     parser.add_argument('--left-damping-grid',action='store_true',help='Repeat8left roll-rate gains, including duplicate unchanged controls')
     parser.add_argument('--turn-hold-training',action='store_true',help='Screen left feedback on exactM5commands and hold with the same force margin')
@@ -893,7 +936,11 @@ def main():
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     args = parser.parse_args()
+    if args.diagnostic_sweep and (args.left_cruise_bias_grid or args.left_cruise_rate_grid or args.left_cruise_balance_only):
+        raise ValueError('Diagnostic sweep cannot override a frozen cruise search')
     if args.common_starts and not (args.closed_loop_direction or args.turn_hold_training):raise ValueError('Common starts require closed-loop direction or exact turn/hold training')
+    if args.left_cruise_bias_grid and (args.num_envs!=32 or not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_cruise_balance_only or args.left_cruise_rate_grid or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
+        raise ValueError('Cruise bias grid requires32worlds and separate shared-start closed-loop left training with force margin')
     if args.left_cruise_balance_grid and not args.left_cruise_balance_only:raise ValueError('Cruise balance grid requires cruise balance-only search')
     if args.left_cruise_rate_grid and (args.num_envs!=32 or not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_cruise_balance_only or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Cruise rate grid requires32worlds and separate shared-start closed-loop left training with force margin')

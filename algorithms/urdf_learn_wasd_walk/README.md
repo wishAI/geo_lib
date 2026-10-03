@@ -264,6 +264,23 @@ Rows 0/1 are exact controls; row 2 tests the active-turn sway pair in cruise.
 This investigation distinguishes impact-specific feedback effects from
 general balance, as discussed in [Impact-Invariant Control](https://arxiv.org/abs/2303.00817).
 
+The wide grid produced no candidate safe across all eight starts/repeats.
+Late-cruise traces instead show unequal half-cycle timing and peak loads,
+while mean roll and average left/right support remain nearly balanced.
+`--left-cruise-bias-grid` tests signed hip-roll offsets of ±0.003/0.006/0.009 rad
+with two zero controls. The existing cruise envelope applies the offset;
+all prior parameters stay fixed, including a zero rate residual. This tests
+a posture/timing hypothesis, not a claim that symmetric peaks are required.
+Per-foot peak/impulse diagnostics sample every 2 ms after 90 s, with terminal
+worlds frozen; qualified swing durations are sampled at 20 ms. These include
+yaw transitions and do not replace the unchanged total-force/gate checks.
+Neither repeat produced an offset clearing all four starts. The bias extension
+is rejected. The next experiment uses a bounded, state-conditioned hip-roll
+residual around the frozen controller, following the composition idea in
+[Residual Reinforcement Learning](https://arxiv.org/abs/1812.03201).
+Training resets from recorded cruise states will be labeled as a curriculum;
+only complete nominal-start runs can certify milestones.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 

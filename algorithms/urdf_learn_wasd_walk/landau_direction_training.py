@@ -4,6 +4,17 @@ The serial evaluator remains the acceptance path. This module mirrors its
 full-forward, single-turn-direction protocol without replaying another pose.
 """
 import math
+import warp as wp
+
+
+@wp.kernel
+def record_foot_support(normal: wp.array2d(dtype=wp.float32),
+                        peak: wp.array2d(dtype=wp.float32),
+                        impulse: wp.array2d(dtype=wp.float32)):
+    world=wp.tid()
+    for side in range(2):
+        peak[world,side]=wp.max(peak[world,side],normal[world,side])
+        impulse[world,side]+=normal[world,side]*.002
 
 
 def common_start_offsets(nominal, joint_indices, replicas, seed):
@@ -43,6 +54,13 @@ def cruise_rate_grid(seed):
     """Duplicate incumbents and six bounded rate offsets; freeze first20 bits."""
     result=seed.repeat(8,1)
     result[:,20]=seed.new_tensor([float(seed[20]),float(seed[20]),-.01,.005,.01,.015,.02,.03])
+    return result
+
+
+def cruise_bias_grid(seed):
+    """Signed half-cycle asymmetry diagnostic with two exact seed controls."""
+    result=seed.repeat(8,1)
+    result[:,21]=seed.new_tensor([float(seed[21]),float(seed[21]),-.009,-.006,-.003,.003,.006,.009])
     return result
 
 
