@@ -3,11 +3,23 @@ import unittest
 import torch
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
-from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid
+from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters
 from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference,absolute_hold_fitness
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_cruise_search_preserves_calibrated_yaw_and_feedback_exactly(self):
+        seed=torch.linspace(-.1,.1,20)
+        lows=torch.full((20,),-.25);highs=-lows
+        normalized=torch.linspace(-1.,1.,80).reshape(4,20)
+        normalized[0]=2*(seed-lows)/(highs-lows)-1.
+        result=cruise_balance_parameters(normalized,lows,highs,seed)
+        fixed=[i for i in range(20) if i not in (15,16)]
+        self.assertTrue(torch.equal(result[:,fixed],seed[fixed].repeat(4,1)))
+        self.assertTrue(torch.equal(result[0],seed))
+        self.assertFalse(torch.equal(result[0,15:17],result[-1,15:17]))
+        self.assertTrue(bool(((result[:,15:17]>=lows[15:17])&(result[:,15:17]<=highs[15:17])).all()))
+
     def test_hold_score_prefers_absolute_target_and_does_not_reward_missing_hold(self):
         # A90degree relative turn can still stop20degrees short of the absolute target.
         score=absolute_hold_fitness(torch.tensor([56.,56.,40.]),

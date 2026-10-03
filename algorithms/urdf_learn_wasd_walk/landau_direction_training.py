@@ -30,6 +30,15 @@ def balance_grid(center, candidates, radius):
     return result
 
 
+def cruise_balance_parameters(normalized, lows, highs, seed):
+    """Search only post-left-turn sway; retain all other seed bits exactly."""
+    result=seed.expand(len(normalized),-1).clone()
+    result[:,15:17]=lows[15:17]+(normalized[:,15:17]+1)*.5*(highs[15:17]-lows[15:17])
+    center=2*(seed-lows)/(highs-lows)-1.
+    result[(normalized[:,15:17]==center[15:17]).all(1)]=seed
+    return result
+
+
 def commands(direction, displacement, heading, seconds):
     import torch
     from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
