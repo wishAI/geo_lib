@@ -357,6 +357,11 @@ the broad curriculum equally, and tightens training termination to 2.9 BW.
 Per-protocol stop, settled and successful-completion counts expose any loss of
 hold coverage. Actor inputs, action bounds, command speed and the independent
 3 BW acceptance limit remain unchanged. No checkpoint is promoted.
+The resulting actor passed 96/96 paired early-turn screens at a 2.835 BW maximum,
+versus 95/96 and 3.084 BW for its predecessor. Complete-stop screens improved
+from 92/96 to 95/96; the remaining failure was settled M5 heading, with no force
+failure. Independent nominal left-gate evaluation is underway. These correlated
+warm-state comparisons do not certify a milestone.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

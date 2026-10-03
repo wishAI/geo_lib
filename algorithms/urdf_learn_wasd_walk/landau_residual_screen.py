@@ -29,11 +29,27 @@ def run(args):
     from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands
     backend,batches,_=configure_model('balanced_hands_v1')
     checkpoint=Path(args.checkpoint).resolve();meta=json.loads((checkpoint.parent/'training.json').read_text())
-    if meta['policy_family']!=FAMILY or meta['checkpoints'][checkpoint.name]!=backend.digest(checkpoint):raise ValueError('Residual checkpoint changed')
+    if meta['policy_family']!=FAMILY or str(meta.get('status','')).startswith('invalidated_') or meta['checkpoints'][checkpoint.name]!=backend.digest(checkpoint):raise ValueError('Residual checkpoint changed')
     folder=backend.OUTPUT/args.name;folder.mkdir(exist_ok=False)
     blob=torch.load(checkpoint,map_location='cpu',weights_only=False)
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract
     active_mode=check_contract(meta,blob,backend.digest)
+    reference_blob=None;reference_identity=None
+    if args.reference_checkpoint:
+        reference_path=Path(args.reference_checkpoint).resolve()
+        reference_meta=json.loads((reference_path.parent/'training.json').read_text())
+        if reference_meta.get('policy_family')!=FAMILY or str(reference_meta.get('status','')).startswith('invalidated_') or reference_meta['checkpoints'][reference_path.name]!=backend.digest(reference_path):
+            raise ValueError('Reference checkpoint changed')
+        reference_blob=torch.load(reference_path,map_location='cpu',weights_only=False)
+        if not active_mode or not check_contract(reference_meta,reference_blob,backend.digest):raise ValueError('Reference comparison requires two active residuals')
+        for key in ('frozen_cruise_checkpoint_sha256','active_residual_source_sha256','residual_source_sha256','turn_source_sha256','source_sha256','model_xml_sha256'):
+            if reference_meta[key]!=meta[key]:raise ValueError('Reference composition mismatch: '+key)
+        for source in ('active_residual_source','residual_source','turn_source'):
+            if backend.digest(reference_path.parent/(source+'.py'))!=reference_meta[source+'_sha256']:raise ValueError('Reference source changed')
+        if reference_meta['curriculum']['bank_sha256']!=meta['curriculum']['bank_sha256'] or reference_meta['arguments']['turn_duration']!=meta['arguments']['turn_duration']:
+            raise ValueError('Reference curriculum or command profile differs')
+        reference_identity={'checkpoint':str(reference_path),'checkpoint_sha256':backend.digest(reference_path),
+            'training_sha256':backend.digest(reference_path.parent/'training.json')}
     if active_mode:
         if args.seconds!=6. and not args.complete_stops:raise ValueError('Mixed active screen requires6s or complete-stop episodes')
         if args.complete_stops and not meta['arguments'].get('active_long'):raise ValueError('Complete-stop screen requires long-episode training')
@@ -43,6 +59,7 @@ def run(args):
         active_head=load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'screen_saved_active')
     residual=load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'screen_saved_residual')
     if args.active_projection_grid and not active_mode:raise ValueError('Projection grid requires active residual')
+    if args.early_turn_screen and not active_mode:raise ValueError('Early-turn screen requires active residual')
     if args.complete_stops and not active_mode:raise ValueError('Complete-stop screen requires active residual')
     base,_=load_gait_source(checkpoint,meta)
     turn=load_source(checkpoint.parent/'turn_source.py',meta['turn_source_sha256'],'screen_saved_turn')
@@ -58,7 +75,12 @@ def run(args):
     # Two copies of each controller share the same held-out states.
     if active_mode:
         pools=[torch.where(bank['mode']==i)[0][1::2] for i in range(3)]
-        indices=torch.cat([pool[torch.linspace(0,len(pool)-1,16,device='cuda').long()] for pool in pools]).repeat(groups)
+        if args.early_turn_screen:
+            pools=[pool[(bank['age'][pool]>=3.) & (bank['age'][pool]<=7.)] for pool in pools]
+            if any(not len(pool) for pool in pools):raise ValueError('Missing reserved early-turn states')
+        indices=torch.cat([pool[torch.arange(16,device='cuda')%len(pool)
+            if args.early_turn_screen and len(pool)<16 else torch.linspace(0,len(pool)-1,16,device='cuda').long()]
+            for pool in pools]).repeat(groups)
         mode=bank['mode'][indices]
     else:indices=(torch.linspace(0,len(bank['age'])//2-1,32,device='cuda').long()*2+1).repeat(4)
     batch.q[:]=bank['qpos'][indices].float();batch.v[:]=bank['qvel'][indices].float()
@@ -86,6 +108,8 @@ def run(args):
     actor=residual.make_actor('cuda');actor.load_state_dict(blob['residual_actor_state_dict']);actor.eval()
     if active_mode:
         active_actor=residual.make_actor('cuda');active_actor.load_state_dict(blob['active_residual_actor_state_dict']);active_actor.eval()
+        if reference_blob is not None:
+            reference_actor=residual.make_actor('cuda');reference_actor.load_state_dict(reference_blob['active_residual_actor_state_dict']);reference_actor.eval()
     max_heading_error=torch.zeros(n,device='cuda');max_hold_drift=torch.zeros_like(max_heading_error)
     max_hold_heading=torch.zeros_like(max_heading_error);body_progress=torch.zeros_like(max_heading_error)
     walking=blob['parameters'].to('cuda');turn_parameters=blob['turn_parameters'].to('cuda')
@@ -118,7 +142,8 @@ def run(args):
                 action=active_head.apply(active_actor,baseline,obs,walking,memory,names,residual)
                 if args.active_projection_grid:action=project_active_delta(action,baseline,projection_beta,names)
             else:action=residual.apply(actor,baseline,obs,walking,memory,names)
-            action[:width*2]=baseline[:width*2]
+            comparison=active_head.apply(reference_actor,baseline,obs,walking,memory,names,residual) if reference_blob is not None else baseline
+            action[:width*2]=comparison[:width*2]
             correction=(action-baseline).abs().amax(1)*.08
             max_correction=torch.maximum(max_correction,torch.where(live,correction,0.))
             action=action.clamp(-limits,limits)
@@ -185,7 +210,7 @@ def run(args):
     records=[]
     for group in range(groups):
         selection=slice(group*width,(group+1)*width)
-        records.append({'controller':'frozen' if group<2 else 'residual','copy':group%2,
+        records.append({'controller':('reference' if reference_blob is not None else 'frozen') if group<2 else 'residual','copy':group%2,
             'projection_beta':None if group<2 or not args.active_projection_grid else float(projection_beta[group*width]),
             'events':{key:{'seen':event_seen[key][selection].tolist(),'values':[[value if math.isfinite(value) else None for value in row] for row in events[key][selection].tolist()]} for key in events},
             'survived_count':int(((bits==0)&(age>=ends-1e-8))[selection].sum()),'start_ages_s':start_age[selection].tolist(),
@@ -205,8 +230,10 @@ def run(args):
         'residual_variant':meta.get('residual_variant'),'active_residual_source_sha256':meta.get('active_residual_source_sha256'),
         'memory_source_sha256':backend.digest(active_bank.__file__) if active_mode else backend.digest(Path(__file__).with_name('landau_cruise_residual.py')),
         'active_projection_grid':args.active_projection_grid,'event_fields':event_fields if events else [],
+        'early_turn_screen':args.early_turn_screen,
+        'reference_identity':reference_identity,
         'direction_source_sha256':backend.digest(active_direction.__file__) if active_mode else None,
-        'comparison':'frozen cruise versus frozen cruise plus active head' if active_mode else 'frozen CEM versus cruise residual',
+        'comparison':'reference active head versus candidate active head' if reference_blob is not None else 'frozen cruise versus frozen cruise plus active head' if active_mode else 'frozen CEM versus cruise residual',
         'limitations':'Adjacent held-out states share one trajectory; repeats are simultaneousbatch copies, not independent nominal-start proof.'})
     print(json.dumps([{'controller':r['controller'],'copy':r['copy'],'projection_beta':r['projection_beta'],'survived':r['survived_count'],'worst_peak_bw':max(r['peak_support_bw'])} for r in records]),flush=True)
 
@@ -217,8 +244,12 @@ def main():
     parser.add_argument('--seconds',type=float,default=20.)
     parser.add_argument('--complete-stops',action='store_true')
     parser.add_argument('--active-projection-grid',action='store_true')
+    parser.add_argument('--early-turn-screen',action='store_true')
+    parser.add_argument('--reference-checkpoint')
     args=parser.parse_args()
     if not 6.<=args.seconds<=30.:raise ValueError('Screen horizon must be6..30s')
+    if args.early_turn_screen and (args.complete_stops or args.active_projection_grid):raise ValueError('Early-turn screen is a separate short diagnostic')
+    if args.reference_checkpoint and args.active_projection_grid:raise ValueError('Reference comparison and projection grid are separate diagnostics')
     run(args)
 
 

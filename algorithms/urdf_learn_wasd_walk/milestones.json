@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T14:11:18.781263+00:00",
+    "updatedAt": "2026-10-03T14:21:44.920905+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Finish targeted margin training; compare early-turn force tails and full-stop regressions, then independent nominal validation only if improved. Six certified milestones unchanged.",
+    "nextWork": "Independent nominal left gate for margin399 after paired screening improvement; if passed, exact M5/M6 and all cumulative directions/standing/forward proofs remain.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2231,7 +2231,7 @@
     ],
     "activeMarginTraining": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_margin400",
-      "status": "running",
+      "status": "complete",
       "seed_checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_long600/model_599.pt",
       "iterations": 400,
       "num_envs": 256,
@@ -2242,7 +2242,67 @@
         3.0,
         7.0
       ],
-      "scope": "Same actor69/critic69, frozen cruise/CEM, same action bounds and speed; equal protocol allocation retained. Per-protocol stopping/settled/timeout coverage logged. Two-iteration GPU smoke and44 focused CPU tests passed."
+      "scope": "Same actor69/critic69, frozen cruise/CEM, same action bounds and speed; equal protocol allocation retained. Per-protocol stopping/settled/timeout coverage logged. Two-iteration GPU smoke and44 focused CPU tests passed.",
+      "statistics": {
+        "coverage_by_protocol": {
+          "completed": [
+            714,
+            394,
+            1048
+          ],
+          "failed": [
+            37,
+            82,
+            48
+          ],
+          "force_margin_failed": [
+            37,
+            25,
+            27
+          ],
+          "stopped": [
+            0,
+            384,
+            1051
+          ],
+          "settled": [
+            0,
+            328,
+            1018
+          ],
+          "successful_timeout": [
+            677,
+            312,
+            1000
+          ]
+        },
+        "completed": 2156,
+        "failed": 167,
+        "mean_interval_peak_bw": 1.1420162916183472,
+        "max_interval_peak_bw": 2.748518943786621,
+        "mean_forward_mps": 0.09198616445064545,
+        "mean_abs_residual_rad": 0.001913992613554001
+      }
+    },
+    "activeMarginEarlyScreen": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_earlyscreen/screen.json",
+      "sha256": "05995cf8886339bc45f881d1aa93c0cfa9e3e7cc33607c4dbe803775a6955b39",
+      "reference_passed": 95,
+      "candidate_passed": 96,
+      "episodes_each": 96,
+      "reference_peak_bw": 3.0842278003692627,
+      "candidate_peak_bw": 2.8354318141937256,
+      "scope": "Same-batch reserved3\u20137s early starts,6s episodes, balanced repetitions of scarce pools. Diagnostic only; not nominal proof."
+    },
+    "activeMarginFullScreen": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_fullscreen/screen.json",
+      "sha256": "c30791c1358fe118e125c48127835e3faea5fd013be16e24faccb1ea831a5637",
+      "reference_passed": 92,
+      "candidate_passed": 95,
+      "episodes_each": 96,
+      "candidate_peak_bw": 2.9349310398101807,
+      "candidate_failure": "One M5 warm start at12.4s settled51s with6.655degree headingerror; drift17.32mm. No force failures.",
+      "scope": "Paired complete-stop diagnostic; no nominal/cumulative certification."
     }
   }
 }
