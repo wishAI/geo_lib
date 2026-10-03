@@ -50,6 +50,23 @@ def cruise_balance_parameters(normalized, lows, highs, seed):
     return result
 
 
+def active_balance_parameters(normalized, lows, highs, seed):
+    """Active-left sway search with exact frozen controller bits and seed controls."""
+    result=seed.expand(len(normalized),-1).clone()
+    result[:,5:7]=lows[5:7]+(normalized[:,5:7]+1)*.5*(highs[5:7]-lows[5:7])
+    center=2*(seed-lows)/(highs-lows)-1.
+    result[(normalized[:,5:7]==center[5:7]).all(1)]=seed
+    return result
+
+
+def left_yaw_grid(seed):
+    """Calibrate existing left-yaw gain around force-safe active sway; two controls."""
+    import torch
+    result=seed.repeat(16,1)
+    result[2:,17]=torch.linspace(1.65,2.30,14,device=seed.device,dtype=seed.dtype)
+    return result
+
+
 def cruise_rate_grid(seed):
     """Duplicate incumbents and six bounded rate offsets; freeze first20 bits."""
     result=seed.repeat(8,1)

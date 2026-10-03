@@ -173,7 +173,30 @@ def train(args):
     turn=load_source(parent.parent/'turn_source.py',meta['turn_source_sha256'],'frozen_cruise_turn')
     turn.configure_profile(meta['arguments']['turn_duration'])
     directory=backend.OUTPUT/'training'/args.name;directory.mkdir(exist_ok=False)
-    bank_meta=build_bank(args.curriculum,parent,turn,directory/'warm_states.npz')
+    active_mode=bool(args.active_curriculum)
+    cruise_actor=None;cruise_blob=None
+    if active_mode:
+        from algorithms.urdf_learn_wasd_walk import landau_active_curriculum as active_bank
+        from algorithms.urdf_learn_wasd_walk import landau_active_residual as active_head
+        cruise_path=Path(args.residual_checkpoint).resolve()
+        cruise_meta=json.loads((cruise_path.parent/'training.json').read_text())
+        if (cruise_meta['checkpoints'][cruise_path.name]!=backend.digest(cruise_path) or
+            cruise_meta.get('policy_family')!=FAMILY or cruise_meta.get('residual_variant') is not None or
+            cruise_meta['parent_checkpoint_sha256']!=backend.digest(parent) or
+            cruise_meta['parent_training_sha256']!=backend.digest(parent.parent/'training.json') or
+            str(cruise_meta.get('status','')).startswith('invalidated_')):
+            raise ValueError('Invalid frozen cruise checkpoint')
+        cruise_blob=torch.load(cruise_path,map_location='cpu',weights_only=False)
+        if cruise_blob.get('residual_variant') is not None or 'active_residual_actor_state_dict' in cruise_blob:raise ValueError('Invalid cruise-only weights')
+        for key in ('parameters','turn_parameters'):
+            if not torch.equal(cruise_blob[key],blob[key]):raise ValueError('Cruise parent differs')
+        left,right=cruise_blob['standing_actor_state_dict'],blob['standing_actor_state_dict']
+        if left.keys()!=right.keys() or any(not torch.equal(left[k],right[k]) for k in left):raise ValueError('Cruise standing parent differs')
+        old_source=load_source(cruise_path.parent/'residual_source.py',cruise_meta['residual_source_sha256'],'frozen_cruise_residual')
+        cruise_actor=old_source.make_actor('cuda');cruise_actor.load_state_dict(cruise_blob['residual_actor_state_dict'])
+        cruise_actor.eval();cruise_actor.requires_grad_(False)
+        bank_meta=active_bank.build_bank(args.active_curriculum,parent,cruise_path,turn,directory/'warm_states.npz')
+    else:bank_meta=build_bank(args.curriculum,parent,turn,directory/'warm_states.npz')
     torch.set_num_threads(4);torch.manual_seed(42)
     batch=batches.WarpBatch(args.num_envs,42,0.,'stand','load',.004,.2,.0225)
     if hashlib.sha256(batch.xml.encode()).hexdigest()!=meta['model_xml_sha256']:raise ValueError('Physical model changed')
@@ -183,12 +206,13 @@ def train(args):
     prior=make_prior(63,'cuda');prior.load_state_dict(blob['standing_actor_state_dict']);prior.eval();prior.requires_grad_(False)
     names=batch.spec['action_joints'];limits=torch.tensor(action_scales(names,.4),device='cuda')/.08
     weight=float(batch.model.body_mass.sum())*9.81
-    memory=CruiseMemory(args.num_envs,'cuda')
+    memory=active_bank.ActiveMemory(args.num_envs,'cuda') if active_mode else CruiseMemory(args.num_envs,'cuda')
+    train_pools=[torch.where(bank['mode']==i)[0][::2] for i in range(3)] if active_mode else None
     stats={};began=time.perf_counter()
 
     class Env:
         num_envs=args.num_envs;num_actions=2;device='cuda:0';max_episode_length=round(args.seconds/.02)
-        cfg={'task':'recorded_cruise_residual','is_finite_horizon':False};common_step_counter=0
+        cfg={'task':'recorded_active_left_residual' if active_mode else 'recorded_cruise_residual','is_finite_horizon':False};common_step_counter=0
         def __init__(self):
             self.age=torch.zeros(self.num_envs,device=self.device,dtype=torch.float64)
             self.air=torch.zeros((self.num_envs,2),device=self.device);self.peak=torch.zeros_like(self.air)
@@ -203,7 +227,15 @@ def train(args):
         def reset(self,mask):
             count=int(mask.sum())
             if not count:return
-            ix=torch.randint((len(bank['age'])+1)//2,(count,),device=self.device)*2
+            if active_mode:
+                choice=torch.randint(3,(count,),device=self.device)
+                ix=torch.empty(count,device=self.device,dtype=torch.long)
+                for mode,pool in enumerate(train_pools):
+                    selected=choice==mode;ix[selected]=pool[torch.randint(len(pool),(int(selected.sum()),),device=self.device)]
+                if not hasattr(self,'mode'):self.mode=torch.zeros(self.num_envs,device=self.device,dtype=torch.long)
+                self.mode[mask]=bank['mode'][ix]
+                for name in ('previous_moving','stop_xy','stop_time','hold_heading'):getattr(memory,name)[mask]=bank[name][ix].to(getattr(memory,name).dtype)
+            else:ix=torch.randint((len(bank['age'])+1)//2,(count,),device=self.device)*2
             batch.q[mask]=bank['qpos'][ix].float();batch.v[mask]=bank['qvel'][ix].float()
             batch.previous[mask]=bank['previous'][ix].float();batch.ctrl[mask]=batch.targets
             wp.to_torch(batch.wd.qacc_warmstart)[mask]=0;wp.to_torch(batch.wd.qfrc_applied)[mask]=0
@@ -220,6 +252,8 @@ def train(args):
             rotation=batch.rot[:,batch.base].double()
             heading=torch.atan2(rotation[:,1,0],rotation[:,0,0])
             command=direction.commands('backward',batch.pos[:,batch.pelvis,:2].double()-batch.reference_xy.double(),heading,100.)
+            if active_mode:
+                command=active_bank.commands(self.mode,self.age,batch.pos[:,batch.pelvis,:2].double()-batch.reference_xy.double(),heading,meta['arguments']['turn_duration'])
             extra=torch.zeros((self.num_envs,10),device=self.device)
             extra[:,2]=(1.-self.age/30.).float();extra[:,3:6]=command.float()
             phase=2*torch.pi*self.age/.6
@@ -227,15 +261,21 @@ def train(args):
             extra[:,8]=rotation[:,1,0].float();extra[:,9]=(rotation[:,0,0]-1).float()
             self.observation=torch.cat((batch.observations(),extra),dim=1)
             self.command=command
+            self.prior_observation=memory.prior(self.observation,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],self.age) if active_mode else self.observation[:,:63]
             value=features(self.observation,walking,memory)
             return TensorDict({'actor':value,'critic':value},batch_size=[self.num_envs])
         def step(self,latent):
             with torch.no_grad():
-                baseline=turn.commanded_action(base,walking,prior,self.observation,self.observation[:,:63],
+                baseline=turn.commanded_action(base,walking,prior,self.observation,self.prior_observation,
                     turn_parameters,names,memory.reference.float(),True,memory=memory)
-                action=compose(baseline,latent,memory,names,self.observation).clamp(-limits,limits)
+                if active_mode:
+                    baseline=old_source.apply(cruise_actor,baseline,self.observation,walking,memory,names)
+                    action=active_head.compose(baseline,latent,memory,names,self.observation).clamp(-limits,limits)
+                else:action=compose(baseline,latent,memory,names,self.observation).clamp(-limits,limits)
             before=batch.pos[:,batch.pelvis,:2].clone()
-            residual=latent.tanh()*memory.left_cruise_blend.float()[:,None]
+            residual=latent.tanh()*(active_head.envelope(memory,self.observation) if active_mode else memory.left_cruise_blend.float())[:,None]
+            previous_command=self.command.clone()
+            before_heading=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
             # Interval maxima drive reward; flight_current persists across controls.
             for key in ('speed','force','nonfoot','flight','foot_peak','foot_impulse'):audit[key].zero_()
             batch.ctrl[:]=batch.targets;batch.ctrl[:,batch.aids]+=.08*action;batch.wrench.zero_()
@@ -254,16 +294,31 @@ def train(args):
             self.peak=torch.where(contacts,0.,torch.maximum(self.peak,clearance));self.touched|=contacts
             linear,_=batch.local_velocity()
             progress=-(batch.pos[:,batch.pelvis,1]-before[:,1])
-            reward=.02*(1.+2.*torch.exp(-(linear[:,1]-.2).square()/.0225)
+            desired=previous_command[:,0].float() if active_mode else .2
+            reward=.02*(1.+2.*torch.exp(-(linear[:,1]-desired).square()/.0225)
                 -8.*(force-2.5).clamp_min(0).square()-2.*tilt.square()-2.*slip
                 -.1*residual.square().sum(1)-.1*(residual-self.previous_residual).square().sum(1))
+            if active_mode:
+                moving=previous_command.abs().amax(1)>0
+                delta=batch.pos[:,batch.pelvis,:2]-before
+                progress=-before_heading.sin()*delta[:,0]+before_heading.cos()*delta[:,1]
+                post_heading=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
+                teacher=bank['teacher_heading'][self.mode,torch.round(self.age/.02).long()]
+                error=torch.atan2((post_heading-teacher).sin(),(post_heading-teacher).cos())
+                target=torch.where(self.mode==1,math.pi/2,memory.hold_heading)
+                hold_error=torch.atan2((post_heading-target).sin(),(post_heading-target).cos())
+                heading_penalty=torch.where(moving,(error/math.radians(10)).square(),(hold_error/math.radians(5)).square())
+                drift=(batch.pos[:,batch.pelvis,:2]-memory.stop_xy).square().sum(1)
+                reward-=.02*(2.*heading_penalty+torch.where(moving,0.,2.*drift/.03**2)).float()
+                progress=progress*moving;landed=landed & moving[:,None]
             reward+=2.*progress+.1*landed.float().sum(1)-5.*failed.float()
             reward=torch.nan_to_num(reward,nan=-5.,posinf=-5.,neginf=-5.)
             self.previous_residual=residual.detach().clone();self.returns+=reward
             timeout=batch.episode_steps>=self.max_episode_length;done=failed|timeout
             # Integrate the preceding command once, then update the live-pose steering dwell.
             self.get_observations()
-            memory.advance(self.observation[:,65].double(),self.age,.02)
+            if active_mode:memory.advance_command(self.observation,batch.pos[:,batch.pelvis],self.age,.02)
+            else:memory.advance(self.observation[:,65].double(),self.age,.02)
             self.completed+=int(done.sum());self.failed+=int(failed.sum())
             stats.update(completed=self.completed,failed=self.failed,mean_interval_peak_bw=float(force.mean()),
                 max_interval_peak_bw=float(force.max()),mean_forward_mps=float(linear[:,1].mean()),
@@ -304,12 +359,25 @@ def train(args):
         training_timeout='6s curriculum truncation with RSL timeout bootstrap; nominal-start evaluation unchanged')
     for filename in ('control_source.py','turn_source.py','teleop_contract.py'):
         (directory/filename).write_bytes((parent.parent/filename).read_bytes())
-    (directory/'residual_source.py').write_bytes(Path(__file__).read_bytes())
+    if active_mode:
+        training.update(residual_source_sha256=cruise_meta['residual_source_sha256'],residual_variant=active_head.VARIANT,
+            active_residual_source_sha256=backend.digest(active_head.__file__),active_residual_bound_rad=.02,
+            active_residual_feature_dim=69,active_residual_gate=active_head.GATE,
+            active_residual_action_joints=['left_hip_roll_joint','right_hip_roll_joint'],
+            frozen_cruise_checkpoint=str(cruise_path),frozen_cruise_checkpoint_sha256=backend.digest(cruise_path),
+            frozen_cruise_training_sha256=backend.digest(cruise_path.parent/'training.json'),
+            policy_composition='Frozen cruise PPO and CEM20; bounded active-left two-hip-roll PPO correction',
+            research_reference=['https://arxiv.org/abs/1812.03201','https://arxiv.org/abs/1804.02717'],
+            reward='Cruise force/stability costs plus command-speed tracking, body-forward progress and swings only while moving; 2*(teacher heading error/10deg)^2 moving or 2*(hold heading error/5deg)^2 holding and 2*(hold drift/.03m)^2; all rates multiplied by dt.')
+        (directory/'residual_source.py').write_bytes((cruise_path.parent/'residual_source.py').read_bytes())
+        (directory/'active_residual_source.py').write_bytes(Path(active_head.__file__).read_bytes())
+    else:(directory/'residual_source.py').write_bytes(Path(__file__).read_bytes())
     # Training dependencies are separate from the frozen deployment turn source.
     from algorithms.urdf_learn_wasd_walk import landau_turn_control as audit_implementation
     snapshots=directory/'training_sources';snapshots.mkdir()
-    training['training_source_sha256']={}
-    for module in (audit_implementation,direction,batches,backend):
+    (snapshots/Path(__file__).name).write_bytes(Path(__file__).read_bytes())
+    training['training_source_sha256']={Path(__file__).name:backend.digest(__file__)}
+    for module in (audit_implementation,direction,batches,backend)+((active_bank,) if active_mode else ()):
         path=Path(module.__file__);(snapshots/path.name).write_bytes(path.read_bytes())
         training['training_source_sha256'][path.name]=backend.digest(path)
     training['audit_buffer_ownership']='Warp arrays allocated before graph capture retained by batch._physics_audit_buffers'
@@ -321,6 +389,10 @@ def train(args):
         checkpoint=torch.load(path,map_location='cpu',weights_only=False)
         checkpoint.update(parameters=blob['parameters'],turn_parameters=blob['turn_parameters'],
             standing_actor_state_dict=blob['standing_actor_state_dict'],residual_actor_state_dict=checkpoint['actor_state_dict'])
+        if active_mode:
+            checkpoint['residual_variant']=active_head.VARIANT
+            checkpoint['active_residual_actor_state_dict']=checkpoint['actor_state_dict']
+            checkpoint['residual_actor_state_dict']=cruise_blob['residual_actor_state_dict']
         torch.save(checkpoint,path)
         training['checkpoints'][Path(path).name]=backend.digest(path)
         backend.write_json(directory/'training.json',training)
@@ -338,12 +410,67 @@ def train(args):
     backend.write_json(directory/'training.json',training)
 
 
+def rebase(args):
+    """Compose a calibrated active-turn parent with unchanged learned cruise weights."""
+    import torch
+    from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
+    parent=Path(args.checkpoint).resolve();old=Path(args.residual_checkpoint).resolve()
+    for path in (parent,old):path.relative_to((backend.OUTPUT/'training').resolve())
+    new_meta=json.loads((parent.parent/'training.json').read_text())
+    old_meta=json.loads((old.parent/'training.json').read_text())
+    if new_meta['checkpoints'][parent.name]!=backend.digest(parent) or old_meta['checkpoints'][old.name]!=backend.digest(old):
+        raise ValueError('Composition input checkpoint changed')
+    if new_meta['policy_family']!='periodic_feedback_cem' or old_meta['policy_family']!=FAMILY:
+        raise ValueError('Require calibrated CEM parent and learned cruise residual')
+    if any(str(meta.get('status','')).startswith('invalidated_') for meta in (new_meta,old_meta)):
+        raise ValueError('Invalidated composition input')
+    original=torch.load(old,map_location='cpu',weights_only=False)
+    fresh=torch.load(parent,map_location='cpu',weights_only=False)
+    if fresh['turn_parameters'].shape!=(20,) or original['turn_parameters'].shape!=(20,):raise ValueError('Require20parameters')
+    frozen=[i for i in range(20) if i not in (5,6,17)]
+    if not torch.equal(fresh['parameters'],original['parameters']) or not torch.equal(fresh['turn_parameters'][frozen],original['turn_parameters'][frozen]):
+        raise ValueError('Only active sway parameters5/6and left-yaw scale17may change')
+    left=fresh['standing_actor_state_dict'];right=original['standing_actor_state_dict']
+    if left.keys()!=right.keys() or any(not torch.equal(left[k],right[k]) for k in left):raise ValueError('Standing prior changed')
+    for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','action_joints','action_scale','nominal_q','nominal_ctrl'):
+        if new_meta[key]!=old_meta[key]:raise ValueError('Composition identity mismatch: '+key)
+    if backend.digest(parent.parent/'control_source.py')!=backend.digest(old.parent/'control_source.py'):
+        raise ValueError('Frozen gait source changed')
+    if backend.digest(old.parent/'residual_source.py')!=old_meta['residual_source_sha256']:raise ValueError('Residual source changed')
+    folder=backend.OUTPUT/'training'/args.name;folder.mkdir(exist_ok=False)
+    meta=copy.deepcopy(old_meta)
+    meta.update(status='composed_requires_nominal_validation',parent_checkpoint=str(parent),parent_checkpoint_sha256=backend.digest(parent),
+        parent_training_sha256=backend.digest(parent.parent/'training.json'),turn_source_sha256=new_meta['turn_source_sha256'],
+        source_sha256=new_meta['source_sha256'],canonical_milestone_pass=False,
+        composition={'learned_residual_checkpoint':str(old),'learned_residual_checkpoint_sha256':backend.digest(old),
+            'calibrated_parent_checkpoint':str(parent),'changed_turn_indices':[i for i in (5,6,17) if float(original['turn_parameters'][i])!=float(fresh['turn_parameters'][i])],
+            'old_active_sway':original['turn_parameters'][5:7].tolist(),'new_active_sway':fresh['turn_parameters'][5:7].tolist(),
+            'old_left_yaw_scale':float(original['turn_parameters'][17]),'new_left_yaw_scale':float(fresh['turn_parameters'][17]),
+            'scope':'No new PPO training; all cruise weights and parameters outside active sway/left-yaw calibration unchanged. Full cumulative proof required.'})
+    meta['arguments']={**old_meta['arguments'],'name':args.name,'turn_duration':new_meta['arguments']['turn_duration'],'hip_roll_range':.4}
+    for name in ('control_source.py','turn_source.py','teleop_contract.py','model.xml'):
+        (folder/name).write_bytes((parent.parent/name).read_bytes())
+    for name in ('residual_source.py','warm_states.npz'):(folder/name).write_bytes((old.parent/name).read_bytes())
+    blob={key:original[key] for key in ('residual_actor_state_dict','actor_state_dict')}
+    blob.update({key:fresh[key] for key in ('parameters','turn_parameters','standing_actor_state_dict')})
+    torch.save(blob,folder/'model_0.pt');meta['checkpoints']={'model_0.pt':backend.digest(folder/'model_0.pt')}
+    backend.write_json(folder/'training.json',meta)
+    print(str(folder/'model_0.pt'),flush=True)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
-    parser.add_argument('--curriculum',required=True);parser.add_argument('--num-envs',type=int,default=256)
+    parser.add_argument('--mode',choices=('train','rebase'),default='train')
+    parser.add_argument('--residual-checkpoint');parser.add_argument('--curriculum');parser.add_argument('--num-envs',type=int,default=256)
+    parser.add_argument('--active-curriculum',nargs=3,metavar=('BACKWARD','M5','M6'))
     parser.add_argument('--iterations',type=int,default=200);parser.add_argument('--seconds',type=float,default=6.)
     args=parser.parse_args()
+    if args.mode=='rebase':
+        if not args.residual_checkpoint:raise ValueError('Rebase requires a learned residual checkpoint')
+        rebase(args);return
+    if not args.curriculum and not args.active_curriculum:raise ValueError('Training requires a recorded curriculum')
+    if args.active_curriculum and not args.residual_checkpoint:raise ValueError('Active training requires frozen cruise checkpoint')
     if not 16<=args.num_envs<=512 or not 1<=args.iterations<=1000 or args.seconds!=6.:
         raise ValueError('Bounded initial curriculum requires16..512worlds,1..1000iterations and6secondepisodes')
     train(args)

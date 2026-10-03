@@ -1,0 +1,111 @@
+import copy
+import math
+import unittest
+from types import SimpleNamespace
+import torch
+from algorithms.urdf_learn_wasd_walk import landau_active_residual as active
+from algorithms.urdf_learn_wasd_walk import landau_cruise_residual as cruise
+from algorithms.urdf_learn_wasd_walk import landau_active_curriculum as curriculum
+from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop
+from algorithms.urdf_learn_wasd_walk.tests.test_landau_cruise_residual import ResidualBindingTests
+
+
+class ActiveTests(unittest.TestCase):
+    def test_commands_match_scalar_boundaries(self):
+        turn.configure_profile(44.)
+        ages=torch.tensor([2.98,3.,3.02,5.98,6.,6.02,17.98,18.,18.02,19.98,20.,20.02,46.98,47.,47.02,48.98,49.,49.02],dtype=torch.float64)
+        for mode in (1,2):
+            actual=curriculum.commands(torch.full((len(ages),),mode),ages,torch.zeros(len(ages),2),torch.zeros(len(ages)),44.)
+            expected=[]
+            for age in ages.tolist():
+                if mode==1:
+                    f,y,_=turn.command_profile(age);expected.append((f,0.,y))
+                else:expected.append(teleop.command_profile(age))
+            self.assertTrue(torch.allclose(actual,torch.tensor(expected,dtype=torch.float64),atol=1e-12,rtol=0))
+
+    def test_async_memory_and_holding_prior_match_scalar(self):
+        turn.configure_profile(44.)
+        # Both fade edges, both stop edges and already-held states.
+        starts=[46.8,48.8,49.2,17.8,19.8,20.2];modes=torch.tensor([1,1,1,2,2,2])
+        memory=curriculum.ActiveMemory(6,'cpu');scalars=[turn.CommandMemory() for _ in starts]
+        obs=torch.zeros(6,70);xyz=torch.zeros(6,3);rotation=torch.eye(3).repeat(6,1,1)
+        def data(age):
+            result=torch.zeros(1,70);result[:,62]=1.-age/30.;result[:,68]=math.sin(.03*age);result[:,69]=math.cos(.03*age)-1.
+            pos=torch.tensor([[.001*age,.002*age,.3]])
+            return result,pos
+        for i,(start,mode) in enumerate(zip(starts,modes)):
+            for step in range(round(start/.02)+1):
+                age=step*.02;single,pos=data(age)
+                if mode==1:f,y,_=turn.command_profile(age);single[:,63:66]=torch.tensor([f,0.,y])
+                else:single[:,63:66]=torch.tensor(teleop.command_profile(age))
+                scalars[i].observe(single,pos,rotation[i:i+1],age)
+            scalar=scalars[i]
+            memory._reference[i]=scalar.reference;memory._blend[i]=scalar.left_cruise_blend;memory._feedback[i]=scalar.left_feedback_blend
+            memory.previous_yaw[i]=scalar.previous_yaw;memory.previous_moving[i]=scalar.previous_moving
+            memory.left_cruise_start[i]=scalar.left_cruise_start if scalar.left_cruise_start is not None else float('inf')
+            if scalar.anchor_xy is not None:memory.stop_xy[i]=scalar.anchor_xy[0];memory.stop_time[i]=scalar.anchor_time
+        for step in range(1,70):
+            ages=torch.tensor(starts,dtype=torch.float64)+step*.02
+            for i,age in enumerate(ages.tolist()):obs[i],xyz[i]=[v[0] for v in data(age)]
+            obs[:,63:66]=curriculum.commands(modes,ages,xyz[:,:2].double(),torch.zeros(6),44.).float()
+            memory.advance_command(obs,xyz,ages,.02)
+            prior=memory.prior(obs,xyz,rotation,ages)
+            for i,scalar in enumerate(scalars):
+                _,expected=scalar.observe(obs[i:i+1],xyz[i:i+1],rotation[i:i+1],float(ages[i]))
+                self.assertAlmostEqual(float(memory._reference[i]),scalar.reference,places=10)
+                self.assertAlmostEqual(float(memory._blend[i]),scalar.left_cruise_blend,places=10)
+                self.assertAlmostEqual(float(memory._feedback[i]),scalar.left_feedback_blend,places=10)
+                self.assertTrue(torch.allclose(prior[i],expected[0],atol=2e-7,rtol=0))
+        self.assertTrue(torch.equal(memory.left_cruise_blend,torch.zeros(6)))
+
+    def test_zero_active_exact_and_combined_bound(self):
+        torch.manual_seed(4);n=100
+        memory=SimpleNamespace(left_cruise_blend=torch.linspace(0,1,n),left_feedback_blend=torch.rand(n),reference=0.)
+        obs=torch.zeros(n,70);obs[:,63]=.2;names=['left_hip_roll_joint','other','right_hip_roll_joint']
+        base=torch.randn(n,3);latent=torch.randn(n,2)*10
+        frozen=cruise.compose(base,latent,memory,names,obs)
+        self.assertTrue(torch.equal(active.compose(frozen,torch.zeros_like(latent),memory,names,obs),frozen))
+        result=active.compose(frozen,latent,memory,names,obs)
+        self.assertLessEqual(float(((result-base)*.08).abs().max()),.020001)
+        obs[:,63]=0.
+        self.assertTrue(torch.equal(active.compose(frozen,torch.full_like(latent,float('nan')),memory,names,obs),frozen))
+
+
+class ActiveBindingTests(ResidualBindingTests):
+    # Inherit the cruise-only rejection cases, then extend their fixture explicitly.
+    def enable(self):
+        from pathlib import Path
+        g=self.gates;directory=self.root/'cruise';directory.mkdir();cp=directory/'model.pt'
+        torch.save(self.blob,cp);(directory/'residual_source.py').write_text('residual')
+        meta={**self.meta,'status':'complete','checkpoints':{cp.name:g.digest(cp)}}
+        g.write(directory/'training.json',meta)
+        self.meta.update(residual_variant=active.VARIANT,active_residual_bound_rad=.02,active_residual_feature_dim=69,
+            active_residual_gate=active.GATE,active_residual_action_joints=['left_hip_roll_joint','right_hip_roll_joint'],
+            frozen_cruise_checkpoint=str(cp),frozen_cruise_checkpoint_sha256=g.digest(cp),frozen_cruise_training_sha256=g.digest(directory/'training.json'))
+        for folder in (self.folder,self.candidate_dir):(folder/'active_residual_source.py').write_text('active')
+        self.meta['active_residual_source_sha256']=g.digest(self.folder/'active_residual_source.py')
+        self.result.update(residual_variant=active.VARIANT,residual_dispatch=active.DISPATCH,active_residual_source_sha256=self.meta['active_residual_source_sha256'])
+        self.blob.update(residual_variant=active.VARIANT,active_residual_actor_state_dict={'weight':torch.zeros(2,2)})
+        torch.save(self.blob,self.checkpoint)
+    def test_valid_active(self):self.enable();self.check();self.assertTrue(active.check_contract(self.meta,self.blob,self.gates.digest))
+    def test_unexpected_head_rejected(self):
+        self.blob['active_residual_actor_state_dict']={};torch.save(self.blob,self.checkpoint)
+        with self.assertRaisesRegex(ValueError,'Unexpected active'):self.check()
+        with self.assertRaisesRegex(ValueError,'Unexpected active'):active.check_contract(self.meta,self.blob,self.gates.digest)
+    def test_missing_head_rejected(self):
+        self.enable();del self.blob['active_residual_actor_state_dict'];torch.save(self.blob,self.checkpoint)
+        with self.assertRaisesRegex(ValueError,'Missing active'):self.check()
+    def test_changed_cruise_rejected(self):
+        self.enable();self.blob['residual_actor_state_dict']['weight']+=.1;torch.save(self.blob,self.checkpoint)
+        with self.assertRaisesRegex(ValueError,'Frozen cruise weights'):self.check()
+        with self.assertRaisesRegex(ValueError,'Frozen cruise weights'):active.check_contract(self.meta,self.blob,self.gates.digest)
+    def test_missing_active_evidence_rejected(self):
+        self.enable();del self.result['active_residual_source_sha256']
+        with self.assertRaisesRegex(ValueError,'Active residual source mismatch'):self.check()
+    def test_variant_mismatch_rejected(self):
+        self.enable();del self.blob['residual_variant'];torch.save(self.blob,self.checkpoint)
+        with self.assertRaisesRegex(ValueError,'variant mismatch'):self.check()
+
+
+if __name__=='__main__':unittest.main()

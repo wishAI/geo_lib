@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "Repeated sway, rate and signed-bias grids did not yield a reliable backward-gate pass. Preparing bounded cruise-only residual PPO; six milestones remain certified."
+        "summary": "Residual cruise reaches backward gate in171.49s,cross-track7.5cm,no falls/reset; one3.029BWsample during activeleftturn at49.716s fails. Corrected-bufferactive-swaysearch underway; sixmilestonescertified."
       }
     },
     {
@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T10:35:55.071329+00:00",
+    "updatedAt": "2026-10-03T11:44:15.086924+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Evaluate residual PPOmodel299 nominal backward gate after paired screening improved to54/64survivals versus47/64parent. Inspect exact full proof; no promotion until all cumulative and four-direction proofs pass.",
+    "nextWork": "Train bounded active-left PPO correction over mixed long-turn, M5 turn/hold and M6 left-turn/stop prefixes, keeping cruise299 and CEM20 frozen. Then require independent nominal-start direction and cumulative checks.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1931,6 +1931,43 @@
         ],
         "proofComplete": true,
         "note": "Forward command 0.18 fell at 94.662 s. Saved controller disables learned cruise corrections outside exactly 0.20 and mixes standing actions at lower commands, so this is not an isolated speed effect."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_residual299_backward/dynamics.json",
+        "sha256": "acb92becf6a949060f25452b9ec9e3ef499f98b24c254b3b833f98bd5de32121",
+        "status": "failed_force_limit",
+        "gate_time_s": 171.48589836381586,
+        "gate_cross_track_m": 0.07529574415960229,
+        "peak_support_bw": 3.0289529827551807,
+        "violation_samples_2ms": 1,
+        "violation_time_s": 49.716,
+        "cruise_peak_support_bw": 2.8153779782742285,
+        "falls_resets_done": 0,
+        "proof_complete": true,
+        "promoted": false
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_residual_active61_m5/dynamics.json",
+        "sha256": "e85c12dc6586a6f6e1e840461dd3ef3e0a940888ddced514d267274c55fb25f3",
+        "status": "failed_turn_accuracy",
+        "peak_support_bw": 2.8341664839837653,
+        "hold_heading_error_deg": 21.922487,
+        "hold_drift_m": 0.020264788225107955,
+        "promoted": false
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_residual299_m5/dynamics.json",
+        "sha256": "dec8c0207b1d274855bfbecb364dadbbcc050c3c894c7905310c4e3066abc703",
+        "status": "dynamics_passed_proof_pending",
+        "note": "Independent visual review and check_walking passed. Peak2.838065BW, hold error0.7961deg, drift0.013031m. No cumulative promotion.",
+        "promoted": false
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_residual299_m6/dynamics.json",
+        "sha256": "88e08100407b13e9e73dac3b07264aeac5e09104ea7dd2a5df0cad12e88fc681",
+        "status": "failed",
+        "note": "Failed two2ms force samples at30.376/30.378s during restart; peak3.147640BW. No falls/resets/done. Left-turn/first-stop training prefix through24.8s remains healthy; not a passing proof.",
+        "promoted": false
       }
     ],
     "candidateCheckpoint": {
@@ -1940,10 +1977,23 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_bias_grid/training.json",
-      "sha256": "74fe67fc15fb27a6d759cfdde92fc1de6a2b57f7d2fefa9ef3fdea82c55f13e0",
-      "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Signed cruise bias grid,32worlds,two identical repeats. No offset or duplicate zero control cleared all four starts in either repeat. Reject extension; retain20parameter incumbent, no promotion."
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active90_grid_buffers/training.json",
+      "sha256": "0996862d79555bcb6e92b84dd0d10dd4ec6a3de259a676f333eae4d951da4d3c",
+      "scope": "90sactive-leftprefixscreen with persistentCUDAauditbuffers.34candidates physicallysafeacross8starts/repeats; no10mgatequalificationinshortprefix.",
+      "selected_candidate": 61,
+      "selected_worst_peak_support_bw": 2.8844220638275146,
+      "selected_parameter_indices": [
+        5,
+        6
+      ],
+      "selected_parameters": [
+        -0.005264688283205032,
+        0.03772631287574768
+      ],
+      "candidate_tables_sha256": {
+        "candidates_0.json": "640accbb395f747c1c7b8f074796ab63bd97bc3a3e6f4a6ac165fd04ada15c88",
+        "candidates_1.json": "4d8e4b207307e22adf411e52b673b26a598f933c9760dd0fdd9da344f9ac2ef2"
+      }
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
@@ -1969,6 +2019,21 @@
       "issue": "Pre-capture Warp audit arrays lost Python ownership before CUDA graph replay. Retain all buffers on batch. Earlier batched rankings are provisional; independent serial proofs retain their own persistent state and remain valid.",
       "evidence": "Original residualscreen crashed withCUDAillegalaccess; freshprocess withpersistentbuffers completed. Independent evaluation runtime sourcehashunchanged acrossM1-M6 andcurrentfailedbackwardproofs.",
       "independentRuntimeSha256": "34247a142e57a1a011a0eed5c128f9022f67b91fbb450c70ece52e0952bf1bbb"
+    },
+    "activeSwayJointScreen": {
+      "result": "No changedp5/p6candidate passedall8M5starts andall8sustained90sstarts. Onlyunchangedcontrols passedjointscreen.",
+      "closest_changed_candidate": 27,
+      "candidate27_m5_repeat2_peak_bw": 3.0095653533935547,
+      "candidate27_m5_repeat2_max_hold_error_deg": 5.666,
+      "decision": "Reject p5/p6-only and subsequent p17 calibration families after repeated force/accuracy failures."
+    },
+    "activeYawJointScreen": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active61_yaw_m5",
+      "result": "No gain passed both M5 repeats. Gain2.10 first peak2.864BW and max heading2.53deg; second peak3.095BW with3/4 force failures. Reject parameter family."
+    },
+    "activeTraining": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_ppo300",
+      "scope": "256 worlds,300 PPO iterations, balanced recorded-state long-turn/M5/M6-prefix episodes; frozen cruise299 and CEM20. Smoke and710-state CPU reconstruction/action parity passed. Not milestone evidence."
     }
   }
 }

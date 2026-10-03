@@ -198,6 +198,16 @@ def check_gait_source(folder,result,training):
 def check_residual_source(folder,result,training,checkpoint):
     """Independently bind the hybrid controller and its unchanged frozen parent."""
     import torch
+    active=training.get('residual_variant')=='cruise_plus_active_left_v1'
+    candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    require(candidate.get('residual_variant')==training.get('residual_variant'), 'Active residual variant mismatch')
+    if not active:
+        require(training.get('residual_variant') is None and 'active_residual_actor_state_dict' not in candidate and
+            not any(k.startswith(('active_residual_','frozen_cruise_')) for k in training) and
+            not any(k.startswith('active_residual_') for k in result) and result.get('residual_variant') is None,
+            'Unexpected active residual weights or metadata')
+    else:
+        require(training.get('policy_family')=='periodic_feedback_residual_ppo', 'Active residual family mismatch')
     if training.get('policy_family')!='periodic_feedback_residual_ppo':
         candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
         require('residual_actor_state_dict' not in candidate, 'Residual weights mislabeled as another policy family')
@@ -207,7 +217,7 @@ def check_residual_source(folder,result,training,checkpoint):
     checkpoint=Path(checkpoint);folder=Path(folder)
     expected=training['residual_source_sha256']
     require(expected==digest(checkpoint.parent/'residual_source.py')==digest(folder/'residual_source.py')==result.get('residual_source_sha256'), 'Residual source mismatch')
-    require(result.get('residual_dispatch')=='deterministic_cruise_hip_roll_v1', 'Residual inference dispatch mismatch')
+    require(result.get('residual_dispatch')==('deterministic_cruise_plus_active_left_hip_roll_v1' if active else 'deterministic_cruise_hip_roll_v1'), 'Residual inference dispatch mismatch')
     require(training['residual_bound_rad']==.02 and training['residual_feature_dim']==69, 'Residual bounds/schema changed')
     require(training['residual_action_joints']==['left_hip_roll_joint','right_hip_roll_joint'], 'Residual joints changed')
     require(training['residual_gate']=='left_cruise_blend * clamp(abs(forward)/0.2,0,1)', 'Residual gate changed')
@@ -222,6 +232,38 @@ def check_residual_source(folder,result,training,checkpoint):
     original=torch.load(parent,map_location='cpu',weights_only=False)
     candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
     require('residual_actor_state_dict' in candidate, 'Missing residual actor')
+    if active:
+        require(result.get('residual_variant')==training['residual_variant'], 'Active evidence variant mismatch')
+        require('active_residual_actor_state_dict' in candidate, 'Missing active residual actor')
+        require(training.get('active_residual_bound_rad')==.02 and training.get('active_residual_feature_dim')==69 and
+            training.get('active_residual_action_joints')==['left_hip_roll_joint','right_hip_roll_joint'] and
+            training.get('active_residual_gate')=='(1-left_cruise_blend) * left_feedback_blend * clamp(abs(forward)/0.2,0,1)', 'Active residual contract mismatch')
+        require(training.get('active_residual_source_sha256')==digest(checkpoint.parent/'active_residual_source.py')==
+            digest(folder/'active_residual_source.py')==result.get('active_residual_source_sha256'), 'Active residual source mismatch')
+        cruise=Path(training['frozen_cruise_checkpoint']);cruise_meta=read(cruise.parent/'training.json')
+        require(digest(cruise)==training['frozen_cruise_checkpoint_sha256'] and digest(cruise.parent/'training.json')==training['frozen_cruise_training_sha256'], 'Frozen cruise input changed')
+        require(cruise_meta.get('policy_family')=='periodic_feedback_residual_ppo' and cruise_meta.get('residual_variant') is None and
+            not str(cruise_meta.get('status','')).startswith('invalidated_') and cruise_meta['checkpoints'][cruise.name]==digest(cruise), 'Invalid frozen cruise input')
+        for key in ('parent_checkpoint_sha256','parent_training_sha256','residual_source_sha256','turn_source_sha256'):
+            require(cruise_meta[key]==training[key], 'Frozen cruise lineage changed')
+        require(digest(cruise.parent/'residual_source.py')==expected, 'Frozen cruise source changed')
+        cruise_blob=torch.load(cruise,map_location='cpu',weights_only=False)
+        require(cruise_blob.get('residual_variant') is None and 'active_residual_actor_state_dict' not in cruise_blob, 'Invalid cruise-only weights')
+        for key in ('parameters','turn_parameters'):
+            require(torch.equal(cruise_blob[key],candidate[key]), 'Frozen cruise controller changed')
+        for key in ('standing_actor_state_dict','residual_actor_state_dict'):
+            left,right=cruise_blob[key],candidate[key]
+            require(left.keys()==right.keys() and all(torch.equal(left[k],right[k]) for k in left), 'Frozen cruise weights changed')
+    if training.get('composition'):
+        composition=training['composition'];learned=Path(composition['learned_residual_checkpoint'])
+        require(digest(learned)==composition['learned_residual_checkpoint_sha256'], 'Learned residual input changed')
+        learned_meta=read(learned.parent/'training.json')
+        require(learned_meta.get('policy_family')=='periodic_feedback_residual_ppo' and
+            learned_meta['checkpoints'][learned.name]==digest(learned), 'Learned residual provenance mismatch')
+        require(learned_meta['residual_source_sha256']==expected, 'Rebased residual implementation changed')
+        learned_blob=torch.load(learned,map_location='cpu',weights_only=False)
+        before=learned_blob['residual_actor_state_dict'];after=candidate['residual_actor_state_dict']
+        require(before.keys()==after.keys() and all(torch.equal(before[k],after[k]) for k in before), 'Rebased residual weights changed')
     require(tuple(original['turn_parameters'].shape)==(20,), 'Frozen parent requires20turnparameters')
     for key in ('parameters','turn_parameters'):
         require(torch.equal(original[key],candidate[key]), f'Frozen {key} changed')
@@ -502,6 +544,8 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
         evidence.append(artifact(folder/'gait_source.py','trained_gait_source'))
     if policy_kind=='periodic_feedback_residual_ppo':
         evidence.append(artifact(folder/'residual_source.py','trained_residual_source'))
+        if read(checkpoint.parent/'training.json').get('residual_variant'):
+            evidence.append(artifact(folder/'active_residual_source.py','trained_active_residual_source'))
     if index==4:
         evidence.extend(artifact(folder/name,kind) for name,kind in [('turn_source.py','trained_turn_source'),
             ('turn_validator_source.py','turn_validator_source'),('policy_trace.npz','command_and_policy_trace'),
@@ -554,6 +598,8 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
             evidence.append(artifact(path/name,direction+'_'+name))
         if read(checkpoint.parent/'training.json').get('policy_family')=='periodic_feedback_residual_ppo':
             evidence.append(artifact(path/'residual_source.py',direction+'_residual_source.py'))
+            if read(checkpoint.parent/'training.json').get('residual_variant'):
+                evidence.append(artifact(path/'active_residual_source.py',direction+'_active_residual_source.py'))
     require(set(directions)==set(DIRECTIONS), 'All world directions required')
     for index,path in enumerate(cumulative_folders):
         path=Path(path)

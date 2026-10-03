@@ -525,6 +525,13 @@ def train(args):
         if args.turn_hold_training:
             meta['objective']='Shared-start exact90degree turn/hold screening for left feedback with force margin; preserve previous18parameters; later M7 gate proof required'
             meta['turn_hold_fitness']='20*duration -500*max(final_absolute_heading_error,settled_absolute_heading_error) -500*hold_drift; retain force-margin penalty and physics/eligibility bonuses. No relative turn-onset yaw reward.'
+        if args.left_balance_only and args.turn_hold_training:
+            meta['objective']='Screen fixed active-left sway grid on exact90degree turn/hold; freeze all other parameters bit-exactly, then intersect with separate sustained-turn screen.'
+            meta['searched_turn_indices']=[5,6]
+        if args.left_yaw_grid:
+            meta['objective']='Calibrate existing left-yaw gain on frozen force-safe active sway; select only after repeatedM5and90sprefix intersection'
+            meta['searched_turn_indices']=[17]
+            meta['left_yaw_grid_values']=['two unchanged controls']+[1.65+.05*i for i in range(14)]
         if args.feedback_yaw_refine:
             meta['objective']='Jointly calibrate left yaw scale and torso feedback on exact90degree turn/hold with force margin; preserve first17parameters and gait; later M7 proof required'
             meta['left_turn_refinement']['searched_indices']=[17,18,19]
@@ -602,10 +609,17 @@ def train(args):
             z[:,10]=torch.linspace(-1.,1.,side,device='cuda').repeat(side)
         if getattr(args,'right_grid',False) or getattr(args,'restart_grid',False):z[0]=mean
         params = (lows+(z+1)*.5*(highs-lows)).repeat_interleave(replicas, dim=0)
+        if args.left_balance_only:
+            from algorithms.urdf_learn_wasd_walk import landau_direction_training
+            params=landau_direction_training.active_balance_parameters(z,lows,highs,seed_parameters).repeat_interleave(replicas,dim=0)
         if args.left_cruise_balance_only:
             params=direction_training.cruise_balance_parameters(z,lows,highs,seed_parameters).repeat_interleave(replicas,dim=0)
         if args.left_cruise_balance_grid:
             grid=direction_training.cruise_balance_grid(seed_parameters,candidates,lows,highs)
+            params=grid.repeat_interleave(replicas,dim=0)
+            z=2*(grid-lows)/(highs-lows)-1.
+        if args.left_yaw_grid:
+            grid=direction_training.left_yaw_grid(seed_parameters)
             params=grid.repeat_interleave(replicas,dim=0)
             z=2*(grid-lows)/(highs-lows)-1.
         if args.left_cruise_rate_grid:
@@ -901,6 +915,39 @@ def train(args):
     progress('completed',args.generations)
 
 
+def export_candidate(checkpoint, index, name):
+    """Export one hash-bound search row without claiming independent validation."""
+    import copy
+    import torch
+    from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
+    checkpoint=Path(checkpoint).resolve();checkpoint.relative_to((backend.OUTPUT/'training').resolve())
+    meta=json.loads((checkpoint.parent/'training.json').read_text())
+    if meta['checkpoints'][checkpoint.name]!=backend.digest(checkpoint):raise ValueError('Search checkpoint changed')
+    table,expected=candidate_table_reference(checkpoint,meta)
+    if backend.digest(table)!=expected:raise ValueError('Search candidate table changed')
+    rows=json.loads(table.read_text())
+    if not 0<=index<len(rows) or rows[index]['candidate']!=index:raise ValueError('Candidate row not found')
+    blob=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    parameters=torch.tensor(rows[index]['parameters'],dtype=blob['turn_parameters'].dtype)
+    if parameters.shape!=blob['turn_parameters'].shape:raise ValueError('Candidate schema changed')
+    blob['turn_parameters']=parameters
+    folder=backend.OUTPUT/'training'/name;folder.mkdir(exist_ok=False)
+    for filename in ('control_source.py','turn_source.py','teleop_contract.py','model.xml'):
+        (folder/filename).write_bytes((checkpoint.parent/filename).read_bytes())
+    (folder/'candidates_0.json').write_bytes(table.read_bytes())
+    (folder/'candidate_export_source.py').write_bytes(Path(__file__).read_bytes())
+    torch.save(blob,folder/'model_0.pt')
+    result=copy.deepcopy(meta)
+    result.update(status='selected_requires_validation',metrics={'selected_candidate':rows[index]},
+        checkpoints={'model_0.pt':backend.digest(folder/'model_0.pt')},generations_completed=1,
+        generation_candidate_tables={'candidates_0.json':expected},candidate_table_sha256=expected,
+        candidate_selection={'search_checkpoint':str(checkpoint),'search_checkpoint_sha256':backend.digest(checkpoint),
+            'table':str(table),'table_sha256':expected,'candidate':index,'export_source_sha256':backend.digest(__file__)},
+        canonical_milestone_pass=False)
+    backend.write_json(folder/'training.json',result)
+    print(str(folder/'model_0.pt'),flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name',required=True); parser.add_argument('--checkpoint',required=True)
@@ -921,6 +968,7 @@ def main():
     parser.add_argument('--direction-command-trace',help='Replay semantic commands from a recorded left gate, then continue straight; training only')
     parser.add_argument('--closed-loop-direction',choices=('forward','left','right','backward'),help='Compute independent per-world commands from pose and optimize actual gate crossing')
     parser.add_argument('--left-turn-refine',action='store_true',help='Also refine left active heading/sway with post-onset force margin; requires M5 recheck')
+    parser.add_argument('--left-yaw-grid',action='store_true',help='Repeat16left-yaw gains with frozen force-safe sway and two unchanged controls')
     parser.add_argument('--left-yaw-only',action='store_true',help='Calibrate a separate left yaw scale on M5; freeze17balance parameters')
     parser.add_argument('--left-heading-grid',action='store_true',help='Diagnose8cruise heading gains with every other parameter frozen')
     parser.add_argument('--left-balance-only',action='store_true',help='Refine only active-left sway amplitude/phase on recorded steering with force margin')
@@ -939,9 +987,14 @@ def main():
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
+    parser.add_argument('--export-candidate',type=int,help='Export one row from this checkpoint generation without running physics')
     args = parser.parse_args()
+    if args.export_candidate is not None:
+        export_candidate(args.checkpoint,args.export_candidate,args.name);return
     if args.diagnostic_sweep and (args.left_cruise_bias_grid or args.left_cruise_rate_grid or args.left_cruise_balance_only):
         raise ValueError('Diagnostic sweep cannot override a frozen cruise search')
+    if args.left_yaw_grid and (args.num_envs!=64 or not args.seed_checkpoint or not args.left_turn_refine or not args.common_starts or not (args.turn_hold_training or args.closed_loop_direction=='backward') or args.left_yaw_only or args.left_balance_only or args.left_feedback_only or args.left_cruise_balance_only or args.feedback_yaw_refine or args.diagnostic_sweep or args.left_heading_grid or args.left_damping_grid):
+        raise ValueError('Left-yaw grid requires64worlds, frozen seed, force margin and separate exactM5orbackward common starts')
     if args.common_starts and not (args.closed_loop_direction or args.turn_hold_training):raise ValueError('Common starts require closed-loop direction or exact turn/hold training')
     if args.left_cruise_bias_grid and (args.num_envs!=32 or not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_cruise_balance_only or args.left_cruise_rate_grid or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Cruise bias grid requires32worlds and separate shared-start closed-loop left training with force margin')
@@ -953,8 +1006,8 @@ def main():
     if args.left_balance_grid and not (args.common_starts and args.left_balance_only):raise ValueError('Balance grid requires common starts and balance-only refinement')
     if args.left_feedback_only and (not args.left_turn_refine or not args.common_starts or not (args.closed_loop_direction in ('left','backward') or args.turn_hold_training) or args.left_balance_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Left feedback search requires its own shared-start closed-loop left curriculum with force margin')
-    if args.turn_hold_training and (not args.left_feedback_only or args.closed_loop_direction or args.direction_command_trace or args.seconds<3.+args.turn_duration+2.+7.):
-        raise ValueError('Turn/hold screening requires independent left feedback training and a complete five-second hold')
+    if args.turn_hold_training and (not (args.left_feedback_only or args.left_balance_only or args.left_yaw_grid) or args.closed_loop_direction or args.direction_command_trace or args.seconds<3.+args.turn_duration+2.+7.):
+        raise ValueError('Turn/hold screening requires independent left feedback or active-sway training and a complete five-second hold')
     if args.feedback_yaw_refine and (not args.turn_hold_training or args.left_damping_grid):raise ValueError('Joint yaw/feedback search requires exact turn/hold screening without the damping grid')
     if args.left_damping_grid and (not args.left_feedback_only or args.num_envs!=32):raise ValueError('Damping grid requires32worlds and left feedback-only search')
     if args.left_checkpoint and (not args.teleop or not args.seed_checkpoint):raise ValueError('Left preservation requires seeded teleop training')
@@ -985,7 +1038,7 @@ def main():
         raise ValueError('Left yaw calibration requires a separate seeded left curriculum')
     if args.left_heading_grid and (not args.left_cruise_only or args.left_turn_refine or args.left_yaw_only or not args.direction_command_trace or args.num_envs!=32 or args.generations!=1):
         raise ValueError('Heading grid requires recorded left steering,32worlds and1generation')
-    if args.left_balance_only and (not args.left_turn_refine or args.left_heading_grid or args.left_yaw_only or not (args.direction_command_trace or args.closed_loop_direction)):
+    if args.left_balance_only and (not args.left_turn_refine or args.left_heading_grid or args.left_yaw_only or not (args.direction_command_trace or args.closed_loop_direction or args.turn_hold_training)):
         raise ValueError('Balance-only search requires recorded steering and force-margin refinement')
     if args.closed_loop_direction and (not args.direction_train or args.direction_command_trace or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Closed-loop direction training cannot mix recorded or fixed turn protocols')

@@ -11,6 +11,41 @@ class ResidualTests(unittest.TestCase):
         self.names=['left_hip_roll_joint','other','right_hip_roll_joint']
         self.obs=torch.zeros(4,70);self.obs[:,63]=.2;self.obs[:,8]=-1.
         self.memory=SimpleNamespace(reference=0.,left_cruise_blend=torch.tensor([0.,.25,.5,1.]),left_feedback_blend=0.)
+    def test_left_yaw_grid_freezes_sway_and_cruise(self):
+        from algorithms.urdf_learn_wasd_walk.landau_direction_training import left_yaw_grid
+        seed=torch.arange(20.)*.03;seed[17]=1.6034596
+        grid=left_yaw_grid(seed)
+        self.assertTrue(torch.equal(grid[:2],seed.expand(2,-1)))
+        fixed=[i for i in range(20) if i!=17]
+        self.assertTrue(torch.equal(grid[:,fixed],seed[fixed].expand(16,-1)))
+        self.assertAlmostEqual(float(grid[2,17]),1.65,places=6)
+        self.assertAlmostEqual(float(grid[-1,17]),2.30,places=6)
+
+    def test_active_sway_can_screen_exact_turn_hold(self):
+        from unittest.mock import patch
+        from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+        argv=['turn','--name','test','--checkpoint','parent.pt','--seed-checkpoint','seed.pt',
+            '--num-envs','256','--generations','2','--seconds','56','--turn-duration','44',
+            '--teleop','--direction-train','--left-cruise-only','--left-turn-refine',
+            '--left-balance-only','--left-balance-grid','--common-starts','--turn-hold-training']
+        with patch('sys.argv',argv),patch.object(turn,'train') as train:
+            turn.main();train.assert_called_once()
+        yaw_argv=[v for v in argv if v not in ('--left-balance-only','--left-balance-grid')]
+        yaw_argv[yaw_argv.index('256')]='64';yaw_argv.append('--left-yaw-grid')
+        with patch('sys.argv',yaw_argv),patch.object(turn,'train') as train:
+            turn.main();train.assert_called_once()
+
+    def test_active_balance_preserves_learned_cruise(self):
+        from algorithms.urdf_learn_wasd_walk.landau_direction_training import active_balance_parameters
+        torch.manual_seed(9)
+        seed=torch.rand(20);lows=torch.full_like(seed,-1.);highs=torch.ones_like(seed)
+        center=2*(seed-lows)/(highs-lows)-1.;z=center.repeat(4,1);z[2:,5:7]+=.01
+        result=active_balance_parameters(z,lows,highs,seed)
+        self.assertTrue(torch.equal(result[:2],seed.expand(2,-1)))
+        fixed=[i for i in range(20) if i not in (5,6)]
+        self.assertTrue(torch.equal(result[:,fixed],seed[fixed].expand(4,-1)))
+        self.assertFalse(torch.equal(result[2,5:7],seed[5:7]))
+
     def test_zero_and_inactive_exact(self):
         baseline=torch.randn(4,3)
         self.assertTrue(torch.equal(baseline,residual.compose(baseline,torch.zeros(4,2),self.memory,self.names,self.obs)))
@@ -90,6 +125,68 @@ class ResidualBindingTests(unittest.TestCase):
     def test_changed_source_rejected(self):
         (self.folder/'residual_source.py').write_text('changed')
         with self.assertRaisesRegex(ValueError,'source mismatch'):self.check()
+
+
+class ResidualRebaseTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile,json
+        from pathlib import Path
+        from unittest.mock import patch
+        from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
+        self.backend=backend;self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name);self.new=self.root/'training/new';self.old=self.root/'training/old'
+        self.new.mkdir(parents=True);self.old.mkdir(parents=True)
+        self.parent=self.new/'model_1.pt';self.previous=self.old/'model_299.pt'
+        self.original={'parameters':torch.arange(16.),'turn_parameters':torch.arange(20.),
+            'standing_actor_state_dict':{'normalizer':torch.ones(3)},
+            'residual_actor_state_dict':{'weight':torch.randn(2,2)},'actor_state_dict':{'weight':torch.ones(2,2)}}
+        self.fresh={k:v for k,v in self.original.items() if k in ('parameters','turn_parameters','standing_actor_state_dict')}
+        self.fresh['turn_parameters']=self.fresh['turn_parameters'].clone();self.fresh['turn_parameters'][5:7]+=.001
+        torch.save(self.original,self.previous);torch.save(self.fresh,self.parent)
+        for folder in (self.old,self.new):
+            for name in ('control_source.py','turn_source.py','teleop_contract.py','model.xml'):(folder/name).write_text(name)
+        (self.old/'residual_source.py').write_text('residual');(self.old/'warm_states.npz').write_bytes(b'bank')
+        shared=dict(status='complete',model_xml_sha256='model',urdf_sha256='urdf',mesh_tree_sha256='meshes',
+            action_joints=['left_hip_roll_joint'],action_scale=[.4],nominal_q=[0.],nominal_ctrl=[0.],
+            arguments={'turn_duration':44.},source_sha256={'gait':'hash'},turn_source_sha256=backend.digest(self.new/'turn_source.py'))
+        self.new_meta={**shared,'policy_family':'periodic_feedback_cem','checkpoints':{self.parent.name:backend.digest(self.parent)}}
+        self.old_meta={**shared,'policy_family':residual.FAMILY,'checkpoints':{self.previous.name:backend.digest(self.previous)},
+            'residual_source_sha256':backend.digest(self.old/'residual_source.py')}
+        backend.write_json(self.new/'training.json',self.new_meta);backend.write_json(self.old/'training.json',self.old_meta)
+        self.addCleanup(patch.stopall);patch.object(backend,'OUTPUT',self.root).start()
+        self.args=SimpleNamespace(name='composed',checkpoint=str(self.parent),residual_checkpoint=str(self.previous))
+    def test_export_uses_bound_generation_row(self):
+        import contextlib,io,json
+        from algorithms.urdf_learn_wasd_walk.landau_turn_control import export_candidate
+        table=self.new/'candidates_1.json'
+        rows=[{'candidate':0,'parameters':self.original['turn_parameters'].tolist()},
+              {'candidate':1,'parameters':self.fresh['turn_parameters'].tolist()}]
+        self.backend.write_json(table,rows)
+        self.new_meta['generation_candidate_tables']={table.name:self.backend.digest(table)}
+        self.backend.write_json(self.new/'training.json',self.new_meta)
+        with contextlib.redirect_stdout(io.StringIO()):export_candidate(self.parent,0,'selected')
+        folder=self.root/'training/selected';blob=torch.load(folder/'model_0.pt',weights_only=False)
+        self.assertTrue(torch.equal(blob['turn_parameters'],self.original['turn_parameters']))
+        meta=json.loads((folder/'training.json').read_text())
+        self.assertEqual(meta['candidate_selection']['candidate'],0);self.assertFalse(meta['canonical_milestone_pass'])
+        table.write_text('changed')
+        with self.assertRaisesRegex(ValueError,'table changed'):export_candidate(self.parent,1,'bad')
+        self.assertFalse((self.root/'training/bad').exists())
+
+    def test_rebase_keeps_learned_weights_and_frozen_cruise(self):
+        import contextlib,io,json
+        with contextlib.redirect_stdout(io.StringIO()):residual.rebase(self.args)
+        folder=self.root/'training/composed';result=torch.load(folder/'model_0.pt',weights_only=False)
+        self.assertTrue(torch.equal(result['residual_actor_state_dict']['weight'],self.original['residual_actor_state_dict']['weight']))
+        self.assertTrue(torch.equal(result['turn_parameters'],self.fresh['turn_parameters']))
+        meta=json.loads((folder/'training.json').read_text())
+        self.assertFalse(meta['canonical_milestone_pass']);self.assertEqual(meta['composition']['changed_turn_indices'],[5,6])
+    def test_rebase_rejects_changed_cruise(self):
+        self.fresh['turn_parameters'][15]+=.001;torch.save(self.fresh,self.parent)
+        self.new_meta['checkpoints'][self.parent.name]=self.backend.digest(self.parent)
+        self.backend.write_json(self.new/'training.json',self.new_meta)
+        with self.assertRaisesRegex(ValueError,'Only active sway'):residual.rebase(self.args)
+        self.assertFalse((self.root/'training/composed').exists())
 
 
 if __name__=='__main__':unittest.main()

@@ -298,7 +298,29 @@ were released. The batch now retains all audit arrays, as required by
 Earlier batched training diagnostics are provisional; independent serial proofs
 use a separate evaluation path. With ownership fixed, the first residual survived
 54/64 short screening episodes versus 47/64 parent episodes. Neither result is a
-milestone pass. The residual checkpoint is undergoing a nominal-start backward test.
+milestone pass. The residual checkpoint reached the nominal backward gate in
+171.49 s with 7.5 cm cross-track error and no falls/resets. Its only force violation
+was one 2 ms sample at 49.716 s (3.029 BW), before the cruise residual activates;
+the later cruise stayed below 2.82 BW. A repeated 90 s active-turn sway grid now
+targets that earlier peak, preserving every parameter except active sway 5/6.
+Candidate 61 had the lowest repeated 90 s peak (2.884 BW), but independently
+underturned M5 to about 68 degrees despite a lower 2.834 BW peak. It is rejected.
+No changed sway candidate passed both repeated M5 and sustained-turn screens.
+Calibrating the existing left-yaw gain also failed repeatability: gain 2.10 passed
+once but exceeded 3 BW in three of four starts on its second run.
+
+The next experiment freezes the learned cruise network and trains a separate
+active-left hip-roll correction. Its envelope is `(1-cruise_blend)*left_feedback_blend`
+times forward-command magnitude; combined corrections remain bounded to 0.02 rad.
+Training samples long-turn, 90-degree turn/hold and teleoperation left-turn/stop
+prefixes equally. Restored stop anchors and command memory are checked against
+the scalar evaluator; reference headings constrain turn accuracy during training.
+This uses [reference-state initialization and a combined imitation/task objective](https://arxiv.org/abs/1804.02717)
+for heading preservation, without replaying physical poses or actions.
+The original cruise residual independently passed M5 (0.80-degree hold error),
+but its fresh M6 run failed a restart impact at 30.378 s (3.148 BW). The healthy
+M6 prefix through 24.8 s is training input only. Every new checkpoint still needs
+fresh full M6 and all other cumulative proofs.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

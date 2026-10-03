@@ -408,7 +408,10 @@ def evaluate(args):
             actor.add_module('standing_prior',prior)
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
-    residual=None
+    residual=None;active_residual=None
+    from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
+    active_enabled=check_active_contract(meta,blob,backend.digest)
+    if active_enabled and meta.get('policy_family')!='periodic_feedback_residual_ppo':raise ValueError('Active residual family mismatch')
     if meta.get('policy_family')=='periodic_feedback_residual_ppo':
         from algorithms.urdf_learn_wasd_walk.landau_cruise_residual import load_source
         if (meta.get('residual_bound_rad')!=.02 or meta.get('residual_feature_dim')!=69 or
@@ -433,6 +436,10 @@ def evaluate(args):
         residual=load_source(residual_source,meta['residual_source_sha256'],'saved_cruise_residual')
         residual_actor=residual.make_actor()
         residual_actor.load_state_dict(blob['residual_actor_state_dict'],strict=True);residual_actor.eval()
+        if active_enabled:
+            active_source=checkpoint.parent/'active_residual_source.py'
+            active_residual=load_source(active_source,meta['active_residual_source_sha256'],'saved_active_residual')
+            active_actor=residual.make_actor();active_actor.load_state_dict(blob['active_residual_actor_state_dict'],strict=True);active_actor.eval()
         if command_memory is None:raise ValueError('Residual controller requires command memory')
     elif 'residual_actor_state_dict' in blob or 'residual_source_sha256' in meta:
         raise ValueError('Residual checkpoint mislabeled as another policy family')
@@ -490,6 +497,8 @@ def evaluate(args):
                     **({'memory':command_memory} if command_memory else {}))
                 if residual is not None:
                     baseline=residual.apply(residual_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'])
+                    if active_residual is not None:
+                        baseline=active_residual.apply(active_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'],residual)
                 return baseline[0]
             if meta.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
                 return gait_implementation.evaluate_mean(actor,obs[None],meta['action_joints'])[0]
@@ -525,6 +534,10 @@ def evaluate(args):
             (backend.OUTPUT/args.name/'residual_source.py').write_bytes(residual_source.read_bytes())
             result['residual_source_sha256']=backend.digest(residual_source)
             result['residual_dispatch']='deterministic_cruise_hip_roll_v1'
+            if active_residual is not None:
+                (backend.OUTPUT/args.name/'active_residual_source.py').write_bytes(active_source.read_bytes())
+                result.update(active_residual_source_sha256=backend.digest(active_source),
+                    residual_variant=meta['residual_variant'],residual_dispatch='deterministic_cruise_plus_active_left_hip_roll_v1')
         backend.write_json(result_path,result)
     backend.write_json(backend.OUTPUT/args.name/'transfer.json',{
         'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),
