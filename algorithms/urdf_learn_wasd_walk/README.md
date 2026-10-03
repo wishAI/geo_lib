@@ -143,10 +143,23 @@ response blocks accumulate local heading increments so turns beyond 180°
 retain their direction. The bounded two-generation, 256-world refinement
 finished with zero qualifiers: the final selected candidate survived four
 180 s starts with peak 2.975 BW, but missed the 2.85 BW training margin and had
-30.39–36.47° final heading errors. It is rejected for promotion. No GPU job is
-left running, no speed increase is claimed, and the certified M6 checkpoint
-remains the default. The earlier successful left proof predates the backward
+30.39–36.47° final heading errors. It is rejected for promotion. The certified
+M6 checkpoint remains the default. The earlier successful left proof predates the backward
 protocol fix, so a fresh left proof is also required before certification.
+
+The next refinement uses `--closed-loop-direction backward`: each training
+world generates the same joystick commands as the serial gate evaluator from
+its own position and heading. The objective is a valid gate crossing, force
+margin and completion time, rather than matching a replay's final heading.
+Completed and failed worlds freeze their metrics before explicit training
+resets; neither can re-enter the search episode. `landau_direction_training.py`
+keeps this batch implementation separate from the acceptance protocol.
+Tests compare its commands, memory and actions with independent serial
+instances, including asynchronous cruise transitions. The 32-world smoke
+completed, and the bounded search retains the same two sway parameters and
+unchanged walking speed. Training results remain candidates requiring fresh
+serial M1–M7 proofs. Per-environment command generation also follows the
+separation described in the [Isaac Lab command manager documentation](https://isaac-sim.github.io/IsaacLab/develop/source/api/lab/isaaclab.managers.html).
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
