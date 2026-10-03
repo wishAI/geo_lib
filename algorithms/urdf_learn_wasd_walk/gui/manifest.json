@@ -432,7 +432,7 @@
     },
     {
       "name": "Robust gait search",
-      "status": "Six cumulative milestones certified; paused by user",
+      "status": "Six milestones certified; M7 direction evaluation active",
       "detail": "Bounded parameter search over a learned gait and frozen standing PPO. Each candidate is checked in four starting states; milestone promotion requires an independent exact-checkpoint run and cumulative proof videos."
     },
     {

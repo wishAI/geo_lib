@@ -889,6 +889,8 @@ def build_evolution(
             },
             "startedAt": training.get("run_identity"),
             "completedAt": training.get("completed_at"),
+            "trainingProgress": _training_progress(training),
+            "experimentParameters": _training_parameters(contract),
             "sourceRevision": training.get("source_commit"),
             "artifacts": artifacts,
             "important": important,

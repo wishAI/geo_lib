@@ -2,9 +2,15 @@
 
 This sandbox is being rebuilt from the clean restart contract one milestone at a time.
 
-Current milestone truth (2026-09-22): **6/12 milestones certified; training paused
-at the user's request.** No GPU worker is running. Resume only when requested,
-starting with M7: the four-direction 10 m gates. M7 has no implementation or run yet.
+Current milestone truth (2026-10-03): **6/12 milestones certified; work resumed
+on M7.** Four directions mean turning and walking toward world-direction 10 m
+gates from the same nominal pose, as confirmed by the user. The M7 diagnostic
+emits only semantic forward/yaw commands; it preserves the saved M6 controller.
+Each direction run keeps one yaw sign (right for the right gate, left for the
+left/backward gates) to avoid repeatedly switching balance modes near alignment.
+Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
+for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
+Speed improvements require measured faster completion and the same quality checks.
 
 The custom `balanced_hands_v1` Landau checkpoint passed the complete cumulative set:
 
@@ -39,6 +45,26 @@ passed the command test but failed M5 while settling; it remains rejected histor
 Mass, geometry, joint gains, physical guards and cumulative requirements stayed
 fixed. Preserve the saved controller sources with the checkpoint when resuming.
 G1 verification is complete and is not the next training target.
+
+M7 continuation uses `landau_forward_control --mode evaluate --direction right
+--target-distance 10 --seconds 180 --forward .2` (or `forward`, `left`, `backward`).
+Run through the preserved runtime's pinned GPU Python, with an explicit checkpoint
+and fresh `--name`. Copy the current evaluator, controller adapter and
+`landau_direction_contract.py` into that runtime before launching; never change
+runtime sources during an active evaluation. A directional episode ends on the
+first valid gate crossing at a 20 ms control boundary; the original horizon and
+actual crossing time remain in its evidence. The validator reconstructs commands
+and crossing from the full saved trajectory, rejects a rotated start pose, and
+keeps the 2 ms contact/force checks and proof-video requirement.
+
+The bounded M7 trainer adds `--direction-train --teleop --right-only` to
+`landau_turn_control`; it freezes all existing parameters except right yaw scale,
+right heading feedback, and two new right-specific lateral sway parameters.
+The original 12-parameter controller retains identical inference. Training
+qualification never promotes a milestone. `./geo walk mujoco-milestone
+certify-directions` requires four distinct `--direction-directory` arguments,
+`--checkpoint`, all six prior component directories (including
+`--teleop-directory`), and a new output `--directory` for the certificate.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

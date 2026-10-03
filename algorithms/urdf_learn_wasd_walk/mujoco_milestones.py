@@ -189,11 +189,11 @@ def check_gait_source(folder,result,training):
         memory=read(folder/'controller_memory.json')
         require(memory.get('dispatch')=='command_driven_yaw_extension', 'Cumulative evaluation bypasses turn controller')
         require(memory['turn_source_sha256']==training['turn_source_sha256'], 'Cumulative turn controller source mismatch')
-        if not result['config'].get('turn') and not result['config'].get('teleop'):
+        if not result['config'].get('turn') and not result['config'].get('teleop') and not result['config'].get('direction'):
             require(memory['turned'] is False and memory['integrated_reference_rad']==0., 'Zero-yaw cumulative evaluation entered turn mode')
 
 
-def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=False):
+def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=False, direction=None):
     """Recheck the full distance run; only standing has a 30 s contract."""
     import numpy as np
     folder=Path(folder).resolve(); checkpoint=Path(checkpoint).resolve()
@@ -201,10 +201,13 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     result=read(folder/'dynamics.json'); metrics=result['metrics']; cfg=result['config']
     identity=result['identity']; contract=ledger['assetContract']
     require(distance in (5.,10.), 'Unsupported walking gate')
-    require(not (turn and teleop),'Choose one walking protocol')
-    expected='teleop_60s_forward_turn' if teleop else 'yaw_turn_90deg_hold' if turn else f'gate_{distance:g}m_no_reset'
+    require(sum((bool(turn),bool(teleop),bool(direction)))<=1,'Choose one walking protocol')
+    if direction:
+        from algorithms.urdf_learn_wasd_walk import landau_direction_contract as dc
+        require(direction in dc.DIRECTIONS and distance==10.,'Wrong directional gate')
+    expected='gate_10m_four_directions_no_reset' if direction else 'teleop_60s_forward_turn' if teleop else 'yaw_turn_90deg_hold' if turn else f'gate_{distance:g}m_no_reset'
     require(result['milestone']==expected and not result['failures'], 'Walking dynamics failed')
-    require(bool(cfg.get('turn',False))==turn and bool(cfg.get('teleop',False))==teleop, 'Command protocol mismatch')
+    require(cfg.get('direction')==direction and bool(cfg.get('turn',False))==turn and bool(cfg.get('teleop',False))==teleop, 'Command protocol mismatch')
     require(result['status']=='dynamics_passed_proof_pending', 'Wrong walking status')
     require(identity['backend']==ledger['backend']=='mujoco_warp_cuda', 'Walking backend mismatch')
     for key,wanted in [('urdf_sha256',contract['urdfSha256']),('mesh_tree_sha256',contract['meshTreeSha256']),
@@ -215,7 +218,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     require(identity['config_sha256']==hashlib.sha256(json.dumps(cfg,sort_keys=True).encode()).hexdigest(), 'Walking config mismatch')
     # TRAINING_RULES assigns 30 s to standing, not a walking deadline.
     duration=float(cfg['seconds'])
-    require(math.isfinite(duration) and (24. if turn else 30.)<=duration<=120., 'Walking diagnostic duration outside supported bounds')
+    require(math.isfinite(duration) and (24. if turn else 30.)<=duration<=(240. if direction else 120.), 'Walking diagnostic duration outside supported bounds')
     physics_steps=round(duration/.002); control_steps=round(duration/.02)
     require(abs(control_steps*.02-duration)<1e-8, 'Walking duration not aligned to control steps')
     require(cfg['assistance']==0 and cfg['dt']==.002 and 0<cfg['forward']<=.4, 'Wrong walking protocol')
@@ -243,7 +246,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
         require(training.get('command_extension')=='yaw_v1', 'Checkpoint lacks trained yaw control')
         require(training['turn_source_sha256']==digest(checkpoint.parent/'turn_source.py')==digest(folder/'turn_source.py'), 'Turn source mismatch')
         require(result['turn_validator_source_sha256']==digest(folder/'turn_validator_source.py'), 'Turn validator source mismatch')
-    elif not teleop:
+    elif not teleop and not direction:
         require(metrics['semantic_forward_displacement_m']>=distance, f'Walking did not reach {distance:g} m')
         require(abs(metrics['semantic_strafe_displacement_m'])<=.75, 'Walking lateral drift exceeded .75 m')
     require(metrics['max_reference_tilt_rad']<=math.pi/6 and metrics['root_height_drop_m']<=.08, 'Walking collapse')
@@ -303,7 +306,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
         memory=read(folder/'controller_memory.json')
         require(memory['simulation_reset'] is False and abs(memory['anchor_time']-hold_start)<.021, 'Standing handoff changed reset semantics')
         require(memory['turn_source_sha256']==training['turn_source_sha256'], 'Standing handoff source mismatch')
-    elif not teleop:
+    elif not teleop and not direction:
         require(np.max(np.abs(heading-heading[0]))<=math.pi/6, 'Walking heading exceeded 30 degrees')
         require(q[-1,1]-q[0,1]>=distance-.05, 'Trajectory does not corroborate forward displacement')
     if teleop:
@@ -346,6 +349,35 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
         restarts=[e['time_s'] for e in memory['events'] if e['kind']=='restart']
         require(len(stops)==2 and np.allclose(stops,[20.,50.],atol=.021) and len(restarts)==1 and abs(restarts[0]-25.02)<.021, 'Missing repeated-stop/restart memory evidence')
         require(abs(memory['integrated_reference_rad'])<1e-5, 'Teleop heading reference did not follow both yaw signs')
+    if direction:
+        import mujoco
+        require(training.get('command_extension')=='yaw_v1' and training.get('memory_version')==2, 'Direction controller missing command memory')
+        require(result['direction_protocol_source_sha256']==digest(folder/'direction_protocol_source.py')==digest(dc.__file__), 'Direction command source mismatch')
+        require(result['policy_trace_sha256']==digest(folder/'policy_trace.npz'), 'Direction command trace mismatch')
+        with np.load(folder/'policy_trace.npz') as policy:
+            obs=policy['observation'];pt=policy['time']
+        require(obs.shape==(control_steps,70) and np.isfinite(obs).all() and np.allclose(pt,t[:-1],atol=1e-6), 'Incomplete direction commands')
+        require(np.allclose(q[0],training['nominal_q'],atol=1e-7,rtol=0), 'Direction start pose changed')
+        model=mujoco.MjModel.from_xml_path(str(folder/'model.xml'));data=mujoco.MjData(model)
+        positions=[];headings=[]
+        for frame in q:
+            data.qpos[:]=frame;mujoco.mj_forward(model,data)
+            positions.append(data.xpos[model.body('root_x').id].copy())
+            rot=data.xmat[model.body('base_link').id].reshape(3,3)
+            headings.append(math.atan2(rot[1,0],rot[0,0]))
+        positions=np.array(positions)
+        measured=dc.gate_metrics(direction,t,positions)
+        for key,value in measured.items():
+            if isinstance(value,(float,int)):
+                require(abs(value-metrics[key])<1e-4, 'Direction metric differs from trajectory: '+key)
+            else:require(value==metrics[key], 'Direction crossing differs from trajectory')
+        require(not dc.evaluate_gate({**metrics,**measured},duration), 'Reconstructed directional gate failed')
+        commands=np.array([dc.command(direction,xy[:2]-positions[0,:2],heading,float(age),cfg['forward'])
+                           for xy,heading,age in zip(positions[:-1],headings[:-1],pt)])
+        require(np.allclose(obs[:,63:66],commands,atol=1e-6,rtol=0), 'Direction did not receive declared joystick commands')
+        memory=read(folder/'controller_memory.json')
+        require(memory['simulation_reset'] is False and memory.get('memory_version')==2, 'Wrong direction memory semantics')
+        require(abs(memory['integrated_reference_rad']-float(obs[:-1,65].sum())*.02)<1e-4, 'Direction heading reference differs from commands')
     media=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=nb_frames,duration','-of','json',str(folder/'proof.mp4')]))['streams'][0]
     require(int(media['nb_frames'])==control_steps+1 and float(media['duration'])>=duration, 'Walking video incomplete')
     return result,metrics
@@ -371,6 +403,7 @@ def reproduction_job(result, checkpoint):
         if walking:args+=['--forward',str(cfg['forward']),'--seconds',str(cfg['seconds']),'--target-distance',str(cfg.get('target_distance_m',5.))]
         if cfg.get('turn'):args+=['--turn']
         if cfg.get('teleop'):args+=['--teleop']
+        if cfg.get('direction'):args+=['--direction',cfg['direction']]
     else:
         # Historical dynamics accidentally named the underlying backend module;
         # retain its exact adapter arguments and record the correct entry point.
@@ -379,7 +412,7 @@ def reproduction_job(result, checkpoint):
         require('--baseline' in args and '--name' in args, 'Passive reproduction arguments unavailable')
         args[args.index('--name')+1]=cfg['name']+'__replay'
         module='continuation'
-    return {'kind':'module','module':'algorithms.urdf_learn_wasd_walk.'+module,'args':args,'timeout_s':240}
+    return {'kind':'module','module':'algorithms.urdf_learn_wasd_walk.'+module,'args':args,'timeout_s':1200 if cfg.get('direction') else 240}
 
 
 def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, five_metre_folder=None, ten_metre_folder=None, turn_folder=None):
@@ -456,9 +489,61 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
     return final
 
 
+def certify_directions(folder, checkpoint, direction_folders, cumulative_folders):
+    """Promote M7 only with four independent world gates and exact M1–M6 rechecks."""
+    from algorithms.urdf_learn_wasd_walk.landau_direction_contract import DIRECTIONS
+    ledger=read(LEDGER);checkpoint=Path(checkpoint).resolve();folder=Path(folder).resolve()
+    folder.relative_to((ALG/'outputs').resolve())
+    require(ledger['lineage']==LINEAGE, 'Wrong direction lineage')
+    require(all(m['status']=='passed' for m in ledger['milestones'][:6]), 'Prior milestone unresolved')
+    target=ledger['milestones'][6]
+    require(target['id']=='gate_10m_four_directions_no_reset' and target['status']=='in_progress', 'Only unresolved M7 can be certified')
+    require(len(direction_folders)==4 and len({Path(p).resolve() for p in direction_folders})==4, 'Four independent direction folders required')
+    require(len(cumulative_folders)==6 and all(p is not None for p in cumulative_folders), 'Exact M1–M6 components required')
+    require(not folder.exists(), 'Certificate folder already exists')
+    directions={};evidence=[];components=[]
+    candidate_time=checkpoint.stat().st_mtime
+    for path in direction_folders:
+        path=Path(path);direction=read(path/'dynamics.json')['config'].get('direction')
+        require(direction in DIRECTIONS and direction not in directions, 'Missing or duplicate direction')
+        result,metrics=check_walking(path,ledger,checkpoint,10.,direction=direction)
+        require(datetime.fromisoformat(result['created_at']).timestamp()>=candidate_time, 'Direction replay predates checkpoint')
+        directions[direction]={'metrics':metrics,'reproduction_job':reproduction_job(result,checkpoint)}
+        for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4','trajectory.npz',
+                     'policy_trace.npz','foot_trace.json','direction_protocol_source.py','controller_memory.json',
+                     'turn_source.py','gait_source.py','controller_source.py','backend_source.py','model.xml'):
+            evidence.append(artifact(path/name,direction+'_'+name))
+    require(set(directions)==set(DIRECTIONS), 'All world directions required')
+    for index,path in enumerate(cumulative_folders):
+        path=Path(path)
+        if index<2:result,_=check_standing(path,ledger,checkpoint if index else None)
+        else:result,_=check_walking(path,ledger,checkpoint,10. if index==3 else 5.,turn=index==4,teleop=index==5)
+        require(datetime.fromisoformat(result['created_at']).timestamp()>=candidate_time, 'Cumulative replay predates checkpoint')
+        components.extend(artifact(path/name,f'cumulative_m{index+1}_{name}')
+                          for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4'))
+    ckpt={'kind':read(checkpoint.parent/'training.json')['policy_family'],
+          'path':str(checkpoint.relative_to(ROOT)),'sha256':digest(checkpoint)}
+    evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
+    metrics={'directions':{k:v['metrics'] for k,v in directions.items()}}
+    final={'status':'passed','lineage':LINEAGE,'backend':ledger['backend'],'milestone':target['id'],
+           'assembled_at':datetime.now(timezone.utc).isoformat(),'checkpoint':ckpt,'metrics':metrics,
+           'evidence':evidence,'cumulative_components':components,'directions':directions,
+           'scope':'Turn and walk through four world gates; unchanged nominal start; no body-relative strafe claim',
+           'finalizer_source_sha256':digest(__file__)}
+    folder.mkdir()
+    (folder/'milestone_finalizer_source.py').write_text(Path(__file__).read_text())
+    write(folder/'milestone_validation.json',final)
+    target.update(status='passed',passedAt=final['assembled_at'],checkpoint=ckpt,metrics=metrics,
+                  evidence=[artifact(folder/'milestone_validation.json','validation'),*evidence])
+    ledger['milestones'][7]['status']='in_progress'
+    ledger['implementationStatus']='milestone_7_passed_milestone_8_in_progress'
+    write(LEDGER,ledger);sync_gui(ledger)
+    return final
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('mode', choices=('init', 'certify'))
+    p.add_argument('mode', choices=('init', 'certify', 'certify-directions'))
     p.add_argument('--directory', required=True, type=Path)
     p.add_argument('--checkpoint', type=Path)
     p.add_argument('--passive-directory', type=Path)
@@ -466,8 +551,15 @@ def main():
     p.add_argument('--five-metre-directory', type=Path)
     p.add_argument('--ten-metre-directory', type=Path)
     p.add_argument('--turn-directory',type=Path)
+    p.add_argument('--teleop-directory',type=Path)
+    p.add_argument('--direction-directory',type=Path,action='append',default=[])
     args = p.parse_args()
-    result = initialize(args.directory) if args.mode == 'init' else certify(args.directory, args.checkpoint, args.passive_directory, args.standing_directory, args.five_metre_directory,args.ten_metre_directory,args.turn_directory)
+    if args.mode=='certify-directions':
+        if args.checkpoint is None:p.error('Direction certification requires --checkpoint')
+        result=certify_directions(args.directory,args.checkpoint,args.direction_directory,
+            [args.passive_directory,args.standing_directory,args.five_metre_directory,args.ten_metre_directory,args.turn_directory,args.teleop_directory])
+    else:
+        result = initialize(args.directory) if args.mode == 'init' else certify(args.directory, args.checkpoint, args.passive_directory, args.standing_directory, args.five_metre_directory,args.ten_metre_directory,args.turn_directory)
     print(json.dumps({'lineage': result['lineage'], 'status': result.get('status', result.get('implementationStatus'))}))
 
 

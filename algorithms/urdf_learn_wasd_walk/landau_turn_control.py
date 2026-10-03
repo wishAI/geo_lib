@@ -186,7 +186,10 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
             moving[:,index[side+'_ankle_pitch_joint']]-=sagittal
         if p.shape[1]>5:
             nominal=-walking[3]*(phase+walking[4]).sin()
-            adjusted=-(walking[3]+p[:,5]*ramp)*(phase+walking[4]+p[:,6]*ramp).sin()
+            roll_amplitude,roll_phase=p[:,5],p[:,6]
+            if p.shape[1]>13 and memory is not None and memory.last_yaw_sign<0:
+                roll_amplitude,roll_phase=p[:,12],p[:,13]
+            adjusted=-(walking[3]+roll_amplitude*ramp)*(phase+walking[4]+roll_phase*ramp).sin()
             moving[:,index[side+'_hip_roll_joint']]+=(adjusted-nominal)*restart_envelope/.08
     prior = standing_actor(TensorDict({'actor': prior_observation},
                                     batch_size=[len(prior_observation)]))
@@ -266,11 +269,14 @@ def train(args):
     if teleop:
         TURN_PARAMETERS.update(right_yaw_scale=(0.,3.),right_heading_feedback_delta=(-.12,.12),
             restart_ramp_s=(0.,2.5),restart_phase_rad=(-math.pi,math.pi),right_hold_feedback=(-.12,.12))
+    if getattr(args,'direction_train',False):
+        TURN_PARAMETERS.update(right_roll_amplitude_offset=(-.06,.03),right_roll_phase_offset=(-.25,.25))
     lows = torch.tensor([v[0] for v in TURN_PARAMETERS.values()], device='cuda')
     highs = torch.tensor([v[1] for v in TURN_PARAMETERS.values()], device='cuda')
     rate_scale=(math.pi/28)/TURN_RATE
     initial = torch.tensor([.02*rate_scale, -.3, .0514, -.04, -.0343*rate_scale,0.,0.], device='cuda')
     if teleop:initial=torch.cat((initial,initial.new_tensor([1.,.0514,0.,0.,-.04])))
+    if getattr(args,'direction_train',False):initial=torch.cat((initial,initial.new_zeros(2)))
     mean = 2*(initial-lows)/(highs-lows)-1.; std = torch.full_like(mean, args.search_std)
     if args.seed_checkpoint:
         seed = Path(args.seed_checkpoint).resolve(); sm = json.loads((seed.parent/'training.json').read_text())
@@ -290,6 +296,8 @@ def train(args):
         if teleop and len(sb['turn_parameters'])==7 and args.seed_candidate is None:
             seed_parameters[7]=1.;seed_parameters[8]=seed_parameters[2]
         if teleop and len(sb['turn_parameters'])<12:seed_parameters[11]=seed_parameters[3]
+        if getattr(args,'direction_train',False) and len(sb['turn_parameters'])<14:
+            seed_parameters[12:14]=seed_parameters[5:7]
         if args.left_checkpoint:
             left_checkpoint=Path(args.left_checkpoint).resolve()
             left_meta=json.loads((left_checkpoint.parent/'training.json').read_text())
@@ -304,6 +312,11 @@ def train(args):
     teleop=bool(getattr(args,'teleop',False))
     if teleop:
         from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop_contract
+    direction_train=bool(getattr(args,'direction_train',False))
+    if direction_train:
+        from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
+        training_protocol=direction_contract.TurnTrainingProtocol(args.seconds)
+    else:training_protocol=teleop_contract if teleop else None
     body_weight = float(batch.model.body_mass.sum())*9.81
     meta = dict(parent_meta)
     for key in ('forward_fitness_contract','lateral_acceptance','initial_search_parameters','metrics','wall_s',
@@ -333,6 +346,9 @@ def train(args):
             controller_memory='Command-integrated heading; re-anchor each all-zero stop; preserve certified moving-prior and global gait/ramp behavior; no simulator reset.')
         meta['teleop_contract_sha256']=backend.digest(teleop_contract.__file__)
         (folder/'teleop_contract.py').write_text(Path(teleop_contract.__file__).read_text())
+    if direction_train:
+        meta.update(objective='M7 sustained right90degree turn then forward walking; frozen M1-M5 parameters',direction_training_protocol_sha256=backend.digest(direction_contract.__file__))
+        (folder/'direction_training_protocol.py').write_text(Path(direction_contract.__file__).read_text())
     (folder/'control_source.py').write_text(source.read_text())
     (folder/'turn_source.py').write_text(Path(__file__).read_text())
     (folder/'model.xml').write_text(batch.xml)
@@ -340,7 +356,7 @@ def train(args):
     def progress(state, generation):
         path=backend.OUTPUT.parent/'backend_progress.json'
         record=json.loads(path.read_text()) if path.exists() else {}
-        record.update(updated_at=datetime.now(timezone.utc).isoformat(),current_gate='teleop_60s_forward_turn' if teleop else 'yaw_turn_90deg_hold',
+        record.update(updated_at=datetime.now(timezone.utc).isoformat(),current_gate='gate_10m_four_directions_no_reset' if direction_train else 'teleop_60s_forward_turn' if teleop else 'yaw_turn_90deg_hold',
             simulator='mujoco_warp_cuda',variant='balanced_hands_v1',iteration=generation,
             active_process=args.name if state=='running' else None,artifact_paths=[str(folder)],
             next_step='Train bounded yaw feedback, then independently evaluate turn and hold with video.',
@@ -352,7 +368,7 @@ def train(args):
         candidates = n//replicas
         z = (mean+std*torch.randn(candidates, len(TURN_PARAMETERS), device='cuda')).clamp(-1, 1); z[0] = best_z
         if getattr(args,'right_only',False):
-            z[:,:7]=mean[:7];z[:,9:]=mean[9:]
+            z[:,:7]=mean[:7];z[:,9:12]=mean[9:12]
         if getattr(args,'restart_only',False):z[:,:9]=mean[:9]
         if getattr(args,'teleop_refine',False):
             fixed=list(range(7));z[:,fixed]=mean[fixed]
@@ -403,7 +419,7 @@ def train(args):
         hold_heading=None
         for step in range(round(args.seconds/.02)):
             age = step*.02; forward, yaw, reference = command_profile(age)
-            if teleop:forward,_,yaw=teleop_contract.command_profile(age)
+            if teleop:forward,_,yaw=training_protocol.command_profile(age)
             if step==round(TURN_START/.02):
                 heading_start=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0]).clone()
             if step==round((args.seconds-2.)/.02):
@@ -430,7 +446,7 @@ def train(args):
                 anchor=memory.anchor_xy
                 previous_xy=batch.pos[:,batch.pelvis,:2].clone()
                 previous_heading=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0]).clone()
-                for label,start,end,sign in teleop_contract.BLOCKS:
+                for label,start,end,sign in training_protocol.BLOCKS:
                     if step==round(start/.02):
                         block_start[label]=(previous_heading.clone(),counts.clone())
                         block_progress[label]=torch.zeros_like(duration)
@@ -463,14 +479,14 @@ def train(args):
             if teleop:
                 delta=batch.pos[:,batch.pelvis,:2]-previous_xy
                 forward_delta=-delta[:,0]*previous_heading.sin()+delta[:,1]*previous_heading.cos()
-                for label,start,end,sign in teleop_contract.BLOCKS:
+                for label,start,end,sign in training_protocol.BLOCKS:
                     if start<=age<end:
                         block_progress[label]+=torch.where(alive,forward_delta,0.)
                     if step+1==round(end/.02):
                         yaw_start,count_start=block_start[label]
                         change=torch.atan2((heading-yaw_start).sin(),(heading-yaw_start).cos())
                         block_records.append((label,block_progress[label].clone(),change,counts-count_start,sign,end-start))
-                for start,end in teleop_contract.HOLDS:
+                for start,end in training_protocol.HOLDS:
                     if step==round(start/.02):hold_heading=previous_heading.clone()
                     if start<=age<end:
                         drift=(batch.pos[:,batch.pelvis,:2]-anchor).norm(dim=1)
@@ -489,12 +505,12 @@ def train(args):
         eligible_world = physics & (hold_error<=math.radians(5)) & (hold_drift<=.03) & (counts.min(1).values>=3)
         block_reward=torch.zeros_like(duration)
         if teleop:
-            if len(block_records)!=len(teleop_contract.BLOCKS):eligible_world[:]=False
+            if len(block_records)!=len(training_protocol.BLOCKS):eligible_world[:]=False
             for label,progress_value,change,swings,sign,length in block_records:
                 eligible_world &= (progress_value>=.04*length)&(swings.min(1).values>=2)
                 block_reward+=50.*progress_value.clamp(0.,.2*length)
                 if sign:
-                    target=teleop_contract.YAW_RATE*length
+                    target=training_protocol.YAW_RATE*length
                     response=sign*change
                     eligible_world &= (response>=.5*target)&(response<=1.5*target)
                     block_reward-=500.*(response-target).abs()
@@ -577,6 +593,7 @@ def main():
     parser.add_argument('--restart-grid',action='store_true',help='One-generation restart ramp/phase grid')
     parser.add_argument('--right-only',action='store_true',help='Freeze the certified seven left/hold parameters; search right-specific feedback')
     parser.add_argument('--right-grid',action='store_true',help='One-generation right amplitude/heading grid')
+    parser.add_argument('--direction-train',action='store_true',help='M7 sustained right-turn curriculum; requires teleop memory and frozen left parameters')
     parser.add_argument('--teleop',action='store_true',help='Train the60s scripted joystick protocol with shared command memory')
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
@@ -589,16 +606,18 @@ def main():
     if args.restart_grid and (not args.restart_only or args.generations!=1):raise ValueError('Restart grid requires one generation')
     if args.right_only and not args.teleop:raise ValueError('Right-only search requires teleop')
     if args.right_grid and (not args.right_only or args.generations!=1):raise ValueError('Right grid requires one right-only generation')
-    if args.teleop and (args.seconds!=60. or args.diagnostic_sweep):raise ValueError('Teleop training requires full60s episodes')
+    if args.teleop and not args.direction_train and (args.seconds!=60. or args.diagnostic_sweep):raise ValueError('Teleop training requires full60s episodes')
     minimum_seconds=6. if args.diagnostic_sweep else 24.
     if not 32<=args.num_envs<=1024 or args.num_envs%4 or not 1<=args.generations<=20 or not minimum_seconds<=args.seconds<=120:
         raise ValueError('Turn training exceeds bounded budget')
-    if not args.diagnostic_sweep and args.seconds<3.+args.turn_duration+2.+5.:
+    if not args.diagnostic_sweep and not args.direction_train and args.seconds<3.+args.turn_duration+2.+5.:
         raise ValueError('Full training requires at least five seconds of zero-command hold')
     if args.diagnostic_sweep and args.generations!=1:raise ValueError('Diagnostic sweep uses one generation')
     if args.diagnostic_grid and not args.diagnostic_sweep:raise ValueError('Grid requires diagnostic sweep')
     if args.stride_grid and not args.diagnostic_grid:raise ValueError('Stride grid requires diagnostic grid')
     if not .03<=args.search_std<=.4:raise ValueError('Search spread outside bounded range')
+    if args.direction_train and (not args.teleop or not args.right_only or args.seconds<55.):
+        raise ValueError('Direction curriculum requires teleop memory, right-only search and >=55 s')
     train(args)
 
 
