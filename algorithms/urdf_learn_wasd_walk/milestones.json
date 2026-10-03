@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "New cruise-gain candidate passed left10m dynamics (104.005s,\u22120.113m cross-track,2.891BW). Other directions, reviewed proofs and cumulative checks pending."
+        "summary": "Left10m component passed and was visually reviewed. Corrected backward adapter reaches10m withoutfall but one2ms force sample3.031BW fails3BW limit. Subsequent sway-only search had0qualifying candidates. Fresh exact cumulative and current-protocol direction proofs remain required."
       }
     },
     {
@@ -1670,12 +1670,12 @@
     }
   ],
   "sessionStatus": {
-    "state": "active",
-    "updatedAt": "2026-10-03T03:43:23.491351+00:00",
-    "reason": "User resumed walking milestone work and requested faster motion where stable.",
+    "state": "idle",
+    "updatedAt": "2026-10-03T04:03:11.061760+00:00",
+    "reason": "Bounded continuation experiments completed. Six milestones remain certified; M7 backward force limit is unresolved.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Backward adapter near180degree ambiguity delayed yaw onset to17.4s and pulsed ituntil~50s; run fell144.058s. Fix backward left-arc wrapping and retry same checkpoint, then freshleft/all directions under newprotocolhash before cumulative certification.",
+    "nextWork": "Use the preserved unpromoted heading-gain candidate and actual closed-loop backward steering evidence to improve long-turn force margin. Gain-only/sway-only replay searches did not qualify. Recheck exact M5/M6 and fresh four-direction proofs, then all cumulative components before promotion.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1812,7 +1812,9 @@
         "status": "component_passed_not_promoted",
         "proofComplete": true,
         "independentChecks": "passed",
-        "visualReview": "accepted"
+        "visualReview": "accepted",
+        "protocolSuperseded": true,
+        "note": "Reviewed and independently passed under its recorded protocol. Backward-only adapter fix changes protocol source hash; fresh left proof required for current certification."
       },
       {
         "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_heading0_backward/dynamics.json",
@@ -1829,6 +1831,16 @@
           "fall",
           "peak support exceeded 3 body weights"
         ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_arc0_backward/dynamics.json",
+        "sha256": "fab58bd585be5a36ad9fb0916a14f50537c6c5379b38470bfc7677ebc5757bd9",
+        "status": "failed",
+        "failures": [
+          "peak support exceeded 3 body weights"
+        ],
+        "note": "Geometric backward gate174.675s,cross\u22120.203m,no fall/reset; one2ms force sample3.03051BW at48.834s fails hardlimit.",
+        "proofComplete": true
       }
     ],
     "candidateCheckpoint": {
@@ -1838,15 +1850,21 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_heading_sign_grid/training.json",
-      "sha256": "540dab04d8191e912d13c8188667e56f4ce7ac8a2289be4c74a0c89843699ec8",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_back_balance_cem/training.json",
+      "sha256": "a81bd9ae06dbd6eff14aeba90e431ecbdb52db9f649dd5f1c78bdbd68514c949",
       "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Gain-only180s replay; selecteddelta0.02survived4starts with peak2.989BW, finalheading errors17.8\u201327.3degrees missed15degree trainingtarget; independentleft gate pending."
+      "scope": "Two generations,256worlds,180s recorded backward steering. Only active-left sway indices5/6changed. Final4starts survived; peak2.975BW missed2.85target and finalheading errors30.39\u201336.47degrees missed15degree target."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
       "sha256": "0478cf12164826c842a7834f0e67db819870fb6c2adbf14bb76b46c62c6476af",
       "result": "All same-observation pre-cruise actions bit-identical; saved physical traces diverge at first2ms step; repeated unchanged controller exceeded3BW."
+    },
+    "latestDiagnosticCheckpoint": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_back_balance_cem/model_1.pt",
+      "sha256": "e4884b22f1bbc691022b8102e613de39b098c66d73b8d76df4edf5ca5e523009",
+      "qualified": false,
+      "promoted": false
     }
   }
 }

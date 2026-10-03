@@ -224,6 +224,13 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
     return blend[:, None]*moving+(1.-blend[:, None])*prior
 
 
+def heading_increment(current, previous):
+    """Local yaw increment, preserving turns beyond pi when accumulated."""
+    import torch
+    delta=current-previous
+    return torch.atan2(delta.sin(),delta.cos())
+
+
 def install_physics_audit(batch, batches, count):
     """Use the same 2 ms physical guards as the certified straight-gait search."""
     import torch
@@ -410,6 +417,9 @@ def train(args):
         if args.left_heading_grid:
             meta['objective']='Diagnostic cruise heading gain grid; freeze all other turn, gait and standing parameters'
             meta['heading_gain_note']='Full cruise net hip-yaw heading gain is walking[12]+turn[14]; diagnose sign response without assuming contact dynamics.'
+        if args.left_balance_only:
+            meta['objective']='Refine active-left sway amplitude/phase with force margin; preserve yaw calibration and cruise feedback; exact M5 recheck required'
+            meta['left_turn_refinement']['searched_indices']=[5,6]
         if args.direction_command_trace:
             meta['direction_commands']={'source_path':str(command_trace),'source_sha256':backend.digest(command_trace),
                 'commands_sha256':backend.digest(folder/'direction_commands.npz'),
@@ -440,6 +450,9 @@ def train(args):
             fixed=[i for i in range(14) if not args.left_turn_refine or i not in (2,5,6)]
             z[:,fixed]=mean[fixed]
             if include_left_yaw and not args.left_yaw_only:z[:,17]=mean[17]
+        if args.left_balance_only:
+            fixed=[i for i in range(len(TURN_PARAMETERS)) if i not in (5,6)]
+            z[:,fixed]=mean[fixed]
         if args.left_heading_grid:
             if candidates!=8:raise ValueError('Heading grid requires8candidates with4replicas')
             z[:]=mean
@@ -496,7 +509,7 @@ def train(args):
         air = torch.zeros((n,2), device='cuda'); peak = torch.zeros_like(air)
         touched = torch.zeros_like(air, dtype=torch.bool)
         memory=CommandMemory() if teleop else None
-        block_records=[];block_start={};block_progress={}
+        block_records=[];block_start={};block_progress={};block_rotation={}
         hold_heading=None
         for step in range(round(args.seconds/.02)):
             age = step*.02; forward, yaw, reference = command_profile(age)
@@ -535,6 +548,7 @@ def train(args):
                     if step==round(start/.02):
                         block_start[label]=(previous_heading.clone(),counts.clone())
                         block_progress[label]=torch.zeros_like(duration)
+                        block_rotation[label]=torch.zeros_like(duration)
             with torch.no_grad():
                 action = commanded_action(base,walking,prior,obs,prior_obs,params,names,reference,memory.turned if teleop else age>=TURN_START,memory=memory).clamp(-limits,limits)
             batch.ctrl[:] = batch.targets; batch.ctrl[:,batch.aids] += .08*torch.where(alive[:,None],action,0.)
@@ -569,9 +583,10 @@ def train(args):
                 for label,start,end,sign in training_protocol.BLOCKS:
                     if start<=age<end:
                         block_progress[label]+=torch.where(alive,forward_delta,0.)
+                        block_rotation[label]+=torch.where(alive,heading_increment(heading,previous_heading),0.)
                     if step+1==round(end/.02):
-                        yaw_start,count_start=block_start[label]
-                        change=torch.atan2((heading-yaw_start).sin(),(heading-yaw_start).cos())
+                        _,count_start=block_start[label]
+                        change=block_rotation[label].clone()
                         block_records.append((label,block_progress[label].clone(),change,counts-count_start,sign,end-start))
                 for start,end in training_protocol.HOLDS:
                     if step==round(start/.02):hold_heading=previous_heading.clone()
@@ -700,6 +715,7 @@ def main():
     parser.add_argument('--left-turn-refine',action='store_true',help='Also refine left active heading/sway with post-onset force margin; requires M5 recheck')
     parser.add_argument('--left-yaw-only',action='store_true',help='Calibrate a separate left yaw scale on M5; freeze17balance parameters')
     parser.add_argument('--left-heading-grid',action='store_true',help='Diagnose8cruise heading gains with every other parameter frozen')
+    parser.add_argument('--left-balance-only',action='store_true',help='Refine only active-left sway amplitude/phase on recorded steering with force margin')
     parser.add_argument('--teleop',action='store_true',help='Train the60s scripted joystick protocol with shared command memory')
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
@@ -714,7 +730,7 @@ def main():
     if args.right_grid and (not args.right_only or args.generations!=1):raise ValueError('Right grid requires one right-only generation')
     if args.teleop and not args.direction_train and (args.seconds!=60. or args.diagnostic_sweep):raise ValueError('Teleop training requires full60s episodes')
     minimum_seconds=6. if args.diagnostic_sweep else 24.
-    maximum_seconds=240. if args.left_heading_grid else 120.
+    maximum_seconds=240. if args.left_heading_grid or args.left_balance_only else 120.
     if not 32<=args.num_envs<=1024 or args.num_envs%4 or not 1<=args.generations<=20 or not minimum_seconds<=args.seconds<=maximum_seconds:
         raise ValueError('Turn training exceeds bounded budget')
     if not args.diagnostic_sweep and not args.direction_train and args.seconds<3.+args.turn_duration+2.+5.:
@@ -733,6 +749,8 @@ def main():
         raise ValueError('Left yaw calibration requires a separate seeded left curriculum')
     if args.left_heading_grid and (not args.left_cruise_only or args.left_turn_refine or args.left_yaw_only or not args.direction_command_trace or args.num_envs!=32 or args.generations!=1):
         raise ValueError('Heading grid requires recorded left steering,32worlds and1generation')
+    if args.left_balance_only and (not args.left_turn_refine or args.left_heading_grid or args.left_yaw_only or not args.direction_command_trace):
+        raise ValueError('Balance-only search requires recorded steering and force-margin refinement')
     if args.direction_train and (not args.teleop or not (args.right_only or args.left_cruise_only) or args.seconds<55.):
         raise ValueError('Direction curriculum requires teleop memory, a frozen search subset and >=55 s')
     train(args)

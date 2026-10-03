@@ -134,7 +134,19 @@ Its command trace exposed a near-180° ambiguity: initial negative body heading
 made the shortest arc rightward, which the left-only adapter clamped to zero.
 Yaw started only at 17.4 s and pulsed before sustained turning. Backward steering
 now chooses the intended left arc for large negative angle errors while leaving
-small overshoot at zero. Fresh four-direction evidence must use this protocol hash.
+small overshoot at zero. Fresh four-direction evidence must use this protocol hash. The corrected
+backward trial reached its gate at 174.675 s (−0.203 m cross-track) without a
+fall, but one 2 ms sample at 48.834 s reached 3.031 BW and fails the hard limit.
+`--left-balance-only` restricts force-margin refinement to the two active-turn
+sway parameters, preserving yaw calibration and cruising feedback. Training
+response blocks accumulate local heading increments so turns beyond 180°
+retain their direction. The bounded two-generation, 256-world refinement
+finished with zero qualifiers: the final selected candidate survived four
+180 s starts with peak 2.975 BW, but missed the 2.85 BW training margin and had
+30.39–36.47° final heading errors. It is rejected for promotion. No GPU job is
+left running, no speed increase is claimed, and the certified M6 checkpoint
+remains the default. The earlier successful left proof predates the backward
+protocol fix, so a fresh left proof is also required before certification.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

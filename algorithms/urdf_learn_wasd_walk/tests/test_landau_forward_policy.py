@@ -78,6 +78,14 @@ class ExplorationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'source changed'):
                 load_gait_source(Path(directory)/'model_0.pt',metadata)
 
+    def test_training_turn_response_preserves_rotation_across_pi(self):
+        import math
+        from algorithms.urdf_learn_wasd_walk.landau_turn_control import heading_increment
+        angles=torch.tensor([0.,90.,170.,-170.,-100.])*math.pi/180.
+        change=heading_increment(angles[1:],angles[:-1]).sum()
+        self.assertAlmostEqual(float(change),math.radians(260.),places=5)
+        self.assertAlmostEqual(float(heading_increment(angles[:-1],angles[1:]).sum()),-math.radians(260.),places=5)
+
     def test_left_cruise_extension_only_changes_dwelled_left_cruise(self):
         from algorithms.urdf_learn_wasd_walk import landau_gait_search as base
         from algorithms.urdf_learn_wasd_walk.landau_turn_control import commanded_action,CommandMemory
