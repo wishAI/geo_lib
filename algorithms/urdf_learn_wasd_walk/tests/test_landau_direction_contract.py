@@ -33,6 +33,16 @@ class DirectionContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 contract.gate_metrics('forward', times, positions)
 
+    def test_training_replay_keeps_steering_pulses_and_extends_straight_only(self):
+        rows=[(.2,0.,0.)]*150+[(.2,0.,contract.MAX_YAW_RATE)]*2200
+        rows += [(.2,0.,0.)]*25+[(.2,0.,.001)]*5+[(.2,0.,0.)]*50
+        protocol=contract.RecordedLeftTrainingProtocol(rows,80.)
+        self.assertEqual(protocol.command_profile(47.5),(.2,0.,.001))
+        self.assertEqual(protocol.command_profile(79.),(.2,0.,0.))
+        self.assertEqual(protocol.BLOCKS[-1],('straight_after_turn',47.6,80.,0))
+        with self.assertRaises(ValueError):contract.RecordedLeftTrainingProtocol(rows,50.)
+        with self.assertRaises(ValueError):contract.RecordedLeftTrainingProtocol([(.2,0.,-.01)],80.)
+
 
 if __name__ == '__main__':
     unittest.main()

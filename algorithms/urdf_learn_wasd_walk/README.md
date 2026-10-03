@@ -72,10 +72,38 @@ final hold drift. It is **not promoted**: its left run stayed upright for 180 s
 but curved away from the gate after the yaw command stopped. The follow-up
 `--direction-train --teleop --left-cruise-only` freezes those 14 parameters and
 searches three additional heading/sway parameters. They blend in only after
-0.2 s of uninterrupted full-forward, zero-yaw cruising following a left turn;
-braking, right turns and a restart without a new left turn retain prior behavior.
+0.2 s of uninterrupted full-forward, zero-yaw cruising following a left turn.
+The certified M5/M6 command schedules never activate this branch; regression
+tests check that their actions retain the original parameters.
 The one-parameter heading-only grid failed the force limit and is rejected.
 Fresh four-direction and cumulative evidence is required for any new candidate.
+
+The fixed-turn cruising candidate qualified over 90 s in four training starts,
+but failed the independently steered left gate at 79.91 s / 7.07 m. Pursuit used
+117.87° of commanded rotation and intermittent tiny yaw inputs; fixed training
+used 90° followed by uninterrupted straight walking. The next refinement bounds
+cruise-blend changes in both directions and accepts `--direction-command-trace`
+for training. It snapshots only the recorded semantic commands with hashes,
+checks their clock/ranges, and extends final straight walking by at least 20 s.
+It never replays poses or actions. Candidate 0 retains the unchanged parameters
+under the new transition behavior for comparison; actual gate evaluation still
+recomputes commands from its own poses and remains required before promotion.
+
+The pulsed candidate then survived 180 s but missed the gate (10 m crossing at
+107.86 s, 0.871 m lateral error) and exceeded 3 BW before cruising started.
+Repeating the unchanged 14-parameter controller also reached 3.042 BW. A CPU
+replay audit found bit-identical pre-cruise actions on identical observations;
+the saved physical traces already differ at their first 2 ms step. The specific
+numerical operation remains unidentified; upstream tracks deterministic execution
+in [MuJoCo Warp issue 562](https://github.com/google-deepmind/mujoco_warp/issues/562).
+The ignored `outputs/m7_20261003_repeatability_audit/` contains the repeatable audit.
+`--left-turn-refine` therefore also searches the existing left heading/sway
+parameters, while freezing walking/standing weights and the other 11 parameters.
+It prefers a 2.85 BW post-onset training margin, retaining the full-run 3 BW hard
+limit. Any resulting checkpoint must re-pass M5 as well as every other component.
+The final `m7_20261003_left_margin_cem/model_2.pt` training candidate completed
+110 s in all four starts, with peak 2.821 BW and heading errors below 10.5°.
+It remains unpromoted while exact M5 and directional evaluations run.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

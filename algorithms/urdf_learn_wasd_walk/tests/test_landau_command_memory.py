@@ -67,6 +67,7 @@ class CommandMemoryTests(unittest.TestCase):
                     if mode=='turn': forward,yaw,_=turn.command_profile(age)
                     else: forward,_,yaw=teleop.command_profile(age)
                     self.step(age,forward,yaw)
+                    self.assertEqual(self.m.left_cruise_blend,0.)
                     if self.m.left_cruise_start is not None:
                         self.assertEqual(self.m.ramp(self.m.left_cruise_start+.2,1.),0.)
         finally: turn.configure_profile(14.)
@@ -75,8 +76,12 @@ class CommandMemoryTests(unittest.TestCase):
         self.step(3,.2,.0357);self.step(47,.2)
         self.step(47.1,.2);self.assertEqual(self.m.ramp(self.m.left_cruise_start+.2,1.),0.)
         self.step(48.2,.2);self.assertAlmostEqual(self.m.ramp(self.m.left_cruise_start+.2,1.),1.)
+        self.assertAlmostEqual(self.m.left_cruise_blend,1.)
         self.step(48.3,.2,.001);self.assertIsNone(self.m.left_cruise_start)
+        self.assertAlmostEqual(self.m.left_cruise_blend,.9)
         self.step(49,.199);self.assertIsNone(self.m.left_cruise_start)
+        self.assertAlmostEqual(self.m.left_cruise_blend,.2)
+        self.step(49.2,.199);self.assertAlmostEqual(self.m.left_cruise_blend,0.)
 
 
 if __name__=='__main__':unittest.main()

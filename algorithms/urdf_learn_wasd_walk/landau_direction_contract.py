@@ -27,6 +27,36 @@ class TurnTrainingProtocol:
         return .2, 0., self.sign * MAX_YAW_RATE if 3. <= seconds < 47. else 0.
 
 
+class RecordedLeftTrainingProtocol:
+    """Replay semantic steering only, then extend straight walking for validation.
+
+    No pose, action, or simulator state is replayed. Subsequent gate evaluations
+    recompute their own commands from the new simulated poses.
+    """
+    YAW_RATE = MAX_YAW_RATE
+    HOLDS = ()
+
+    def __init__(self, samples, seconds):
+        self.samples = [tuple(float(v) for v in row) for row in samples]
+        if (not self.samples or any(len(row) != 3 or not all(math.isfinite(v) for v in row)
+                or abs(row[0]-.2)>1e-7 or row[1]!=0. or not 0.<=row[2]<=MAX_YAW_RATE+1e-7
+                for row in self.samples)):
+            raise ValueError('Expected finite full-forward/left semantic commands only')
+        active = [i for i,row in enumerate(self.samples) if row[2]>0.]
+        if not active or self.samples[-1][2]!=0.:
+            raise ValueError('Recorded left turn must end in straight walking')
+        first_zero = next(i for i in range(active[0]+1,len(self.samples)) if self.samples[i][2]==0.)
+        straight_start = (active[-1]+1)*.02
+        if seconds < max(len(self.samples)*.02,straight_start+20.):
+            raise ValueError('Replay needs at least20s of final straight walking')
+        self.BLOCKS=(('left',active[0]*.02,first_zero*.02,1),
+                     ('straight_after_turn',straight_start,seconds,0))
+
+    def command_profile(self, seconds):
+        index=round(seconds/.02)
+        return self.samples[index] if index<len(self.samples) else (.2,0.,0.)
+
+
 def command(direction, displacement, heading, seconds, forward=.2):
     """Steer to a fixed 10 m world gate with bounded semantic commands."""
     axis = DIRECTIONS[direction]

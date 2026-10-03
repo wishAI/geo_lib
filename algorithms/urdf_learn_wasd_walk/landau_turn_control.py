@@ -92,6 +92,7 @@ class CommandMemory:
         self.events = []
         self.age = 0.
         self.left_cruise_start = None
+        self.left_cruise_blend = 0.
 
     def observe(self, observation, positions, rotations, seconds):
         import torch
@@ -121,6 +122,11 @@ class CommandMemory:
         if cruising_left:
             if self.left_cruise_start is None: self.left_cruise_start = seconds
         else: self.left_cruise_start = None
+        # Bound changes in the correction when pursuit emits intermittent yaw.
+        # A renewed yaw command must not remove learned balance in one action.
+        target_blend = float(cruising_left and seconds-self.left_cruise_start >= .2-1e-9)
+        elapsed = max(0., seconds-self.previous_time) if self.previous_time is not None else 0.
+        self.left_cruise_blend += max(-elapsed, min(elapsed, target_blend-self.left_cruise_blend))
         self.age = seconds
         prior = observation[:, :63].clone()
         if self.anchor_xy is not None and not moving:
@@ -179,8 +185,8 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
     yaw_ramp=ramp
     yaw_scale=1.
     heading_gain=p[:,2]
-    if p.shape[1]>14 and memory is not None and memory.left_cruise_start is not None:
-        blend=memory.ramp(memory.left_cruise_start+.2, 1.)
+    if p.shape[1]>14 and memory is not None and memory.left_cruise_blend > 0.:
+        blend=memory.left_cruise_blend
         heading_gain=heading_gain+blend*(p[:,14]-heading_gain)
     if p.shape[1]>7 and memory is not None and memory.last_yaw_sign<0:
         yaw_scale=p[:,7]
@@ -199,8 +205,8 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
             roll_amplitude,roll_phase=p[:,5],p[:,6]
             if p.shape[1]>13 and memory is not None and memory.last_yaw_sign<0:
                 roll_amplitude,roll_phase=p[:,12],p[:,13]
-            if p.shape[1]>16 and memory is not None and memory.left_cruise_start is not None:
-                blend=memory.ramp(memory.left_cruise_start+.2,1.)
+            if p.shape[1]>16 and memory is not None and memory.left_cruise_blend > 0.:
+                blend=memory.left_cruise_blend
                 roll_amplitude=roll_amplitude+blend*(p[:,15]-roll_amplitude)
                 roll_phase=roll_phase+blend*(p[:,16]-roll_phase)
             adjusted=-(walking[3]+roll_amplitude*ramp)*(phase+walking[4]+roll_phase*ramp).sin()
@@ -338,6 +344,16 @@ def train(args):
     if direction_train:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
         training_protocol=direction_contract.TurnTrainingProtocol(args.seconds, 'left' if args.left_cruise_only else 'right')
+        if args.direction_command_trace:
+            import numpy as np
+            command_trace=Path(args.direction_command_trace).resolve()
+            command_trace.relative_to(backend.OUTPUT.resolve())
+            with np.load(command_trace,allow_pickle=False) as recorded:
+                times=recorded['time'];commands=recorded['observation'][:,63:66].copy()
+            if len(times)!=len(commands) or not np.allclose(times,np.arange(len(times))*.02,rtol=0,atol=1e-6):
+                raise ValueError('Recorded command clock is incomplete or reset')
+            training_protocol=direction_contract.RecordedLeftTrainingProtocol(commands,args.seconds)
+            np.savez_compressed(folder/'direction_commands.npz',time=times,command=commands)
     else:training_protocol=teleop_contract if teleop else None
     body_weight = float(batch.model.body_mass.sum())*9.81
     meta = dict(parent_meta)
@@ -371,6 +387,18 @@ def train(args):
     if direction_train:
         meta.update(objective='M7 sustained right90degree turn then forward walking; frozen M1-M5 parameters',direction_training_protocol_sha256=backend.digest(direction_contract.__file__))
         if args.left_cruise_only: meta['objective']='M7 left turn then straight: search left cruising heading and lateral sway feedback, preserving prior 14 parameters'
+        if args.left_turn_refine:
+            meta['objective']='M7 left active-turn and cruising balance refinement; exact M5 recheck required'
+            meta['left_turn_refinement']={'searched_indices':[2,5,6,14,15,16],
+                'post_turn_force_target_bw':2.85,'full_run_hard_force_limit_bw':3.,
+                'force_margin_penalty_per_bw':1000.,
+                'reference':'https://github.com/leggedrobotics/legged_gym/blob/master/legged_gym/envs/base/legged_robot.py',
+                'application':'Bounded excess-contact-force penalty adapted to worst-replica post-turn peak, keeping the full-run hard guard unchanged.'}
+        if args.direction_command_trace:
+            meta['direction_commands']={'source_path':str(command_trace),'source_sha256':backend.digest(command_trace),
+                'commands_sha256':backend.digest(folder/'direction_commands.npz'),
+                'scope':'Semantic commands only; no pose/action/state replay; padded with forward .2 and zero yaw',
+                'response_blocks':training_protocol.BLOCKS}
         (folder/'direction_training_protocol.py').write_text(Path(direction_contract.__file__).read_text())
     (folder/'control_source.py').write_text(source.read_text())
     (folder/'turn_source.py').write_text(Path(__file__).read_text())
@@ -393,7 +421,8 @@ def train(args):
         if getattr(args,'right_only',False):
             z[:,:7]=mean[:7];z[:,9:12]=mean[9:12]
         if getattr(args,'left_cruise_only',False):
-            z[:,:14]=mean[:14]
+            fixed=[i for i in range(14) if not args.left_turn_refine or i not in (2,5,6)]
+            z[:,fixed]=mean[fixed]
         if getattr(args,'restart_only',False):z[:,:9]=mean[:9]
         if getattr(args,'teleop_refine',False):
             fixed=list(range(7));z[:,fixed]=mean[fixed]
@@ -432,6 +461,7 @@ def train(args):
         duration = torch.zeros(n, device='cuda'); yaw_error = torch.full_like(duration, math.pi/2)
         hold_drift = torch.zeros_like(duration); hold_error = torch.zeros_like(duration)
         force_max = torch.zeros_like(duration); speed_max = torch.zeros_like(duration)
+        post_turn_force_max = torch.zeros_like(duration)
         heading_final = torch.zeros_like(duration); anchor = None
         heading_start=torch.zeros_like(duration);heading_window=torch.zeros_like(duration)
         heading_turn_end=torch.zeros_like(duration);heading_turn_window=torch.zeros_like(duration)
@@ -444,6 +474,10 @@ def train(args):
         hold_heading=None
         for step in range(round(args.seconds/.02)):
             age = step*.02; forward, yaw, reference = command_profile(age)
+            if args.left_turn_refine and step==round(TURN_START/.02):
+                # force_max retains the complete episode; audit now accumulates
+                # a separate post-onset peak for the stricter training margin.
+                audit['force'].zero_()
             if teleop:forward,_,yaw=training_protocol.command_profile(age)
             if step==round(TURN_START/.02):
                 heading_start=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0]).clone()
@@ -487,6 +521,8 @@ def train(args):
             failed |= (~torch.isfinite(batch.q).all(1))|(~torch.isfinite(batch.v).all(1))
             failed |= (audit['speed']>4.+1e-6)|(audit['force']>3.*body_weight)|(audit['nonfoot']!=0)|(audit['flight']>60)
             force_max = torch.maximum(force_max,torch.where(alive,audit['force']/body_weight,0.))
+            if args.left_turn_refine and age>=TURN_START:
+                post_turn_force_max=torch.maximum(post_turn_force_max,torch.where(alive,audit['force']/body_weight,0.))
             speed_max = torch.maximum(speed_max,torch.where(alive,audit['speed'],0.))
             newly = alive & failed; alive &= ~failed; duration += alive.float()*.02
             bits=(tilt>math.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()
@@ -545,6 +581,9 @@ def train(args):
             if direction_train and args.left_cruise_only:
                 eligible_world &= yaw_error <= math.radians(15)
         fitness = 20.*duration-100.*yaw_error-500.*hold_drift-100.*hold_error+block_reward
+        if args.left_turn_refine:
+            eligible_world &= post_turn_force_max<=2.85
+            fitness-=1000.*(post_turn_force_max-2.85).clamp_min(0.)
         fitness += 1000.*physics.float()+10000.*eligible_world.float()
         score = fitness.reshape(candidates,replicas).min(1).values
         eligible = eligible_world.reshape(candidates,replicas).all(1)
@@ -558,6 +597,7 @@ def train(args):
             'max_joint_speed_rad_s':float(speed_max[members].max()),'peak_support_body_weight_ratio':float(force_max[members].max()),
             'completed_swings':counts[members].tolist(),'parameters':dict(zip(TURN_PARAMETERS,params[best*replicas].tolist()))}
         metrics['failure_bits']=failure_bits[members].tolist()
+        if args.left_turn_refine:metrics['post_turn_peak_support_bw']=post_turn_force_max[members].tolist()
         if teleop:
             metrics['command_blocks']=[{'label':label,'forward_m':progress_value[members].tolist(),
                 'heading_change_rad':change[members].tolist(),'swings':swings[members].tolist()}
@@ -580,6 +620,7 @@ def train(args):
                 'eligible':bool(eligible[i]),'score':float(score[i]),
                 'hold_drift_m':hold_drift[i*replicas:(i+1)*replicas].tolist(),
                 'peak_support_bw':force_max[i*replicas:(i+1)*replicas].tolist(),
+                'post_turn_peak_support_bw':post_turn_force_max[i*replicas:(i+1)*replicas].tolist() if args.left_turn_refine else None,
                 'blocks':[{'label':label,'forward_m':progress_value[i*replicas:(i+1)*replicas].tolist(),
                     'heading_change_rad':change[i*replicas:(i+1)*replicas].tolist(),
                     'swings':swings[i*replicas:(i+1)*replicas].tolist()}
@@ -625,6 +666,8 @@ def main():
     parser.add_argument('--right-grid',action='store_true',help='One-generation right amplitude/heading grid')
     parser.add_argument('--direction-train',action='store_true',help='M7 sustained right-turn curriculum; requires teleop memory and frozen left parameters')
     parser.add_argument('--left-cruise-only',action='store_true',help='M7 left-turn curriculum; search straight-after-left heading and lateral sway feedback')
+    parser.add_argument('--direction-command-trace',help='Replay semantic commands from a recorded left gate, then continue straight; training only')
+    parser.add_argument('--left-turn-refine',action='store_true',help='Also refine left active heading/sway with post-onset force margin; requires M5 recheck')
     parser.add_argument('--teleop',action='store_true',help='Train the60s scripted joystick protocol with shared command memory')
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
@@ -649,6 +692,10 @@ def main():
     if not .03<=args.search_std<=.4:raise ValueError('Search spread outside bounded range')
     if args.left_cruise_only and (not args.direction_train or args.right_only or not args.seed_checkpoint):
         raise ValueError('Left cruising search requires separate seeded direction curriculum')
+    if args.direction_command_trace and not args.left_cruise_only:
+        raise ValueError('Recorded steering curriculum requires left-cruise-only training')
+    if args.left_turn_refine and not args.left_cruise_only:
+        raise ValueError('Left-turn refinement requires the seeded left cruising curriculum')
     if args.direction_train and (not args.teleop or not (args.right_only or args.left_cruise_only) or args.seconds<55.):
         raise ValueError('Direction curriculum requires teleop memory, a frozen search subset and >=55 s')
     train(args)

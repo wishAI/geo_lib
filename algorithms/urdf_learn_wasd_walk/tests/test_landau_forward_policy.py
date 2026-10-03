@@ -93,6 +93,7 @@ class ExplorationTests(unittest.TestCase):
             actual=commanded_action(base,walking,prior,obs,obs[:,:63],extended,names,.4,True,memory)
             self.assertTrue(torch.equal(actual,expected))
             memory.left_cruise_start=58.
+            memory.left_cruise_blend=1.
             actual=commanded_action(base,walking,prior,obs,obs[:,:63],extended,names,.4,True,memory)
             self.assertFalse(torch.equal(actual,expected))
             neutral=extended.clone();neutral[14]=old[2]
