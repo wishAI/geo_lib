@@ -12,6 +12,17 @@ from algorithms.urdf_learn_wasd_walk.tests.test_landau_cruise_residual import Re
 
 
 class ActiveTests(unittest.TestCase):
+    def test_roll_projection_keeps_control_and_bounds(self):
+        from algorithms.urdf_learn_wasd_walk.landau_residual_screen import project_active_delta
+        torch.manual_seed(12);baseline=torch.randn(3,3);delta=torch.rand(3,2)*.5-.25
+        action=baseline.clone();action[:,[0,2]]+=delta
+        names=['left_hip_roll_joint','other','right_hip_roll_joint']
+        result=project_active_delta(action,baseline,torch.tensor([1.,0.,.5]),names)
+        self.assertTrue(torch.equal(result[0],action[0]));self.assertTrue(torch.equal(result[:,1],baseline[:,1]))
+        actual=result-baseline
+        self.assertAlmostEqual(float(actual[1,0]),float(actual[1,2]),places=6)
+        self.assertTrue(bool(((actual[:,[0,2]]>=delta.min(1).values[:,None]-1e-7)&(actual[:,[0,2]]<=delta.max(1).values[:,None]+1e-7)).all()))
+
     def test_privileged_critic_keeps_actor_features_and_masks_unavailable_state(self):
         n=3;actor=torch.randn(n,69);original=actor.clone();obs=torch.zeros(n,70)
         mode=torch.tensor([0,1,2]);age=torch.tensor([50.,48.,21.],dtype=torch.float64)

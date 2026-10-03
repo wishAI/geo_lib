@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T12:55:13.240281+00:00",
+    "updatedAt": "2026-10-03T13:43:29.082122+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Screen privileged-critic continuation through complete stops; if improved, run nominal M5/M6 and four directions with full cumulative proof.6/12certified unchanged.",
+    "nextWork": "Independent backward 240 s gate evaluation of unchanged active_long600/model599 after nominal M5 validation and passing full M6 dynamics. Six certified milestones unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2043,7 +2043,8 @@
     },
     "activeTraining": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_critic400",
-      "scope": "Warm-start active_long600/model599,256 worlds,400 iterations; same long curriculum and rewards. Actor69 unchanged; critic80 adds11 training-only reward/memory/command-phase features. Initial actor and frozen networks byte-equal; critic69-column prefix copied and added columns zero; freshoptimizer. Smoke passed."
+      "scope": "Warm-start active_long600/model599,256 worlds,400 iterations; same long curriculum and rewards. Actor69 unchanged; critic80 adds11 training-only reward/memory/command-phase features. Initial actor and frozen networks byte-equal; critic69-column prefix copied and added columns zero; freshoptimizer. Smoke passed.",
+      "status": "completed; privileged-critic continuation did not improve reserved-state screening"
     },
     "activeResidualShortCurriculum": {
       "training": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_ppo300",
@@ -2124,10 +2125,69 @@
     "activeResidualLongCurriculum": {
       "screen": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_fullscreen/screen.json",
       "sha256": "77b57044905b5c9bb9dca81f24865cd0a2d437d49f8d5ff15645777449806567",
-      "all_residual_force_safe": true,
       "qualified_residual_episodes": 91,
       "residual_episodes": 96,
       "residual_failures": "Two M5 settled-heading and three M5 hold-drift failures. No residual force failures. Frozen comparison had two force and one drift failure.",
+      "promoted": false,
+      "all_residual_force_safe_in_this_screen": true,
+      "later_screen_caveat": "Unmodified candidate had six force failures in the 384-world projection comparison; not robustly force-safe."
+    },
+    "activeCriticScreen": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_critic399_fullscreen/screen.json",
+      "sha256": "d2012a07f8bd7d8ed2ed0b09ff779d08183cec7f7e8f52e78b5c6ae1d7793e0e",
+      "qualified_residual_episodes": 91,
+      "residual_episodes": 96,
+      "failures": "Two force, two settled-heading and one drift failure. No measured improvement; set aside."
+    },
+    "activeProjectionScreen": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active599_projection_grid/screen.json",
+      "sha256": "06f007aac74e1d09423922be0564ab1e18c59f519517e0087ead9954d4e2b7a7",
+      "groups": {
+        "frozen": {
+          "passed": 95,
+          "force_failures": 0,
+          "heading_failures": 0,
+          "drift_failures": 1
+        },
+        "common_only": {
+          "passed": 87,
+          "force_failures": 6,
+          "heading_failures": 3,
+          "drift_failures": 0
+        },
+        "half_differential": {
+          "passed": 86,
+          "force_failures": 4,
+          "heading_failures": 2,
+          "drift_failures": 4
+        },
+        "unmodified": {
+          "passed": 88,
+          "force_failures": 6,
+          "heading_failures": 0,
+          "drift_failures": 2
+        }
+      },
+      "episodes_per_group": 96,
+      "decision": "Reject projection. Unmodified candidate force failures at 384 worlds also show its earlier 192-world force-safe screen is not a robustness claim. Signed errors vary; no blanket yaw-gain increase."
+    },
+    "activeLongNominalM5": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_m5/dynamics.json",
+      "sha256": "422ab7089585daad14718273822e8e3bb507b8eee2eddd0f071878e794c0c7f9",
+      "status": "visual review accepted; independent check_walking(turn=True) passed",
+      "peak_force_bw": 2.8324056809721103,
+      "hold_heading_error_rad": 0.046394197634667345,
+      "hold_drift_m": 0.018753336423603995,
+      "promoted": false,
+      "visual_review_sha256": "c60809ade95bae0506776a3e6fc6e4ad47f23f65c7115ef2b397025bb5676f75"
+    },
+    "activeLongNominalM6": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_m6/dynamics.json",
+      "sha256": "9451edbb9503de88de617b4170e27859b6c429b293933fb0a37fc5f345d322da",
+      "status": "dynamics passed; visual review pending",
+      "peak_force_bw": 2.9614701004096804,
+      "restart_ramp_peak_bw": 2.5737,
+      "restart_walk_peak_bw": 2.8131,
       "promoted": false
     }
   }

@@ -338,7 +338,15 @@ anchors, targets and command-phase state that determine training rewards. This
 [asymmetric critic](https://arxiv.org/abs/1710.06542) has 80 inputs. Initialization
 copies the previous actor and critic, adding zero columns to the critic's first
 layer; deployment receives no privileged information. The experiment addresses
-value-estimation ambiguity and still requires measured stopping improvement.
+value-estimation ambiguity. Its final screen also passed 91/96 episodes, with two
+force, two heading and one drift failure, so it did not improve the result.
+Reducing the difference between the two hip-roll corrections made performance
+worse and is rejected. The unchanged longer-run actor also had six force failures
+in that larger batch, so the earlier force-safe screen is not a robustness claim.
+Its independent nominal M5 dynamics passed at 2.83 BW, 2.66-degree held heading
+error and 1.88 cm drift; video review and independent validation passed. Full M6
+dynamics also passed at 2.96 BW, including restart. Its proof review and the
+independent backward gate evaluation are underway; no checkpoint is promoted.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

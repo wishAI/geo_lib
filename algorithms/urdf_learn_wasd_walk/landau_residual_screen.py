@@ -2,7 +2,20 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
+
+
+def project_active_delta(action,baseline,beta,names):
+    """Diagnostic convex projection; beta1 preserves the exact original action."""
+    import torch
+    left,right=[names.index(side+'_hip_roll_joint') for side in ('left','right')]
+    dl=action[:,left]-baseline[:,left];dr=action[:,right]-baseline[:,right]
+    common=(dl+dr)*.5;difference=(dl-dr)*.5
+    result=action.clone()
+    result[:,left]=torch.where(beta==1.,action[:,left],baseline[:,left]+common+beta*difference)
+    result[:,right]=torch.where(beta==1.,action[:,right],baseline[:,right]+common-beta*difference)
+    return result
 
 
 def run(args):
@@ -29,6 +42,7 @@ def run(args):
             if backend.digest(module.__file__)!=meta['training_source_sha256'][Path(module.__file__).name]:raise ValueError('Active screen training helper changed')
         active_head=load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'screen_saved_active')
     residual=load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'screen_saved_residual')
+    if args.active_projection_grid and not active_mode:raise ValueError('Projection grid requires active residual')
     if args.complete_stops and not active_mode:raise ValueError('Complete-stop screen requires active residual')
     base,_=load_gait_source(checkpoint,meta)
     turn=load_source(checkpoint.parent/'turn_source.py',meta['turn_source_sha256'],'screen_saved_turn')
@@ -36,14 +50,15 @@ def run(args):
     bank_path=checkpoint.parent/'warm_states.npz'
     if backend.digest(bank_path)!=meta['curriculum']['bank_sha256']:raise ValueError('Curriculum bank changed')
     torch.set_num_threads(4);torch.manual_seed(42)
-    width=48 if active_mode else 32;n=width*4;batch=batches.WarpBatch(n,42,0.,'stand','load',.004,.2,.0225)
+    groups=8 if args.active_projection_grid else 4
+    width=48 if active_mode else 32;n=width*groups;batch=batches.WarpBatch(n,42,0.,'stand','load',.004,.2,.0225)
     if hashlib.sha256(batch.xml.encode()).hexdigest()!=meta['model_xml_sha256']:raise ValueError('Screen model changed')
     audit=install_physics_audit(batch,batches,n)
     bank={k:torch.tensor(v,device='cuda') for k,v in np.load(bank_path).items()}
     # Two copies of each controller share the same held-out states.
     if active_mode:
         pools=[torch.where(bank['mode']==i)[0][1::2] for i in range(3)]
-        indices=torch.cat([pool[torch.linspace(0,len(pool)-1,16,device='cuda').long()] for pool in pools]).repeat(4)
+        indices=torch.cat([pool[torch.linspace(0,len(pool)-1,16,device='cuda').long()] for pool in pools]).repeat(groups)
         mode=bank['mode'][indices]
     else:indices=(torch.linspace(0,len(bank['age'])//2-1,32,device='cuda').long()*2+1).repeat(4)
     batch.q[:]=bank['qpos'][indices].float();batch.v[:]=bank['qvel'][indices].float()
@@ -78,6 +93,11 @@ def run(args):
     bits=torch.zeros(n,device='cuda',dtype=torch.int);origin=batch.pos[:,batch.pelvis,:2].clone();terminal=origin.clone()
     slip_total=torch.zeros_like(peak);air_total=torch.zeros_like(peak);swings=torch.zeros((n,2),device='cuda',dtype=torch.long)
     air=torch.zeros((n,2),device='cuda');height=torch.zeros_like(air);touched=torch.zeros_like(air,dtype=torch.bool)
+    projection_beta=torch.tensor([1.,1.,0.,0.,.5,.5,1.,1.],device='cuda').repeat_interleave(width) if args.active_projection_grid else None
+    event_fields=['age_s','heading_rad','command_reference_rad','signed_target_error_rad','signed_teacher_error_rad',
+        'local_forward_mps','local_strafe_mps','roll_rad','roll_rate_rad_s','root_height_m']
+    events={key:torch.full((n,len(event_fields)),float('nan'),device='cuda') for key in ('yaw_off','residual_off','stop','settled')} if args.active_projection_grid else {}
+    event_seen={key:torch.zeros(n,device='cuda',dtype=torch.bool) for key in events}
     max_correction=torch.zeros_like(peak);weight=float(batch.model.body_mass.sum())*9.81
     def observe():
         rotation=batch.rot[:,batch.base].double();heading=torch.atan2(rotation[:,1,0],rotation[:,0,0])
@@ -96,11 +116,15 @@ def run(args):
             if active_mode:
                 baseline=residual.apply(actor,baseline,obs,walking,memory,names)
                 action=active_head.apply(active_actor,baseline,obs,walking,memory,names,residual)
+                if args.active_projection_grid:action=project_active_delta(action,baseline,projection_beta,names)
             else:action=residual.apply(actor,baseline,obs,walking,memory,names)
             action[:width*2]=baseline[:width*2]
             correction=(action-baseline).abs().amax(1)*.08
             max_correction=torch.maximum(max_correction,torch.where(live,correction,0.))
             action=action.clamp(-limits,limits)
+        measuring=live.clone()
+        if args.active_projection_grid:
+            before_command=obs[:,63:66].clone();before_envelope=active_head.envelope(memory,obs).clone()
         before_xy=batch.pos[:,batch.pelvis,:2].clone()
         before_heading=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
         batch.ctrl[:]=batch.targets;batch.ctrl[:,batch.aids]+=.08*torch.where(live[:,None],action,0.);batch.wrench.zero_()
@@ -142,10 +166,28 @@ def run(args):
         obs=observe()
         if active_mode:memory.advance_command(obs,batch.pos[:,batch.pelvis],age,.02)
         else:memory.advance(obs[:,65].double(),age,.02)
+        if args.active_projection_grid:
+            heading=torch.atan2(obs[:,68],obs[:,69]+1.)
+            teacher=bank['teacher_heading'][mode,torch.round(age/.02).long()]
+            target=torch.where(mode==1,torch.pi/2,torch.where(torch.isfinite(memory.stop_time),memory.hold_heading,memory.reference))
+            signed=torch.atan2((heading-target).sin(),(heading-target).cos())
+            teacher_error=torch.atan2((heading-teacher).sin(),(heading-teacher).cos())
+            velocity,_=batch.local_velocity()
+            values=torch.stack((age,heading,memory.reference,signed,teacher_error,velocity[:,1],velocity[:,0],
+                torch.atan2(-obs[:,6],-obs[:,8]),obs[:,4],batch.pos[:,batch.pelvis,2]),1).float()
+            masks={'yaw_off':(before_command[:,2]>0)&(obs[:,65]==0),
+                'residual_off':(before_envelope>0)&(active_head.envelope(memory,obs)==0),
+                'stop':(before_command.abs().amax(1)>0)&(obs[:,63:66].abs().amax(1)==0),
+                'settled':torch.isfinite(memory.stop_time)&(age-memory.stop_time>=2.-1e-8)}
+            for key,mask in masks.items():
+                take=mask & measuring & ~event_seen[key]
+                events[key]=torch.where(take[:,None],values,events[key]);event_seen[key]|=take
     records=[]
-    for group in range(4):
+    for group in range(groups):
         selection=slice(group*width,(group+1)*width)
         records.append({'controller':'frozen' if group<2 else 'residual','copy':group%2,
+            'projection_beta':None if group<2 or not args.active_projection_grid else float(projection_beta[group*width]),
+            'events':{key:{'seen':event_seen[key][selection].tolist(),'values':[[value if math.isfinite(value) else None for value in row] for row in events[key][selection].tolist()]} for key in events},
             'survived_count':int(((bits==0)&(age>=ends-1e-8))[selection].sum()),'start_ages_s':start_age[selection].tolist(),
             'terminal_age_s':age[selection].tolist(),'required_duration_s':horizons[selection].tolist(),'duration_s':duration[selection].tolist(),'failure_bits':bits[selection].tolist(),
             'body_forward_progress_m':body_progress[selection].tolist(),
@@ -162,10 +204,11 @@ def run(args):
         'curriculum_bank_sha256':backend.digest(bank_path),'records':records,
         'residual_variant':meta.get('residual_variant'),'active_residual_source_sha256':meta.get('active_residual_source_sha256'),
         'memory_source_sha256':backend.digest(active_bank.__file__) if active_mode else backend.digest(Path(__file__).with_name('landau_cruise_residual.py')),
+        'active_projection_grid':args.active_projection_grid,'event_fields':event_fields if events else [],
         'direction_source_sha256':backend.digest(active_direction.__file__) if active_mode else None,
         'comparison':'frozen cruise versus frozen cruise plus active head' if active_mode else 'frozen CEM versus cruise residual',
         'limitations':'Adjacent held-out states share one trajectory; repeats are simultaneousbatch copies, not independent nominal-start proof.'})
-    print(json.dumps([{'controller':r['controller'],'copy':r['copy'],'survived':r['survived_count'],'worst_peak_bw':max(r['peak_support_bw'])} for r in records]),flush=True)
+    print(json.dumps([{'controller':r['controller'],'copy':r['copy'],'projection_beta':r['projection_beta'],'survived':r['survived_count'],'worst_peak_bw':max(r['peak_support_bw'])} for r in records]),flush=True)
 
 
 def main():
@@ -173,6 +216,7 @@ def main():
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--seconds',type=float,default=20.)
     parser.add_argument('--complete-stops',action='store_true')
+    parser.add_argument('--active-projection-grid',action='store_true')
     args=parser.parse_args()
     if not 6.<=args.seconds<=30.:raise ValueError('Screen horizon must be6..30s')
     run(args)
