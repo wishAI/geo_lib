@@ -1670,12 +1670,12 @@
     }
   ],
   "sessionStatus": {
-    "state": "idle",
-    "updatedAt": "2026-10-03T04:03:11.061760+00:00",
-    "reason": "Bounded continuation experiments completed. Six milestones remain certified; M7 backward force limit is unresolved.",
+    "state": "active",
+    "updatedAt": "2026-10-03T06:23:25.024476+00:00",
+    "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Use the preserved unpromoted heading-gain candidate and actual closed-loop backward steering evidence to improve long-turn force margin. Gain-only/sway-only replay searches did not qualify. Recheck exact M5/M6 and fresh four-direction proofs, then all cumulative components before promotion.",
+    "nextWork": "Validate per-world closed-loop direction training against serial steering/memory, then GPU smoke and force-margin search on backward gate. Preserve all hard gates and exact cumulative proofs.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",

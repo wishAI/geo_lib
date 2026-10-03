@@ -187,7 +187,7 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
     if p.shape[1]>17 and memory is not None and memory.last_yaw_sign>0:
         yaw_scale=p[:,17]
     heading_gain=p[:,2]
-    if p.shape[1]>14 and memory is not None and memory.left_cruise_blend > 0.:
+    if p.shape[1]>14 and memory is not None and (torch.is_tensor(memory.left_cruise_blend) or memory.left_cruise_blend > 0.):
         blend=memory.left_cruise_blend
         heading_gain=heading_gain+blend*(p[:,14]-heading_gain)
     if p.shape[1]>7 and memory is not None and memory.last_yaw_sign<0:
@@ -207,7 +207,7 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
             roll_amplitude,roll_phase=p[:,5],p[:,6]
             if p.shape[1]>13 and memory is not None and memory.last_yaw_sign<0:
                 roll_amplitude,roll_phase=p[:,12],p[:,13]
-            if p.shape[1]>16 and memory is not None and memory.left_cruise_blend > 0.:
+            if p.shape[1]>16 and memory is not None and (torch.is_tensor(memory.left_cruise_blend) or memory.left_cruise_blend > 0.):
                 blend=memory.left_cruise_blend
                 roll_amplitude=roll_amplitude+blend*(p[:,15]-roll_amplitude)
                 roll_phase=roll_phase+blend*(p[:,16]-roll_phase)
@@ -358,9 +358,14 @@ def train(args):
     if teleop:
         from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop_contract
     direction_train=bool(getattr(args,'direction_train',False))
+    closed_direction=args.closed_loop_direction
     if direction_train:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
-        training_protocol=direction_contract.TurnTrainingProtocol(args.seconds, 'left' if args.left_cruise_only else 'right')
+        if closed_direction:
+            from types import SimpleNamespace
+            from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction_training
+            training_protocol=SimpleNamespace(BLOCKS=(),HOLDS=(),YAW_RATE=direction_contract.MAX_YAW_RATE)
+        else:training_protocol=direction_contract.TurnTrainingProtocol(args.seconds, 'left' if args.left_cruise_only else 'right')
         if args.left_yaw_only:training_protocol=direction_contract.TurnHoldTrainingProtocol(args.seconds,args.turn_duration)
         if args.direction_command_trace:
             import numpy as np
@@ -420,6 +425,12 @@ def train(args):
         if args.left_balance_only:
             meta['objective']='Refine active-left sway amplitude/phase with force margin; preserve yaw calibration and cruise feedback; exact M5 recheck required'
             meta['left_turn_refinement']['searched_indices']=[5,6]
+        if closed_direction:
+            meta['objective']='Per-world closed-loop world gate, unchanged physics limits, force margin and completion time; separate serial proof required'
+            meta['closed_loop_direction']=closed_direction
+            meta['direction_training_source_sha256']=backend.digest(direction_training.__file__)
+            meta['training_termination']='Freeze metrics at valid gate crossing; reset terminal worlds only after recording outcome; never reactivate them.'
+            (folder/'direction_training_source.py').write_text(Path(direction_training.__file__).read_text())
         if args.direction_command_trace:
             meta['direction_commands']={'source_path':str(command_trace),'source_sha256':backend.digest(command_trace),
                 'commands_sha256':backend.digest(folder/'direction_commands.npz'),
@@ -508,16 +519,26 @@ def train(args):
         counts = torch.zeros((n,2), device='cuda', dtype=torch.long)
         air = torch.zeros((n,2), device='cuda'); peak = torch.zeros_like(air)
         touched = torch.zeros_like(air, dtype=torch.bool)
-        memory=CommandMemory() if teleop else None
+        memory=direction_training.DirectionMemory(n,'cuda',closed_direction) if closed_direction else CommandMemory() if teleop else None
+        gate=direction_training.GateTracker(closed_direction,batch.pos[:,batch.pelvis]) if closed_direction else None
+        terminal_flight=torch.zeros_like(duration);slip_total=torch.zeros_like(duration)
+        failure_time=torch.full_like(duration,float('nan'))
         block_records=[];block_start={};block_progress={};block_rotation={}
         hold_heading=None
         for step in range(round(args.seconds/.02)):
             age = step*.02; forward, yaw, reference = command_profile(age)
+            active=alive & ~gate.completed if closed_direction else alive
             if args.left_turn_refine and step==round(TURN_START/.02):
                 # force_max retains the complete episode; audit now accumulates
                 # a separate post-onset peak for the stricter training margin.
                 audit['force'].zero_()
-            if teleop:forward,_,yaw=training_protocol.command_profile(age)
+            if closed_direction:
+                rotation=batch.rot[:,batch.base].to(torch.float64)
+                current_heading=torch.atan2(rotation[:,1,0],rotation[:,0,0])
+                world_commands=direction_training.commands(closed_direction,
+                    batch.pos[:,batch.pelvis,:2].to(torch.float64)-gate.origins,current_heading,age)
+                forward=world_commands[:,0].float();yaw=world_commands[:,2].float()
+            elif teleop:forward,_,yaw=training_protocol.command_profile(age)
             if step==round(TURN_START/.02):
                 heading_start=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0]).clone()
             if step==round((args.seconds-2.)/.02):
@@ -539,7 +560,9 @@ def train(args):
                 prior_obs[:,60:62] = torch.bmm(batch.rot[:,batch.base].transpose(1,2),delta[:,:,None])[:,:2,0]/.03
                 prior_obs[:,62] = 1.-(age-HOLD_START)/30.
             if teleop:
-                obs,prior_obs=memory.observe(obs,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],age)
+                if closed_direction:
+                    obs,prior_obs=memory.observe(obs,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],age,active)
+                else:obs,prior_obs=memory.observe(obs,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],age)
                 reference=memory.reference
                 anchor=memory.anchor_xy
                 previous_xy=batch.pos[:,batch.pelvis,:2].clone()
@@ -551,7 +574,7 @@ def train(args):
                         block_rotation[label]=torch.zeros_like(duration)
             with torch.no_grad():
                 action = commanded_action(base,walking,prior,obs,prior_obs,params,names,reference,memory.turned if teleop else age>=TURN_START,memory=memory).clamp(-limits,limits)
-            batch.ctrl[:] = batch.targets; batch.ctrl[:,batch.aids] += .08*torch.where(alive[:,None],action,0.)
+            batch.ctrl[:] = batch.targets; batch.ctrl[:,batch.aids] += .08*torch.where(active[:,None],action,0.)
             batch.wrench.zero_(); torch.cuda.synchronize(); wp.capture_launch(batch.graph); wp.synchronize()
             occupancy = batch.maximum_occupancy.numpy()
             if max(occupancy[:2])>=batch.wd.naconmax or occupancy[2]>=batch.wd.njmax:
@@ -560,11 +583,14 @@ def train(args):
             failed = (tilt>math.pi/6)|(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08)
             failed |= (~torch.isfinite(batch.q).all(1))|(~torch.isfinite(batch.v).all(1))
             failed |= (audit['speed']>4.+1e-6)|(audit['force']>3.*body_weight)|(audit['nonfoot']!=0)|(audit['flight']>60)
-            force_max = torch.maximum(force_max,torch.where(alive,audit['force']/body_weight,0.))
+            force_max = torch.maximum(force_max,torch.where(active,audit['force']/body_weight,0.))
             if args.left_turn_refine and age>=TURN_START:
-                post_turn_force_max=torch.maximum(post_turn_force_max,torch.where(alive,audit['force']/body_weight,0.))
-            speed_max = torch.maximum(speed_max,torch.where(alive,audit['speed'],0.))
-            newly = alive & failed; alive &= ~failed; duration += alive.float()*.02
+                post_turn_force_max=torch.maximum(post_turn_force_max,torch.where(active,audit['force']/body_weight,0.))
+            speed_max = torch.maximum(speed_max,torch.where(active,audit['speed'],0.))
+            newly = active & failed; alive &= ~newly
+            duration += (active & ~newly).float()*.02
+            failure_time=torch.where(newly,age+.02,failure_time)
+            if closed_direction:terminal_flight=torch.where(active,audit['flight_total'].float(),terminal_flight)
             bits=(tilt>math.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()
             bits+=4*(audit['speed']>4.+1e-6).int()+8*(audit['force']>3.*body_weight).int()
             bits+=16*(audit['nonfoot']!=0).int()+32*(audit['flight']>60).int()
@@ -573,9 +599,11 @@ def train(args):
             heading = torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
             target=reference if teleop else math.pi/2
             error = torch.atan2(torch.sin(heading-target),torch.cos(heading-target)).abs()
-            yaw_error = torch.where(alive,error,yaw_error); heading_final = torch.where(alive,heading,heading_final)
+            measuring=active & alive
+            yaw_error = torch.where(measuring,error,yaw_error); heading_final = torch.where(measuring,heading,heading_final)
             contacts,slip,clearance,_ = batch.feet(with_forces=True)
-            counts += (contacts&touched&(air>=.06)&(peak>=.015)&alive[:,None]).long()
+            counts += (contacts&touched&(air>=.06)&(peak>=.015)&measuring[:,None]).long()
+            slip_total+=torch.where(measuring,slip,0.)*.02
             air = torch.where(contacts,0.,air+.02); peak = torch.where(contacts,0.,torch.maximum(peak,clearance)); touched |= contacts
             if teleop:
                 delta=batch.pos[:,batch.pelvis,:2]-previous_xy
@@ -603,12 +631,13 @@ def train(args):
             if not teleop and age >= args.seconds-5.:
                 hold_error = torch.maximum(hold_error,torch.where(alive,error,0.))
             batch.previous = action
-            if newly.any(): batch.reset(newly)
-            if not alive.any():break
-        physics = alive & (audit['flight_total']<=round(args.seconds/.002)*.05)
+            finished=gate.update(batch.pos[:,batch.pelvis],age+.02,measuring) if closed_direction else torch.zeros_like(newly)
+            if (newly|finished).any(): batch.reset(newly|finished)
+            if not (alive & ~gate.completed if closed_direction else alive).any():break
+        physics = alive & (terminal_flight<=duration/.002*.05) if closed_direction else alive & (audit['flight_total']<=round(args.seconds/.002)*.05)
         eligible_world = physics & (hold_error<=math.radians(5)) & (hold_drift<=.03) & (counts.min(1).values>=3)
         block_reward=torch.zeros_like(duration)
-        if teleop:
+        if teleop and not closed_direction:
             if len(block_records)!=len(training_protocol.BLOCKS):eligible_world[:]=False
             for label,progress_value,change,swings,sign,length in block_records:
                 eligible_world &= (progress_value>=.04*length)&(swings.min(1).values>=2)
@@ -624,6 +653,10 @@ def train(args):
             if direction_train and args.left_cruise_only:
                 eligible_world &= yaw_error <= math.radians(15)
         fitness = 20.*duration-100.*yaw_error-500.*hold_drift-100.*hold_error+block_reward
+        if closed_direction:
+            eligible_world=physics & gate.completed & (counts.min(1).values>=3) & (slip_total/duration.clamp_min(.02)<=.1)
+            fitness=20.*duration+100.*gate.progress.float().clamp(-10.,10.)-20.*gate.lateral.float().abs()
+            fitness+=10000.*gate.completed.float()-21.*torch.where(gate.completed,duration,0.)
         if args.left_turn_refine:
             eligible_world &= post_turn_force_max<=2.85
             fitness-=1000.*(post_turn_force_max-2.85).clamp_min(0.)
@@ -640,6 +673,9 @@ def train(args):
             'max_joint_speed_rad_s':float(speed_max[members].max()),'peak_support_body_weight_ratio':float(force_max[members].max()),
             'completed_swings':counts[members].tolist(),'parameters':dict(zip(TURN_PARAMETERS,params[best*replicas].tolist()))}
         metrics['failure_bits']=failure_bits[members].tolist()
+        if closed_direction:
+            metrics['world_gates']=gate.record(members)
+            metrics['failure_time_s']=[v if math.isfinite(v) else None for v in failure_time[members].tolist()]
         if args.left_turn_refine:metrics['post_turn_peak_support_bw']=post_turn_force_max[members].tolist()
         if teleop:
             metrics['command_blocks']=[{'label':label,'forward_m':progress_value[members].tolist(),
@@ -647,6 +683,9 @@ def train(args):
                 for label,progress_value,change,swings,sign,length in block_records]
             metrics['controller_memory']=memory.record()
             metrics['controller_memory']['anchor_xy']=metrics['controller_memory']['anchor_xy'][members]
+            if closed_direction:
+                for key in ('integrated_reference_rad','left_cruise_blend'):
+                    metrics['controller_memory'][key]=metrics['controller_memory'][key][members]
         yaw_change=torch.atan2((heading_final-heading_start).sin(),(heading_final-heading_start).cos())
         late_rate=torch.atan2((heading_final-heading_window).sin(),(heading_final-heading_window).cos())/2.
         turn_rate=torch.atan2((heading_turn_end-heading_turn_window).sin(),(heading_turn_end-heading_turn_window).cos())/2.
@@ -655,11 +694,16 @@ def train(args):
             last_two_seconds_mean_yaw_rate=observed(late_rate[members],alive[members]),
             turn_end_heading_rad=observed(heading_turn_end[members],reached_turn_end[members]),
             last_two_turn_seconds_mean_yaw_rate=observed(turn_rate[members],reached_turn_end[members]))
+        if closed_direction:
+            for key in ('last_two_seconds_mean_yaw_rate','turn_end_heading_rad','last_two_turn_seconds_mean_yaw_rate'):
+                metrics.pop(key,None)
         with (folder/'generations.jsonl').open('a') as stream: stream.write(json.dumps(metrics)+'\n')
         if teleop and (getattr(args,'right_grid',False) or getattr(args,'restart_grid',False) or getattr(args,'left_cruise_only',False)):
             backend.write_json(folder/'candidates.json',[{'candidate':i,
                 'parameters':params[i*replicas].tolist(),'survival_s':duration[i*replicas:(i+1)*replicas].tolist(),
                 'failure_bits':failure_bits[i*replicas:(i+1)*replicas].tolist(),
+                'failure_time_s':[v if math.isfinite(v) else None for v in failure_time[i*replicas:(i+1)*replicas].tolist()],
+                'world_gates':gate.record(slice(i*replicas,(i+1)*replicas)) if closed_direction else None,
                 'eligible':bool(eligible[i]),'score':float(score[i]),
                 'heading_rad':heading_final[i*replicas:(i+1)*replicas].tolist(),
                 'final_heading_error_rad':yaw_error[i*replicas:(i+1)*replicas].tolist(),
@@ -712,6 +756,7 @@ def main():
     parser.add_argument('--direction-train',action='store_true',help='M7 sustained right-turn curriculum; requires teleop memory and frozen left parameters')
     parser.add_argument('--left-cruise-only',action='store_true',help='M7 left-turn curriculum; search straight-after-left heading and lateral sway feedback')
     parser.add_argument('--direction-command-trace',help='Replay semantic commands from a recorded left gate, then continue straight; training only')
+    parser.add_argument('--closed-loop-direction',choices=('forward','left','right','backward'),help='Compute independent per-world commands from pose and optimize actual gate crossing')
     parser.add_argument('--left-turn-refine',action='store_true',help='Also refine left active heading/sway with post-onset force margin; requires M5 recheck')
     parser.add_argument('--left-yaw-only',action='store_true',help='Calibrate a separate left yaw scale on M5; freeze17balance parameters')
     parser.add_argument('--left-heading-grid',action='store_true',help='Diagnose8cruise heading gains with every other parameter frozen')
@@ -729,8 +774,8 @@ def main():
     if args.right_only and not args.teleop:raise ValueError('Right-only search requires teleop')
     if args.right_grid and (not args.right_only or args.generations!=1):raise ValueError('Right grid requires one right-only generation')
     if args.teleop and not args.direction_train and (args.seconds!=60. or args.diagnostic_sweep):raise ValueError('Teleop training requires full60s episodes')
-    minimum_seconds=6. if args.diagnostic_sweep else 24.
-    maximum_seconds=240. if args.left_heading_grid or args.left_balance_only else 120.
+    minimum_seconds=6. if args.diagnostic_sweep or args.closed_loop_direction else 24.
+    maximum_seconds=240. if args.left_heading_grid or args.left_balance_only or args.closed_loop_direction else 120.
     if not 32<=args.num_envs<=1024 or args.num_envs%4 or not 1<=args.generations<=20 or not minimum_seconds<=args.seconds<=maximum_seconds:
         raise ValueError('Turn training exceeds bounded budget')
     if not args.diagnostic_sweep and not args.direction_train and args.seconds<3.+args.turn_duration+2.+5.:
@@ -749,9 +794,11 @@ def main():
         raise ValueError('Left yaw calibration requires a separate seeded left curriculum')
     if args.left_heading_grid and (not args.left_cruise_only or args.left_turn_refine or args.left_yaw_only or not args.direction_command_trace or args.num_envs!=32 or args.generations!=1):
         raise ValueError('Heading grid requires recorded left steering,32worlds and1generation')
-    if args.left_balance_only and (not args.left_turn_refine or args.left_heading_grid or args.left_yaw_only or not args.direction_command_trace):
+    if args.left_balance_only and (not args.left_turn_refine or args.left_heading_grid or args.left_yaw_only or not (args.direction_command_trace or args.closed_loop_direction)):
         raise ValueError('Balance-only search requires recorded steering and force-margin refinement')
-    if args.direction_train and (not args.teleop or not (args.right_only or args.left_cruise_only) or args.seconds<55.):
+    if args.closed_loop_direction and (not args.direction_train or args.direction_command_trace or args.left_yaw_only or args.left_heading_grid):
+        raise ValueError('Closed-loop direction training cannot mix recorded or fixed turn protocols')
+    if args.direction_train and (not args.teleop or not (args.right_only or args.left_cruise_only) or args.seconds<(6. if args.closed_loop_direction else 55.)):
         raise ValueError('Direction curriculum requires teleop memory, a frozen search subset and >=55 s')
     train(args)
 
