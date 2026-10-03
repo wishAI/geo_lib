@@ -108,9 +108,28 @@ drift, but held only 72.16° and failed heading. `--left-yaw-only` calibrates an
 independent left yaw scale on the exact M5 command sequence while freezing all
 17 balance parameters and walking/standing weights. It remains unpromoted;
 passing training still requires fresh independent and cumulative evaluations.
-The selected `m7_20261003_left_yaw_grid/model_0.pt` preserved those17 parameters
-bit-for-bit and independently re-passed M5 at93.96° with13.73mm hold drift and
-a reviewed full proof. Left-gate evaluation is the next unresolved check.
+The selected `m7_20261003_left_yaw_grid/model_0.pt` preserved those 17 parameters
+bit-for-bit and independently re-passed M5 at 93.96° with 13.73 mm hold drift and
+a reviewed full proof. Its left gate stayed upright for 180 s with peak 2.885 BW,
+but crossed the 10 m plane at 108.62 s with −0.927 m cross-track error, outside ±0.75 m.
+Thus M7 remains unresolved despite the improved physical stability. A same-checkpoint
+trial reducing proportional yaw gain from 0.3 to 0.1 also missed the gate and
+reached 3.040 BW; that command change is rejected and reverted. The force peak
+at 43.474 s precedes the first changed command at 45.92 s, so it is not evidence
+that the gentler taper caused the force spike. The next training
+problem is prolonged left-cruise heading control with force margin, using the
+actual steering traces. Long proof renders now scale both subprocess timeouts
+with recorded duration.
+
+A gain-only diagnostic (`--left-heading-grid`, 8 candidates × 4 starts, 180 s)
+preserves all 18 parameters except left-cruise heading feedback. The incumbent
+combined coefficient is +0.00653 versus −0.00338 while turning; its sign change
+is a hypothesis, not proof of closed-loop instability. Lower gains reduced
+observed heading drift. The selected delta 0.02 survived all four starts with
+peak 2.989 BW, but final errors of 17.8–27.3° missed the 15° training target.
+The independent closed-loop left gate then passed at 104.005 s, with −0.113 m
+cross-track error and peak 2.891 BW. Other directions and fresh cumulative
+checks remain required; it is not promoted.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

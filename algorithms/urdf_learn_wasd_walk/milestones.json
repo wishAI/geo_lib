@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "Forward/right candidate proofs succeeded; left stability and steering remain unresolved. Force-margin candidate failed the required M5 heading recheck; yaw calibration in progress."
+        "summary": "New cruise-gain candidate passed left10m dynamics (104.005s,\u22120.113m cross-track,2.891BW). Other directions, reviewed proofs and cumulative checks pending."
       }
     },
     {
@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T03:01:40.171331+00:00",
+    "updatedAt": "2026-10-03T03:35:57.323804+00:00",
     "reason": "User resumed walking milestone work and requested faster motion where stable.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Yaw-calibrated candidate independently passed M5 with reviewed proof; evaluate left gate then remaining directions/cumulative components.",
+    "nextWork": "Heading-gain candidate independently crossed left gate in104.005s, cross\u22120.113m, peak2.891BW. Review fullproof and evaluate backward/right/forward plus all cumulative components before promotion.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1784,19 +1784,45 @@
         "status": "component_passed_not_promoted",
         "independentChecks": "passed",
         "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_yaw0_left/dynamics.json",
+        "sha256": "20510caaa9ce3c38885fab3702dd47f08e016a4c2f69a903f1ab1e2f926b12e1",
+        "status": "failed",
+        "failures": [
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m"
+        ],
+        "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_taper0_left/dynamics.json",
+        "sha256": "73b199d7d789207e0ec55dbbceac09917fe366cfcee54c8b56a02b0b25c0c620",
+        "status": "failed",
+        "failures": [
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "peak support exceeded 3 body weights"
+        ],
+        "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_heading0_left/dynamics.json",
+        "sha256": "8001283e931ba96554a40bb9fec237b1b794ace1aca15d85d5c9d3615de47753",
+        "status": "dynamics_passed_proof_pending"
       }
     ],
     "candidateCheckpoint": {
       "kind": "periodic_feedback_cem",
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_left_yaw_grid/model_0.pt",
-      "sha256": "1f31090e30c80dd540c2aaf2a99bcaa314d5eb63ba348fa115e13e9a3ea21067",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_heading_sign_grid/model_0.pt",
+      "sha256": "416395f7973c66a3355a067f353ef2582a383ee7d3168fdb27c823aeea51f188",
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_left_yaw_grid/training.json",
-      "sha256": "7efbcdfa2819c60b00825f297399b731c215859184eb95deb1613e7010359f9f",
-      "qualifiedCandidatesFinalGeneration": 2,
-      "scope": "Exact M5 training commands,4starts; peak2.97357BW; hold error<=3.683degrees. Independent M5 and cumulative/directional proof pending."
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_heading_sign_grid/training.json",
+      "sha256": "540dab04d8191e912d13c8188667e56f4ce7ac8a2289be4c74a0c89843699ec8",
+      "qualifiedCandidatesFinalGeneration": 0,
+      "scope": "Gain-only180s replay; selecteddelta0.02survived4starts with peak2.989BW, finalheading errors17.8\u201327.3degrees missed15degree trainingtarget; independentleft gate pending."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
