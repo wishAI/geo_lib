@@ -34,6 +34,19 @@ def configure_profile(turn_duration):
     TURN_RATE=math.pi/(2.*turn_duration)
 
 
+def candidate_table_reference(checkpoint, metadata):
+    """Bind selected search rows to the checkpoint's generation, never a newer table."""
+    checkpoint=Path(checkpoint)
+    generation_name='candidates_'+checkpoint.stem.removeprefix('model_')+'.json'
+    saved_tables=metadata.get('generation_candidate_tables',{})
+    if saved_tables:
+        if generation_name not in saved_tables:raise ValueError('No candidate table bound to this checkpoint generation')
+        return checkpoint.parent/generation_name,saved_tables[generation_name]
+    if checkpoint.stem!='model_'+str(metadata['generations_completed']-1):
+        raise ValueError('Legacy candidate table only describes the final generation')
+    return checkpoint.parent/'candidates.json',metadata.get('candidate_table_sha256')
+
+
 def command_profile(seconds):
     """A joystick test: walk, turn left, slow down, then hold for >=5 seconds."""
     yaw = TURN_RATE if TURN_START <= seconds < TURN_END else 0.
@@ -325,8 +338,8 @@ def train(args):
     if args.seed_checkpoint:
         seed_parameters=sb['turn_parameters'].to('cuda')
         if args.seed_candidate is not None:
-            candidate_path=seed.parent/'candidates.json'
-            if sm.get('candidate_table_sha256') and backend.digest(candidate_path)!=sm['candidate_table_sha256']:
+            candidate_path,expected_table=candidate_table_reference(seed,sm)
+            if expected_table and backend.digest(candidate_path)!=expected_table:
                 raise ValueError('Candidate table changed')
             candidate_table=json.loads(candidate_path.read_text())
             selected=next(row for row in candidate_table if row['candidate']==args.seed_candidate)
@@ -378,6 +391,8 @@ def train(args):
             training_protocol=direction_contract.RecordedLeftTrainingProtocol(commands,args.seconds)
             np.savez_compressed(folder/'direction_commands.npz',time=times,command=commands)
     else:training_protocol=teleop_contract if teleop else None
+    common_offsets=direction_training.common_start_offsets(batch.nominal,batch.jq,replicas,args.start_seed) if args.common_starts else None
+    grid_center=mean.clone()
     body_weight = float(batch.model.body_mass.sum())*9.81
     meta = dict(parent_meta)
     for key in ('forward_fitness_contract','lateral_acceptance','initial_search_parameters','metrics','wall_s',
@@ -431,6 +446,13 @@ def train(args):
             meta['direction_training_source_sha256']=backend.digest(direction_training.__file__)
             meta['training_termination']='Freeze metrics at valid gate crossing; reset terminal worlds only after recording outcome; never reactivate them.'
             (folder/'direction_training_source.py').write_text(Path(direction_training.__file__).read_text())
+        if args.common_starts:
+            meta['common_start_offsets_qpos']=common_offsets.cpu().tolist()
+            meta['common_starts_reference']='https://pubsonline.informs.org/doi/10.1287/mnsc.45.11.1570'
+            meta['common_starts_scope']='Same nominal plus3joint perturbations for every candidate/generation; does not claim deterministic physics.'
+        if args.left_balance_grid:
+            meta['balance_grid']={'center_normalized':grid_center.cpu().tolist(),'radius_normalized':args.search_std,
+                'unchanged_control_candidates':[0,1],'repeat_same_grid_each_generation':True}
         if args.direction_command_trace:
             meta['direction_commands']={'source_path':str(command_trace),'source_sha256':backend.digest(command_trace),
                 'commands_sha256':backend.digest(folder/'direction_commands.npz'),
@@ -464,6 +486,8 @@ def train(args):
         if args.left_balance_only:
             fixed=[i for i in range(len(TURN_PARAMETERS)) if i not in (5,6)]
             z[:,fixed]=mean[fixed]
+        if args.left_balance_grid:
+            z=direction_training.balance_grid(grid_center,candidates,args.search_std)
         if args.left_heading_grid:
             if candidates!=8:raise ValueError('Heading grid requires8candidates with4replicas')
             z[:]=mean
@@ -504,6 +528,8 @@ def train(args):
             z=2*(diagnostic-lows)/(highs-lows)-1.
             params=diagnostic.repeat_interleave(replicas,dim=0)
         batch.reset(torch.ones(n, device='cuda', dtype=torch.bool)); batch.q[::replicas] = batch.nominal
+        if common_offsets is not None:
+            batch.q[:]=batch.nominal+common_offsets.repeat(candidates,1)
         torch.cuda.synchronize(); wp.capture_launch(batch.forward_graph); wp.synchronize()
         for value in audit.values(): value.zero_()
         alive = torch.ones(n, device='cuda', dtype=torch.bool)
@@ -726,6 +752,8 @@ def train(args):
                  'peak_support_bw':force_max[i*replicas:(i+1)*replicas].tolist(),
                  'max_joint_speed':speed_max[i*replicas:(i+1)*replicas].tolist()}
                 for i in range(candidates)])
+        if (folder/'candidates.json').exists():
+            (folder/f'candidates_{generation}.json').write_bytes((folder/'candidates.json').read_bytes())
         torch.save({'parameters':blob['parameters'],'turn_parameters':params[best*replicas].detach().cpu(),
                     'standing_actor_state_dict':blob['standing_actor_state_dict']},folder/f'model_{generation}.pt')
         print(json.dumps(metrics),flush=True)
@@ -734,6 +762,7 @@ def train(args):
                 status='completed',stop_reason='generation_budget_exhausted',
                 checkpoints={p.name:backend.digest(p) for p in folder.glob('model_*.pt')})
     if (folder/'candidates.json').exists():meta['candidate_table_sha256']=backend.digest(folder/'candidates.json')
+    meta['generation_candidate_tables']={p.name:backend.digest(p) for p in folder.glob('candidates_*.json')}
     backend.write_json(folder/'training.json',meta)
     progress('completed',args.generations)
 
@@ -761,11 +790,16 @@ def main():
     parser.add_argument('--left-yaw-only',action='store_true',help='Calibrate a separate left yaw scale on M5; freeze17balance parameters')
     parser.add_argument('--left-heading-grid',action='store_true',help='Diagnose8cruise heading gains with every other parameter frozen')
     parser.add_argument('--left-balance-only',action='store_true',help='Refine only active-left sway amplitude/phase on recorded steering with force margin')
+    parser.add_argument('--common-starts',action='store_true',help='Compare closed-loop candidates on identical bounded starting perturbations')
+    parser.add_argument('--start-seed',type=int,default=4242)
+    parser.add_argument('--left-balance-grid',action='store_true',help='Repeat fixed sway grid with two unchanged controls and common starts')
     parser.add_argument('--teleop',action='store_true',help='Train the60s scripted joystick protocol with shared command memory')
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     args = parser.parse_args()
+    if args.common_starts and not args.closed_loop_direction:raise ValueError('Common starts require closed-loop direction training')
+    if args.left_balance_grid and not (args.common_starts and args.left_balance_only):raise ValueError('Balance grid requires common starts and balance-only refinement')
     if args.left_checkpoint and (not args.teleop or not args.seed_checkpoint):raise ValueError('Left preservation requires seeded teleop training')
     if args.seed_candidate is not None and not args.seed_checkpoint:raise ValueError('Candidate selection requires a seed run')
     if args.teleop_refine and (not args.teleop or args.right_only or args.restart_only):raise ValueError('Choose one teleop search subset')

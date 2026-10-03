@@ -69,8 +69,10 @@ def observe(model, data, q_nominal, action_joint_ids, previous_action):
                            .1*data.qvel[dadr], previous_action]).astype(np.float32)
 
 
-def foot_state(model, data, *, clearance=False):
+def foot_state(model, data, *, clearance=False, diagnostics=False):
     forces = {'left':0.,'right':0.}; slips=[]
+    weighted_velocity={side:0. for side in forces};weights={side:0. for side in forces}
+    weighted_position={side:np.zeros(3) for side in forces}
     force=np.zeros(6)
     for index in range(data.ncon):
         contact=data.contact[index]
@@ -86,8 +88,17 @@ def foot_state(model, data, *, clearance=False):
             mujoco.mj_objectVelocity(model,data,mujoco.mjtObj.mjOBJ_GEOM,int(geom),velocity,0)
             point_velocity=velocity[3:]+np.cross(velocity[:3],contact.pos-data.geom_xpos[geom])
             slips.append(float(np.linalg.norm(point_velocity[:2])))
+            if diagnostics:
+                weights[side]+=float(force[0])
+                weighted_velocity[side]+=float(force[0]*point_velocity[2])
+                weighted_position[side]+=float(force[0])*contact.pos
     result = {'left_contact':forces['left']>.1,'right_contact':forces['right']>.1,
               'mean_slip_mps':float(np.mean(slips)) if slips else 0.}
+    if diagnostics:
+        for side in forces:
+            result[side+'_normal_force_N']=forces[side]
+            result[side+'_contact_vertical_velocity_mps']=weighted_velocity[side]/weights[side] if weights[side] else None
+            result[side+'_contact_centroid_world_m']=(weighted_position[side]/weights[side]).tolist() if weights[side] else None
     if clearance:
         for side,suffix in (('left','l'),('right','r')):
             heights=[]

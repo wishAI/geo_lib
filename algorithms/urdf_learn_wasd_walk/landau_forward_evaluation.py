@@ -116,6 +116,8 @@ def run(args):
     failure = None
     steps = round(args.seconds/args.dt)
     foot_samples=[]; liftoffs={'left':0,'right':0}; air_runs={'left':0,'right':0}; touched={'left':False,'right':False}
+    roll_qadr={side:model.joint(side+'_hip_roll_joint').qposadr[0] for side in ('left','right')}
+    roll_aids={side:model.actuator(side+'_hip_roll_joint').id for side in ('left','right')}
     qmin=data.qpos.copy(); qmax=data.qpos.copy()
     swing={s:{'air_s':0.,'peak_m':0.,'touched':False,'completed':0} for s in ('left','right')}
     flight_s=max_flight_s=0.
@@ -171,7 +173,13 @@ def run(args):
             if margin<=0 and first_support_exit is None: first_support_exit=float(data.time)
         qmin=np.minimum(qmin,data.qpos); qmax=np.maximum(qmax,data.qpos)
         if args.forward:
-            feet=foot_state(model,data,clearance=True)
+            feet=foot_state(model,data,clearance=True,diagnostics=True)
+            contact_velocity=np.zeros(6)
+            mujoco.mj_objectVelocity(model,data,mujoco.mjtObj.mjOBJ_BODY,pelvis,contact_velocity,0)
+            feet['root_vertical_velocity_mps']=float(contact_velocity[5])
+            for side in roll_qadr:
+                feet[side+'_hip_roll_actual_rad']=float(data.qpos[roll_qadr[side]])
+                feet[side+'_hip_roll_target_rad']=float(data.ctrl[roll_aids[side]])
             foot_samples.append({'time_s':float(data.time),**feet})
             flight_s = flight_s+args.dt if not feet['left_contact'] and not feet['right_contact'] else 0.
             max_flight_s=max(max_flight_s,flight_s)

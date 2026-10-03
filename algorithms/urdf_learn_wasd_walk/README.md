@@ -161,6 +161,28 @@ unchanged walking speed. Training results remain candidates requiring fresh
 serial M1–M7 proofs. Per-environment command generation also follows the
 separation described in the [Isaac Lab command manager documentation](https://isaac-sim.github.io/IsaacLab/develop/source/api/lab/isaaclab.managers.html).
 
+The two-generation closed-loop run found one first-generation candidate with
+four backward crossings in 176.56–182.02 s and a 2.988 BW worst peak. It did not
+reach the extra 2.85 BW training margin. The identical candidate repeated in
+generation two crossed only two starts; two perturbed starts exceeded 3 BW.
+This is not evidence of robust stability. Its saved `model_0.pt` independently
+passed fresh M5 and M6 proofs, including complete visual reviews. M5 heading
+error was 2.227°, drift 17.98 mm and peak force 2.9615 BW; M6 peak force was
+2.96498 BW. Its independent backward run reached the gate at 177.553 s with
+−0.711 m cross-track but failed with a 3.13417 BW peak at 18.460 s and another
+3.10066 BW event at 27.396 s. It remains unpromoted; no speed increase is claimed.
+
+The next comparison uses `--common-starts --left-balance-grid`: each candidate
+gets the same nominal start and three bounded joint perturbations, and each
+generation repeats the same sway grid. Candidates 0 and 1 are unchanged
+controls. This applies [common-random-number comparison](https://pubsonline.informs.org/doi/10.1287/mnsc.45.11.1570)
+without claiming deterministic GPU physics. Each generation's candidate table
+is saved and hash-bound; explicit row selection uses the checkpoint's matching
+generation. New walking foot traces also record per-foot force, contact
+velocity and position, root vertical velocity, and hip-roll target/position
+at each 2 ms physics step to diagnose load transfer. These are read-only
+measurements; controller actions and acceptance limits are unchanged.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
