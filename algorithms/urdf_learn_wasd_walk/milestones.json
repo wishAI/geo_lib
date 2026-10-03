@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T06:23:25.024476+00:00",
+    "updatedAt": "2026-10-03T06:46:17.655435+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Validate per-world closed-loop direction training against serial steering/memory, then GPU smoke and force-margin search on backward gate. Preserve all hard gates and exact cumulative proofs.",
+    "nextWork": "Shared-start repeated sway grid with duplicate unchanged controls; retain stricter2.85BW training margin. Then exactM5/M6 and direction/cumulative proofs. Added per-foot diagnostic logging.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1841,6 +1841,32 @@
         ],
         "note": "Geometric backward gate174.675s,cross\u22120.203m,no fall/reset; one2ms force sample3.03051BW at48.834s fails hardlimit.",
         "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_closed0_m5/dynamics.json",
+        "sha256": "a4732281a097fa02675d008860c92e511525a8ae2f9d45da814b9ad80275a058",
+        "status": "component_passed",
+        "failures": [],
+        "note": "Fresh exact 90degreehold passed dynamics, full visual review and independent validator. Headingerror2.227degrees, drift17.98mm, peak2.9615BW.",
+        "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_closed0_m6/dynamics.json",
+        "sha256": "3ddb5512af0dec1a9555a118659c088af37ba748dfe32355df39e51bf3ffc205",
+        "status": "component_passed",
+        "failures": [],
+        "note": "Fresh exact60steleop passed dynamics, full visual review and independentvalidator. Peak2.96498BW, holdsdrift3.064/12.235mm.",
+        "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_closed0_backward/dynamics.json",
+        "sha256": "59cce23ef78af23d7cfc0409ccbbca874fe9a3421f17e7926c7f7087f18984d3",
+        "status": "failed",
+        "failures": [
+          "peak support exceeded 3 body weights"
+        ],
+        "note": "Gate177.553s,cross-0.711m,nofalls/resets; peak3.13417BW at18.460s and3.10066BW at27.396s. Failedcandidate despiteM5/M6pass. Fullfailedvideo retained.",
+        "proofComplete": true
       }
     ],
     "candidateCheckpoint": {
@@ -1850,10 +1876,11 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_back_balance_cem/training.json",
-      "sha256": "a81bd9ae06dbd6eff14aeba90e431ecbdb52db9f649dd5f1c78bdbd68514c949",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_closed_back_balance/training.json",
+      "sha256": "df1547724ff6e3d43b8d82cbdc4ccb15a11658b4293a5a5148b56db569737eef",
       "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Two generations,256worlds,180s recorded backward steering. Only active-left sway indices5/6changed. Final4starts survived; peak2.975BW missed2.85target and finalheading errors30.39\u201336.47degrees missed15degree target."
+      "scope": "Two generations, 256 worlds, per-world closed-loop backward steering, 240s cap. Only sway indices5/6changed. Gen0model0 crossed all4starts in176.56\u2013182.02s, worst2.988BW, below3BWhardlimit but above2.85trainingtarget. Gen1best crossedonly1/4. Gen0selectedforindependentdiagnostics, notpromoted.",
+      "replication": "Gen1candidate0 exactly repeats gen0candidate51 but crosses2/4starts; two perturbedstarts hit3.0087/3.0323BW. Nominalcross179.024s peak2.9842BW. Candidate is not demonstrated robust."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
@@ -1861,8 +1888,8 @@
       "result": "All same-observation pre-cruise actions bit-identical; saved physical traces diverge at first2ms step; repeated unchanged controller exceeded3BW."
     },
     "latestDiagnosticCheckpoint": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_back_balance_cem/model_1.pt",
-      "sha256": "e4884b22f1bbc691022b8102e613de39b098c66d73b8d76df4edf5ca5e523009",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_closed_back_balance/model_0.pt",
+      "sha256": "fa26b16cdd750a23958b97fc296e34a8f32a8b848e942003bb1a568f655da81d",
       "qualified": false,
       "promoted": false
     }

@@ -3,11 +3,44 @@ import unittest
 import torch
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
-from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker
-from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action
+from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid
+from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_candidate_selection_cannot_silently_read_a_later_generation(self):
+        tables={'generation_candidate_tables':{'candidates_0.json':'first','candidates_1.json':'second'}}
+        path,digest=candidate_table_reference('/tmp/run/model_0.pt',tables)
+        self.assertEqual(path.name,'candidates_0.json');self.assertEqual(digest,'first')
+        with self.assertRaises(ValueError):candidate_table_reference('/tmp/run/model_2.pt',tables)
+        legacy={'generations_completed':2,'candidate_table_sha256':'final'}
+        with self.assertRaises(ValueError):candidate_table_reference('/tmp/run/model_0.pt',legacy)
+        path,digest=candidate_table_reference('/tmp/run/model_1.pt',legacy)
+        self.assertEqual(path.name,'candidates.json');self.assertEqual(digest,'final')
+
+    def test_common_starts_preserve_nominal_and_do_not_consume_search_rng(self):
+        nominal=torch.arange(12,dtype=torch.float32);joints=torch.tensor([7,9,11])
+        before=torch.random.get_rng_state().clone()
+        offsets=common_start_offsets(nominal,joints,4,4242)
+        self.assertTrue(torch.equal(before,torch.random.get_rng_state()))
+        self.assertTrue(torch.equal(offsets,common_start_offsets(nominal,joints,4,4242)))
+        self.assertTrue(torch.equal(offsets[0],torch.zeros_like(nominal)))
+        self.assertTrue(torch.equal(offsets[:,:7],torch.zeros(4,7)))
+        self.assertLessEqual(float(offsets.abs().max()),.002)
+        self.assertFalse(torch.equal(offsets,common_start_offsets(nominal,joints,4,4243)))
+        starts=nominal+offsets.repeat(16,1)
+        for group in range(16):self.assertTrue(torch.equal(starts[:4],starts[group*4:group*4+4]))
+
+    def test_balance_grid_keeps_frozen_parameters_and_duplicate_controls(self):
+        center=torch.linspace(-.4,.4,18)
+        grid=balance_grid(center,64,.16)
+        self.assertTrue(torch.equal(grid[0],center));self.assertTrue(torch.equal(grid[1],center))
+        fixed=[i for i in range(18) if i not in (5,6)]
+        self.assertTrue(torch.equal(grid[:,fixed],center[fixed].repeat(64,1)))
+        self.assertLessEqual(float((grid[:,5:7]-center[5:7]).abs().max()),.1600001)
+        self.assertTrue(torch.equal(grid,balance_grid(center,64,.16)))
+        with self.assertRaises(ValueError):balance_grid(center,8,.16)
+
     def test_batched_commands_match_scalar_at_angle_boundaries(self):
         xy=torch.tensor([[0.,0.],[.02,.2],[-4.,2.],[-10.,-.74],[0.,-11.]],dtype=torch.float64)
         headings=torch.tensor([0.,-.2,math.pi-1e-8,-math.pi+1e-8,-math.pi+.1],dtype=torch.float64)

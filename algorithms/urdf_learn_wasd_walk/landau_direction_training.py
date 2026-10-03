@@ -6,6 +6,30 @@ full-forward, single-turn-direction protocol without replaying another pose.
 import math
 
 
+def common_start_offsets(nominal, joint_indices, replicas, seed):
+    """One nominal and shared bounded joint perturbations, independent of CEM RNG."""
+    import torch
+    generator=torch.Generator(device='cpu').manual_seed(seed)
+    noise=torch.rand((replicas,len(joint_indices)),generator=generator)*.004-.002
+    noise[0]=0.
+    offsets=torch.zeros((replicas,len(nominal)),dtype=nominal.dtype,device=nominal.device)
+    offsets[:,joint_indices]=noise.to(device=nominal.device,dtype=nominal.dtype)
+    return offsets
+
+
+def balance_grid(center, candidates, radius):
+    """Fixed sway grid with two unchanged controls; repeat exactly across generations."""
+    import torch
+    side=math.isqrt(candidates)
+    if side*side!=candidates or side<3:raise ValueError('Balance grid requires a square of at least9candidates')
+    result=center.repeat(candidates,1)
+    sweep=torch.linspace(-radius,radius,side,device=center.device,dtype=center.dtype)
+    result[:,5]=(center[5]+sweep.repeat_interleave(side)).clamp(-1,1)
+    result[:,6]=(center[6]+sweep.repeat(side)).clamp(-1,1)
+    result[:2]=center
+    return result
+
+
 def commands(direction, displacement, heading, seconds):
     import torch
     from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
