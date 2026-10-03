@@ -500,7 +500,8 @@ def evaluate(args):
     import subprocess
     import sys
     subprocess.run([sys.executable,'-m','algorithms.urdf_learn_wasd_walk.continuation',
-        '--mode','render','--render-directory',str(backend.OUTPUT/args.name)],check=True,timeout=240)
+        '--mode','render','--render-directory',str(backend.OUTPUT/args.name)],
+        check=True,timeout=max(300.,3.*args.seconds+120.))
 
 
 def main():

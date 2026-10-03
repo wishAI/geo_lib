@@ -66,6 +66,88 @@ certify-directions` requires four distinct `--direction-directory` arguments,
 `--checkpoint`, all six prior component directories (including
 `--teleop-directory`), and a new output `--directory` for the certificate.
 
+The first M7 candidate (`m7_20261003_right_roll_cem/model_3.pt`) cleared the
+forward gate in 76.20 s and right gate in 97.20 s, and repeated M6 with 10.24 mm
+final hold drift. It is **not promoted**: its left run stayed upright for 180 s
+but curved away from the gate after the yaw command stopped. The follow-up
+`--direction-train --teleop --left-cruise-only` freezes those 14 parameters and
+searches three additional heading/sway parameters. They blend in only after
+0.2 s of uninterrupted full-forward, zero-yaw cruising following a left turn.
+The certified M5/M6 command schedules never activate this branch; regression
+tests check that their actions retain the original parameters.
+The one-parameter heading-only grid failed the force limit and is rejected.
+Fresh four-direction and cumulative evidence is required for any new candidate.
+
+The fixed-turn cruising candidate qualified over 90 s in four training starts,
+but failed the independently steered left gate at 79.91 s / 7.07 m. Pursuit used
+117.87° of commanded rotation and intermittent tiny yaw inputs; fixed training
+used 90° followed by uninterrupted straight walking. The next refinement bounds
+cruise-blend changes in both directions and accepts `--direction-command-trace`
+for training. It snapshots only the recorded semantic commands with hashes,
+checks their clock/ranges, and extends final straight walking by at least 20 s.
+It never replays poses or actions. Candidate 0 retains the unchanged parameters
+under the new transition behavior for comparison; actual gate evaluation still
+recomputes commands from its own poses and remains required before promotion.
+
+The pulsed candidate then survived 180 s but missed the gate (10 m crossing at
+107.86 s, 0.871 m lateral error) and exceeded 3 BW before cruising started.
+Repeating the unchanged 14-parameter controller also reached 3.042 BW. A CPU
+replay audit found bit-identical pre-cruise actions on identical observations;
+the saved physical traces already differ at their first 2 ms step. The specific
+numerical operation remains unidentified; upstream tracks deterministic execution
+in [MuJoCo Warp issue 562](https://github.com/google-deepmind/mujoco_warp/issues/562).
+The ignored `outputs/m7_20261003_repeatability_audit/` contains the repeatable audit.
+`--left-turn-refine` therefore also searches the existing left heading/sway
+parameters, while freezing walking/standing weights and the other 11 parameters.
+It prefers a 2.85 BW post-onset training margin, retaining the full-run 3 BW hard
+limit. Any resulting checkpoint must re-pass M5 as well as every other component.
+The final `m7_20261003_left_margin_cem/model_2.pt` training candidate completed
+110 s in all four starts, with peak 2.821 BW and heading errors below 10.5°.
+Its exact M5 recheck remained upright with peak 2.889 BW and 19.73 mm hold
+drift, but held only 72.16° and failed heading. `--left-yaw-only` calibrates an
+independent left yaw scale on the exact M5 command sequence while freezing all
+17 balance parameters and walking/standing weights. It remains unpromoted;
+passing training still requires fresh independent and cumulative evaluations.
+The selected `m7_20261003_left_yaw_grid/model_0.pt` preserved those 17 parameters
+bit-for-bit and independently re-passed M5 at 93.96° with 13.73 mm hold drift and
+a reviewed full proof. Its left gate stayed upright for 180 s with peak 2.885 BW,
+but crossed the 10 m plane at 108.62 s with −0.927 m cross-track error, outside ±0.75 m.
+Thus M7 remains unresolved despite the improved physical stability. A same-checkpoint
+trial reducing proportional yaw gain from 0.3 to 0.1 also missed the gate and
+reached 3.040 BW; that command change is rejected and reverted. The force peak
+at 43.474 s precedes the first changed command at 45.92 s, so it is not evidence
+that the gentler taper caused the force spike. The next training
+problem is prolonged left-cruise heading control with force margin, using the
+actual steering traces. Long proof renders now scale both subprocess timeouts
+with recorded duration.
+
+A gain-only diagnostic (`--left-heading-grid`, 8 candidates × 4 starts, 180 s)
+preserves all 18 parameters except left-cruise heading feedback. The incumbent
+combined coefficient is +0.00653 versus −0.00338 while turning; its sign change
+is a hypothesis, not proof of closed-loop instability. Lower gains reduced
+observed heading drift. The selected delta 0.02 survived all four starts with
+peak 2.989 BW, but final errors of 17.8–27.3° missed the 15° training target.
+The independent closed-loop left gate then passed at 104.005 s, with −0.113 m
+cross-track error and peak 2.891 BW. Other directions and fresh cumulative
+checks remain required; it is not promoted. The backward trial fell at 144.058 s.
+Its command trace exposed a near-180° ambiguity: initial negative body heading
+made the shortest arc rightward, which the left-only adapter clamped to zero.
+Yaw started only at 17.4 s and pulsed before sustained turning. Backward steering
+now chooses the intended left arc for large negative angle errors while leaving
+small overshoot at zero. Fresh four-direction evidence must use this protocol hash. The corrected
+backward trial reached its gate at 174.675 s (−0.203 m cross-track) without a
+fall, but one 2 ms sample at 48.834 s reached 3.031 BW and fails the hard limit.
+`--left-balance-only` restricts force-margin refinement to the two active-turn
+sway parameters, preserving yaw calibration and cruising feedback. Training
+response blocks accumulate local heading increments so turns beyond 180°
+retain their direction. The bounded two-generation, 256-world refinement
+finished with zero qualifiers: the final selected candidate survived four
+180 s starts with peak 2.975 BW, but missed the 2.85 BW training margin and had
+30.39–36.47° final heading errors. It is rejected for promotion. No GPU job is
+left running, no speed increase is claimed, and the certified M6 checkpoint
+remains the default. The earlier successful left proof predates the backward
+protocol fix, so a fresh left proof is also required before certification.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 

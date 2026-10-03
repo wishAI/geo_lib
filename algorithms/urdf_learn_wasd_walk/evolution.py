@@ -360,7 +360,7 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                       "meshTreeSha256": record.get("audit", {}).get("source", {}).get("mesh_tree_sha256"),
                       "artifacts": media + [_artifact(path, node_id)],
                       "evidenceNote": "No video recorded for this attempt; the numeric trace is retained." if not media else None})
-    for path in sorted(path for pattern in ("resume_*/dynamics.json", "rsl_transfer_*/dynamics.json", "matched9_cumulative*/dynamics.json")
+    for path in sorted(path for pattern in ("resume_*/dynamics.json", "rsl_transfer_*/dynamics.json", "matched9_cumulative*/dynamics.json", "m7_*/dynamics.json")
                        for path in (runtime / "mujoco").glob(pattern)):
         record = _read_json(path)
         if not record:
@@ -387,6 +387,12 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                               and review.get("checkpoint_sha256") == record.get("config", {}).get("checkpoint_sha256"))
         observed_summary=f"{metrics.get('duration_s',0):g} s · drift {metrics.get('horizontal_drift_m',0):.4f} m. "
         failure_summary='; '.join(record.get('failures',[]))
+        direction=record.get('config',{}).get('direction')
+        if direction:
+            crossing=metrics.get('gate_crossing_time_s')
+            observed_summary=(f"{direction.capitalize()} world gate · {metrics.get('direction_progress_m',0):.3f} m · "
+                              f"{metrics.get('duration_s',0):.2f} s. ")
+            if crossing is not None:observed_summary+=f"10 m crossing at {crossing:.2f} s. "
         if record.get('config',{}).get('turn'):
             observed_summary=(f"{metrics.get('duration_s',0):g} s · {metrics.get('final_heading_rad',0)*180/3.141592653589793:.1f}° turned · "
                               f"{metrics.get('hold_max_drift_m',0)*1000:.1f} mm drift while holding. ")
@@ -406,9 +412,9 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                       "status": "failed" if record.get("failures") or review.get("reference_decision") == "rejected_for_reference" else "completed", "approach": "Scripted actuator diagnostic · not a policy" if record.get("controller_kind") == "scripted_joint_targets" else "Learned periodic feedback · checkpoint validation" if record.get("gait_source_sha256") else "Transferred RSL PPO · walking validation" if walking else "Transferred RSL PPO · standing validation" if path.parent.name.startswith("rsl_transfer_") else "Mass redistribution · standing validation",
                       "result": ("Initialization checkpoint; see policy composition. " if (transfer or {}).get("initial_untrained") else "") + observed_summary +
                                 (failure_summary if record.get("failures") else "Dynamics passed; certification and visual review are required.") + (" " + review["observations"] if review else ""),
-                      "metrics": {k: v for k, v in metrics.items() if k in ("duration_s", "horizontal_drift_m", "fall_count", "reset_count", "minimum_support_polygon_margin_m", "semantic_forward_displacement_m", "left_completed_swings", "right_completed_swings", "mean_contact_foot_slip_mps", "final_heading_rad", "hold_max_heading_error_rad", "hold_max_drift_m", "hold_duration_s", "teleop_blocks_completed", "teleop_left_turn_rad", "teleop_right_turn_rad")},
+                      "metrics": {k: v for k, v in metrics.items() if k in ("duration_s", "horizontal_drift_m", "fall_count", "reset_count", "minimum_support_polygon_margin_m", "semantic_forward_displacement_m", "direction_progress_m", "gate_crossing_time_s", "direction_cross_track_m", "average_gate_speed_mps", "peak_support_body_weight_ratio", "left_completed_swings", "right_completed_swings", "mean_contact_foot_slip_mps", "final_heading_rad", "hold_max_heading_error_rad", "hold_max_drift_m", "hold_duration_s", "teleop_blocks_completed", "teleop_left_turn_rad", "teleop_right_turn_rad")},
                       "startedAt": record.get("created_at", ""), "artifacts": artifacts})
-    for path in sorted(path for pattern in ("resume_*/training.json", "rsl_transfer_*/training.json")
+    for path in sorted(path for pattern in ("resume_*/training.json", "rsl_transfer_*/training.json", "m7_*/training.json")
                        for path in (runtime / "mujoco/training").glob(pattern)):
         record = _read_json(path)
         if not record:
@@ -1222,7 +1228,7 @@ def build_evolution(
         "type": "evolutionTree",
         "lineage": by_id[current].get("lineage", lineage),
         "generatedAt": datetime.now(timezone.utc).isoformat(),
-        "primaryMetric": "duration_s" if active=="teleop_60s_forward_turn" else "final_heading_rad" if active=="yaw_turn_90deg_hold" else "semantic_forward_displacement_m",
+        "primaryMetric": "direction_progress_m" if active=="gate_10m_four_directions_no_reset" else "duration_s" if active=="teleop_60s_forward_turn" else "final_heading_rad" if active=="yaw_turn_90deg_hold" else "semantic_forward_displacement_m",
         "targetMetricValue": 60. if active=="teleop_60s_forward_turn" else 1.5707963267948966 if active=="yaw_turn_90deg_hold" else 10.0 if active in ("gate_10m_no_reset", "gate_10m_four_directions_no_reset") else 5.0,
         "visibleNodeBudget": VISIBLE_NODE_BUDGET,
         "defaultVisibleNodeIds": default_visible,

@@ -27,11 +27,37 @@ class DirectionContractTests(unittest.TestCase):
         self.assertIsNone(contract.gate_metrics('forward', [0., 10.], [(0., 0.), (1., 11.)])['gate_crossing_time_s'])
         self.assertIsNone(contract.gate_metrics('backward', [0., 10.], [(0., 0.), (0., 11.)])['gate_crossing_time_s'])
 
+    def test_backward_keeps_left_arc_under_initial_heading_sway(self):
+        for heading in (-.2,0.,.2):
+            self.assertEqual(contract.command('backward',(.02,.2),heading,3.)[2],contract.MAX_YAW_RATE)
+        self.assertEqual(contract.command('backward',(0.,0.),-math.pi+.1,100.)[2],0.)
+
     def test_rejects_reset_and_nonfinite_trace(self):
         for times, positions in [([0., 0.], [(0., 0.), (0., 11.)]),
                                  ([0., 1.], [(0., 0.), (math.nan, 11.)])]:
             with self.assertRaises(ValueError):
                 contract.gate_metrics('forward', times, positions)
+
+    def test_training_replay_keeps_steering_pulses_and_extends_straight_only(self):
+        rows=[(.2,0.,0.)]*150+[(.2,0.,contract.MAX_YAW_RATE)]*2200
+        rows += [(.2,0.,0.)]*25+[(.2,0.,.001)]*5+[(.2,0.,0.)]*50
+        protocol=contract.RecordedLeftTrainingProtocol(rows,80.)
+        self.assertEqual(protocol.command_profile(47.5),(.2,0.,.001))
+        self.assertEqual(protocol.command_profile(79.),(.2,0.,0.))
+        self.assertEqual(protocol.BLOCKS[-1],('straight_after_turn',47.6,80.,0))
+        with self.assertRaises(ValueError):contract.RecordedLeftTrainingProtocol(rows,50.)
+        with self.assertRaises(ValueError):contract.RecordedLeftTrainingProtocol([(.2,0.,-.01)],80.)
+
+    def test_yaw_calibration_uses_exact_m5_commands(self):
+        from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+        protocol=contract.TurnHoldTrainingProtocol(56.,44.)
+        turn.configure_profile(44.)
+        try:
+            for step in range(2800):
+                t=step*.02;forward,yaw,_=turn.command_profile(t)
+                self.assertEqual(protocol.command_profile(t),(forward,0.,yaw))
+            self.assertEqual(protocol.HOLDS,((51.,56.),))
+        finally:turn.configure_profile(14.)
 
 
 if __name__ == '__main__':

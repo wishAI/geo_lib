@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "Next unresolved gate. Work paused by user before M7 implementation or training."
+        "summary": "Left10m component passed and was visually reviewed. Corrected backward adapter reaches10m withoutfall but one2ms force sample3.031BW fails3BW limit. Subsequent sway-only search had0qualifying candidates. Fresh exact cumulative and current-protocol direction proofs remain required."
       }
     },
     {
@@ -1670,12 +1670,12 @@
     }
   ],
   "sessionStatus": {
-    "state": "active",
-    "updatedAt": "2026-10-03T01:18:16.754003+00:00",
-    "reason": "User resumed walking milestone work and requested faster motion where stable.",
+    "state": "idle",
+    "updatedAt": "2026-10-03T04:03:11.061760+00:00",
+    "reason": "Bounded continuation experiments completed. Six milestones remain certified; M7 backward force limit is unresolved.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Complete independent M7 one-direction steering evaluation; require all four gates and M1\u2013M6 rechecks before promotion.",
+    "nextWork": "Use the preserved unpromoted heading-gain candidate and actual closed-loop backward steering evidence to improve long-turn force margin. Gain-only/sway-only replay searches did not qualify. Recheck exact M5/M6 and fresh four-direction proofs, then all cumulative components before promotion.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1701,11 +1701,169 @@
         "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_roll3_deadband/dynamics.json",
         "sha256": "6787bd81a5bb123e030c97bd1b38dd8ac3285f62e52f6a391cd3e815e45038f2",
         "status": "failed"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_roll3_oneway/dynamics.json",
+        "sha256": "2defe01d6169b52a039bdec7ee5d8c6fc8c8b35325384eaccd543775c703bd53",
+        "status": "dynamics_passed_proof_pending",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_roll3_m6/dynamics.json",
+        "sha256": "2f6188eec1727ca29cdee0fecfe7b2fa882d23240c8e42e59c21f4c0d8add0ee",
+        "status": "dynamics_passed_proof_pending",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_roll3_forward/dynamics.json",
+        "sha256": "da6e3f694f5f5f3efe4b66f7f0b6e535dbdbdf5cc9166fbfc2d6dc3fa7da9f54",
+        "status": "dynamics_passed_proof_pending",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_roll3_left/dynamics.json",
+        "sha256": "94a66e2d06c46aedbfc5c1851bfd960d72b605293b876faff50665882de2222a",
+        "status": "failed",
+        "failures": [
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m"
+        ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_cruise3_left/dynamics.json",
+        "sha256": "cd0b42fde3f0b6b6ae3d3bd1ffd014f7cf1dc01332977a93aed6de60771bba43",
+        "status": "failed",
+        "failures": [
+          "done_count=1",
+          "fall_count=1",
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "reference tilt exceeded 30 degrees",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "direction run ended before declared duration",
+          "fall",
+          "peak support exceeded 3 body weights"
+        ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_pulsed0_left/dynamics.json",
+        "sha256": "bfd38fe368b0a29fe01b2128e9118bf86770e6038627a96cbd0cf3083bf8e079",
+        "status": "failed",
+        "failures": [
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "peak support exceeded 3 body weights"
+        ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_left_repeat60/dynamics.json",
+        "sha256": "3b84dd00d3290c9b089b212c2977c28c91dc2b8bc76afc424a68774c733274fa",
+        "status": "failed",
+        "failures": [
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "peak support exceeded 3 body weights"
+        ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_margin2_m5/dynamics.json",
+        "sha256": "76970429795482faff3780b173b0ae92b0ddaa177c8eb3cb3302261695462fb5",
+        "status": "failed",
+        "failures": [
+          "hold_max_heading_error_rad exceeded 0.0872665"
+        ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_yaw0_m5/dynamics.json",
+        "sha256": "a2f182108e49a678b116304484e81646407eb558fb0474abcc034d5275eeec80",
+        "status": "component_passed_not_promoted",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_yaw0_left/dynamics.json",
+        "sha256": "20510caaa9ce3c38885fab3702dd47f08e016a4c2f69a903f1ab1e2f926b12e1",
+        "status": "failed",
+        "failures": [
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m"
+        ],
+        "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_taper0_left/dynamics.json",
+        "sha256": "73b199d7d789207e0ec55dbbceac09917fe366cfcee54c8b56a02b0b25c0c620",
+        "status": "failed",
+        "failures": [
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "peak support exceeded 3 body weights"
+        ],
+        "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_heading0_left/dynamics.json",
+        "sha256": "8001283e931ba96554a40bb9fec237b1b794ace1aca15d85d5c9d3615de47753",
+        "status": "component_passed_not_promoted",
+        "proofComplete": true,
+        "independentChecks": "passed",
+        "visualReview": "accepted",
+        "protocolSuperseded": true,
+        "note": "Reviewed and independently passed under its recorded protocol. Backward-only adapter fix changes protocol source hash; fresh left proof required for current certification."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_heading0_backward/dynamics.json",
+        "sha256": "498c166ff14b78836d5df6cd2d1d0baa5ff337b5fe8e69a3153b6b4dd4cad94b",
+        "status": "failed",
+        "failures": [
+          "done_count=1",
+          "fall_count=1",
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "reference tilt exceeded 30 degrees",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "direction run ended before declared duration",
+          "fall",
+          "peak support exceeded 3 body weights"
+        ]
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_arc0_backward/dynamics.json",
+        "sha256": "fab58bd585be5a36ad9fb0916a14f50537c6c5379b38470bfc7677ebc5757bd9",
+        "status": "failed",
+        "failures": [
+          "peak support exceeded 3 body weights"
+        ],
+        "note": "Geometric backward gate174.675s,cross\u22120.203m,no fall/reset; one2ms force sample3.03051BW at48.834s fails hardlimit.",
+        "proofComplete": true
       }
     ],
     "candidateCheckpoint": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_right_roll_cem/model_3.pt",
-      "sha256": "559d94ec58157a0f2f12d61cfdf96e1fc6ed778f07311d3e0d857052916ee68f",
+      "kind": "periodic_feedback_cem",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_heading_sign_grid/model_0.pt",
+      "sha256": "416395f7973c66a3355a067f353ef2582a383ee7d3168fdb27c823aeea51f188",
+      "promoted": false
+    },
+    "recentTraining": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_back_balance_cem/training.json",
+      "sha256": "a81bd9ae06dbd6eff14aeba90e431ecbdb52db9f649dd5f1c78bdbd68514c949",
+      "qualifiedCandidatesFinalGeneration": 0,
+      "scope": "Two generations,256worlds,180s recorded backward steering. Only active-left sway indices5/6changed. Final4starts survived; peak2.975BW missed2.85target and finalheading errors30.39\u201336.47degrees missed15degree target."
+    },
+    "repeatabilityAudit": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
+      "sha256": "0478cf12164826c842a7834f0e67db819870fb6c2adbf14bb76b46c62c6476af",
+      "result": "All same-observation pre-cruise actions bit-identical; saved physical traces diverge at first2ms step; repeated unchanged controller exceeded3BW."
+    },
+    "latestDiagnosticCheckpoint": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_back_balance_cem/model_1.pt",
+      "sha256": "e4884b22f1bbc691022b8102e613de39b098c66d73b8d76df4edf5ca5e523009",
+      "qualified": false,
       "promoted": false
     }
   }
