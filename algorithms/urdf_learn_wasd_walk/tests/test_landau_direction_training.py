@@ -3,11 +3,23 @@ import unittest
 import torch
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
-from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters,cruise_rate_grid
+from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters,cruise_rate_grid,cruise_balance_grid
 from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference,absolute_hold_fitness
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_wide_cruise_grid_covers_support_timing_and_preserves_controls(self):
+        seed=torch.zeros(20);seed[5:7]=torch.tensor([-.013,.018]);seed[15:17]=torch.tensor([.004,-.006])
+        lows=torch.full((20,),-.25);highs=-lows
+        result=cruise_balance_grid(seed,64,lows,highs)
+        fixed=[i for i in range(20) if i not in (15,16)]
+        self.assertTrue(torch.equal(result[:,fixed],seed[fixed].repeat(64,1)))
+        self.assertTrue(torch.equal(result[0],seed));self.assertTrue(torch.equal(result[1],seed))
+        self.assertTrue(torch.equal(result[2,15:17],seed[5:7]))
+        self.assertAlmostEqual(float(result[:,16].max()-result[:,16].min()),.30,places=6)
+        self.assertAlmostEqual(float(result[:,15].max()-result[:,15].min()),.036,places=6)
+        self.assertTrue(torch.equal(result,cruise_balance_grid(seed,64,lows,highs)))
+
     def test_cruise_rate_grid_preserves_seed_and_duplicate_controls(self):
         seed=torch.linspace(-.1,.1,21);seed[20]=.012
         result=cruise_rate_grid(seed)

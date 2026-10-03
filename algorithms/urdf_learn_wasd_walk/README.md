@@ -245,6 +245,25 @@ controls while retaining the first 20 parameters exactly. Positive offsets
 reduce the existing damping magnitude; the correction is capped at 0.05 rad.
 This is an unvalidated diagnostic, not a force-reduction or milestone claim.
 
+The repeated cruise-rate grid did not improve reliability: no nonzero offset
+cleared all four starts in either repeat, and neither generation met the
+extra force margin. The retained 20-parameter cruise candidate is next
+tested with forward command 0.18 instead of 0.20, retaining yaw, physics and
+all acceptance bounds. Command magnitude is not achieved walking speed;
+gate time and walking quality must be measured independently.
+
+The 0.18 run fell at 94.662 s. It was not an isolated speed reduction:
+the saved controller enables cruise corrections only at exactly 0.20 and
+mixes standing actions at lower commands. Return to 0.20 for diagnosis.
+The newer failed force peaks occurred before a target update; unlike the
+earlier isolated spike, they do not support a general rate-kick explanation.
+Their landing speeds were also below the late-run median. The next repeated
+grid therefore broadens existing cruise sway to ±0.018 rad amplitude and
+±0.15 rad phase (about ±21.3 ms), using direct force and gate results.
+Rows 0/1 are exact controls; row 2 tests the active-turn sway pair in cruise.
+This investigation distinguishes impact-specific feedback effects from
+general balance, as discussed in [Impact-Invariant Control](https://arxiv.org/abs/2303.00817).
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 

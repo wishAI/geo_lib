@@ -46,6 +46,21 @@ def cruise_rate_grid(seed):
     return result
 
 
+def cruise_balance_grid(seed, candidates, lows, highs):
+    """Wide physical-unit sway grid, repeated controls and active-turn settings."""
+    import math
+    import torch
+    side=math.isqrt(candidates)
+    if side*side!=candidates or side<3:raise ValueError('Cruise grid requires a square of at least9candidates')
+    result=seed.repeat(candidates,1)
+    sweep=torch.linspace(-1.,1.,side,device=seed.device,dtype=seed.dtype)
+    result[:,15]=(seed[15]+.018*sweep.repeat_interleave(side)).clamp(lows[15],highs[15])
+    result[:,16]=(seed[16]+.15*sweep.repeat(side)).clamp(lows[16],highs[16])
+    result[:2]=seed
+    result[2,15:17]=seed[5:7]
+    return result
+
+
 def commands(direction, displacement, heading, seconds):
     import torch
     from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
