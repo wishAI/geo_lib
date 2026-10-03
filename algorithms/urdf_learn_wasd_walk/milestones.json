@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T08:37:02.239314+00:00",
+    "updatedAt": "2026-10-03T09:07:58.748605+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Test a bounded cruise-only angular-rate residual grid seeded from cruise model_1; preserve first20parameters exactly and include two unchanged controls. Independent force limit remains 3 BW.",
+    "nextWork": "Repeat a wider fixed cruise sway grid at the trained 0.20 command: p15 +/-0.018 rad and p16 +/-0.15 rad, two exact controls and an active-turn sway ablation. Rank gates and worst force across both repeats before independent evaluation.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1913,6 +1913,24 @@
         ],
         "proofComplete": true,
         "note": "Cruise sway candidate reached gate at 175.580 s, cross-track -0.565014 m, no falls/resets. Two force samples failed: 3.029256 BW at 146.200 s and 3.010695 BW at 148.880 s."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_cruise1_speed18_backward/dynamics.json",
+        "sha256": "dabbe1db8b25f0b2e83b878724e5846f26bb3b1ce7a77a992227387911385c3a",
+        "status": "failed",
+        "failures": [
+          "done_count=1",
+          "fall_count=1",
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "reference tilt exceeded 30 degrees",
+          "no crossing of the 10 m directional gate within 0.75 m",
+          "direction run ended before declared duration",
+          "fall",
+          "peak support exceeded 3 body weights"
+        ],
+        "proofComplete": true,
+        "note": "Forward command 0.18 fell at 94.662 s. Saved controller disables learned cruise corrections outside exactly 0.20 and mixes standing actions at lower commands, so this is not an isolated speed effect."
       }
     ],
     "candidateCheckpoint": {
@@ -1922,10 +1940,10 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback3_cruise_balance/training.json",
-      "sha256": "f31c7ed1edbcd06866aae067f23af2ffb9e84bd459751874f347e3b557b6a31e",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_rate_grid/training.json",
+      "sha256": "ea9df3f581057d226f1bdfb99887fa4c03e0cd6c342fc612942895811409c2a7",
       "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Two-generation cruise sway search. Final candidate cleared all four starts with peak 2.95751 BW but missed extra 2.85 BW training margin. This is a candidate for independent hard-limit evaluation, not a training qualifier or milestone pass."
+      "scope": "Repeated 8-candidate cruise-rate grid, four shared starts each and two unchanged controls. Neither generation met the extra force margin; no nonzero offset cleared all four starts in either repeat. Retain simpler 20-parameter cruise candidate."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
@@ -1937,6 +1955,10 @@
       "sha256": "fa26b16cdd750a23958b97fc296e34a8f32a8b848e942003bb1a568f655da81d",
       "qualified": false,
       "promoted": false
+    },
+    "activeTraining": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_wide_grid",
+      "scope": "256 worlds, four shared starts, two identical grid repeats; existing parameters only, all acceptance limits unchanged."
     }
   }
 }

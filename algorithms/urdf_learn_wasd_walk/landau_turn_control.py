@@ -467,6 +467,11 @@ def train(args):
         if args.left_cruise_balance_only:
             meta['left_turn_refinement']['searched_indices']=[15,16]
             meta['cruise_balance_scope']='Search post-left-turn sway amplitude/phase only; all other seed parameters restored bit-exactly after denormalization.'
+        if args.left_cruise_balance_grid:
+            meta['cruise_balance_grid']={'amplitude_radius_rad':.018,'phase_radius_rad':.15,
+                'unchanged_control_candidates':[0,1],'active_turn_sway_candidate':2,
+                'repeat_same_grid_each_generation':True,
+                'scope':'Test support-transfer timing over roughly one20mscontrol interval; direct2msforce and gate completion remain the objective, not touchdown-speed proxies.'}
         if args.left_cruise_rate_grid:
             meta['left_turn_refinement']['searched_indices']=[20]
             meta['cruise_rate_grid']={'unchanged_control_candidates':[0,1],
@@ -578,6 +583,10 @@ def train(args):
         params = (lows+(z+1)*.5*(highs-lows)).repeat_interleave(replicas, dim=0)
         if args.left_cruise_balance_only:
             params=direction_training.cruise_balance_parameters(z,lows,highs,seed_parameters).repeat_interleave(replicas,dim=0)
+        if args.left_cruise_balance_grid:
+            grid=direction_training.cruise_balance_grid(seed_parameters,candidates,lows,highs)
+            params=grid.repeat_interleave(replicas,dim=0)
+            z=2*(grid-lows)/(highs-lows)-1.
         if args.left_cruise_rate_grid:
             grid=direction_training.cruise_rate_grid(seed_parameters)
             params=grid.repeat_interleave(replicas,dim=0)
@@ -873,6 +882,7 @@ def main():
     parser.add_argument('--start-seed',type=int,default=4242)
     parser.add_argument('--left-balance-grid',action='store_true',help='Repeat fixed sway grid with two unchanged controls and common starts')
     parser.add_argument('--left-cruise-balance-only',action='store_true',help='Search only post-left-turn sway amplitude/phase; preserve all other seed parameters exactly')
+    parser.add_argument('--left-cruise-balance-grid',action='store_true',help='Repeat a wider physical-unit cruise sway grid with duplicate controls and the active-turn sway pair')
     parser.add_argument('--left-cruise-rate-grid',action='store_true',help='Compare six bounded cruise rate-feedback offsets with two unchanged controls')
     parser.add_argument('--left-feedback-only',action='store_true',help='Learn two bounded left-turn torso roll/rate feedback corrections; freeze prior18parameters')
     parser.add_argument('--left-damping-grid',action='store_true',help='Repeat8left roll-rate gains, including duplicate unchanged controls')
@@ -884,6 +894,7 @@ def main():
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     args = parser.parse_args()
     if args.common_starts and not (args.closed_loop_direction or args.turn_hold_training):raise ValueError('Common starts require closed-loop direction or exact turn/hold training')
+    if args.left_cruise_balance_grid and not args.left_cruise_balance_only:raise ValueError('Cruise balance grid requires cruise balance-only search')
     if args.left_cruise_rate_grid and (args.num_envs!=32 or not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_cruise_balance_only or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Cruise rate grid requires32worlds and separate shared-start closed-loop left training with force margin')
     if args.left_cruise_balance_only and (not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
