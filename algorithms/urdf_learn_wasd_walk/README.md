@@ -362,6 +362,20 @@ versus 95/96 and 3.084 BW for its predecessor. Complete-stop screens improved
 from 92/96 to 95/96; the remaining failure was settled M5 heading, with no force
 failure. Independent nominal left-gate evaluation is underway. These correlated
 warm-state comparisons do not certify a milestone.
+Margin399 subsequently passed full left/right/M5/M6 proofs but fell during the
+backward run at 152.39 s, after 8.18 m progress. Early turning stayed below
+2.835 BW; late cruising with intermittent steering reached 3.334 BW. Paired
+continuations from healthy 140–145.8 s states passed only 46–49/60 episodes with
+the new, previous or suppressed active correction. Replacing that correction
+alone did not resolve the late-state problem.
+`adapted_cruise_frozen_active_v1` therefore trains the cruise network with the
+improved active-turn network frozen. Both saved deployment sources and the
+combined 0.02 rad correction bound are preserved. Its provenance records the
+frozen active donor separately from cruise initialization; independent validation
+allows cruise weights to change while checking all frozen tensors. Training uses
+16 s late-state episodes, a 2.9 BW training margin, and no failed-trajectory
+heading teacher. The initial controller matches margin399 exactly; GPU smoke
+and provenance tests passed. Full nominal and cumulative proof is still required.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

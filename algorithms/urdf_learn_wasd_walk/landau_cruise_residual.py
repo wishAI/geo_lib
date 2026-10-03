@@ -232,8 +232,16 @@ def train(args):
     turn.configure_profile(meta['arguments']['turn_duration'])
     directory=backend.OUTPUT/'training'/args.name;directory.mkdir(exist_ok=False)
     active_mode=bool(args.active_curriculum)
+    adapt_mode=bool(args.adapt_active_checkpoint)
     cruise_actor=None;cruise_blob=None;active_seed=None;seed_meta=None
-    if active_mode:
+    if adapt_mode:
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_adaptation as adaptation,landau_residual_screen as bank_implementation
+        donor_path,donor_meta,donor_blob,init_path,initial_cruise,bank_meta=adaptation.prepare(args,parent,directory,turn,backend.digest)
+        old_source=load_source(donor_path.parent/'residual_source.py',donor_meta['residual_source_sha256'],'adapt_saved_cruise')
+        active_head=load_source(donor_path.parent/'active_residual_source.py',donor_meta['active_residual_source_sha256'],'adapt_saved_active')
+        frozen_active=old_source.make_actor('cuda');frozen_active.load_state_dict(donor_blob['active_residual_actor_state_dict'])
+        frozen_active.eval();frozen_active.requires_grad_(False)
+    elif active_mode:
         from algorithms.urdf_learn_wasd_walk import landau_active_curriculum as active_bank
         from algorithms.urdf_learn_wasd_walk import landau_active_residual as active_head
         cruise_path=Path(args.residual_checkpoint).resolve()
@@ -336,7 +344,7 @@ def train(args):
             self.observation=torch.cat((batch.observations(),extra),dim=1)
             self.command=command
             self.prior_observation=memory.prior(self.observation,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],self.age) if active_mode else self.observation[:,:63]
-            value=features(self.observation,walking,memory)
+            value=(old_source.features if adapt_mode else features)(self.observation,walking,memory)
             critic=value
             if args.privileged_critic:
                 teacher=bank['teacher_heading'][self.mode,torch.round(self.age/.02).long()]
@@ -350,6 +358,9 @@ def train(args):
                 if active_mode:
                     baseline=old_source.apply(cruise_actor,baseline,self.observation,walking,memory,names)
                     action=active_head.compose(baseline,latent,memory,names,self.observation).clamp(-limits,limits)
+                elif adapt_mode:
+                    action=old_source.compose(baseline,latent,memory,names,self.observation)
+                    action=active_head.apply(frozen_active,action,self.observation,walking,memory,names,old_source).clamp(-limits,limits)
                 else:action=compose(baseline,latent,memory,names,self.observation).clamp(-limits,limits)
             before=batch.pos[:,batch.pelvis,:2].clone()
             residual=latent.tanh()*(active_head.envelope(memory,self.observation) if active_mode else memory.left_cruise_blend.float())[:,None]
@@ -428,11 +439,14 @@ def train(args):
         distribution_cfg={'class_name':'GaussianDistribution','init_std':.1,'std_type':'scalar'}),
         critic=RslRlModelCfg(hidden_dims=(64,64),activation='elu',obs_normalization=False),
         algorithm=RslRlPpoAlgorithmCfg(value_loss_coef=1.,use_clipped_value_loss=True,clip_param=.2,entropy_coef=.001,
-            num_learning_epochs=5,num_mini_batches=4,learning_rate=3e-4,schedule='adaptive',gamma=.998 if args.active_long else .995,lam=.95,desired_kl=.01,max_grad_norm=1.),
+            num_learning_epochs=5,num_mini_batches=4,learning_rate=3e-4,schedule='adaptive',gamma=.998 if args.active_long or adapt_mode else .995,lam=.95,desired_kl=.01,max_grad_norm=1.),
         experiment_name='landau_cruise_residual',save_interval=50,num_steps_per_env=24,max_iterations=args.iterations,
         logger='tensorboard',upload_model=False)
     config=asdict(cfg);runner=MjlabOnPolicyRunner(env,copy.deepcopy(config),str(directory),device='cuda:0')
-    if active_seed is not None:
+    if adapt_mode:
+        runner.alg.actor.load_state_dict(initial_cruise['residual_actor_state_dict'],strict=True)
+        runner.alg.critic.load_state_dict(initial_cruise['critic_state_dict'],strict=True)
+    elif active_seed is not None:
         runner.alg.actor.load_state_dict(active_seed['active_residual_actor_state_dict'],strict=True)
         runner.alg.critic.load_state_dict(extend_critic_state(active_seed['critic_state_dict'],runner.alg.critic.state_dict()),strict=True)
     else:
@@ -488,13 +502,18 @@ def train(args):
                 coverage_semantics='Per-episode first healthy stop/settled observation, including warm starts already in hold; successful timeout excludes all failures.',
                 force_margin_scope='Training-only stricter termination; independent acceptance remains 3 BW.')
         training['reward']=f'Existing force penalty coefficient {args.force_cost}, failure cost {args.failure_cost}, moving teacher-heading scale {args.heading_scale_deg}deg; command-speed/body-progress and hold costs otherwise preserved.'
+    elif adapt_mode:
+        adaptation.metadata(training,donor_path,donor_meta,init_path,backend.digest)
+        for source in ('residual_source.py','active_residual_source.py'):
+            (directory/source).write_bytes((donor_path.parent/source).read_bytes())
+        training['reward']=f'Cruise reward without heading teacher; force coefficient {args.force_cost}, terminal cost {args.failure_cost}; training force margin {args.training_force_limit}BW, independent acceptance 3BW.'
     else:(directory/'residual_source.py').write_bytes(Path(__file__).read_bytes())
     # Training dependencies are separate from the frozen deployment turn source.
     from algorithms.urdf_learn_wasd_walk import landau_turn_control as audit_implementation
     snapshots=directory/'training_sources';snapshots.mkdir()
     (snapshots/Path(__file__).name).write_bytes(Path(__file__).read_bytes())
     training['training_source_sha256']={Path(__file__).name:backend.digest(__file__)}
-    for module in (audit_implementation,direction,batches,backend)+((active_bank,) if active_mode else ()):
+    for module in (audit_implementation,direction,batches,backend)+((active_bank,) if active_mode else ())+((adaptation,bank_implementation) if adapt_mode else ()):
         path=Path(module.__file__);(snapshots/path.name).write_bytes(path.read_bytes())
         training['training_source_sha256'][path.name]=backend.digest(path)
     training['audit_buffer_ownership']='Warp arrays allocated before graph capture retained by batch._physics_audit_buffers'
@@ -510,6 +529,9 @@ def train(args):
             checkpoint['residual_variant']=active_head.VARIANT
             checkpoint['active_residual_actor_state_dict']=checkpoint['actor_state_dict']
             checkpoint['residual_actor_state_dict']=cruise_blob['residual_actor_state_dict']
+        elif adapt_mode:
+            checkpoint['residual_variant']=adaptation.VARIANT
+            checkpoint['active_residual_actor_state_dict']=donor_blob['active_residual_actor_state_dict']
         torch.save(checkpoint,path)
         training['checkpoints'][Path(path).name]=backend.digest(path)
         backend.write_json(directory/'training.json',training)
@@ -582,6 +604,7 @@ def main():
     parser.add_argument('--mode',choices=('train','rebase'),default='train')
     parser.add_argument('--residual-checkpoint');parser.add_argument('--curriculum');parser.add_argument('--num-envs',type=int,default=256)
     parser.add_argument('--privileged-critic',action='store_true');parser.add_argument('--active-seed')
+    parser.add_argument('--adapt-active-checkpoint')
     parser.add_argument('--active-long',action='store_true')
     parser.add_argument('--force-cost',type=float,default=8.)
     parser.add_argument('--training-force-limit',type=float,default=3.)
@@ -599,10 +622,11 @@ def main():
     if (args.privileged_critic or args.active_seed) and not args.active_long:raise ValueError('Privileged critic/active seed require long active training')
     if args.active_long and not args.active_curriculum:raise ValueError('Long mixed episodes require active curriculum')
     if not 2.85<=args.training_force_limit<=3. or not 0.<=args.early_start_fraction<=.75:raise ValueError('Invalid training margin or sampling mixture')
-    if (args.training_force_limit!=3. or args.early_start_fraction) and not args.active_long:raise ValueError('Margin curriculum requires long active training')
+    if args.adapt_active_checkpoint and (args.active_curriculum or args.active_long or args.active_seed or args.privileged_critic or args.early_start_fraction or not args.curriculum):raise ValueError('Cruise adaptation requires only its healthy late curriculum')
+    if (args.training_force_limit!=3. or args.early_start_fraction) and not (args.active_long or args.adapt_active_checkpoint):raise ValueError('Margin curriculum requires active or adapted-cruise training')
     if not math.isfinite(args.force_cost) or not math.isfinite(args.failure_cost) or args.force_cost<=0 or args.failure_cost<=0 or not 1.<=args.heading_scale_deg<=10.:raise ValueError('Invalid bounded residual reward weights')
-    if not 16<=args.num_envs<=512 or not 1<=args.iterations<=1000 or args.seconds!=6.:
-        raise ValueError('Bounded initial curriculum requires16..512worlds,1..1000iterations and6secondepisodes')
+    if not 16<=args.num_envs<=512 or not 1<=args.iterations<=1000 or args.seconds!=(16. if args.adapt_active_checkpoint else 6.):
+        raise ValueError('Bounded curriculum requires16..512worlds,1..1000iterations and6s episodes (16s for cruise adaptation)')
     train(args)
 
 

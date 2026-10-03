@@ -410,6 +410,10 @@ def evaluate(args):
         actor.eval()
     residual=None;active_residual=None
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
+    if meta.get('residual_variant')=='adapted_cruise_frozen_active_v1':
+        from algorithms.urdf_learn_wasd_walk.landau_cruise_adaptation import check_contract as check_active_contract
+    elif any(key.startswith(('frozen_active_','cruise_initialization_')) for key in meta):
+        raise ValueError('Unexpected cruise adaptation metadata')
     active_enabled=check_active_contract(meta,blob,backend.digest)
     if active_enabled and meta.get('policy_family')!='periodic_feedback_residual_ppo':raise ValueError('Active residual family mismatch')
     if meta.get('policy_family')=='periodic_feedback_residual_ppo':

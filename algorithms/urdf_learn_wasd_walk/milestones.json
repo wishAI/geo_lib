@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T14:21:44.920905+00:00",
+    "updatedAt": "2026-10-03T15:28:41.774726+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Independent nominal left gate for margin399 after paired screening improvement; if passed, exact M5/M6 and all cumulative directions/standing/forward proofs remain.",
+    "nextWork": "Finish cruise adaptation, compare old/new cruise with identical frozen active head on reserved late states, then full nominal backward proof if improved. Six certified milestones unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2303,6 +2303,100 @@
       "candidate_peak_bw": 2.9349310398101807,
       "candidate_failure": "One M5 warm start at12.4s settled51s with6.655degree headingerror; drift17.32mm. No force failures.",
       "scope": "Paired complete-stop diagnostic; no nominal/cumulative certification."
+    },
+    "activeMarginLeft": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_left/dynamics.json",
+      "sha256": "36b135ff9a255f658e12fbc979c53526a2c2f54779e9ea71b26872244582df14",
+      "status": "visual review accepted; independent check_walking passed",
+      "metrics": {
+        "peak_support_body_weight_ratio": 2.7813629814520224,
+        "gate_crossing_time_s": 102.49377641824249,
+        "gate_cross_track_m": 0.03240285342191241,
+        "average_gate_speed_mps": 0.09756689966416475
+      },
+      "promoted": false,
+      "visual_review_sha256": "acb789358e91a67a4fd1aa1339cdad216a67b7d777a96296bfe35f8390885473"
+    },
+    "activeMarginM5": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_m5/dynamics.json",
+      "sha256": "840786f822aa2f20a7ed57d4d4bdf9104384e4a819056562b81ee8e70fa82cd1",
+      "status": "visual review accepted; independent check_walking passed",
+      "metrics": {
+        "peak_support_body_weight_ratio": 2.8295243295206425,
+        "hold_max_heading_error_rad": 0.04815328826142662,
+        "hold_max_drift_m": 0.018488894617498506
+      },
+      "promoted": false,
+      "visual_review_sha256": "a021d70e1d4a2de501038132233a391ccabaf6a4ae2b44ea654f5c255aa48254"
+    },
+    "activeMarginM6": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_m6/dynamics.json",
+      "sha256": "c310980946dca1e60c98b96a5a878a2f3c94a2165ef62edc7502b75b3799282b",
+      "status": "visual review accepted; independent check_walking(10,teleop=True) passed",
+      "peak_force_bw": 2.9300993265447106,
+      "promoted": false,
+      "visual_review_sha256": "5b776e09c43e51c04e445cbff2211f70d2707b35da3ab314b58f80e4483403f8"
+    },
+    "activeMarginRight": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_right/dynamics.json",
+      "sha256": "15d2ae4958006b32c97015a678f28ed7fdf9c8d6d6e9f28532d4d0d9bd239b33",
+      "status": "visual review accepted; independent check_walking(10,direction=right) passed",
+      "metrics": {
+        "peak_support_body_weight_ratio": 2.969769886601364,
+        "gate_crossing_time_s": 96.1542841765339,
+        "gate_cross_track_m": -0.172196831350364,
+        "average_gate_speed_mps": 0.10399952623681913
+      },
+      "promoted": false,
+      "visual_review_sha256": "9a646b4fc518e298aaa91a19d1130975a16ad014e45bb5f75c00b8242ca1c89f"
+    },
+    "activeMarginBackward": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_margin399_backward/dynamics.json",
+      "sha256": "9ce08d18f9d9a59cbf14ad8f00f0c715c817baf354924e4391bf87ea256ee11f",
+      "status": "failed late cruise; no promotion",
+      "failures": [
+        "done_count=1",
+        "fall_count=1",
+        "semantic +Y forward displacement did not reach 10 m",
+        "strafe drift exceeded 0.75 m",
+        "reference tilt exceeded 30 degrees",
+        "no crossing of the 10 m directional gate within 0.75 m",
+        "direction run ended before declared duration",
+        "fall",
+        "peak support exceeded 3 body weights"
+      ],
+      "metrics": {
+        "peak_support_body_weight_ratio": 3.3343286853926384,
+        "duration_s": 152.39000000000001,
+        "direction_progress_m": 8.183857760681152,
+        "direction_cross_track_m": 1.0703301429748535,
+        "max_reference_tilt_rad": 0.5250280264040132
+      },
+      "promoted": false,
+      "rejected_visual_review_sha256": "02a7f4240cab1096970aae74c06119c950941f0018df05ff5b1a038da4c0c06f"
+    },
+    "activeMarginLateAttribution": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_margin399_late_attribution_v2/screen.json",
+      "sha256": "68e334c7c98d0f8df3fa32f90218907a838e85d7bcca7557eb1265ccb8fc0f05",
+      "episodes_each": 60,
+      "cruise_only_passed": 49,
+      "old_active_passed": 48,
+      "current_active_passed": 46,
+      "decision": "Similar force failures across all three groups from identical healthy140\u2013145.8s states; no evidence that suppressing or reverting active head solves late-state instability. Adapt cruise while freezing improved active head."
+    },
+    "cruiseAdaptation": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_cruise_adapt400",
+      "status": "running",
+      "variant": "adapted_cruise_frozen_active_v1",
+      "frozen_active_checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_margin400/model_399.pt",
+      "cruise_initialization_checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_residual_ppo300/model_299.pt",
+      "iterations": 400,
+      "num_envs": 256,
+      "seconds_per_episode": 16,
+      "training_force_limit_bw": 2.9,
+      "bank": "30 healthy late states at140\u2013145.8s fromfailedbackward;15even train/15odd reserved correlatedscreen; no paddedheadingteacher reward.",
+      "smoke": "Two iterations passed. Initial fullcontroller tensors anddeployment sources exactlyequalmargin399.77 focusedCPU tests passed.",
+      "composition": "Same two69-input actors andcombined.02rad bound; cruise trainable, active/CEM/gait/standing frozen; separate explicit lineage and independent validator."
     }
   }
 }

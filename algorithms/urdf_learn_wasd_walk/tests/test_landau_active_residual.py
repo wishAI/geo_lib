@@ -169,4 +169,61 @@ class ActiveBindingTests(ResidualBindingTests):
         with self.assertRaisesRegex(ValueError,'variant mismatch'):self.check()
 
 
+class AdaptationBindingTests(unittest.TestCase):
+    def setUp(self):
+        from pathlib import Path
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_adaptation as adaptation
+        self.adaptation=adaptation
+        ResidualBindingTests.setUp(self);ActiveBindingTests.enable(self)
+        g=self.gates;cp=Path(self.meta['frozen_cruise_checkpoint'])
+        for folder in (self.parent_dir,self.candidate_dir,cp.parent):(folder/'turn_source.py').write_text('turn')
+        turn_hash=g.digest(self.parent_dir/'turn_source.py');self.parent_meta['turn_source_sha256']=turn_hash
+        g.write(self.parent_dir/'training.json',self.parent_meta)
+        self.meta.update(turn_source_sha256=turn_hash,parent_training_sha256=g.digest(self.parent_dir/'training.json'))
+        prior=g.read(cp.parent/'training.json');prior.update(turn_source_sha256=turn_hash,parent_training_sha256=self.meta['parent_training_sha256'])
+        g.write(cp.parent/'training.json',prior);self.meta['frozen_cruise_training_sha256']=g.digest(cp.parent/'training.json')
+        directory=self.root/'donor';directory.mkdir();self.donor=directory/'model.pt'
+        torch.save(self.blob,self.donor)
+        for name in ('control_source.py','turn_source.py','residual_source.py','active_residual_source.py'):
+            (directory/name).write_bytes((self.candidate_dir/name).read_bytes())
+        old=copy.deepcopy(self.meta);old.update(status='complete',checkpoints={self.donor.name:g.digest(self.donor)})
+        g.write(directory/'training.json',old)
+        self.meta={k:v for k,v in self.meta.items() if not k.startswith('frozen_cruise_')}
+        adaptation.metadata(self.meta,self.donor,old,cp,g.digest)
+        self.blob['residual_variant']=adaptation.VARIANT;self.result['residual_variant']=adaptation.VARIANT
+        torch.save(self.blob,self.checkpoint)
+
+    def check_both(self):
+        torch.save(self.blob,self.checkpoint)
+        self.gates.check_residual_source(self.folder,self.result,self.meta,self.checkpoint)
+        self.assertTrue(self.adaptation.check_contract(self.meta,self.blob,self.gates.digest))
+
+    def test_changed_cruise_allowed_with_active_frozen(self):
+        self.blob['residual_actor_state_dict']['weight']+=.2;self.check_both()
+
+    def test_changed_active_rejected(self):
+        self.blob['active_residual_actor_state_dict']['weight']+=.1
+        torch.save(self.blob,self.checkpoint)
+        with self.assertRaisesRegex(ValueError,'Frozen active weights'):self.gates.check_residual_source(self.folder,self.result,self.meta,self.checkpoint)
+        with self.assertRaisesRegex(ValueError,'Frozen active weights'):self.adaptation.check_contract(self.meta,self.blob,self.gates.digest)
+
+    def test_changed_donor_rejected(self):
+        with self.donor.open('ab') as stream:stream.write(b'changed')
+        with self.assertRaisesRegex(ValueError,'Frozen active input'):self.check_both()
+        with self.assertRaisesRegex(ValueError,'Frozen active input'):self.adaptation.check_contract(self.meta,self.blob,self.gates.digest)
+
+    def test_cannot_claim_frozen_cruise(self):
+        self.meta['frozen_cruise_checkpoint']='misleading'
+        with self.assertRaisesRegex(ValueError,'frozen'):self.check_both()
+        with self.assertRaisesRegex(ValueError,'frozen'):self.adaptation.check_contract(self.meta,self.blob,self.gates.digest)
+
+    def test_cruise_change_inactive_is_exact(self):
+        n=20;memory=SimpleNamespace(left_cruise_blend=torch.zeros(n),left_feedback_blend=torch.ones(n),reference=0.)
+        obs=torch.zeros(n,70);obs[:,63]=.2;names=['left_hip_roll_joint','right_hip_roll_joint']
+        base=torch.randn(n,2);fixed=torch.randn(n,2)
+        a=active.compose(cruise.compose(base,torch.randn(n,2),memory,names,obs),fixed,memory,names,obs)
+        b=active.compose(cruise.compose(base,torch.randn(n,2)*10,memory,names,obs),fixed,memory,names,obs)
+        self.assertTrue(torch.equal(a,b))
+
+
 if __name__=='__main__':unittest.main()
