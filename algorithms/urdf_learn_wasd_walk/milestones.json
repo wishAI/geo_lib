@@ -1675,7 +1675,7 @@
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Diagnose signed_v2 tiltfall afterrapid signchanges; separate cycleheading sway from courseerror before changing navigation/controller. Six certifiedmilestones unchanged.",
+    "nextWork": "Evaluate filtered_signed_v3 samecheckpoint backward; determine whether reducing steering chatter restores stability and gate progress. Six certified milestones unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2439,7 +2439,7 @@
     },
     "signedNavigation": {
       "version": "signed_v2",
-      "status": "failed nominal tilt at95.882s; rendering",
+      "status": "failed nominal tilt; complete video reviewed and rejected",
       "run": "m7_20261004_adapt399_signed_backward",
       "checkpoint": "m7_20261003_cruise_adapt400/model_399.pt",
       "diagnosis": "Legacy yaw clamps blocked right corrections afterovershoot: error-1.12deg90s,-24.95deg110s,-70.85deg130s; backwardwrap at140.60s caused largeleftloop.",
@@ -2454,7 +2454,18 @@
         "progress_m": 1.468770227684021,
         "cross_track_m": 5.10328483581543,
         "diagnosis_pending": "Repeated positive/negative small yaw pulses from88.82s; investigate sway-driven branch switching."
-      }
+      },
+      "visual_review_sha256": "577cf09585fdfa8c3ff5e15a0bd811ab676de8b2f1483ad2a2eb472ad2f815b2"
+    },
+    "filteredSignedNavigation": {
+      "version": "filtered_signed_v3",
+      "status": "nominal backward evaluation running",
+      "run": "m7_20261004_adapt399_filtered_backward",
+      "filter_time_constant_s": 0.5,
+      "unchanged": "3degree tolerance, forward.2, yawcap,gain, frozencheckpoint and physics",
+      "cpu_replay": "Stored FKpose traces: failedsigned88\u201394s reversals8to0; legacyadapt3996to1. Sustainedrightcommand lag.28s withtau.5 versus1.14s withtau1. Commands only, notstabilityproof.",
+      "promoted": false,
+      "tests": "131 relevant CPU tests passed"
     }
   }
 }

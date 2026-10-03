@@ -375,12 +375,12 @@ def evaluate(args):
     if direction:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
     direction_navigation=getattr(args,'direction_navigation','legacy')
-    if direction_navigation not in ('legacy','signed_v2') or (direction_navigation!='legacy' and not direction):
+    if direction_navigation not in ('legacy','signed_v2','filtered_signed_v3') or (direction_navigation!='legacy' and not direction):
         raise ValueError('Signed navigation requires a directional evaluation')
     navigator=None
-    if direction_navigation=='signed_v2':
-        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import Navigator
-        navigator=Navigator(direction)
+    if direction_navigation!='legacy':
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import make_navigator
+        navigator=make_navigator(direction_navigation,direction)
     if teleop_mode:
         from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop_contract
         teleop_profile=teleop_contract.command_profile
@@ -575,7 +575,7 @@ def main():
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--turn',action='store_true',help='Evaluate the saved yaw-command profile and settled hold')
     p.add_argument('--direction',choices=('forward','left','right','backward'),help='M7: turn and walk through a world-direction 10 m gate')
-    p.add_argument('--direction-navigation',choices=('legacy','signed_v2'),default='legacy')
+    p.add_argument('--direction-navigation',choices=('legacy','signed_v2','filtered_signed_v3'),default='legacy')
     p.add_argument('--teleop',action='store_true',help='Run the fixed60s joystick command replay')
     p.add_argument('--action-mapping',choices=('range_v1','legacy_radians_v2'),default='range_v1')
     p.add_argument('--moving-noise-floor',action='store_true')

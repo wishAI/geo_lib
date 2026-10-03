@@ -479,13 +479,13 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
             else:require(value==metrics[key], 'Direction crossing differs from trajectory')
         require(not dc.evaluate_gate({**metrics,**measured},duration), 'Reconstructed directional gate failed')
         navigation=cfg.get('direction_navigation','legacy')
-        require(navigation in ('legacy','signed_v2'), 'Unknown directional navigation')
+        require(navigation in ('legacy','signed_v2','filtered_signed_v3'), 'Unknown directional navigation')
         navigator=None
-        if navigation=='signed_v2':
+        if navigation!='legacy':
             from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
             require(result.get('signed_navigation_source_sha256')==digest(folder/'signed_navigation_source.py')==digest(signed.__file__),
                     'Signed navigation source mismatch')
-            navigator=signed.Navigator(direction)
+            navigator=signed.make_navigator(navigation,direction)
         else:require('signed_navigation_source_sha256' not in result, 'Legacy direction mislabeled with signed navigation')
         commands=np.array([(navigator.command(xy[:2]-positions[0,:2],heading,float(age),cfg['forward']) if navigator else
                            dc.command(direction,xy[:2]-positions[0,:2],heading,float(age),cfg['forward']))
@@ -633,7 +633,7 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
         require(datetime.fromisoformat(result['created_at']).timestamp()>=candidate_time, 'Direction replay predates checkpoint')
         directions[direction]={'metrics':metrics,'reproduction_job':reproduction_job(result,checkpoint)}
         directions[direction]['navigation']=result['config'].get('direction_navigation','legacy')
-        if directions[direction]['navigation']=='signed_v2':
+        if directions[direction]['navigation']!='legacy':
             evidence.append(artifact(path/'signed_navigation_source.py',direction+'_signed_navigation_source.py'))
         for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4','trajectory.npz',
                      'policy_trace.npz','foot_trace.json','direction_protocol_source.py','controller_memory.json',

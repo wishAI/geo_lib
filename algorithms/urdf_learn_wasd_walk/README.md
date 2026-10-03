@@ -15,6 +15,10 @@ Legacy training commands and saved controller memory remain unchanged. Negative
 yaw switches the frozen controller to right-side balance settings, so this
 transition requires fresh force and full-route validation. The validator replays
 the navigator from the full trajectory and binds its additional source snapshot.
+The first signed trial fell at95.882s after eight side reversals during88–94s.
+`filtered_signed_v3` filters circular bearing error with a0.5s time constant before
+the same deadband. Offline pose replay removed those eight reversals while
+retaining sustained course corrections; fresh physical evaluation is pending.
 Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
 for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
 Speed improvements require measured faster completion and the same quality checks.

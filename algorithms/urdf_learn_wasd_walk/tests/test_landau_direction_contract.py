@@ -99,6 +99,30 @@ class SignedNavigationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'serial evaluation only'):control.main()
             train.assert_not_called()
 
+    def test_filter_removes_cycle_sway_but_tracks_sustained_error(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import FilteredNavigator
+        nav=FilteredNavigator('left')
+        yaws=[]
+        for step in range(501):
+            age=3.+step*.02
+            heading=math.pi/2+.08*math.sin(2*math.pi*(age-3.)/.9)
+            yaws.append(nav.command((0.,0.),heading,age)[2])
+        self.assertEqual(max(abs(y) for y in yaws[-100:]),0.)
+        for step in range(1,51):
+            yaw=nav.command((0.,0.),math.pi/2+.2,13.+step*.02)[2]
+        self.assertLess(yaw,-.03)
+        with self.assertRaisesRegex(ValueError,'clock must increase'):
+            nav.command((0.,0.),math.pi/2+.2,14.)
+
+    def test_filter_takes_short_arc_across_angle_wrap(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import FilteredNavigator,make_navigator,Navigator
+        nav=FilteredNavigator('left')
+        self.assertEqual(nav.correction_error(3.1,3.),3.1)
+        self.assertGreater(abs(nav.correction_error(-3.1,3.02)),3.)
+        self.assertIsInstance(make_navigator('signed_v2','left'),Navigator)
+        self.assertIsInstance(make_navigator('filtered_signed_v3','left'),FilteredNavigator)
+        with self.assertRaises(ValueError):make_navigator('unknown','left')
+
 
 if __name__ == '__main__':
     unittest.main()
