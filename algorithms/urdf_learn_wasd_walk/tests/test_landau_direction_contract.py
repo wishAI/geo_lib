@@ -43,6 +43,17 @@ class DirectionContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):contract.RecordedLeftTrainingProtocol(rows,50.)
         with self.assertRaises(ValueError):contract.RecordedLeftTrainingProtocol([(.2,0.,-.01)],80.)
 
+    def test_yaw_calibration_uses_exact_m5_commands(self):
+        from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+        protocol=contract.TurnHoldTrainingProtocol(56.,44.)
+        turn.configure_profile(44.)
+        try:
+            for step in range(2800):
+                t=step*.02;forward,yaw,_=turn.command_profile(t)
+                self.assertEqual(protocol.command_profile(t),(forward,0.,yaw))
+            self.assertEqual(protocol.HOLDS,((51.,56.),))
+        finally:turn.configure_profile(14.)
+
 
 if __name__ == '__main__':
     unittest.main()

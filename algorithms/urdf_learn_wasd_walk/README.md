@@ -103,7 +103,14 @@ It prefers a 2.85 BW post-onset training margin, retaining the full-run 3 BW har
 limit. Any resulting checkpoint must re-pass M5 as well as every other component.
 The final `m7_20261003_left_margin_cem/model_2.pt` training candidate completed
 110 s in all four starts, with peak 2.821 BW and heading errors below 10.5°.
-It remains unpromoted while exact M5 and directional evaluations run.
+Its exact M5 recheck remained upright with peak 2.889 BW and 19.73 mm hold
+drift, but held only 72.16° and failed heading. `--left-yaw-only` calibrates an
+independent left yaw scale on the exact M5 command sequence while freezing all
+17 balance parameters and walking/standing weights. It remains unpromoted;
+passing training still requires fresh independent and cumulative evaluations.
+The selected `m7_20261003_left_yaw_grid/model_0.pt` preserved those17 parameters
+bit-for-bit and independently re-passed M5 at93.96° with13.73mm hold drift and
+a reviewed full proof. Left-gate evaluation is the next unresolved check.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

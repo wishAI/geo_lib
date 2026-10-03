@@ -184,6 +184,8 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
     ramp=ramp*ramp*(3.-2.*ramp)
     yaw_ramp=ramp
     yaw_scale=1.
+    if p.shape[1]>17 and memory is not None and memory.last_yaw_sign>0:
+        yaw_scale=p[:,17]
     heading_gain=p[:,2]
     if p.shape[1]>14 and memory is not None and memory.left_cruise_blend > 0.:
         blend=memory.left_cruise_blend
@@ -294,6 +296,7 @@ def train(args):
     if getattr(args,'left_cruise_only',False):
         TURN_PARAMETERS.update(left_cruise_heading_feedback=(-.12,.12),
             left_cruise_roll_amplitude=(-.06,.03),left_cruise_roll_phase=(-.25,.25))
+    if args.left_yaw_only:TURN_PARAMETERS.update(left_yaw_scale=(.5,2.))
     lows = torch.tensor([v[0] for v in TURN_PARAMETERS.values()], device='cuda')
     highs = torch.tensor([v[1] for v in TURN_PARAMETERS.values()], device='cuda')
     rate_scale=(math.pi/28)/TURN_RATE
@@ -301,6 +304,7 @@ def train(args):
     if teleop:initial=torch.cat((initial,initial.new_tensor([1.,.0514,0.,0.,-.04])))
     if getattr(args,'direction_train',False):initial=torch.cat((initial,initial.new_zeros(2)))
     if getattr(args,'left_cruise_only',False):initial=torch.cat((initial,initial[2:3],initial[5:7]))
+    if args.left_yaw_only:initial=torch.cat((initial,initial.new_ones(1)))
     mean = 2*(initial-lows)/(highs-lows)-1.; std = torch.full_like(mean, args.search_std)
     if args.seed_checkpoint:
         seed = Path(args.seed_checkpoint).resolve(); sm = json.loads((seed.parent/'training.json').read_text())
@@ -326,6 +330,7 @@ def train(args):
             seed_parameters[14]=seed_parameters[2]
         if getattr(args,'left_cruise_only',False) and len(sb['turn_parameters'])<17:
             seed_parameters[15:17]=seed_parameters[5:7]
+        if args.left_yaw_only and len(sb['turn_parameters'])<18:seed_parameters[17]=1.
         if args.left_checkpoint:
             left_checkpoint=Path(args.left_checkpoint).resolve()
             left_meta=json.loads((left_checkpoint.parent/'training.json').read_text())
@@ -344,6 +349,7 @@ def train(args):
     if direction_train:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
         training_protocol=direction_contract.TurnTrainingProtocol(args.seconds, 'left' if args.left_cruise_only else 'right')
+        if args.left_yaw_only:training_protocol=direction_contract.TurnHoldTrainingProtocol(args.seconds,args.turn_duration)
         if args.direction_command_trace:
             import numpy as np
             command_trace=Path(args.direction_command_trace).resolve()
@@ -394,6 +400,8 @@ def train(args):
                 'force_margin_penalty_per_bw':1000.,
                 'reference':'https://github.com/leggedrobotics/legged_gym/blob/master/legged_gym/envs/base/legged_robot.py',
                 'application':'Bounded excess-contact-force penalty adapted to worst-replica post-turn peak, keeping the full-run hard guard unchanged.'}
+        if args.left_yaw_only:
+            meta['objective']='Calibrate independent left yaw scale on exact M5 commands; freeze previous17turn parameters and gait/standing weights'
         if args.direction_command_trace:
             meta['direction_commands']={'source_path':str(command_trace),'source_sha256':backend.digest(command_trace),
                 'commands_sha256':backend.digest(folder/'direction_commands.npz'),
@@ -423,6 +431,10 @@ def train(args):
         if getattr(args,'left_cruise_only',False):
             fixed=[i for i in range(14) if not args.left_turn_refine or i not in (2,5,6)]
             z[:,fixed]=mean[fixed]
+        if args.left_yaw_only:
+            z[:,:17]=mean[:17]
+            if generation==0:
+                z[:,17]=torch.linspace(-1.,1.,candidates,device='cuda');z[0]=mean
         if getattr(args,'restart_only',False):z[:,:9]=mean[:9]
         if getattr(args,'teleop_refine',False):
             fixed=list(range(7));z[:,fixed]=mean[fixed]
@@ -552,6 +564,8 @@ def train(args):
                     if start<=age<end:
                         drift=(batch.pos[:,batch.pelvis,:2]-anchor).norm(dim=1)
                         herror=torch.atan2((heading-hold_heading).sin(),(heading-hold_heading).cos()).abs()
+                        if args.left_yaw_only:
+                            herror=torch.atan2((heading-math.pi/2).sin(),(heading-math.pi/2).cos()).abs()
                         hold_drift=torch.maximum(hold_drift,torch.where(alive,drift,0.))
                         hold_error=torch.maximum(hold_error,torch.where(alive,herror,0.))
             elif age >= HOLD_START:
@@ -668,6 +682,7 @@ def main():
     parser.add_argument('--left-cruise-only',action='store_true',help='M7 left-turn curriculum; search straight-after-left heading and lateral sway feedback')
     parser.add_argument('--direction-command-trace',help='Replay semantic commands from a recorded left gate, then continue straight; training only')
     parser.add_argument('--left-turn-refine',action='store_true',help='Also refine left active heading/sway with post-onset force margin; requires M5 recheck')
+    parser.add_argument('--left-yaw-only',action='store_true',help='Calibrate a separate left yaw scale on M5; freeze17balance parameters')
     parser.add_argument('--teleop',action='store_true',help='Train the60s scripted joystick protocol with shared command memory')
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
@@ -696,6 +711,8 @@ def main():
         raise ValueError('Recorded steering curriculum requires left-cruise-only training')
     if args.left_turn_refine and not args.left_cruise_only:
         raise ValueError('Left-turn refinement requires the seeded left cruising curriculum')
+    if args.left_yaw_only and (not args.left_cruise_only or args.left_turn_refine or args.direction_command_trace):
+        raise ValueError('Left yaw calibration requires a separate seeded left curriculum')
     if args.direction_train and (not args.teleop or not (args.right_only or args.left_cruise_only) or args.seconds<55.):
         raise ValueError('Direction curriculum requires teleop memory, a frozen search subset and >=55 s')
     train(args)

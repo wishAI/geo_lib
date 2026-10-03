@@ -57,6 +57,22 @@ class RecordedLeftTrainingProtocol:
         return self.samples[index] if index<len(self.samples) else (.2,0.,0.)
 
 
+class TurnHoldTrainingProtocol:
+    """Exact M5 commands for calibrating left yaw without changing balance."""
+    def __init__(self, seconds, turn_duration):
+        if not 14.<=turn_duration<=90.: raise ValueError('Turn duration outside bounded range')
+        self.turn_end=3.+turn_duration
+        self.hold_start=self.turn_end+2.
+        if seconds < self.hold_start+7.: raise ValueError('M5 requires a full settled hold')
+        self.YAW_RATE=math.pi/(2.*turn_duration)
+        self.BLOCKS=(('left',3.,self.turn_end,1),)
+        self.HOLDS=((self.hold_start+2.,seconds),)
+
+    def command_profile(self, seconds):
+        fade=min(max((seconds-self.turn_end)/2.,0.),1.)
+        return .2*(1.-fade*fade*(3.-2.*fade)),0.,self.YAW_RATE if 3.<=seconds<self.turn_end else 0.
+
+
 def command(direction, displacement, heading, seconds, forward=.2):
     """Steer to a fixed 10 m world gate with bounded semantic commands."""
     axis = DIRECTIONS[direction]
