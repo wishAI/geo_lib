@@ -202,6 +202,22 @@ pre-landing state at 50 Hz; it cannot cancel an impact developing over 4–8 ms.
 Zero-extension action equivalence and scalar/batched envelope behavior are
 tested. No acceptance bound or policy speed is relaxed.
 
+The repeated damping-only grid had no qualifying backward crossings. The
+−0.01 rate offset kept all eight starts within hard physical limits for over
+200 s, but none reached the gate. An exact M5 screening smoke then showed
+underrotation despite lower forces. `--turn-hold-training --feedback-yaw-refine`
+therefore searches the existing left-yaw scale together with the two feedback
+gains while preserving the first 17 parameters.
+
+The initial screen exposed a conflicting objective: rewarding a 90° change
+from turn onset favors a final heading near 70° because pre-turn and stopping
+drift total about 20°. The corrected M5 screen uses absolute final/settled
+heading error and hold drift, retaining force penalties and every eligibility
+condition. It saves maximum hold error for every candidate. Screening remains
+approximate and cannot replace serial M5 force, drift, speed, slip and video
+validation. The corrected search starts from a hash-bound near-target row of
+the rejected screen rather than silently treating its winner as a pass.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
