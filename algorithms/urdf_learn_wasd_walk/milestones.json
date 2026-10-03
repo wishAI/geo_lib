@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T07:27:19.339483+00:00",
+    "updatedAt": "2026-10-03T07:49:09.742594+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Test bounded left roll-rate feedback grid with20parametercontroller, prior18 frozenexactly, commonstarts andduplicatecontrols. Recheckallcumulativegatesaftercandidatequalifies. Pursuitovershootremainsaseparateknownnavigationissue.",
+    "nextWork": "Corrected absolute-heading M5screen active, seededfromhash-bound gen0row23; requirefreshserialM5/M6 thenfourworldgatesandallcumulativeproofs. No speedincrease or milestonepromotion.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1888,10 +1888,10 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_common_balance_grid/training.json",
-      "sha256": "e1b738e297c05ca427ff404b09e4c9d0b35f7a12590f325904768b052c0ef22d",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback_hold_cem/training.json",
+      "sha256": "5d86eb61c76b2fc2f7011e9bb5829a296d6028ec3a9f33d9759b096c0eedbf7c",
       "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Fixed64candidate sway grid,4commonstarts,2repetitions,240scap. Zeroqualifiersboth. Onlycandidate55survivedall8startsinbothrepetitions; worst2.99409BW and0crossings. No candidate promoted."
+      "scope": "Four-generation exactM5screen withjointyaw/rollfeedback. Zeroqualifiers; finalselectedforce2.848BWbut~20degreeunderturn. Conflictingrelative-onsetyawrewarddiagnosedandremovedfromnewscreen; allhardacceptanceandeligibilitylimitsunchanged. Gen0row23iswarmseed, notpassedcheckpoint."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",

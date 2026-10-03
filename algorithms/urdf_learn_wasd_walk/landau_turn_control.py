@@ -251,6 +251,12 @@ def heading_increment(current, previous):
     return torch.atan2(delta.sin(),delta.cos())
 
 
+def absolute_hold_fitness(duration, final_error, hold_error, hold_drift):
+    """One absolute-heading objective, including episodes failing before the hold."""
+    import torch
+    return 20.*duration-500.*torch.maximum(final_error,hold_error)-500.*hold_drift
+
+
 def install_physics_audit(batch, batches, count):
     """Use the same 2 ms physical guards as the certified straight-gait search."""
     import torch
@@ -389,7 +395,7 @@ def train(args):
             from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction_training
             training_protocol=SimpleNamespace(BLOCKS=(),HOLDS=(),YAW_RATE=direction_contract.MAX_YAW_RATE)
         else:training_protocol=direction_contract.TurnTrainingProtocol(args.seconds, 'left' if args.left_cruise_only else 'right')
-        if args.left_yaw_only:training_protocol=direction_contract.TurnHoldTrainingProtocol(args.seconds,args.turn_duration)
+        if args.left_yaw_only or args.turn_hold_training:training_protocol=direction_contract.TurnHoldTrainingProtocol(args.seconds,args.turn_duration)
         if args.direction_command_trace:
             import numpy as np
             command_trace=Path(args.direction_command_trace).resolve()
@@ -401,6 +407,8 @@ def train(args):
             training_protocol=direction_contract.RecordedLeftTrainingProtocol(commands,args.seconds)
             np.savez_compressed(folder/'direction_commands.npz',time=times,command=commands)
     else:training_protocol=teleop_contract if teleop else None
+    if args.common_starts:
+        from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction_training
     common_offsets=direction_training.common_start_offsets(batch.nominal,batch.jq,replicas,args.start_seed) if args.common_starts else None
     grid_center=mean.clone()
     body_weight = float(batch.model.body_mass.sum())*9.81
@@ -458,6 +466,8 @@ def train(args):
             (folder/'direction_training_source.py').write_text(Path(direction_training.__file__).read_text())
         if args.common_starts:
             meta['common_start_offsets_qpos']=common_offsets.cpu().tolist()
+            meta['direction_training_source_sha256']=backend.digest(direction_training.__file__)
+            (folder/'direction_training_source.py').write_text(Path(direction_training.__file__).read_text())
             meta['common_starts_reference']='https://pubsonline.informs.org/doi/10.1287/mnsc.45.11.1570'
             meta['common_starts_scope']='Same nominal plus3joint perturbations for every candidate/generation; does not claim deterministic physics.'
         if args.left_balance_grid:
@@ -467,12 +477,18 @@ def train(args):
             meta['left_roll_feedback']={'searched_indices':[18,19] if args.left_feedback_only else [],
                 'maximum_residual_rad':.03,'command_envelope_rate_per_s':1.,
                 'references':['https://arxiv.org/abs/2103.15309','https://arxiv.org/abs/1812.03201'],
-                'scope':'Add bounded torso roll/rate correction during left commands, smoothly decay afterward; freeze gait and prior turn parameters. This changes approach/load transfer at50Hz, not impact forces at500Hz.'}
+                'scope':'Add bounded torso roll/rate correction during left commands, smoothly decay afterward; freeze gait/standing and all turn parameters outside the declared search indices. This changes approach/load transfer at50Hz, not impact forces at500Hz.'}
             if args.left_feedback_only:meta['left_turn_refinement']['searched_indices']=[18,19]
         if args.left_damping_grid:
             meta['damping_grid']={'unchanged_control_candidates':[0,1],'repeat_same_grid_each_generation':True}
             meta['left_roll_feedback']['searched_indices']=[19]
             meta['left_turn_refinement']['searched_indices']=[19]
+        if args.turn_hold_training:
+            meta['objective']='Shared-start exact90degree turn/hold screening for left feedback with force margin; preserve previous18parameters; later M7 gate proof required'
+            meta['turn_hold_fitness']='20*duration -500*max(final_absolute_heading_error,settled_absolute_heading_error) -500*hold_drift; retain force-margin penalty and physics/eligibility bonuses. No relative turn-onset yaw reward.'
+        if args.feedback_yaw_refine:
+            meta['objective']='Jointly calibrate left yaw scale and torso feedback on exact90degree turn/hold with force margin; preserve first17parameters and gait; later M7 proof required'
+            meta['left_turn_refinement']['searched_indices']=[17,18,19]
         if args.direction_command_trace:
             meta['direction_commands']={'source_path':str(command_trace),'source_sha256':backend.digest(command_trace),
                 'commands_sha256':backend.digest(folder/'direction_commands.npz'),
@@ -502,14 +518,16 @@ def train(args):
         if getattr(args,'left_cruise_only',False):
             fixed=[i for i in range(14) if not args.left_turn_refine or i not in (2,5,6)]
             z[:,fixed]=mean[fixed]
-            if include_left_yaw and not args.left_yaw_only:z[:,17]=mean[17]
+            if include_left_yaw and not args.left_yaw_only and not args.feedback_yaw_refine:z[:,17]=mean[17]
         if args.left_balance_only:
             fixed=[i for i in range(len(TURN_PARAMETERS)) if i not in (5,6)]
             z[:,fixed]=mean[fixed]
         if args.left_balance_grid:
             z=direction_training.balance_grid(grid_center,candidates,args.search_std)
         if include_feedback and not args.left_feedback_only:z[:,18:20]=mean[18:20]
-        if args.left_feedback_only:z[:,:18]=grid_center[:18]
+        if args.left_feedback_only:
+            frozen_count=17 if args.feedback_yaw_refine else 18
+            z[:,:frozen_count]=grid_center[:frozen_count]
         if args.left_damping_grid:
             if candidates!=8:raise ValueError('Damping grid requires8candidates with4replicas')
             z[:]=grid_center
@@ -540,7 +558,7 @@ def train(args):
             z[:,10]=torch.linspace(-1.,1.,side,device='cuda').repeat(side)
         if getattr(args,'right_grid',False) or getattr(args,'restart_grid',False):z[0]=mean
         params = (lows+(z+1)*.5*(highs-lows)).repeat_interleave(replicas, dim=0)
-        if args.left_feedback_only:params[:,:18]=seed_parameters[:18]
+        if args.left_feedback_only:params[:,:frozen_count]=seed_parameters[:frozen_count]
         if args.left_damping_grid:
             params[:,18]=seed_parameters[18]
             params[:2*replicas,18:20]=seed_parameters[18:20]
@@ -679,7 +697,7 @@ def train(args):
                     if start<=age<end:
                         drift=(batch.pos[:,batch.pelvis,:2]-anchor).norm(dim=1)
                         herror=torch.atan2((heading-hold_heading).sin(),(heading-hold_heading).cos()).abs()
-                        if args.left_yaw_only:
+                        if args.left_yaw_only or args.turn_hold_training:
                             herror=torch.atan2((heading-math.pi/2).sin(),(heading-math.pi/2).cos()).abs()
                         hold_drift=torch.maximum(hold_drift,torch.where(alive,drift,0.))
                         hold_error=torch.maximum(hold_error,torch.where(alive,herror,0.))
@@ -711,6 +729,10 @@ def train(args):
             if direction_train and args.left_cruise_only:
                 eligible_world &= yaw_error <= math.radians(15)
         fitness = 20.*duration-100.*yaw_error-500.*hold_drift-100.*hold_error+block_reward
+        if args.turn_hold_training:
+            # M5 requires an absolute final heading. Relative yaw from turn onset
+            # conflicts with that goal when pre-turn drift or stopping changes yaw.
+            fitness=absolute_hold_fitness(duration,yaw_error,hold_error,hold_drift)
         if closed_direction:
             eligible_world=physics & gate.completed & (counts.min(1).values>=3) & (slip_total/duration.clamp_min(.02)<=.1)
             fitness=20.*duration+100.*gate.progress.float().clamp(-10.,10.)-20.*gate.lateral.float().abs()
@@ -766,6 +788,7 @@ def train(args):
                 'heading_rad':heading_final[i*replicas:(i+1)*replicas].tolist(),
                 'final_heading_error_rad':yaw_error[i*replicas:(i+1)*replicas].tolist(),
                 'hold_drift_m':hold_drift[i*replicas:(i+1)*replicas].tolist(),
+                'hold_max_heading_error_rad':hold_error[i*replicas:(i+1)*replicas].tolist(),
                 'peak_support_bw':force_max[i*replicas:(i+1)*replicas].tolist(),
                 'post_turn_peak_support_bw':post_turn_force_max[i*replicas:(i+1)*replicas].tolist() if args.left_turn_refine else None,
                 'blocks':[{'label':label,'forward_m':progress_value[i*replicas:(i+1)*replicas].tolist(),
@@ -827,15 +850,20 @@ def main():
     parser.add_argument('--left-balance-grid',action='store_true',help='Repeat fixed sway grid with two unchanged controls and common starts')
     parser.add_argument('--left-feedback-only',action='store_true',help='Learn two bounded left-turn torso roll/rate feedback corrections; freeze prior18parameters')
     parser.add_argument('--left-damping-grid',action='store_true',help='Repeat8left roll-rate gains, including duplicate unchanged controls')
+    parser.add_argument('--turn-hold-training',action='store_true',help='Screen left feedback on exactM5commands and hold with the same force margin')
+    parser.add_argument('--feedback-yaw-refine',action='store_true',help='Also recalibrate existing left yaw scale during exact turn/hold feedback screening')
     parser.add_argument('--teleop',action='store_true',help='Train the60s scripted joystick protocol with shared command memory')
     parser.add_argument('--diagnostic-sweep',action='store_true',help='Short null-to-small yaw amplitude comparison; never milestone evidence')
     parser.add_argument('--diagnostic-grid',action='store_true',help='Sweep small differential yaw and signed heading correction')
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     args = parser.parse_args()
-    if args.common_starts and not args.closed_loop_direction:raise ValueError('Common starts require closed-loop direction training')
+    if args.common_starts and not (args.closed_loop_direction or args.turn_hold_training):raise ValueError('Common starts require closed-loop direction or exact turn/hold training')
     if args.left_balance_grid and not (args.common_starts and args.left_balance_only):raise ValueError('Balance grid requires common starts and balance-only refinement')
-    if args.left_feedback_only and (not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_balance_only or args.left_yaw_only or args.left_heading_grid):
+    if args.left_feedback_only and (not args.left_turn_refine or not args.common_starts or not (args.closed_loop_direction in ('left','backward') or args.turn_hold_training) or args.left_balance_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Left feedback search requires its own shared-start closed-loop left curriculum with force margin')
+    if args.turn_hold_training and (not args.left_feedback_only or args.closed_loop_direction or args.direction_command_trace or args.seconds<3.+args.turn_duration+2.+7.):
+        raise ValueError('Turn/hold screening requires independent left feedback training and a complete five-second hold')
+    if args.feedback_yaw_refine and (not args.turn_hold_training or args.left_damping_grid):raise ValueError('Joint yaw/feedback search requires exact turn/hold screening without the damping grid')
     if args.left_damping_grid and (not args.left_feedback_only or args.num_envs!=32):raise ValueError('Damping grid requires32worlds and left feedback-only search')
     if args.left_checkpoint and (not args.teleop or not args.seed_checkpoint):raise ValueError('Left preservation requires seeded teleop training')
     if args.seed_candidate is not None and not args.seed_checkpoint:raise ValueError('Candidate selection requires a seed run')

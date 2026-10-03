@@ -4,10 +4,18 @@ import torch
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
 from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid
-from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference
+from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference,absolute_hold_fitness
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_hold_score_prefers_absolute_target_and_does_not_reward_missing_hold(self):
+        # A90degree relative turn can still stop20degrees short of the absolute target.
+        score=absolute_hold_fitness(torch.tensor([56.,56.,40.]),
+            torch.tensor([math.radians(20),math.radians(4),math.radians(30)]),
+            torch.tensor([math.radians(21),math.radians(5),0.]),torch.tensor([.02,.02,.0]))
+        self.assertGreater(float(score[1]),float(score[0]))
+        self.assertLess(float(score[2]),float(score[0]))
+
     def test_candidate_selection_cannot_silently_read_a_later_generation(self):
         tables={'generation_candidate_tables':{'candidates_0.json':'first','candidates_1.json':'second'}}
         path,digest=candidate_table_reference('/tmp/run/model_0.pt',tables)
