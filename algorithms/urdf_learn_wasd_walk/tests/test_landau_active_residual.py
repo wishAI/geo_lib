@@ -12,6 +12,33 @@ from algorithms.urdf_learn_wasd_walk.tests.test_landau_cruise_residual import Re
 
 
 class ActiveTests(unittest.TestCase):
+    def test_privileged_critic_keeps_actor_features_and_masks_unavailable_state(self):
+        n=3;actor=torch.randn(n,69);original=actor.clone();obs=torch.zeros(n,70)
+        mode=torch.tensor([0,1,2]);age=torch.tensor([50.,48.,21.],dtype=torch.float64)
+        memory=curriculum.ActiveMemory(n,'cpu');memory.previous_moving[2]=False
+        memory.stop_time[2]=20.;memory.stop_xy[2]=torch.tensor([.01,.02]);memory.hold_heading[2]=.1
+        teacher=torch.tensor([0.,0.,.1]);positions=torch.zeros(n,3)
+        result=cruise.privileged_critic_features(actor,obs,mode,age,positions,torch.eye(3).repeat(n,1,1),memory,teacher,44.)
+        self.assertEqual(result.shape,(3,80));self.assertTrue(bool(torch.isfinite(result).all()))
+        self.assertTrue(torch.equal(actor,original));self.assertTrue(torch.equal(result[:,:69],original))
+        # Future M5 absolute target remains visible before stop; missing M6 target is masked.
+        self.assertAlmostEqual(float(result[1,73]),-18.,places=5)
+        self.assertTrue(torch.equal(result[0,74:78],torch.zeros(4)))
+        self.assertAlmostEqual(float(result[2,78]),.5,places=6)
+        self.assertEqual(float(result[2,79]),1.)
+
+    def test_critic_expansion_preserves_learned_value_mapping(self):
+        def model(width):
+            net=torch.nn.Module();net.mlp=torch.nn.Sequential(torch.nn.Linear(width,64),torch.nn.ELU(),
+                torch.nn.Linear(64,64),torch.nn.ELU(),torch.nn.Linear(64,1));return net
+        torch.manual_seed(11);old=model(69);new=model(80)
+        new.load_state_dict(cruise.extend_critic_state(old.state_dict(),new.state_dict()))
+        value=torch.randn(32,80)
+        self.assertTrue(torch.equal(new.mlp[0].weight[:,:69],old.mlp[0].weight))
+        self.assertEqual(int(torch.count_nonzero(new.mlp[0].weight[:,69:])),0)
+        self.assertTrue(torch.allclose(new.mlp(value),old.mlp(value[:,:69]),atol=1e-6,rtol=0))
+        with self.assertRaisesRegex(ValueError,'Unsupported critic'):cruise.extend_critic_state(old.state_dict(),model(81).state_dict())
+
     def test_long_episodes_complete_stops_without_restart(self):
         modes=torch.tensor([0,0,1,1,2,2]);ages=torch.tensor([3.,84.8,3.,49.8,6.,18.8],dtype=torch.float64)
         ends=cruise.active_episode_end(modes,ages)

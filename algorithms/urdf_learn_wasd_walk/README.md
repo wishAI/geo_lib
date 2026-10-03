@@ -331,6 +331,14 @@ cost and moving-heading cost, and checks hold drift and settled heading/speed.
 `landau_residual_screen --complete-stops` loads these episode endpoints from the
 saved trainer and freezes each world's metrics at its first failure or timeout.
 These are diagnostic training-state comparisons, never milestone certificates.
+The longer-run checkpoint stayed below 3 BW in all 96 complete-stop screening
+episodes but failed two settled-heading and three drift checks. Its continuation
+keeps the deployable actor at 69 inputs and supplies the value network with stop
+anchors, targets and command-phase state that determine training rewards. This
+[asymmetric critic](https://arxiv.org/abs/1710.06542) has 80 inputs. Initialization
+copies the previous actor and critic, adding zero columns to the critic's first
+layer; deployment receives no privileged information. The experiment addresses
+value-estimation ambiguity and still requires measured stopping improvement.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

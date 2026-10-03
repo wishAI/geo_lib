@@ -147,6 +147,42 @@ class CruiseMemory:
         self.previous_yaw=yaw.double()
 
 
+def privileged_critic_features(actor_features,observation,mode,age,positions,rotations,memory,teacher,turn_duration):
+    """Training-only reward state; the deployable actor retains its69 inputs.
+
+    Asymmetric actor/critic observations: https://arxiv.org/abs/1710.06542.
+    """
+    import torch
+    heading=torch.atan2(observation[:,68],observation[:,69]+1.)
+    error=torch.atan2((heading-teacher).sin(),(heading-teacher).cos())/math.radians(10)
+    valid=torch.isfinite(memory.stop_time);held=valid & ~memory.previous_moving
+    target=torch.where(mode==1,math.pi/2,memory.hold_heading)
+    hold_error=torch.where((mode==1)|held,torch.atan2((heading-target).sin(),(heading-target).cos())/math.radians(5),0.)
+    delta=torch.zeros_like(positions);delta[:,:2]=positions[:,:2]-memory.stop_xy
+    local=torch.bmm(rotations.transpose(1,2),delta[:,:,None])[:,:2,0]/.03
+    local=torch.where(held[:,None],local,0.)
+    fade=torch.where(mode==1,3.+turn_duration,18.)
+    until=torch.stack(((fade-age)/10.,(fade+2.-age)/10.),1).clamp(-1,1)
+    until=torch.where((mode!=0)[:,None],until,0.)
+    settled=torch.where(held,((age-memory.stop_time)/2.).clamp(0,1),0.)
+    extra=torch.cat((torch.nn.functional.one_hot(mode,3),error[:,None],hold_error[:,None],local,
+        until,settled[:,None],valid[:,None]),1).to(actor_features.dtype)
+    return torch.cat((actor_features,extra),1)
+
+
+def extend_critic_state(original,target):
+    """Keep the learned value mapping while initializing added inputs to zero."""
+    import torch
+    if original.keys()!=target.keys():raise ValueError('Critic architecture changed')
+    result={}
+    for key,value in original.items():
+        if value.shape==target[key].shape:result[key]=value.clone();continue
+        if key!='mlp.0.weight' or value.shape[0]!=target[key].shape[0] or value.shape[1]!=69 or target[key].shape[1]!=80:
+            raise ValueError('Unsupported critic expansion')
+        result[key]=torch.zeros_like(target[key]);result[key][:,:69]=value.to(result[key].device)
+    return result
+
+
 def active_episode_end(mode,age):
     """Complete both stops; bound the backward curriculum before cruise onset."""
     import torch
@@ -180,7 +216,7 @@ def train(args):
     turn.configure_profile(meta['arguments']['turn_duration'])
     directory=backend.OUTPUT/'training'/args.name;directory.mkdir(exist_ok=False)
     active_mode=bool(args.active_curriculum)
-    cruise_actor=None;cruise_blob=None
+    cruise_actor=None;cruise_blob=None;active_seed=None;seed_meta=None
     if active_mode:
         from algorithms.urdf_learn_wasd_walk import landau_active_curriculum as active_bank
         from algorithms.urdf_learn_wasd_walk import landau_active_residual as active_head
@@ -201,6 +237,16 @@ def train(args):
         old_source=load_source(cruise_path.parent/'residual_source.py',cruise_meta['residual_source_sha256'],'frozen_cruise_residual')
         cruise_actor=old_source.make_actor('cuda');cruise_actor.load_state_dict(cruise_blob['residual_actor_state_dict'])
         cruise_actor.eval();cruise_actor.requires_grad_(False)
+        if args.active_seed:
+            seed_path=Path(args.active_seed).resolve();seed_meta=json.loads((seed_path.parent/'training.json').read_text())
+            if seed_meta.get('policy_family')!=FAMILY or seed_meta['checkpoints'][seed_path.name]!=backend.digest(seed_path) or str(seed_meta.get('status','')).startswith('invalidated_'):
+                raise ValueError('Invalid active seed')
+            active_seed=torch.load(seed_path,map_location='cpu',weights_only=False)
+            if not active_head.check_contract(seed_meta,active_seed,backend.digest):raise ValueError('Seed is not active residual')
+            if (seed_meta['frozen_cruise_checkpoint_sha256']!=backend.digest(cruise_path) or
+                seed_meta['active_residual_source_sha256']!=backend.digest(active_head.__file__) or
+                backend.digest(seed_path.parent/'active_residual_source.py')!=seed_meta['active_residual_source_sha256']):
+                raise ValueError('Active seed composition differs')
         bank_meta=active_bank.build_bank(args.active_curriculum,parent,cruise_path,turn,directory/'warm_states.npz')
     else:bank_meta=build_bank(args.curriculum,parent,turn,directory/'warm_states.npz')
     torch.set_num_threads(4);torch.manual_seed(42)
@@ -272,7 +318,12 @@ def train(args):
             self.command=command
             self.prior_observation=memory.prior(self.observation,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],self.age) if active_mode else self.observation[:,:63]
             value=features(self.observation,walking,memory)
-            return TensorDict({'actor':value,'critic':value},batch_size=[self.num_envs])
+            critic=value
+            if args.privileged_critic:
+                teacher=bank['teacher_heading'][self.mode,torch.round(self.age/.02).long()]
+                critic=privileged_critic_features(value,self.observation,self.mode,self.age,batch.pos[:,batch.pelvis],
+                    batch.rot[:,batch.base],memory,teacher,meta['arguments']['turn_duration'])
+            return TensorDict({'actor':value,'critic':critic},batch_size=[self.num_envs])
         def step(self,latent):
             with torch.no_grad():
                 baseline=turn.commanded_action(base,walking,prior,self.observation,self.prior_observation,
@@ -353,7 +404,11 @@ def train(args):
         experiment_name='landau_cruise_residual',save_interval=50,num_steps_per_env=24,max_iterations=args.iterations,
         logger='tensorboard',upload_model=False)
     config=asdict(cfg);runner=MjlabOnPolicyRunner(env,copy.deepcopy(config),str(directory),device='cuda:0')
-    with torch.no_grad():runner.alg.actor.mlp[-1].weight.zero_();runner.alg.actor.mlp[-1].bias.zero_()
+    if active_seed is not None:
+        runner.alg.actor.load_state_dict(active_seed['active_residual_actor_state_dict'],strict=True)
+        runner.alg.critic.load_state_dict(extend_critic_state(active_seed['critic_state_dict'],runner.alg.critic.state_dict()),strict=True)
+    else:
+        with torch.no_grad():runner.alg.actor.mlp[-1].weight.zero_();runner.alg.actor.mlp[-1].bias.zero_()
     inherited=('backend','mujoco_version','observation_dim','period_s','observation_clock_period_s',
         'gait_period_source','packages','action_joints','action_scale','stand_action_scale','action_mapping',
         'nominal_q','nominal_ctrl','reference_xy','model_xml_sha256','urdf_sha256','mesh_tree_sha256',
@@ -388,6 +443,14 @@ def train(args):
             reward='Cruise force/stability costs plus command-speed tracking, body-forward progress and swings only while moving; 2*(teacher heading error/10deg)^2 moving or 2*(hold heading error/5deg)^2 holding and 2*(hold drift/.03m)^2; all rates multiplied by dt.')
         (directory/'residual_source.py').write_bytes((cruise_path.parent/'residual_source.py').read_bytes())
         (directory/'active_residual_source.py').write_bytes(Path(active_head.__file__).read_bytes())
+        if args.privileged_critic:
+            training.update(critic_feature_dim=80,critic_privileged_features=['protocol_onehot3','teacher_heading_error',
+                'held_heading_error','local_stop_anchor_delta2','time_to_fade_and_stop2','settled_age','anchor_valid'],
+                critic_research_reference='https://arxiv.org/abs/1710.06542',actor_feature_dim=69)
+        if active_seed is not None:
+            training.update(active_initialization_checkpoint=str(seed_path),active_initialization_checkpoint_sha256=backend.digest(seed_path),
+                active_initialization_training_sha256=backend.digest(seed_path.parent/'training.json'),
+                critic_initialization='Copy previous learned critic; zero added input columns; fresh optimizer.')
         if args.active_long:
             training.update(training_timeout='Per-world recorded-state truncations: backward min(start+24,90.8)s; M5 at55.8s; M6 at24.8s, with RSL timeout bootstrap.',
                 protocol_sampling='Fixed roughly equal world counts by protocol; even-index warm states independently resampled within each protocol on reset.')
@@ -486,6 +549,7 @@ def main():
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--mode',choices=('train','rebase'),default='train')
     parser.add_argument('--residual-checkpoint');parser.add_argument('--curriculum');parser.add_argument('--num-envs',type=int,default=256)
+    parser.add_argument('--privileged-critic',action='store_true');parser.add_argument('--active-seed')
     parser.add_argument('--active-long',action='store_true')
     parser.add_argument('--force-cost',type=float,default=8.)
     parser.add_argument('--failure-cost',type=float,default=5.)
@@ -498,6 +562,7 @@ def main():
         rebase(args);return
     if not args.curriculum and not args.active_curriculum:raise ValueError('Training requires a recorded curriculum')
     if args.active_curriculum and not args.residual_checkpoint:raise ValueError('Active training requires frozen cruise checkpoint')
+    if (args.privileged_critic or args.active_seed) and not args.active_long:raise ValueError('Privileged critic/active seed require long active training')
     if args.active_long and not args.active_curriculum:raise ValueError('Long mixed episodes require active curriculum')
     if not math.isfinite(args.force_cost) or not math.isfinite(args.failure_cost) or args.force_cost<=0 or args.failure_cost<=0 or not 1.<=args.heading_scale_deg<=10.:raise ValueError('Invalid bounded residual reward weights')
     if not 16<=args.num_envs<=512 or not 1<=args.iterations<=1000 or args.seconds!=6.:

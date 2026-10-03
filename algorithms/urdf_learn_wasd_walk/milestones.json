@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T12:15:27.026732+00:00",
+    "updatedAt": "2026-10-03T12:55:13.240281+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Screen active_long600 through complete turn-and-stop episodes, then require nominal-start M5/M6 and four-direction plus cumulative proofs. Force3BW, heading5deg and all acceptance limits unchanged.",
+    "nextWork": "Screen privileged-critic continuation through complete stops; if improved, run nominal M5/M6 and four directions with full cumulative proof.6/12certified unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2042,9 +2042,8 @@
       "result": "No gain passed both M5 repeats. Gain2.10 first peak2.864BW and max heading2.53deg; second peak3.095BW with3/4 force failures. Reject parameter family."
     },
     "activeTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_long600",
-      "scope": "256 worlds,600 PPO iterations; equal protocol world groups; backward up to24s, M5 to55.8s, M6 to24.8s. Force-margin coefficient80, failure cost20, moving-heading scale3deg. Existing cruise299/CEM20 frozen. Not milestone evidence.",
-      "trainingOnlyTimingNote": "Current run preserves its saved source: float comparison can begin the M6 settled guard at22.02s. Main trainer and next screen use2s minus1e-8 tolerance; independent acceptance unchanged."
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_critic400",
+      "scope": "Warm-start active_long600/model599,256 worlds,400 iterations; same long curriculum and rewards. Actor69 unchanged; critic80 adds11 training-only reward/memory/command-phase features. Initial actor and frozen networks byte-equal; critic69-column prefix copied and added columns zero; freshoptimizer. Smoke passed."
     },
     "activeResidualShortCurriculum": {
       "training": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_ppo300",
@@ -2121,6 +2120,15 @@
           ]
         }
       ]
+    },
+    "activeResidualLongCurriculum": {
+      "screen": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_fullscreen/screen.json",
+      "sha256": "77b57044905b5c9bb9dca81f24865cd0a2d437d49f8d5ff15645777449806567",
+      "all_residual_force_safe": true,
+      "qualified_residual_episodes": 91,
+      "residual_episodes": 96,
+      "residual_failures": "Two M5 settled-heading and three M5 hold-drift failures. No residual force failures. Frozen comparison had two force and one drift failure.",
+      "promoted": false
     }
   }
 }
