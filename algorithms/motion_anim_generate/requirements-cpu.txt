@@ -1,0 +1,6 @@
+numpy==2.2.6
+scipy==1.15.3
+trimesh==4.7.4
+matplotlib==3.10.3
+pillow==11.2.1
+pytest==8.4.1

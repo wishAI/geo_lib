@@ -10,7 +10,7 @@ Store=importlib.import_module('algorithms.3d_char_details.preset_store').PresetS
 class HistoryTests(unittest.TestCase):
     def setUp(self):
         self.tmp=TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.store=Store(self.tmp.name)
-        self.settings={'version':1,'assetHash':'a'*64,'bodyFrame':{'scale':1.1,'offset':.012},'outfit':{'Boot_L':{'bootWidth':.4}},'links':{'boots':False}}
+        self.settings={'version':1,'assetHash':'a'*64,'bodyFrame':{'scale':1.1,'offset':.012},'outfit':{'Boot_L':{'bootWidth':.4},'Vest':{'vestChestWidth':-.5,'vestCollarWidth':-.2,'vestChestFrontDepth':.1,'vestChestBackDepth':-.3}},'links':{'boots':False},'garmentFit':{'version':1,'scales':{'upper':.8,'lower':1.4},'angles':{'Sleeve_L':{'elbowX':25}},'unlocked':{'Boot_L':True},'jointLinks':{'arms':True,'legs':False}}}
     def save(self,n):return self.store.update({'action':'save','name':str(n),'settings':self.settings})
     def test_concurrent_saves_survive_reload_and_metadata_edits(self):
         with ThreadPoolExecutor(max_workers=8) as pool: records=list(pool.map(self.save,range(24)))
@@ -27,6 +27,20 @@ class HistoryTests(unittest.TestCase):
         self.save('Good');before=self.store.path.read_bytes()
         for req in [{'action':'save','name':' ','settings':self.settings},{'action':'save','name':'Bad','settings':{**self.settings,'bodyFrame':{'scale':float('nan')}}},{'action':'archive','id':'../../outside','archived':True},{'action':'rename','id':'missing','name':'Bad'},{'action':'save','name':'Bad','settings':{'version':1,'assetHash':'wrong'}}]:
             with self.assertRaises((ValueError,KeyError)):self.store.update(req)
+            self.assertEqual(before,self.store.path.read_bytes())
+    def test_shoulder_settings_survive_history_without_changing_legacy_snapshot(self):
+        legacy=self.save('Legacy')
+        for height,follow in [(-.03,False),(.02,True),(.03,False)]:
+            settings=json.loads(json.dumps(self.settings))
+            settings['bodyFrame']['shoulderHeight']=height
+            settings['garmentFit']['shoulderFollow']=follow
+            saved=self.store.update({'action':'save','name':'Shoulders','settings':settings})
+            self.assertEqual(Store(self.tmp.name).get(saved['id'])['settings'],settings)
+        self.assertEqual(self.store.get(legacy['id'])['settings'],self.settings)
+        before=self.store.path.read_bytes()
+        for field,key,bad in [('bodyFrame','shoulderHeight',.031),('bodyFrame','shoulderHeight',True),('bodyFrame','shoulderHeight','0.01'),('garmentFit','shoulderFollow',1)]:
+            settings=json.loads(json.dumps(self.settings));settings[field][key]=bad
+            with self.assertRaises(ValueError):self.store.update({'action':'save','name':'Bad','settings':settings})
             self.assertEqual(before,self.store.path.read_bytes())
 
 if __name__=='__main__':unittest.main()

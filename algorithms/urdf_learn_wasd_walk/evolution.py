@@ -566,6 +566,154 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                    "job": {key: job.get(key) for key in ("job_id", "state", "exit_code", "wall_s", "started_at")}}
 
 
+MILESTONE_LABELS = {
+    "stand_zero_signal_30s_no_reset": "Passive stand · 30 s",
+    "stand_30s_no_reset": "Policy stand · 30 s",
+    "gate_5m_no_reset": "Forward gate · 5 m",
+    "gate_10m_no_reset": "Forward gate · 10 m",
+    "yaw_turn_90deg_hold": "Turn 90° and hold",
+    "teleop_60s_forward_turn": "Teleop · 60 s",
+    "gate_10m_four_directions_no_reset": "Four directions · 10 m",
+    "triangle_path_follow_no_reset": "Triangle path",
+    "square_path_follow_no_reset": "Square path",
+    "terrain_5m_no_reset": "Rough terrain · 5 m",
+    "obstacle_stop_before_collision": "Obstacle braking",
+    "game_10m_no_reset": "Mixed game gate · 10 m",
+}
+
+def _milestone_summaries(ledger: dict) -> list[dict]:
+    summaries = []
+    for record in ledger.get("milestones", []):
+        checkpoint = record.get("checkpoint", {})
+        checkpoint = checkpoint if isinstance(checkpoint, dict) else {}
+        status = str(record.get("status", "not_started"))
+        metrics = record.get("metrics", {}) if status == "passed" else {}
+        if status == "passed":
+            result = "Gate passed with recorded evidence"
+        elif status == "in_progress":
+            result = "Current hard gate"
+        else:
+            result = "Blocked by the preceding gate"
+        summaries.append({
+            "order": record.get("order"),
+            "id": record.get("id"),
+            "label": MILESTONE_LABELS.get(str(record.get("id")), str(record.get("id"))),
+            "status": status,
+            "result": result,
+            "metrics": metrics,
+            "checkpointPath": checkpoint.get("path") or checkpoint.get("identity"),
+            "diskBytes": checkpoint.get("size_bytes"),
+        })
+    return summaries
+
+
+def _backend_nodes(output_root: Path) -> list[dict]:
+    """Expose simulator development evidence without promoting canonical gates."""
+    progress_path = output_root / "backend_progress.json"
+    progress = _read_json(progress_path)
+    if not progress:
+        return []
+    latest = progress.get("latest_fully_unassisted") or {}
+    lineage = "tk2_mujoco_development"
+    root_id = "backend:tk2-mujoco"
+    nodes = [{
+        "id": root_id, "parentIds": [], "label": "TK2 MuJoCo · development",
+        "kind": "root", "status": progress.get("status", "unknown"),
+        "lineage": lineage, "step": 10000, "important": True,
+        "startedAt": progress.get("updated_at"),
+        "approach": progress.get("variant"),
+        "changeSummary": "Synced TK2 ragdoll and student experiments; separate simulator evidence",
+        "result": "Separate backend diagnostic; does not certify canonical gates",
+        "metrics": {}, "artifacts": [_artifact(progress_path, root_id)],
+        "experimentParameters": {"simulator": progress.get("simulator"),
+                                 "backend status": progress.get("status")},
+    }]
+    for index, run in enumerate(latest.get("runs", [])):
+        metrics = run.get("metrics") or {}
+        lifts = metrics.get("liftoffs") or {}
+        node_id = f"backend:unassisted-repeat-{index + 1}"
+        nodes.append({
+            "id": node_id, "parentIds": [root_id],
+            "label": f"Unassisted repeat {index + 1} · development only",
+            "kind": "experiment", "status": "completed", "lineage": lineage,
+            "step": 10001 + index, "important": True,
+            "startedAt": progress.get("updated_at"), "gateEligible": False,
+            "approach": progress.get("variant"),
+            "result": f"{metrics.get('forward_m', 0):.3f} m / {metrics.get('duration_s', 0):g} s; "
+                      + str(latest.get("proof_status", "Visual review and gate validation pending")),
+            "changeSummary": "All auxiliary assistance off; normal motor PD retained; not a gate pass",
+            "metrics": {"semantic_forward_displacement_m": metrics.get("forward_m"),
+                        "left_foot_liftoff_count": lifts.get("left"),
+                        "right_foot_liftoff_count": lifts.get("right"),
+                        "reset_count": metrics.get("reset_count"), "done_count": metrics.get("done_count"),
+                        "fall_count": int(bool(metrics.get("fall")))},
+            "trainingProgress": {"kind": "diagnostic", "durationSeconds": metrics.get("duration_s")},
+            "experimentParameters": {"assistance coefficient": latest.get("assistance_coefficient"),
+                                     "teacher blend": latest.get("teacher_blend"),
+                                     "reference forcing": latest.get("reference_forcing")},
+            "checkpointPath": progress.get("checkpoint"),
+            "checkpointSha256": run.get("checkpoint_sha256"),
+            "sourceResultPath": run.get("result"), "configSha256": run.get("config_sha256"),
+            "artifacts": [_artifact(progress_path, node_id)],
+        })
+    # Synced summaries have no per-run proof hash; leave media unverified.
+    return nodes
+
+
+def _training_parameters(contract: dict) -> dict:
+    environment = contract.get("environment", {}) if isinstance(contract, dict) else {}
+    ppo = contract.get("ppo", {}) if isinstance(contract, dict) else {}
+    initialization = contract.get("initialization", {}) if isinstance(contract, dict) else {}
+    candidates = {
+        "training method": contract.get("training_method"),
+        "iterations": contract.get("iterations"),
+        "environments": contract.get("num_envs"),
+        "rollout steps / env": contract.get("num_steps_per_env"),
+        "samples": contract.get("sample_count"),
+        "action scale (rad)": environment.get("action_scale_rad"),
+        "standing mix": environment.get("standing_environment_fraction"),
+        "gait period (s)": environment.get("gait_phase_period_s"),
+        "learning rate": ppo.get("learning_rate"),
+        "initial noise std": ppo.get("initial_action_noise_std"),
+        "initialization": initialization.get("kind"),
+    }
+    return {key: value for key, value in candidates.items() if value is not None}
+
+
+def _training_progress(training: dict) -> dict:
+    contract = training.get("requested_contract", {})
+    checkpoint = training.get("checkpoint", {})
+    learning_iteration = checkpoint.get("learning_iteration") if isinstance(checkpoint, dict) else None
+    completed_iterations = learning_iteration + 1 if isinstance(learning_iteration, int) else None
+    return {
+        "kind": "training",
+        "completedIterations": completed_iterations,
+        "requestedIterations": contract.get("iterations"),
+        "rolloutStepsPerEnv": contract.get("num_steps_per_env"),
+        "numEnvs": contract.get("num_envs"),
+        "sampleCount": contract.get("sample_count"),
+    }
+
+
+def _parameter_changes(nodes: list[dict]) -> None:
+    by_id = {node["id"]: node for node in nodes}
+    for node in nodes:
+        parameters = node.get("experimentParameters", {})
+        parent = by_id.get((node.get("parentIds") or [None])[0])
+        parent_parameters = parent.get("experimentParameters", {}) if parent else {}
+        changes = []
+        for key, value in parameters.items():
+            if key in parent_parameters and parent_parameters[key] == value:
+                continue
+            changes.append({"key": key, "from": parent_parameters.get(key), "to": value})
+        node["parameterChanges"] = changes
+        if changes and not node.get("changeSummary"):
+            node["changeSummary"] = "; ".join(
+                f"{item['key']}: {item['from'] if item['from'] is not None else '—'} → {item['to']}"
+                for item in changes[:3]
+            )
+
+
 def build_evolution(
     output_root: Path = OUTPUT_ROOT,
     milestones_path: Path = MILESTONES_PATH,
@@ -830,18 +978,22 @@ def build_evolution(
         })
 
     passive_diagnostics = []
-    for diagnostic_path in (
-        sorted(output_root.rglob("dynamics_smoke_validation.json"))
+    passive_component_paths = (
+        sorted({
+            *output_root.rglob("dynamics_smoke_validation.json"),
+            *output_root.rglob("dynamics_validation.json"),
+        })
         if output_root.exists()
         else []
-    ):
+    )
+    for diagnostic_path in passive_component_paths:
         diagnostic = _read_json(diagnostic_path)
         if (
             diagnostic is None
             or diagnostic.get("lineage") not in accepted_lineages
             or diagnostic.get("milestone") != "stand_zero_signal_30s_no_reset"
             or diagnostic.get("component") != "dynamics"
-            or diagnostic.get("scope") != "diagnostic_experiment"
+            or diagnostic.get("scope") not in {"diagnostic_experiment", "component_only"}
         ):
             continue
         passive_diagnostics.append((diagnostic_path, diagnostic))
@@ -854,17 +1006,22 @@ def build_evolution(
         node_id = f"experiment:{run_identity}"
         raw_metrics = diagnostic.get("metrics", {})
         duration_s = float(raw_metrics.get("duration_s", 0.0))
+        is_gate_attempt = bool(diagnostic.get("gate_eligible"))
         status = "completed" if diagnostic.get("status") == "passed" else "failed"
         failures = diagnostic.get("failures") or []
-        result = (
-            f"{duration_s:g} s static-pose diagnostic retained support without a fall or reset"
-            if status == "completed"
-            else "; ".join(map(str, failures[:3])) or "static-pose diagnostic failed"
-        )
+        if status == "completed" and is_gate_attempt:
+            result = f"{duration_s:g} s dynamics passed; visual proof and final assembly remain separate"
+        elif status == "completed":
+            result = f"{duration_s:g} s static-pose diagnostic retained support without a fall or reset"
+        else:
+            result = "; ".join(map(str, failures[:3])) or "passive dynamics attempt failed"
         if is_invalidated:
             status = "failed"
             result = f"invalidated asset lineage; {result}"
-        experiment = diagnostic.get("experiment", {})
+        # Older component-only gate records used JSON null when no isolated
+        # experiment was attached.  Treat that as the empty mapping so failed
+        # attempts remain visible in the lineage instead of aborting the tree.
+        experiment = diagnostic.get("experiment") or {}
         parent_id = (
             invalidated_root_ids[diagnostic_lineage]
             if is_invalidated
@@ -873,23 +1030,42 @@ def build_evolution(
         nodes.append({
             "id": node_id,
             "parentIds": [parent_id],
-            "label": f"Static pose probe · {duration_s:g} s",
+            "label": (
+                f"Passive dynamics gate · {duration_s:g} s"
+                if is_gate_attempt
+                else f"Static pose probe · {duration_s:g} s"
+            ),
             "step": diagnostic_step,
             "status": status,
-            "kind": "experiment",
+            "kind": "validation" if is_gate_attempt else "experiment",
             "milestoneId": "stand_zero_signal_30s_no_reset",
             "lineage": diagnostic_lineage,
-            "approach": str(experiment.get("id", "static-pose diagnostic")),
+            "approach": str(
+                experiment.get("id")
+                or diagnostic.get("checkpoint", {}).get("kind")
+                or "static-pose diagnostic"
+            ),
             "result": result,
             "metrics": _metrics(diagnostic),
             "experimentParameters": {
                 "duration_s": duration_s,
                 "physics_steps": raw_metrics.get("physics_steps"),
-                "diagnostic_only": bool(experiment.get("diagnostic_only", True)),
+                "diagnostic_only": not is_gate_attempt,
                 "gate_eligible": bool(diagnostic.get("gate_eligible")),
             },
+            "trainingProgress": {
+                "kind": "diagnostic",
+                "physicsSteps": raw_metrics.get("physics_steps"),
+                "durationSeconds": duration_s,
+            },
+            "checkpointPath": diagnostic.get("checkpoint", {}).get("identity"),
+            "changeSummary": str(
+                experiment.get("independent_variable")
+                or diagnostic.get("checkpoint", {}).get("kind")
+                or experiment.get("id", "static-pose diagnostic")
+            ).replace("_", " "),
             "startedAt": run_identity,
-            "artifacts": [_artifact(diagnostic_path, node_id)] + _proof_artifacts(diagnostic_path.parent, node_id, diagnostic),
+            "artifacts": [_artifact(diagnostic_path, node_id)],
             "important": True,
         })
         diagnostic_step += 1
@@ -944,6 +1120,8 @@ def build_evolution(
 
     backend_nodes, backend_progress = _backend_evolution(output_root)
     nodes.extend(backend_nodes)
+    synced_backend_nodes = _backend_nodes(output_root) if not backend_nodes else []
+    nodes.extend(synced_backend_nodes)
     # Active MuJoCo certificates have their own model identity and proof media;
     # do not present them through the historical Isaac milestone placeholders.
     if ledger.get("backend") == "mujoco_warp_cuda":
@@ -998,6 +1176,7 @@ def build_evolution(
             visible.append(node["id"])
     visible_set = set(visible[:VISIBLE_NODE_BUDGET])
     default_visible = [node["id"] for node in nodes if node["id"] in visible_set]
+    _parameter_changes(nodes)
     active = next(
         (item.get("id") for item in ledger.get("milestones", []) if item.get("status") == "in_progress"),
         None,
@@ -1015,6 +1194,8 @@ def build_evolution(
         current_candidates,
         key=lambda item: (str(item.get("startedAt") or ""), item.get("step", 0)),
     )["id"]
+    if synced_backend_nodes and ledger.get("backend") != "mujoco_warp_cuda":
+        current = synced_backend_nodes[-1]["id"]
     if backend_progress:
         backend_current = next((node for node in nodes if node['id']==backend_progress['currentNodeId']), {})
         latest_pass = max((str(item.get('passedAt') or '') for item in ledger.get('milestones',[]) if item.get('status')=='passed'), default='')
@@ -1034,6 +1215,7 @@ def build_evolution(
     default_visible = [node["id"] for node in nodes if node["id"] in visible_set]
     return {
         "progress": backend_progress,
+        "milestones": _milestone_summaries(ledger),
         "schemaVersion": 1,
         "type": "evolutionTree",
         "lineage": by_id[current].get("lineage", lineage),
@@ -1045,8 +1227,10 @@ def build_evolution(
         "currentNodeId": current,
         "nodes": nodes,
         "summary": {
+            "passedMilestoneCount": sum(m.get("status") == "passed" for m in ledger.get("milestones", [])),
             "nodeCount": len(nodes),
             "failedCount": sum(node["status"] == "failed" for node in nodes),
+            "milestoneCount": len(ledger.get("milestones", [])),
             "checkpointBytes": sum(int(node.get("diskBytes") or 0) for node in nodes),
             "checkpointStorage": "Nextcloud online-only; not hydrated on Mac",
         },

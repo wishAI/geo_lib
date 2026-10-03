@@ -26,7 +26,10 @@
   const targetIcon = target => String(target || '').startsWith('tk2') ? 'tk2' : 'mac';
   const artifactIcon = kind => kind === 'image' ? 'result' : kind === 'video' ? 'play' : kind === 'json' ? 'file' : 'layers';
   const visibleExamples = sandbox => (sandbox.examples || []).filter(example => example.surface !== 'meshWorkbench');
-  const declaredArtifactCount = sandbox => new Set((sandbox.examples || []).flatMap(example => (example.artifacts || []).filter(item => !item.syncOnly).map(item => item.path))).size;
+  const declaredArtifactCount = sandbox => new Set([
+    ...(sandbox.artifacts || []).filter(item => !item.syncOnly).map(item => item.path),
+    ...(sandbox.examples || []).flatMap(example => (example.artifacts || []).filter(item => !item.syncOnly).map(item => item.path)),
+  ]).size;
   const JOINT_GROUPS = [
     ['left_arm', 'Left arm'], ['right_arm', 'Right arm'], ['left_leg', 'Left leg'], ['right_leg', 'Right leg'], ['body', 'Body'],
   ];
@@ -163,6 +166,7 @@
   }
 
   function designerPanel(sandbox) {
+    if (sandbox.designer?.type === 'avpRemote') return `<section class="panel"><div id="avp-remote"></div></section>`;
     if (sandbox.designer?.type === 'charDetails') return `<section class="panel"><div id="char-details"></div></section>`;
     if (sandbox.designer?.type === 'stellarisShipDesigner') return `<section class="panel ship-designer-panel"><div id="stellaris-ship-designer" aria-live="polite"></div></section>`;
     if (sandbox.designer?.type === 'rimworldPrepare') return `<section class="panel rimworld-prepare-panel"><div id="rimworld-prepare" aria-live="polite"></div></section>`;
@@ -212,9 +216,21 @@
     state.shipDesigner?.destroy?.();
     state.rimworldPrepare?.destroy?.();
     state.charDetails?.destroy?.();
+    state.avpRemote?.destroy?.();
+    state.avpRemote = null;
     state.shipDesigner = null;
     state.rimworldPrepare = null;
     state.charDetails = null;
+    if (sandbox.id === 'motion_anim_generate') {
+      app.innerHTML = '<div id="motion-animation-viewer"></div>';
+      const root = app.querySelector('#motion-animation-viewer');
+      void import('/api/artifact?path=algorithms/motion_anim_generate/gui/viewer.js').then(module => {
+        if (root.isConnected) return module.mount(root, {
+          onPreview: previewArtifact,
+        });
+      }).catch(error => { if (root.isConnected) root.textContent = 'Animation viewer unavailable: ' + error.message; });
+      return;
+    }
     const resultCount = declaredArtifactCount(sandbox);
     const examples = visibleExamples(sandbox);
     app.innerHTML = `
@@ -250,6 +266,12 @@
       void import('/api/artifact?path=algorithms/3d_char_details/gui/editor.js').then(module => {
         if (root?.isConnected) state.charDetails = module.mount(root);
       }).catch(error => { if (root?.isConnected) root.textContent = 'Character editor unavailable: ' + error.message; });
+    }
+    if (sandbox.designer?.type === 'avpRemote') {
+      const root = document.querySelector('#avp-remote');
+      void import('/api/artifact?path=algorithms/avp_remote/gui/viewer.js').then(module => {
+        if (root?.isConnected) state.avpRemote = module.mount(root);
+      }).catch(error => { if (root?.isConnected) root.textContent = 'AVP viewer unavailable: ' + error.message; });
     }
     void loadEvolutionPreview(sandbox);
     const consoleElement = document.querySelector('#job-console');
@@ -576,6 +598,8 @@
     state.shipDesigner?.destroy?.();
     state.rimworldPrepare?.destroy?.();
     state.charDetails?.destroy?.();
+    state.avpRemote?.destroy?.();
+    state.avpRemote = null;
     state.robotViewer = null;
     state.meshViewers = [];
     state.shipDesigner = null;

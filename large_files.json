@@ -243,6 +243,12 @@
       "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_preciseyaw500/model_3996.pt",
       "size": 5322677,
       "sha256": "7dd8f135230b002804156b45288b2ad2a20e2aef3103fc8dc85f8dc5be21d63b"
+    },
+    {
+      "repoPath": "algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
+      "cloudPath": "remote_outputs/algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
+      "size": 1133185036,
+      "sha256": "ef0a0ca45a6089ab4532dde609785771ae3f38755b4ae6cf314b0213e07cd4a3"
     }
   ]
 }

@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import random
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Sequence
@@ -37,7 +38,25 @@ class SolverConfig:
     compaction_passes: int = 2
     placement_tolerance: float = 1e-6
     seed: int = 20260403
+    candidate_mode: str = "nfp"
+    constructive_start: bool = True
     preferred_corners: tuple[str, ...] = DEFAULT_CORNERS
+
+    def __post_init__(self):
+        for key in ("beam_width", "population_size", "generations", "elite_count",
+                    "max_candidates_per_item", "max_item_anchor_points", "max_free_space_anchor_points"):
+            if getattr(self, key) < 1:
+                raise ValueError(f"{key} must be positive")
+        if not math.isfinite(self.rotation_step_degrees) or self.rotation_step_degrees <= 0:
+            raise ValueError("rotation_step_degrees must be finite and positive")
+        if not math.isfinite(self.placement_tolerance) or self.placement_tolerance <= 0:
+            raise ValueError("placement_tolerance must be finite and positive")
+        if not 0 <= self.mutation_rate <= 1:
+            raise ValueError("mutation_rate must be in [0, 1]")
+        if self.candidate_mode not in ("contact", "nfp"):
+            raise ValueError("candidate_mode must be contact or nfp")
+        if not self.preferred_corners or any(c not in ALL_CORNERS for c in self.preferred_corners):
+            raise ValueError("invalid preferred_corners")
 
     @classmethod
     def from_problem(cls, problem: ProblemSpec, overrides: dict[str, Any] | None = None) -> "SolverConfig":
@@ -46,6 +65,8 @@ class SolverConfig:
             merged.update({key: value for key, value in overrides.items() if value is not None})
         preferred_corners = tuple(merged.get("preferred_corners", DEFAULT_CORNERS))
         return cls(
+            constructive_start=bool(merged.get("constructive_start", True)),
+            candidate_mode=str(merged.get("candidate_mode", "nfp")),
             rotation_step_degrees=float(merged.get("rotation_step_degrees", 15.0)),
             beam_width=int(merged.get("beam_width", 6)),
             population_size=int(merged.get("population_size", 12)),
@@ -100,6 +121,7 @@ class Placement:
     polygon: Polygon
     centroid_x: float
     centroid_y: float
+    polygon_local: Polygon | None = None
 
     @property
     def area(self) -> float:
@@ -207,6 +229,8 @@ def _bounds_corners(bounds: tuple[float, float, float, float]) -> list[tuple[flo
 
 
 def _sample_points(points: Sequence[tuple[float, float]], limit: int) -> list[tuple[float, float]]:
+    if limit <= 0:
+        return []
     unique = _dedupe_points(points)
     if len(unique) <= limit:
         return unique
@@ -220,8 +244,8 @@ def _sample_points(points: Sequence[tuple[float, float]], limit: int) -> list[tu
 
     chosen: list[tuple[float, float]] = []
     chosen_keys: set[tuple[float, float]] = set()
-    for seq in candidate_lists:
-        for point in seq:
+    for directional_points in zip(*candidate_lists):
+        for point in directional_points:
             key = (round(point[0], 6), round(point[1], 6))
             if key in chosen_keys:
                 continue
@@ -254,7 +278,7 @@ def _allowed_angles(widget: WidgetSpec, config: SolverConfig) -> tuple[float, ..
         raw = widget.allowed_angles_degrees
     else:
         step = widget.rotation_step_degrees or config.rotation_step_degrees
-        count = max(1, int(round(360.0 / step)))
+        count = max(1, int(math.ceil(360.0 / step)))
         raw = tuple(idx * step for idx in range(count))
 
     deduped: list[float] = []
@@ -320,7 +344,9 @@ def _build_runtime(problem: ProblemSpec, config: SolverConfig) -> tuple[list[Boa
 
 def _board_rest_rectangles(board: BoardRuntime, occupied: Any) -> list[dict[str, Any]]:
     if occupied.is_empty:
-        return [{"kind": "board_free", "area": board.area, "bounds": list(board.bounds)}]
+        if board.polygon.equals(box(*board.bounds)):
+            return [{"kind": "board_free", "area": board.area, "bounds": list(board.bounds)}]
+        return []  # No proven rectangle for an irregular untouched board.
 
     board_min_x, board_min_y, board_max_x, board_max_y = board.bounds
     occ_min_x, occ_min_y, occ_max_x, occ_max_y = occupied.bounds
@@ -412,8 +438,8 @@ def _trim_beam(states: Sequence[LayoutState], boards: Sequence[BoardRuntime], li
     return ranked[:limit]
 
 
-def _initial_state(board_count: int) -> LayoutState:
-    return LayoutState(board_states=tuple(BoardState() for _ in range(board_count)))
+def _initial_state(boards: Sequence[BoardRuntime]) -> LayoutState:
+    return LayoutState(board_states=tuple(BoardState(free_space=b.polygon) for b in boards))
 
 
 def _board_free_space(board: BoardRuntime, board_state: BoardState) -> Any:
@@ -456,9 +482,6 @@ def _max_shift(
             high *= 2.0
         else:
             break
-
-    if low == 0.0 and high == 1.0:
-        return geometry
 
     for _ in range(18):
         mid = (low + high) / 2.0
@@ -556,6 +579,7 @@ def _build_placement(
         polygon=orient(geometry, sign=1.0),
         centroid_x=float(centroid.x),
         centroid_y=float(centroid.y),
+        polygon_local=next(v.polygon for v in item.rotation_variants if v.angle_degrees == angle),
     )
 
 
@@ -566,26 +590,28 @@ def _candidate_geometries(
     *,
     max_free_space_anchor_points: int,
 ) -> list[Polygon]:
-    free_points = _free_space_anchor_points(free_component, limit=max_free_space_anchor_points)
-    geometries: list[Polygon] = []
-    for target_x, target_y in free_points:
-        for anchor_x, anchor_y in item_anchor_points:
-            geometries.append(
-                shapely_translate(rotated_item, xoff=target_x - anchor_x, yoff=target_y - anchor_y)
-            )
-
-    item_bounds = _bounds_corners(rotated_item.bounds)
-    free_bounds = _bounds_corners(free_component.bounds)
-    for (free_x, free_y), (item_x, item_y) in zip(free_bounds, item_bounds):
-        geometries.append(shapely_translate(rotated_item, xoff=free_x - item_x, yoff=free_y - item_y))
-    return geometries
+    return [shapely_translate(rotated_item, xoff=x, yoff=y) for x, y in
+            _candidate_offsets(rotated_item.bounds, item_anchor_points, free_component,
+                               max_free_space_anchor_points)]
 
 
-def _find_item_candidates(
+def _candidate_offsets(bounds, anchors, component, limit):
+    free_points = _free_space_anchor_points(component, limit=limit)
+    return [(tx-ax, ty-ay) for tx, ty in free_points for ax, ay in anchors] + [
+        (fx-ix, fy-iy) for (fx, fy), (ix, iy) in
+        zip(_bounds_corners(component.bounds), _bounds_corners(bounds))]
+
+
+def _expired(deadline: float | None) -> bool:
+    return deadline is not None and time.perf_counter() >= deadline
+
+
+def _find_contact_candidates(
     item: ItemRuntime,
     state: LayoutState,
     boards: Sequence[BoardRuntime],
     config: SolverConfig,
+    deadline: float | None = None,
 ) -> list[Placement]:
     candidates: list[tuple[tuple[float, ...], Placement]] = []
     seen: set[tuple[Any, ...]] = set()
@@ -605,7 +631,7 @@ def _find_item_candidates(
                 rotated = variant.polygon
                 angle = variant.angle_degrees
                 rot_min_x, rot_min_y, rot_max_x, rot_max_y = variant.bounds
-                if (rot_max_x - rot_min_x) > comp_width + config.placement_tolerance and (
+                if (rot_max_x - rot_min_x) > comp_width + config.placement_tolerance or (
                     rot_max_y - rot_min_y
                 ) > comp_height + config.placement_tolerance:
                     continue
@@ -617,6 +643,9 @@ def _find_item_candidates(
                     max_free_space_anchor_points=config.max_free_space_anchor_points,
                 ):
                     for corner in config.preferred_corners:
+                        if _expired(deadline):
+                            candidates.sort(key=lambda entry: entry[0], reverse=True)
+                            return [p for _, p in candidates[:config.max_candidates_per_item]]
                         geometry = _compact_geometry(
                             seed_geometry,
                             board=board,
@@ -637,6 +666,46 @@ def _find_item_candidates(
 
     candidates.sort(key=lambda entry: entry[0], reverse=True)
     return [placement for _, placement in candidates[: config.max_candidates_per_item]]
+
+
+def _find_item_candidates(item, state, boards, config, deadline=None):
+    if config.candidate_mode == "contact":
+        return _find_contact_candidates(item, state, boards, config, deadline)
+    try:
+        from .nfp import translation_candidates
+    except ImportError:  # script mode
+        from nfp import translation_candidates
+    candidates, seen = [], set()
+    for board_index, board in enumerate(boards):
+        bs = state.board_states[board_index]
+        fixed = [(p.polygon_local if p.polygon_local is not None else
+                  shapely_translate(p.polygon, xoff=-p.centroid_x, yoff=-p.centroid_y),
+                  p.centroid_x, p.centroid_y) for p in bs.placements]
+        for variant in item.rotation_variants:
+            if _expired(deadline):
+                candidates.sort(key=lambda entry: entry[0], reverse=True)
+                return [p for _, p in candidates[:config.max_candidates_per_item]]
+            points = translation_candidates(board.polygon, variant.polygon, fixed, config.placement_tolerance)
+            # Contact fallback retains exact hole fits lost by closed-set polygon
+            # operations at a zero-area inner-fit region.
+            for component in _iter_polygons(_board_free_space(board, bs)):
+                points.extend(_candidate_offsets(variant.bounds, variant.anchor_points, component,
+                                                 config.max_free_space_anchor_points))
+            for x, y in _dedupe_points(points, decimals=9):
+                if _expired(deadline):
+                    break
+                geometry = shapely_translate(variant.polygon, xoff=x, yoff=y)
+                if not _is_valid_placement(geometry, board, bs.occupied, config.placement_tolerance):
+                    continue
+                key = _candidate_key(board.board_id, variant.angle_degrees, geometry)
+                if key in seen:
+                    continue
+                seen.add(key)
+                occupied = geometry if bs.occupied.is_empty else bs.occupied.union(geometry)
+                placement = _build_placement(item, board, board_index, variant.angle_degrees, geometry)
+                candidates.append((_placement_rank_key(board, occupied, geometry), placement))
+    candidates.sort(key=lambda entry: entry[0], reverse=True)
+    return [p for _, p in candidates[:config.max_candidates_per_item]]
 
 
 def _apply_placement(state: LayoutState, placement: Placement) -> LayoutState:
@@ -675,23 +744,29 @@ def _evaluate_order(
     items: dict[str, ItemRuntime],
     boards: Sequence[BoardRuntime],
     config: SolverConfig,
+    deadline: float | None = None,
+    initial_state: LayoutState | None = None,
 ) -> tuple[LayoutState, dict[str, int]]:
-    beam = [_initial_state(len(boards))]
-    stats = {"candidate_checks": 0, "states_expanded": 0}
+    beam = [initial_state or _initial_state(boards)]
+    stats = {"retained_candidates": 0, "states_expanded": 0}
 
-    for item_id in order:
+    for index, item_id in enumerate(order):
+        if _expired(deadline):
+            for remaining in order[index:]:
+                beam = [_skip_item(state, items[remaining]) for state in beam]
+            break
         item = items[item_id]
         next_states: list[LayoutState] = []
         for state in beam:
             stats["states_expanded"] += 1
-            candidates = _find_item_candidates(item, state, boards, config)
-            stats["candidate_checks"] += len(candidates)
+            candidates = _find_item_candidates(item, state, boards, config, deadline)
+            stats["retained_candidates"] += len(candidates)
             for placement in candidates:
                 next_states.append(_apply_placement(state, placement))
             next_states.append(_skip_item(state, item))
         beam = _trim_beam(next_states, boards, config.beam_width)
         if not beam:
-            beam = [_initial_state(len(boards))]
+            beam = [_initial_state(boards)]
             break
 
     best = max(beam, key=lambda state: _state_rank_key(state, boards))
@@ -726,6 +801,16 @@ def _mutate(order: tuple[str, ...], rng: random.Random, rate: float) -> tuple[st
     return tuple(values)
 
 
+def _canonical_order(order, items):
+    counts = {}
+    result = []
+    for item_id in order:
+        widget_id = items[item_id].widget_id
+        counts[widget_id] = counts.get(widget_id, 0) + 1
+        result.append(f"{widget_id}#{counts[widget_id]}")
+    return tuple(result)
+
+
 def _build_initial_population(item_ids: list[str], items: dict[str, ItemRuntime], config: SolverConfig) -> list[tuple[str, ...]]:
     area_desc = tuple(sorted(item_ids, key=lambda item_id: (items[item_id].area, items[item_id].hole_area), reverse=True))
     area_asc = tuple(sorted(item_ids, key=lambda item_id: (items[item_id].area, items[item_id].hole_area)))
@@ -741,18 +826,42 @@ def _build_initial_population(item_ids: list[str], items: dict[str, ItemRuntime]
         )
     )
 
-    population: list[tuple[str, ...]] = [area_desc, area_asc, hole_desc, compact_first]
+    population = list(dict.fromkeys(_canonical_order(o, items) for o in
+                                    (area_desc, area_asc, hole_desc, compact_first)))
     rng = random.Random(config.seed)
-    while len(population) < config.population_size:
+    for _ in range(config.population_size * 20):
+        if len(population) >= config.population_size:
+            break
         shuffled = item_ids[:]
         rng.shuffle(shuffled)
-        order = tuple(shuffled)
+        order = _canonical_order(tuple(shuffled), items)
         if order not in population:
             population.append(order)
     return population[: config.population_size]
 
 
-def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None) -> SolutionResult:
+def _state_from_placements(placements, boards, items):
+    """Assemble a constructive incumbent without repeated global polygon unions."""
+    from shapely.ops import unary_union
+    states = []
+    for b in boards:
+        placed = tuple(p for p in placements if p.board_id == b.board_id)
+        occupied = unary_union([p.polygon for p in placed])
+        states.append(BoardState(occupied, b.polygon.difference(occupied), placed))
+    return LayoutState(tuple(states), tuple(placements), (), sum(p.area for p in placements), 0.)
+
+
+def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
+                  time_limit_seconds: float | None = None) -> SolutionResult:
+    """Return a feasible incumbent at a cooperative deadline, if supplied.
+
+    An individual GEOS operation cannot be interrupted; elapsed time can exceed
+    the limit. Callers needing a hard limit must also isolate the process.
+    """
+    started = time.perf_counter()
+    if time_limit_seconds is not None and (not math.isfinite(time_limit_seconds) or time_limit_seconds <= 0):
+        raise ValueError("time_limit_seconds must be finite and positive")
+    deadline = None if time_limit_seconds is None else started + time_limit_seconds
     effective_config = config or SolverConfig.from_problem(problem)
     boards, items = _build_runtime(problem, effective_config)
     item_ids = list(items)
@@ -763,20 +872,96 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None) -> S
     best_order = population[0]
     best_state: LayoutState | None = None
     best_metrics: tuple[float, ...] | None = None
-    aggregate_stats = {"orders_evaluated": 0, "candidate_checks": 0, "states_expanded": 0}
+    aggregate_stats = {"orders_evaluated": 0, "retained_candidates": 0, "states_expanded": 0}
 
-    for _generation in range(effective_config.generations):
+    # Build a cheap full-scene incumbent before exhaustive polygon candidates.
+    # On small scenes retain the existing hole-aware search and its scoring.
+    warm_full = False
+    if effective_config.constructive_start and effective_config.candidate_mode == 'nfp' and len(items) >= 32:
+        try:
+            from .constructive import envelope_layouts
+        except ImportError:  # script mode
+            from constructive import envelope_layouts
+        # A large number of different envelopes fragments the free-rectangle
+        # list; reserve most time for the bitset polygon constructor in that case.
+        envelope_cap = .5 if len({i.widget_id for i in items.values()}) >= 64 else 4.
+        warm_deadline = started + (min(envelope_cap, time_limit_seconds * .4) if time_limit_seconds else envelope_cap)
+        attempts = 0
+        for raw_placements in envelope_layouts(boards, items, warm_deadline, effective_config.placement_tolerance):
+            attempts += 1
+            placements = [_build_placement(items[key], boards[bi], bi, variant.angle_degrees,
+                                          shapely_translate(variant.polygon, xoff=x, yoff=y))
+                          for key, bi, variant, x, y in raw_placements]
+            state = _state_from_placements(placements, boards, items)
+            ids = {p.item_instance_id for p in placements}
+            for key in item_ids:
+                if key not in ids:
+                    state = _skip_item(state, items[key])
+            key = _state_rank_key(state, boards)
+            if best_metrics is None or key > best_metrics:
+                best_state, best_metrics = state, key
+                best_order = tuple(p.item_instance_id for p in state.placed) + state.skipped_item_ids
+            if not state.skipped_item_ids:
+                warm_full = True
+                break
+        aggregate_stats['constructive_attempts'] = attempts
+        aggregate_stats['constructive_seconds'] = time.perf_counter() - started
+        aggregate_stats['constructive_placed'] = best_state.placed_count if best_state else 0
+        if not warm_full and not _expired(deadline):
+            try:
+                from .raster_start import raster_layout
+            except ImportError:  # script mode
+                from raster_start import raster_layout
+            raster_deadline = min(deadline, started + time_limit_seconds * .75) if deadline else started + 8.
+            for resolution, mode in ((512,'area'), (512,'long_side'), (512,'bbox'), (768,'area'), (768,'height')):
+                if _expired(raster_deadline):
+                    break
+                raw = raster_layout(boards, items, raster_deadline, resolution=resolution, order_mode=mode)
+                placements = [_build_placement(items[k], boards[bi], bi, v.angle_degrees,
+                                              shapely_translate(v.polygon, xoff=x, yoff=y))
+                              for k, bi, v, x, y in raw]
+                state = _state_from_placements(placements, boards, items)
+                ids = {p.item_instance_id for p in placements}
+                for k in item_ids:
+                    if k not in ids:
+                        state = _skip_item(state, items[k])
+                if best_metrics is None or _state_rank_key(state, boards) > best_metrics:
+                    best_state, best_metrics = state, _state_rank_key(state, boards)
+                    best_order = tuple(p.item_instance_id for p in state.placed) + state.skipped_item_ids
+                aggregate_stats['raster_placed'] = best_state.placed_count
+                if not best_state.skipped_item_ids:
+                    warm_full = True
+                    break
+        if best_state and best_state.skipped_item_ids and not _expired(deadline):
+            repair_order = best_state.skipped_item_ids
+            initial = LayoutState(best_state.board_states, best_state.placed, (), best_state.placed_area, 0.)
+            repair_deadline = min(deadline, started + time_limit_seconds * .75) if deadline else started + 6.
+            repaired, stats = _evaluate_order(repair_order, items=items, boards=boards,
+                                             config=effective_config, deadline=repair_deadline, initial_state=initial)
+            aggregate_stats['repair_placed'] = repaired.placed_count - best_state.placed_count
+            aggregate_stats['repair_states_expanded'] = stats['states_expanded']
+            if _state_rank_key(repaired, boards) > best_metrics:
+                best_state, best_metrics = repaired, _state_rank_key(repaired, boards)
+                best_order = tuple(p.item_instance_id for p in repaired.placed) + repaired.skipped_item_ids
+            warm_full = not best_state.skipped_item_ids
+        if warm_full:
+            aggregate_stats['termination_reason'] = 'constructive_full_fit'
+            aggregate_stats['first_full_fit_seconds'] = time.perf_counter() - started
+
+    for _generation in range(0 if warm_full else effective_config.generations):
         evaluated: list[tuple[tuple[float, ...], tuple[str, ...], LayoutState]] = []
         for order in population:
+            if best_state is not None and _expired(deadline):
+                break
             cached = cache.get(order)
             if cached is None:
-                state, stats = _evaluate_order(order, items=items, boards=boards, config=effective_config)
+                state, stats = _evaluate_order(order, items=items, boards=boards, config=effective_config, deadline=deadline)
                 cache[order] = (state, stats)
+                aggregate_stats["retained_candidates"] += stats["retained_candidates"]
+                aggregate_stats["states_expanded"] += stats["states_expanded"]
             else:
                 state, stats = cached
             aggregate_stats["orders_evaluated"] += 1
-            aggregate_stats["candidate_checks"] += stats["candidate_checks"]
-            aggregate_stats["states_expanded"] += stats["states_expanded"]
             key = _state_rank_key(state, boards)
             evaluated.append((key, order, state))
             if best_metrics is None or key > best_metrics:
@@ -784,15 +969,20 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None) -> S
                 best_state = state
                 best_order = order
 
+        if _expired(deadline) or _generation + 1 == effective_config.generations:
+            break
         evaluated.sort(key=lambda entry: entry[0], reverse=True)
-        elites = [order for _, order, _ in evaluated[: effective_config.elite_count]]
+        elite_count = min(effective_config.elite_count, max(1, len(evaluated) // 2))
+        elites = [order for _, order, _ in evaluated[: elite_count]]
         next_population = elites[:]
         parent_pool = [order for _, order, _ in evaluated[: max(effective_config.elite_count * 2, len(elites))]]
-        while len(next_population) < effective_config.population_size:
+        for _ in range(effective_config.population_size * 20):
+            if len(next_population) >= effective_config.population_size:
+                break
             parent_a = rng.choice(parent_pool)
             parent_b = rng.choice(parent_pool)
             child = _ordered_crossover(parent_a, parent_b, rng)
-            child = _mutate(child, rng, effective_config.mutation_rate)
+            child = _canonical_order(_mutate(child, rng, effective_config.mutation_rate), items)
             if child not in next_population:
                 next_population.append(child)
         population = next_population
@@ -802,6 +992,10 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None) -> S
     board_metrics = tuple(_board_metrics(board, board_state) for board, board_state in zip(boards, best_state.board_states))
     max_rest = max((entry["max_rest_rectangle_area"] for entry in board_metrics), default=0.0)
     sum_rest = sum(entry["sum_rest_rectangle_area"] for entry in board_metrics)
+    aggregate_stats["time_limit_seconds"] = time_limit_seconds
+    aggregate_stats["budget_exhausted"] = _expired(deadline)
+    aggregate_stats["solve_seconds"] = time.perf_counter() - started
+    aggregate_stats["candidate_mode"] = effective_config.candidate_mode
     aggregate_stats["unique_orders_evaluated"] = len(cache)
     aggregate_stats["beam_width"] = effective_config.beam_width
     aggregate_stats["population_size"] = effective_config.population_size
@@ -860,11 +1054,34 @@ def solution_to_dict(problem: ProblemSpec, solution: SolutionResult) -> dict[str
     }
 
 
-def validate_solution(problem: ProblemSpec, solution: SolutionResult, *, tolerance: float = 1e-6) -> None:
+def validate_solution(problem: ProblemSpec, solution: SolutionResult, *, tolerance: float = 1e-6, config: SolverConfig | None = None) -> None:
     boards = {
         board.board_id: board.polygon.to_polygon(name=f"board:{board.board_id}")
         for board in problem.boards
     }
+
+    effective = config or SolverConfig.from_problem(problem)
+    _, items = _build_runtime(problem, effective)
+    placed_ids = [p.item_instance_id for p in solution.placements]
+    all_ids = placed_ids + list(solution.skipped_item_ids)
+    if len(set(all_ids)) != len(all_ids) or set(all_ids) != set(items):
+        raise AssertionError("placed/skipped identities must partition requested instances")
+    if not math.isclose(sum(p.area for p in solution.placements), solution.placed_area, rel_tol=0, abs_tol=tolerance):
+        raise AssertionError("placed area accounting mismatch")
+    if not math.isclose(sum(items[i].area for i in solution.skipped_item_ids), solution.skipped_area, rel_tol=0, abs_tol=tolerance):
+        raise AssertionError("skipped area accounting mismatch")
+    for p in solution.placements:
+        item = items[p.item_instance_id]
+        if p.widget_id != item.widget_id:
+            raise AssertionError("widget identity mismatch")
+        if not 0 <= p.board_index < len(problem.boards) or problem.boards[p.board_index].board_id != p.board_id:
+            raise AssertionError("board identity mismatch")
+        variant = next((v for v in item.rotation_variants if abs((v.angle_degrees-p.rotation_degrees+180)%360-180) < 1e-6), None)
+        if variant is None:
+            raise AssertionError("rotation is not allowed")
+        expected = shapely_translate(variant.polygon, xoff=p.centroid_x, yoff=p.centroid_y)
+        if not expected.buffer(tolerance).covers(p.polygon) or not p.polygon.buffer(tolerance).covers(expected):
+            raise AssertionError("widget geometry was changed")
 
     placements_by_board: dict[str, list[Placement]] = {board_id: [] for board_id in boards}
     for placement in solution.placements:
@@ -891,6 +1108,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--population-size", type=int, default=None)
     parser.add_argument("--generations", type=int, default=None)
     parser.add_argument("--rotation-step-degrees", type=float, default=None)
+    parser.add_argument("--time-limit-seconds", type=float, default=None)
+    parser.add_argument("--candidate-mode", choices=["nfp", "contact"], default=None)
     parser.add_argument("--mujoco-debug", action="store_true", help="Render an optional MuJoCo debug view")
     return parser.parse_args()
 
@@ -901,6 +1120,7 @@ def main() -> None:
     config = SolverConfig.from_problem(
         problem,
         overrides={
+            "candidate_mode": args.candidate_mode,
             "seed": args.seed,
             "beam_width": args.beam_width,
             "population_size": args.population_size,
@@ -908,8 +1128,8 @@ def main() -> None:
             "rotation_step_degrees": args.rotation_step_degrees,
         },
     )
-    solution = solve_problem(problem, config=config)
-    validate_solution(problem, solution, tolerance=config.placement_tolerance)
+    solution = solve_problem(problem, config=config, time_limit_seconds=args.time_limit_seconds)
+    validate_solution(problem, solution, tolerance=config.placement_tolerance, config=config)
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)

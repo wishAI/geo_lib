@@ -119,3 +119,86 @@ seam; tapered Taubin smoothing reduces remaining dents without changing the
 face above .818 or its morph targets. Current proofs are `neck_export_front` /
 `neck_export_oblique`, with refreshed GLB-reimport blink and full-body views.
 Saved presets now live in sandbox history; see AGENTS.md for persistence details.
+
+
+## Clothing scope clarified after 6446c39
+
+The user explicitly restricted clothing work to segmentation/material regions,
+with manual fitting through sandbox properties. Keep original source surfaces,
+shoe design and existing controls. Do not automatically fit, reshape, scale shoes,
+add correction morphs or simulate cloth. The accepted face/body/neck remain exact.
+The new source-seam segmenter and 60 Hz running preview are described in AGENTS.md.
+Research notes are future options; no cloth/collision certification is implied.
+Keep the current local assets and the 6446c39 checkpoint; do not hydrate archives.
+
+## Connected manual fitting (September 12)
+
+The user accepted segmentation at `3cf1e6e` and requested connected outfit
+properties, shared scale and clothing-only joint angles. `gui/garment-fit.js`
+now enforces parent/child attachments during manual fitting and skinning. This
+supersedes the earlier ban on adding fitting controls/constraints; automatic
+body fitting, replacement clothing and simulated cloth remain out of scope.
+The source master, source GLB and protected body/face data are unchanged. See
+AGENTS.md for the shared-value hierarchy, export bake and validation contract.
+
+September 13: the body lower-neck/upper-chest transition is an explicit Shape
+group (`body-transition.js`), distinct from clothing Collar / neckline. Its
+local morphs preserve the welded skin and face above glTF Y=.818. They are
+installed before body rest-frame capture, retained in presets and exported.
+The source Blender/GLB stays unchanged. Vest-owned shoulder attachment fields
+in `garment-fit.js` carry the connected sleeves; see AGENTS.md for validation.
+
+## September 21 facial revision (supersedes the old closed-mouth limitation)
+
+The user requested an opening mouth, smooth independent eyeballs and symmetric
+closure. `repair_face.py` locally modifies the accepted continuous skin; use the
+pre-face checkpoint documented in AGENTS.md, not the original full rebuild.
+It adds a real lip aperture, recessed mouth bag, teeth and tongue; replaces the
+raised original iris support with smooth closed EyeShell objects; retains the
+original lash neutral geometry/topology and transports it on shared guides.
+Original ocular neutral preservation is superseded by this authorized repair;
+stationary ocular geometry during blink and upper-lids-only remain required.
+
+Reference originals now also include `inputs/landau_v10/open_mouth/*.png`.
+Do not replace the mouth interior with a painted dark patch. The actual opening
+must remain connected to its cavity through jaw motion and export.
+`gui/facial-controls.js` evaluates the clamped blink/squint amount and hidden
+midpoint `_blinkArc` morphs; carry that rule into other engines when animating.
+`validate_face.py` checks actual manifold eyeballs, shallow iris/pupil offsets,
+checkpoint lash preservation, five blink attachments and three mouth openings.
+Quantify residual symmetry rather than claiming zero. `verify_likeness.py --
+--glb` imports and renders the exported asset. Historical body-integration face
+hashes remain historical; current repair has its own scoped preservation report.
+The exported body jawDrop keeps authored split normals (zero NORMAL delta).
+Verify final shading in WebGL; Blender's reimport ignores glTF morph normals,
+so its rendered shading is not an exact match to the sandbox.
+
+The subsequent close-up/zoom regression supersedes the coarse lip annulus:
+use the 176-point constrained lip layout and `mouth_constraints.py` joint
+deformation audit. Keep the cavity attached for combined jaw, length and
+curvature. Shape → Mouth uses signed persistent native morphs; expression
+presets must preserve them. Validate actual export geometry as well as previews.
+`ocular-rendering.js` handles camera depth precision and ordered eye-layer
+depth offsets in the viewer; keep normal eyelid occlusion and do not increase
+iris/pupil protrusion to disguise depth-buffer noise.
+
+Rabbit likeness correction: the user rejected both artificial human lip relief
+and a fully smoothed muzzle. Trace the original sculpt's mouth at the concave
+foot of its upper-muzzle projection (`muzzle_features.py`). Preserve the original
+3D relief, soften tessellation noise along the measured line, and recess the
+lower lip/chin according to `side_muzzle_reference.png`. Do not substitute an
+analytic contour or a broad smooth depth field. Inspect front, oblique and true
+side (`mouth_refined_profile`) views, plus half/full openings. Transport smooth
+normals consistently when changing the chin so the patch border does not show.
+
+During jaw opening, preserve the measured upper rim exactly. Open only the
+lower rim; do not flatten the upper muzzle curve into a shallow arc.
+
+
+For lower-muzzle/chin cleanup, preserve the accepted mouth contour and filter
+only local source depth. Fit normals from that filtered field too; transporting
+noisy source normals retains the dents' shading. Avoid decimation as a substitute
+for this cleanup. Muzzle projection must be compact and synchronized across
+components: explicitly zero inherited muzzle targets on eyes, glints, brows and
+lashes. Jaw inward is a separate persistent shape control with the lip pinned,
+not an expression preset or a garment-fit trigger.

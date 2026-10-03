@@ -30,6 +30,7 @@ from landau_mapping_config import (
     apply_output_rule,
 )
 from urdf_kinematics import (
+    joint_local_transform,
     find_joint_chain_from_specs,
     load_urdf_joint_specs,
     specs_by_child_link,
@@ -149,6 +150,7 @@ class LandauUpperBodyRetargeter:
         arm_ik_error_tolerance: float | None = 3.0e-2,
         arm_ccd_iterations: int = 80,
         profile_enabled: bool = False,
+        use_trac_ik: bool = True,
     ) -> None:
         self.urdf_path = Path(urdf_path).resolve()
         self.skeleton_json_path = Path(skeleton_json_path).resolve()
@@ -191,11 +193,13 @@ class LandauUpperBodyRetargeter:
         self.left_chain = find_joint_chain_from_specs(self.urdf_joint_specs, ARM_BASE_LINK, LEFT_ARM_TIP, key="child_link")
         self.right_chain = find_joint_chain_from_specs(self.urdf_joint_specs, ARM_BASE_LINK, RIGHT_ARM_TIP, key="child_link")
 
-        TracIK = _load_trac_ik()
-        self.left_solver = TracIK(base_link_name=ARM_BASE_LINK, tip_link_name=LEFT_ARM_TIP, urdf_path=str(self.urdf_path))
-        self.right_solver = TracIK(base_link_name=ARM_BASE_LINK, tip_link_name=RIGHT_ARM_TIP, urdf_path=str(self.urdf_path))
-        self.left_seed = np.zeros(self.left_solver.dof, dtype=float)
-        self.right_seed = np.zeros(self.right_solver.dof, dtype=float)
+        self.left_solver = self.right_solver = None
+        if use_trac_ik:
+            TracIK = _load_trac_ik()
+            self.left_solver = TracIK(base_link_name=ARM_BASE_LINK, tip_link_name=LEFT_ARM_TIP, urdf_path=str(self.urdf_path))
+            self.right_solver = TracIK(base_link_name=ARM_BASE_LINK, tip_link_name=RIGHT_ARM_TIP, urdf_path=str(self.urdf_path))
+        self.left_seed = np.zeros(len(self.left_chain), dtype=float)
+        self.right_seed = np.zeros(len(self.right_chain), dtype=float)
 
         snapshot_payload = load_snapshot_payload(self.snapshot_path)
         self.snapshot_frame = extract_tracking_frame(snapshot_payload)
@@ -344,7 +348,7 @@ class LandauUpperBodyRetargeter:
 
         # The mesh URDF now exposes a full 6-DOF torso-to-hand chain.
         # Prefer the solver when it can satisfy the wrist target, otherwise fall back to CCD.
-        if solver.dof >= 6:
+        if solver is not None and solver.dof >= 6:
             ik_started_at = time.perf_counter() if self.profile_enabled else 0.0
             solution = solver.ik(
                 target_pos,
@@ -382,14 +386,23 @@ class LandauUpperBodyRetargeter:
             for joint_name, joint_value in zip(chain, seed, strict=False)
         }
 
+        # Only this six-joint chain can affect the hand. Avoid evaluating all
+        # finger/leg branches hundreds of times per live frame.
+        def chain_worlds():
+            worlds = {ARM_BASE_LINK: np.eye(4, dtype=float)}
+            for name in chain:
+                spec = self.joint_specs[name]
+                worlds[name] = worlds[spec.parent_link] @ joint_local_transform(spec, pose.get(name, 0.0))
+            return worlds
+
         for _ in range(self.arm_ccd_iterations):
-            base_relative_map = self._base_relative_world_map(pose)
+            base_relative_map = chain_worlds()
             current_pos = base_relative_map[hand_name][:3, 3]
             if float(np.linalg.norm(target_pos - current_pos)) <= 1.0e-3:
                 break
 
             for joint_name in reversed(chain):
-                base_relative_map = self._base_relative_world_map(pose)
+                base_relative_map = chain_worlds()
                 current_pos = base_relative_map[hand_name][:3, 3]
                 joint_transform = base_relative_map[joint_name]
                 joint_pos = joint_transform[:3, 3]
@@ -420,11 +433,13 @@ class LandauUpperBodyRetargeter:
 
     def _wrist_local_positions(self, side: str, frame) -> dict[str, np.ndarray] | None:
         stack = _tracking_stack_world(frame.get(f"{side}_arm"))
-        if stack is None or len(stack) != len(HAND_JOINT_NAMES):
+        if stack is None or len(stack) not in (25, len(HAND_JOINT_NAMES)):
             return None
         wrist_inv = np.linalg.inv(stack[HAND_JOINT_INDEX["wrist"]])
         local_positions = {}
         for joint_name, joint_index in HAND_JOINT_INDEX.items():
+            if joint_index >= len(stack):
+                continue
             local_mat = wrist_inv @ stack[joint_index]
             local_positions[joint_name] = local_mat[:3, 3].copy()
         return local_positions
