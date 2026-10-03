@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "Left10m component passed and was visually reviewed. Corrected backward adapter reaches10m withoutfall but one2ms force sample3.031BW fails3BW limit. Subsequent sway-only search had0qualifying candidates. Fresh exact cumulative and current-protocol direction proofs remain required."
+        "summary": "New bounded roll-feedback checkpoint independently passed M5 dynamics. M6 and four-direction validation remain pending; six milestones remain certified."
       }
     },
     {
@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T07:49:09.742594+00:00",
+    "updatedAt": "2026-10-03T08:05:34.744310+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Corrected absolute-heading M5screen active, seededfromhash-bound gen0row23; requirefreshserialM5/M6 thenfourworldgatesandallcumulativeproofs. No speedincrease or milestonepromotion.",
+    "nextWork": "Feedback model_3 passed independent M5 and M6 with reviewed videos. Backward gate evaluation active; all four directions and fresh M1-M4 proofs remain required.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1879,19 +1879,33 @@
         ],
         "note": "60s load-transfer probe of unchangedfailedcontroller. Peak2.8253BW, landingfoot95.9percentoftotal. Didnotattemptcomplete10mwithin60s; noacceptanceclaim.",
         "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_feedback3_m5/dynamics.json",
+        "sha256": "b77f98c029eab3ef9829f9948809945b2f56f6cc55eca47f796ceddbb1f3b8bb",
+        "status": "dynamics_passed_proof_pending",
+        "failures": [],
+        "note": "Independent M5 passed full visual review and check_walking. Peak force 2.85069 BW, hold heading error 1.953 degrees, drift 0.017397 m."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_feedback3_m6/dynamics.json",
+        "sha256": "04b8a9b1a562f02340eeb8582dec2a0a9f22277ad2764ad38ef41e6304f59d7f",
+        "status": "dynamics_passed_proof_pending",
+        "failures": [],
+        "note": "Independent M6 passed full visual review and check_walking. Peak force 2.98567 BW; stop drift 9.562 and 10.804 mm."
       }
     ],
     "candidateCheckpoint": {
       "kind": "periodic_feedback_cem",
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_heading_sign_grid/model_0.pt",
-      "sha256": "416395f7973c66a3355a067f353ef2582a383ee7d3168fdb27c823aeea51f188",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback_hold_absolute_cem/model_3.pt",
+      "sha256": "6b41141c49ced65bba5f224b9a977bb929020c854c0c9e094b29753ba18e8308",
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback_hold_cem/training.json",
-      "sha256": "5d86eb61c76b2fc2f7011e9bb5829a296d6028ec3a9f33d9759b096c0eedbf7c",
-      "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Four-generation exactM5screen withjointyaw/rollfeedback. Zeroqualifiers; finalselectedforce2.848BWbut~20degreeunderturn. Conflictingrelative-onsetyawrewarddiagnosedandremovedfromnewscreen; allhardacceptanceandeligibilitylimitsunchanged. Gen0row23iswarmseed, notpassedcheckpoint."
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback_hold_absolute_cem/training.json",
+      "sha256": "0edf45dee00ef551b3b87671dd778be5cec5ed92ea97496c5ba1b8fbfe0753dd",
+      "qualifiedCandidatesFinalGeneration": 2,
+      "scope": "Corrected absolute-heading M5 screen, four generations with shared starts. Final model_3 worst force 2.82121 BW and maximum hold error 4.42508 degrees. Earlier winners varied on repeat; screening is not independent validation."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
