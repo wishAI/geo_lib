@@ -84,8 +84,9 @@ def command(direction, displacement, heading, seconds, forward=.2):
     tx, ty = ahead * axis[0] - dx, ahead * axis[1] - dy
     bearing = math.atan2(-tx, ty)
     error = math.atan2(math.sin(bearing - heading), math.cos(bearing - heading))
-    # Resolve the exactly-behind ambiguity consistently as a left turn.
-    if direction == 'backward' and abs(abs(error) - math.pi) < 1e-8: error = math.pi
+    # A backward target needs the chosen left arc even when initial body sway
+    # makes the shortest arc slightly rightward. Keep small overshoot at zero.
+    if direction == 'backward' and error < -math.pi/2: error += 2.*math.pi
     yaw = max(-MAX_YAW_RATE, min(MAX_YAW_RATE, .3 * error))
     # Each gate uses one turn direction. Small pose oscillations must not swap
     # left/right balance settings; overshoot is corrected by straight progress.

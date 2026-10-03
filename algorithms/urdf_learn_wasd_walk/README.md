@@ -129,7 +129,12 @@ observed heading drift. The selected delta 0.02 survived all four starts with
 peak 2.989 BW, but final errors of 17.8–27.3° missed the 15° training target.
 The independent closed-loop left gate then passed at 104.005 s, with −0.113 m
 cross-track error and peak 2.891 BW. Other directions and fresh cumulative
-checks remain required; it is not promoted.
+checks remain required; it is not promoted. The backward trial fell at 144.058 s.
+Its command trace exposed a near-180° ambiguity: initial negative body heading
+made the shortest arc rightward, which the left-only adapter clamped to zero.
+Yaw started only at 17.4 s and pulsed before sustained turning. Backward steering
+now chooses the intended left arc for large negative angle errors while leaving
+small overshoot at zero. Fresh four-direction evidence must use this protocol hash.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

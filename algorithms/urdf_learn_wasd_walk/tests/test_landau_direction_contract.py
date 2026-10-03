@@ -27,6 +27,11 @@ class DirectionContractTests(unittest.TestCase):
         self.assertIsNone(contract.gate_metrics('forward', [0., 10.], [(0., 0.), (1., 11.)])['gate_crossing_time_s'])
         self.assertIsNone(contract.gate_metrics('backward', [0., 10.], [(0., 0.), (0., 11.)])['gate_crossing_time_s'])
 
+    def test_backward_keeps_left_arc_under_initial_heading_sway(self):
+        for heading in (-.2,0.,.2):
+            self.assertEqual(contract.command('backward',(.02,.2),heading,3.)[2],contract.MAX_YAW_RATE)
+        self.assertEqual(contract.command('backward',(0.,0.),-math.pi+.1,100.)[2],0.)
+
     def test_rejects_reset_and_nonfinite_trace(self):
         for times, positions in [([0., 0.], [(0., 0.), (0., 11.)]),
                                  ([0., 1.], [(0., 0.), (math.nan, 11.)])]:
