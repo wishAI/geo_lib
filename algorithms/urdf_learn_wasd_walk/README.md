@@ -218,6 +218,14 @@ approximate and cannot replace serial M5 force, drift, speed, slip and video
 validation. The corrected search starts from a hash-bound near-target row of
 the rejected screen rather than silently treating its winner as a pass.
 
+The corrected four-generation screen selected `model_3.pt` with a worst-start
+force peak of 2.821 BW and settled heading error of 4.425°. Independent M5
+evaluation passed dynamics, full-video review and the separate validator:
+2.851 BW, 1.953° hold error and 17.4 mm drift. M6 dynamics also passed at
+2.986 BW. These are candidate component checks; M7 remains unresolved and
+the certified checkpoint remains unchanged. Earlier training winners varied
+on repeat, so the screening result is not a robustness claim.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
