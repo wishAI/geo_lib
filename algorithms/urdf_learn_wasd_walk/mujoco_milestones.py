@@ -146,8 +146,9 @@ def check_standing(folder, ledger, checkpoint=None):
         require(Path(cfg['checkpoint']).resolve() == checkpoint and cfg['checkpoint_sha256'] == digest(checkpoint), 'Checkpoint mismatch')
         training = read(checkpoint.parent / 'training.json')
         require(not str(training.get('status','')).startswith('invalidated_'), 'Training evidence was invalidated')
-        if training.get('policy_family')=='periodic_feedback_cem':
+        if training.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
             check_gait_source(folder,result,training)
+        check_residual_source(folder,result,training,checkpoint)
         require(training['checkpoints'][checkpoint.name] == digest(checkpoint), 'Checkpoint not from completed training')
         for key in ('model_xml_sha256', 'urdf_sha256', 'mesh_tree_sha256', 'backend', 'mujoco_version'):
             require(training[key] == identity[key], f'Checkpoint identity mismatch: {key}')
@@ -193,6 +194,41 @@ def check_gait_source(folder,result,training):
             require(memory['turned'] is False and memory['integrated_reference_rad']==0., 'Zero-yaw cumulative evaluation entered turn mode')
 
 
+
+def check_residual_source(folder,result,training,checkpoint):
+    """Independently bind the hybrid controller and its unchanged frozen parent."""
+    import torch
+    if training.get('policy_family')!='periodic_feedback_residual_ppo':
+        candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+        require('residual_actor_state_dict' not in candidate, 'Residual weights mislabeled as another policy family')
+        require('residual_source_sha256' not in training and 'residual_source_sha256' not in result,
+            'Residual evidence mislabeled as another policy family')
+        return
+    checkpoint=Path(checkpoint);folder=Path(folder)
+    expected=training['residual_source_sha256']
+    require(expected==digest(checkpoint.parent/'residual_source.py')==digest(folder/'residual_source.py')==result.get('residual_source_sha256'), 'Residual source mismatch')
+    require(result.get('residual_dispatch')=='deterministic_cruise_hip_roll_v1', 'Residual inference dispatch mismatch')
+    require(training['residual_bound_rad']==.02 and training['residual_feature_dim']==69, 'Residual bounds/schema changed')
+    require(training['residual_action_joints']==['left_hip_roll_joint','right_hip_roll_joint'], 'Residual joints changed')
+    require(training['residual_gate']=='left_cruise_blend * clamp(abs(forward)/0.2,0,1)', 'Residual gate changed')
+    parent=Path(training['parent_checkpoint'])
+    require(digest(parent)==training['parent_checkpoint_sha256'], 'Frozen parent changed')
+    require(digest(parent.parent/'training.json')==training['parent_training_sha256'], 'Frozen parent metadata changed')
+    parent_meta=read(parent.parent/'training.json')
+    require(parent_meta['checkpoints'][parent.name]==digest(parent), 'Frozen parent provenance mismatch')
+    require(parent_meta.get('policy_family')=='periodic_feedback_cem' and not str(parent_meta.get('status','')).startswith('invalidated_'), 'Invalid frozen parent')
+    require(parent_meta['turn_source_sha256']==training['turn_source_sha256'], 'Frozen turn implementation changed')
+    require(digest(parent.parent/'control_source.py')==digest(checkpoint.parent/'control_source.py'), 'Frozen gait implementation changed')
+    original=torch.load(parent,map_location='cpu',weights_only=False)
+    candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    require('residual_actor_state_dict' in candidate, 'Missing residual actor')
+    require(tuple(original['turn_parameters'].shape)==(20,), 'Frozen parent requires20turnparameters')
+    for key in ('parameters','turn_parameters'):
+        require(torch.equal(original[key],candidate[key]), f'Frozen {key} changed')
+    left=original['standing_actor_state_dict'];right=candidate['standing_actor_state_dict']
+    require(left.keys()==right.keys() and all(torch.equal(left[k],right[k]) for k in left), 'Frozen standing policy changed')
+
+
 def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=False, direction=None):
     """Recheck the full distance run; only standing has a 30 s contract."""
     import numpy as np
@@ -227,8 +263,9 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     require(Path(cfg['checkpoint']).resolve()==checkpoint and cfg['checkpoint_sha256']==digest(checkpoint), 'Walking checkpoint mismatch')
     training=read(checkpoint.parent/'training.json')
     require(not str(training.get('status','')).startswith('invalidated_'), 'Training evidence was invalidated')
-    if training.get('policy_family')=='periodic_feedback_cem':
+    if training.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
         check_gait_source(folder,result,training)
+    check_residual_source(folder,result,training,checkpoint)
     require(checkpoint.name!='model_initial.pt' and training['checkpoints'][checkpoint.name]==digest(checkpoint), 'Walking checkpoint not trained')
     for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','backend','mujoco_version'):
         require(training[key]==identity[key], 'Walking training mismatch: '+key)
@@ -242,7 +279,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     if turn:
         from algorithms.urdf_learn_wasd_walk.landau_turn_control import evaluate_turn_gate
         require(not evaluate_turn_gate(metrics,duration), 'Turn or settled hold failed')
-        require(training.get('policy_family')=='periodic_feedback_cem', 'Unsupported turn policy family')
+        require(training.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'), 'Unsupported turn policy family')
         require(training.get('command_extension')=='yaw_v1', 'Checkpoint lacks trained yaw control')
         require(training['turn_source_sha256']==digest(checkpoint.parent/'turn_source.py')==digest(folder/'turn_source.py'), 'Turn source mismatch')
         require(result['turn_validator_source_sha256']==digest(folder/'turn_validator_source.py'), 'Turn validator source mismatch')
@@ -461,8 +498,10 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
     policy_kind=read(Path(checkpoint).parent/'training.json').get('policy_family','rsl_rl_ppo') if checkpoint else None
     if checkpoint:
         evidence.append(artifact(Path(checkpoint).parent/'training.json','checkpoint_training_metadata'))
-    if policy_kind=='periodic_feedback_cem':
+    if policy_kind in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
         evidence.append(artifact(folder/'gait_source.py','trained_gait_source'))
+    if policy_kind=='periodic_feedback_residual_ppo':
+        evidence.append(artifact(folder/'residual_source.py','trained_residual_source'))
     if index==4:
         evidence.extend(artifact(folder/name,kind) for name,kind in [('turn_source.py','trained_turn_source'),
             ('turn_validator_source.py','turn_validator_source'),('policy_trace.npz','command_and_policy_trace'),
@@ -513,6 +552,8 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
                      'policy_trace.npz','foot_trace.json','direction_protocol_source.py','controller_memory.json',
                      'turn_source.py','gait_source.py','controller_source.py','backend_source.py','model.xml'):
             evidence.append(artifact(path/name,direction+'_'+name))
+        if read(checkpoint.parent/'training.json').get('policy_family')=='periodic_feedback_residual_ppo':
+            evidence.append(artifact(path/'residual_source.py',direction+'_residual_source.py'))
     require(set(directions)==set(DIRECTIONS), 'All world directions required')
     for index,path in enumerate(cumulative_folders):
         path=Path(path)

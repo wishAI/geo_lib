@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T09:46:41.553459+00:00",
+    "updatedAt": "2026-10-03T10:35:55.071329+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Implement bounded state/phase-conditioned cruise-only PPO hip-roll residual around frozen20parameter controller. Prove inactive/zero parity, train from explicitly declared cruise-state resets, then require full nominal-start independent M7 and cumulative proofs.",
+    "nextWork": "Evaluate residual PPOmodel299 nominal backward gate after paired screening improved to54/64survivals versus47/64parent. Inspect exact full proof; no promotion until all cumulative and four-direction proofs pass.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1955,6 +1955,20 @@
       "sha256": "fa26b16cdd750a23958b97fc296e34a8f32a8b848e942003bb1a568f655da81d",
       "qualified": false,
       "promoted": false
+    },
+    "residualDiagnostic": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_residual299_screen_buffers/screen.json",
+      "sha256": "940816df13d8320f3df7dfa29cc3874d985303b51c1b02f5c63d1b0b04139803",
+      "survivedResidual": 54,
+      "survivedFrozen": 47,
+      "episodesPerController": 64,
+      "qualified": false,
+      "scope": "Two simultaneouscopies of32correlated held-out warmstates,20s each. Not nominal-start proof."
+    },
+    "trainingAuditCorrection": {
+      "issue": "Pre-capture Warp audit arrays lost Python ownership before CUDA graph replay. Retain all buffers on batch. Earlier batched rankings are provisional; independent serial proofs retain their own persistent state and remain valid.",
+      "evidence": "Original residualscreen crashed withCUDAillegalaccess; freshprocess withpersistentbuffers completed. Independent evaluation runtime sourcehashunchanged acrossM1-M6 andcurrentfailedbackwardproofs.",
+      "independentRuntimeSha256": "34247a142e57a1a011a0eed5c128f9022f67b91fbb450c70ece52e0952bf1bbb"
     }
   }
 }

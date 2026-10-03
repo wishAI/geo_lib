@@ -397,7 +397,7 @@ def evaluate(args):
         if hasattr(turn_implementation,'configure_profile'):
             turn_implementation.configure_profile(meta['arguments'].get('turn_duration',14.))
     command_memory=turn_implementation.CommandMemory() if has_turn and meta.get('memory_version')==2 else None
-    if meta.get('policy_family')=='periodic_feedback_cem':
+    if meta.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
         gait_implementation,gait_source=load_gait_source(checkpoint,meta)
         prior=make_actor(63);prior.load_state_dict(blob['standing_actor_state_dict'],strict=True);prior.eval()
         actor=SimpleNamespace(parameters=blob['parameters'],standing_prior=prior)
@@ -408,6 +408,34 @@ def evaluate(args):
             actor.add_module('standing_prior',prior)
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
+    residual=None
+    if meta.get('policy_family')=='periodic_feedback_residual_ppo':
+        from algorithms.urdf_learn_wasd_walk.landau_cruise_residual import load_source
+        if (meta.get('residual_bound_rad')!=.02 or meta.get('residual_feature_dim')!=69 or
+            meta.get('residual_action_joints')!=['left_hip_roll_joint','right_hip_roll_joint'] or
+            meta.get('residual_gate')!='left_cruise_blend * clamp(abs(forward)/0.2,0,1)'):
+            raise ValueError('Residual contract changed')
+        frozen_parent=Path(meta['parent_checkpoint'])
+        if (backend.digest(frozen_parent)!=meta['parent_checkpoint_sha256'] or
+            backend.digest(frozen_parent.parent/'training.json')!=meta['parent_training_sha256']):
+            raise ValueError('Frozen residual parent changed')
+        frozen_meta=json.loads((frozen_parent.parent/'training.json').read_text())
+        if frozen_meta.get('policy_family')!='periodic_feedback_cem' or str(frozen_meta.get('status','')).startswith('invalidated_'):
+            raise ValueError('Invalid frozen residual parent')
+        frozen=torch.load(frozen_parent,map_location='cpu',weights_only=False)
+        if tuple(frozen['turn_parameters'].shape)!=(20,):raise ValueError('Frozen parent requires20turnparameters')
+        if any(not torch.equal(frozen[key],blob[key]) for key in ('parameters','turn_parameters')):
+            raise ValueError('Frozen controller tensors changed')
+        standing=frozen['standing_actor_state_dict'];candidate_standing=blob['standing_actor_state_dict']
+        if standing.keys()!=candidate_standing.keys() or any(not torch.equal(standing[k],candidate_standing[k]) for k in standing):
+            raise ValueError('Frozen standing tensors changed')
+        residual_source=checkpoint.parent/'residual_source.py'
+        residual=load_source(residual_source,meta['residual_source_sha256'],'saved_cruise_residual')
+        residual_actor=residual.make_actor()
+        residual_actor.load_state_dict(blob['residual_actor_state_dict'],strict=True);residual_actor.eval()
+        if command_memory is None:raise ValueError('Residual controller requires command memory')
+    elif 'residual_actor_state_dict' in blob or 'residual_source_sha256' in meta:
+        raise ValueError('Residual checkpoint mislabeled as another policy family')
     original_observe=old_policy.observe
     def observe(model,data,nominal,joints,previous):
         nonlocal direction_origin
@@ -455,12 +483,15 @@ def evaluate(args):
             raise ValueError('Evaluation asset mismatch')
         def inference(obs):
             if has_turn:
-                return turn_implementation.commanded_action(gait_implementation,actor.parameters,actor.standing_prior,
+                baseline=turn_implementation.commanded_action(gait_implementation,actor.parameters,actor.standing_prior,
                     obs[None],torch.from_numpy(turn_memory['prior_obs'])[None],blob['turn_parameters'],
                     meta['action_joints'],command_memory.reference if command_memory else turn_memory['reference'],
                     command_memory.turned if command_memory else turn_memory['turned'],
-                    **({'memory':command_memory} if command_memory else {}))[0]
-            if meta.get('policy_family')=='periodic_feedback_cem':
+                    **({'memory':command_memory} if command_memory else {}))
+                if residual is not None:
+                    baseline=residual.apply(residual_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'])
+                return baseline[0]
+            if meta.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
                 return gait_implementation.evaluate_mean(actor,obs[None],meta['action_joints'])[0]
             return policy_mean(actor,obs[None])[0]
         return SimpleNamespace(actor=inference),meta
@@ -481,7 +512,7 @@ def evaluate(args):
             'dispatch':'command_driven_yaw_extension','turned':turn_memory.get('turned',False),
             'integrated_reference_rad':turn_memory.get('reference',0.),
             'turn_source_sha256':backend.digest(turn_source),**(command_memory.record() if command_memory else {})})
-    if meta.get('policy_family')=='periodic_feedback_cem':
+    if meta.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
         source=gait_source
         (backend.OUTPUT/args.name/'gait_source.py').write_text(source.read_text())
         result_path=backend.OUTPUT/args.name/'dynamics.json'
@@ -490,6 +521,10 @@ def evaluate(args):
             result.update(turn_source_sha256=backend.digest(turn_source),
                 controller_memory_sha256=backend.digest(backend.OUTPUT/args.name/'controller_memory.json'))
         if teleop_mode:result['command_protocol_source_sha256']=backend.digest(protocol_path)
+        if residual is not None:
+            (backend.OUTPUT/args.name/'residual_source.py').write_bytes(residual_source.read_bytes())
+            result['residual_source_sha256']=backend.digest(residual_source)
+            result['residual_dispatch']='deterministic_cruise_hip_roll_v1'
         backend.write_json(result_path,result)
     backend.write_json(backend.OUTPUT/args.name/'transfer.json',{
         'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),

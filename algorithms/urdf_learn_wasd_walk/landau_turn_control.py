@@ -296,6 +296,10 @@ def install_physics_audit(batch, batches, count):
             batches.mjwarp.forward(batch.wm, batch.wd)
             audit_step()
     batch.graph = capture.graph
+    # CUDA graphs retain raw pointers, not Python array ownership. These arrays
+    # are allocated before capture, so keep all of them alive across replays.
+    batch._physics_audit_buffers=(dofs,speed,support,peak,nonfoot,normal,
+        foot_peak,foot_impulse,current,flight,total,feet)
     return {key: wp.to_torch(value) for key, value in dict(speed=speed, force=peak,
         nonfoot=nonfoot, flight=flight, flight_total=total, flight_current=current,
         foot_peak=foot_peak,foot_impulse=foot_impulse).items()}

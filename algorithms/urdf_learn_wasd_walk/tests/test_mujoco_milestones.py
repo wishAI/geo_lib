@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import numpy as np
+import torch
 from algorithms.urdf_learn_wasd_walk import mujoco_milestones as gates
 
 
@@ -295,7 +296,7 @@ class WalkingCertificateTests(StandingCertificateTests):
         self.cfg['seconds']=seconds
         self.metrics['duration_s']=seconds
         self.record['performance']['warp_setup']['physics_steps']=steps
-        checkpoint=self.folder/'model_100.pt';checkpoint.write_bytes(b'trained')
+        checkpoint=self.folder/'model_100.pt';torch.save({},checkpoint)
         controls={'initial_qpos':[0.]*7,'initial_ctrl':[0.]}
         control_hash=hashlib.sha256(json.dumps(controls,sort_keys=True).encode()).hexdigest()
         self.ledger['assetContract']['initialControlSha256']=control_hash

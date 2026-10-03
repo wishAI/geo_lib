@@ -281,6 +281,25 @@ residual around the frozen controller, following the composition idea in
 Training resets from recorded cruise states will be labeled as a curriculum;
 only complete nominal-start runs can certify milestones.
 
+`landau_cruise_residual` now trains two hip-roll corrections (±0.02 rad)
+around the frozen 20-parameter controller. The existing cruise envelope and
+forward-command magnitude gate the corrections; zero forward preserves standing.
+Its 69 features include the saved gait phase and relative heading, without an
+unbounded age feature. Healthy recorded states from 90–146 s initialize six-second
+training episodes; alternating bank entries are reserved for correlated diagnostic
+screens. The full nominal-start evaluator remains the acceptance path.
+`landau_residual_screen` compares two copies each of the parent and residual on
+32 shared held-out states, retaining the first failure and never certifying a gate.
+
+The first residual comparison exposed an audit-buffer lifetime defect:
+CUDA graph launches referenced pre-capture arrays after their Python owners
+were released. The batch now retains all audit arrays, as required by
+[Warp's capture guidance](https://github.com/NVIDIA/warp/blob/main/docs/user_guide/faq.rst).
+Earlier batched training diagnostics are provisional; independent serial proofs
+use a separate evaluation path. With ownership fixed, the first residual survived
+54/64 short screening episodes versus 47/64 parent episodes. Neither result is a
+milestone pass. The residual checkpoint is undergoing a nominal-start backward test.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
