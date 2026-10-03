@@ -235,6 +235,16 @@ sway amplitude/phase), preserving every other seed parameter bit-exactly.
 It uses actual per-world backward-gate steering and shared starts, retains
 the 2.85 BW training target, and does not change acceptance or walking speed.
 
+The two-generation cruise search selected a changed candidate with four
+training crossings and a 2.958 BW peak, but no candidate met the extra
+training margin. Its independent backward run reached the gate at 175.580 s
+and failed two late force samples (3.029 and 3.011 BW). A bounded optional
+21st parameter now offsets hip-roll angular-rate feedback during left cruise
+only. `--left-cruise-rate-grid` compares six offsets with two unchanged
+controls while retaining the first 20 parameters exactly. Positive offsets
+reduce the existing damping magnitude; the correction is capped at 0.05 rad.
+This is an unvalidated diagnostic, not a force-reduction or milestone claim.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 

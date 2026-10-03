@@ -233,6 +233,9 @@ def commanded_action(base, walking, standing_actor, observation, prior_observati
                 roll=torch.atan2(-obs[:,6],-obs[:,8])
                 correction=(p[:,18]*roll+p[:,19]*obs[:,4]).clamp(-.03,.03)
                 moving[:,index[side+'_hip_roll_joint']]+=memory.left_feedback_blend*correction/.08
+            if p.shape[1]>=21 and memory is not None:
+                correction=(p[:,20]*obs[:,4]).clamp(-.05,.05)
+                moving[:,index[side+'_hip_roll_joint']]+=memory.left_cruise_blend*correction/.08
     prior = standing_actor(TensorDict({'actor': prior_observation},
                                     batch_size=[len(prior_observation)]))
     hold_gain=p[:,3]
@@ -326,7 +329,8 @@ def train(args):
         if sm['checkpoints'][seed.name] != backend.digest(seed) or sm['parent_checkpoint_sha256'] != backend.digest(parent):
             raise ValueError('Turn seed provenance mismatch')
         sb = torch.load(seed, map_location='cpu', weights_only=False)
-    include_feedback=args.left_feedback_only or (sb is not None and len(sb['turn_parameters'])==20)
+    include_cruise_rate=args.left_cruise_rate_grid or (sb is not None and len(sb['turn_parameters'])>=21)
+    include_feedback=args.left_feedback_only or include_cruise_rate or (sb is not None and len(sb['turn_parameters'])>=20)
     include_left_yaw = args.left_yaw_only or include_feedback or (sb is not None and len(sb['turn_parameters']) >= 18)
     if include_left_yaw and not args.left_cruise_only:
         raise ValueError('18-parameter seed requires the left-cruise curriculum')
@@ -341,6 +345,7 @@ def train(args):
             left_cruise_roll_amplitude=(-.06,.03),left_cruise_roll_phase=(-.25,.25))
     if include_left_yaw:TURN_PARAMETERS.update(left_yaw_scale=(.5,2.))
     if include_feedback:TURN_PARAMETERS.update(left_roll_feedback_delta=(-.05,.05),left_roll_rate_feedback_delta=(-.015,.015))
+    if include_cruise_rate:TURN_PARAMETERS.update(left_cruise_rate_delta=(-.01,.03))
     lows = torch.tensor([v[0] for v in TURN_PARAMETERS.values()], device='cuda')
     highs = torch.tensor([v[1] for v in TURN_PARAMETERS.values()], device='cuda')
     rate_scale=(math.pi/28)/TURN_RATE
@@ -350,6 +355,7 @@ def train(args):
     if getattr(args,'left_cruise_only',False):initial=torch.cat((initial,initial[2:3],initial[5:7]))
     if include_left_yaw:initial=torch.cat((initial,initial.new_ones(1)))
     if include_feedback:initial=torch.cat((initial,initial.new_zeros(2)))
+    if include_cruise_rate:initial=torch.cat((initial,initial.new_zeros(1)))
     mean = 2*(initial-lows)/(highs-lows)-1.; std = torch.full_like(mean, args.search_std)
     if args.seed_checkpoint:
         seed_parameters=sb['turn_parameters'].to('cuda')
@@ -461,6 +467,11 @@ def train(args):
         if args.left_cruise_balance_only:
             meta['left_turn_refinement']['searched_indices']=[15,16]
             meta['cruise_balance_scope']='Search post-left-turn sway amplitude/phase only; all other seed parameters restored bit-exactly after denormalization.'
+        if args.left_cruise_rate_grid:
+            meta['left_turn_refinement']['searched_indices']=[20]
+            meta['cruise_rate_grid']={'unchanged_control_candidates':[0,1],
+                'repeat_same_grid_each_generation':True,'maximum_residual_rad':.05,
+                'scope':'Bounded hip-roll angular-rate residual using existing left-cruise envelope; freeze first20parameters bit-exactly. Positive offsets reduce baseline damping magnitude without reversing its sign. No claimed force reduction before validation.'}
         if closed_direction:
             meta['objective']='Per-world closed-loop world gate, unchanged physics limits, force margin and completion time; separate serial proof required'
             meta['closed_loop_direction']=closed_direction
@@ -531,6 +542,7 @@ def train(args):
         if args.left_balance_grid:
             z=direction_training.balance_grid(grid_center,candidates,args.search_std)
         if include_feedback and not args.left_feedback_only:z[:,18:20]=mean[18:20]
+        if include_cruise_rate and not args.left_cruise_rate_grid:z[:,20]=mean[20]
         if args.left_feedback_only:
             frozen_count=17 if args.feedback_yaw_refine else 18
             z[:,:frozen_count]=grid_center[:frozen_count]
@@ -566,6 +578,10 @@ def train(args):
         params = (lows+(z+1)*.5*(highs-lows)).repeat_interleave(replicas, dim=0)
         if args.left_cruise_balance_only:
             params=direction_training.cruise_balance_parameters(z,lows,highs,seed_parameters).repeat_interleave(replicas,dim=0)
+        if args.left_cruise_rate_grid:
+            grid=direction_training.cruise_rate_grid(seed_parameters)
+            params=grid.repeat_interleave(replicas,dim=0)
+            z=2*(grid-lows)/(highs-lows)-1.
         if args.left_feedback_only:params[:,:frozen_count]=seed_parameters[:frozen_count]
         if args.left_damping_grid:
             params[:,18]=seed_parameters[18]
@@ -857,6 +873,7 @@ def main():
     parser.add_argument('--start-seed',type=int,default=4242)
     parser.add_argument('--left-balance-grid',action='store_true',help='Repeat fixed sway grid with two unchanged controls and common starts')
     parser.add_argument('--left-cruise-balance-only',action='store_true',help='Search only post-left-turn sway amplitude/phase; preserve all other seed parameters exactly')
+    parser.add_argument('--left-cruise-rate-grid',action='store_true',help='Compare six bounded cruise rate-feedback offsets with two unchanged controls')
     parser.add_argument('--left-feedback-only',action='store_true',help='Learn two bounded left-turn torso roll/rate feedback corrections; freeze prior18parameters')
     parser.add_argument('--left-damping-grid',action='store_true',help='Repeat8left roll-rate gains, including duplicate unchanged controls')
     parser.add_argument('--turn-hold-training',action='store_true',help='Screen left feedback on exactM5commands and hold with the same force margin')
@@ -867,6 +884,8 @@ def main():
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     args = parser.parse_args()
     if args.common_starts and not (args.closed_loop_direction or args.turn_hold_training):raise ValueError('Common starts require closed-loop direction or exact turn/hold training')
+    if args.left_cruise_rate_grid and (args.num_envs!=32 or not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_cruise_balance_only or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
+        raise ValueError('Cruise rate grid requires32worlds and separate shared-start closed-loop left training with force margin')
     if args.left_cruise_balance_only and (not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Cruise balance search requires a separate shared-start closed-loop left curriculum with force margin')
     if args.left_balance_grid and not (args.common_starts and args.left_balance_only):raise ValueError('Balance grid requires common starts and balance-only refinement')

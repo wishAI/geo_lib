@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "Feedback model_3 passed reviewed independent M5 and M6; backward gate reached but one 2 ms force peak failed. Post-turn sway refinement active. Six milestones remain certified."
+        "summary": "Cruise sway refinement still failed two late force samples despite reaching backward gate. Bounded cruise-only rate-feedback diagnostic prepared; six milestones remain certified."
       }
     },
     {
@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T08:15:56.248417+00:00",
+    "updatedAt": "2026-10-03T08:37:02.239314+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Search only post-left-turn sway amplitude/phase (indices 15,16) on closed-loop backward gates with shared starts. Preserve all other feedback model_3 parameters exactly; require new independent cumulative proofs for any candidate.",
+    "nextWork": "Test a bounded cruise-only angular-rate residual grid seeded from cruise model_1; preserve first20parameters exactly and include two unchanged controls. Independent force limit remains 3 BW.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1903,19 +1903,29 @@
         ],
         "proofComplete": true,
         "note": "Reached backward gate at 173.032 s, cross-track -0.292885 m, no falls/resets. Failed one force sample: 3.690413 BW at 132.802 s; next highest 2.877905 BW. Peak followed a hip-roll target update during landing; no physics-bug claim."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_cruise1_backward/dynamics.json",
+        "sha256": "2a696c9d57ea20c5e2114ae5084884a0f541be35b5bd58df48be0628c6da2cf9",
+        "status": "failed",
+        "failures": [
+          "peak support exceeded 3 body weights"
+        ],
+        "proofComplete": true,
+        "note": "Cruise sway candidate reached gate at 175.580 s, cross-track -0.565014 m, no falls/resets. Two force samples failed: 3.029256 BW at 146.200 s and 3.010695 BW at 148.880 s."
       }
     ],
     "candidateCheckpoint": {
       "kind": "periodic_feedback_cem",
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback_hold_absolute_cem/model_3.pt",
-      "sha256": "6b41141c49ced65bba5f224b9a977bb929020c854c0c9e094b29753ba18e8308",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback3_cruise_balance/model_1.pt",
+      "sha256": "cd16a74dd6df9e7303b54508cb764d8f19fb116952b4bfe247d29886195ac54c",
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback_hold_absolute_cem/training.json",
-      "sha256": "0edf45dee00ef551b3b87671dd778be5cec5ed92ea97496c5ba1b8fbfe0753dd",
-      "qualifiedCandidatesFinalGeneration": 2,
-      "scope": "Corrected absolute-heading M5 screen, four generations with shared starts. Final model_3 worst force 2.82121 BW and maximum hold error 4.42508 degrees. Earlier winners varied on repeat; screening is not independent validation."
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback3_cruise_balance/training.json",
+      "sha256": "f31c7ed1edbcd06866aae067f23af2ffb9e84bd459751874f347e3b557b6a31e",
+      "qualifiedCandidatesFinalGeneration": 0,
+      "scope": "Two-generation cruise sway search. Final candidate cleared all four starts with peak 2.95751 BW but missed extra 2.85 BW training margin. This is a candidate for independent hard-limit evaluation, not a training qualifier or milestone pass."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",
@@ -1927,10 +1937,6 @@
       "sha256": "fa26b16cdd750a23958b97fc296e34a8f32a8b848e942003bb1a568f655da81d",
       "qualified": false,
       "promoted": false
-    },
-    "activeTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback3_cruise_balance",
-      "scope": "256 worlds, four common starts, two generations, only indices 15 and 16 searched; hard 3 BW and extra 2.85 BW target unchanged."
     }
   }
 }

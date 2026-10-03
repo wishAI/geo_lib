@@ -39,6 +39,13 @@ def cruise_balance_parameters(normalized, lows, highs, seed):
     return result
 
 
+def cruise_rate_grid(seed):
+    """Duplicate incumbents and six bounded rate offsets; freeze first20 bits."""
+    result=seed.repeat(8,1)
+    result[:,20]=seed.new_tensor([float(seed[20]),float(seed[20]),-.01,.005,.01,.015,.02,.03])
+    return result
+
+
 def commands(direction, displacement, heading, seconds):
     import torch
     from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
