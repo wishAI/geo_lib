@@ -55,12 +55,16 @@ class DirectionTrainingTests(unittest.TestCase):
         names=[s+'_'+j+'_joint' for s in ('left','right') for j in ('hip_pitch','hip_yaw','hip_roll','knee','ankle_pitch','toe')]+['waist_yaw_joint','waist_roll_joint','waist_pitch_joint','left_shoulder_pitch_joint','right_shoulder_pitch_joint']
         walking=torch.tensor([(lo+hi)/2 for lo,hi in base.PARAMETERS.values()])
         params=torch.tensor([.1,-.3,.04,.01,-.01,-.01,-.02,1.,.04,0.,0.,.07,-.01,-.02,.02,.005,-.02,1.4])
+        zero_feedback=torch.cat((params,torch.zeros(2)))
+        active_feedback=torch.cat((params,torch.tensor([.05,.015])))
+        unaffected=[i for i,n in enumerate(names) if 'hip_roll' not in n]
         prior=make_actor(63);prior.eval()
         for direction,sign in [('left',1),('right',-1)]:
             memory=DirectionMemory(3,'cpu',direction);serial=[CommandMemory() for _ in range(3)]
             pos=torch.zeros(3,3);rot=torch.eye(3).repeat(3,1,1)
             for step in range(351):
                 t=step*.02;obs=torch.zeros(3,70);obs[:,8]=-1.;obs[:,62]=1.-t/30.;obs[:,63]=.2
+                obs[:,6]=.1;obs[:,4]=1.5
                 for i in range(3):
                     active=t>=3. and (t<4.+.3*i or 5.+.1*i<=t<5.14+.1*i)
                     obs[i,65]=sign*.03 if active else 0.
@@ -70,11 +74,21 @@ class DirectionTrainingTests(unittest.TestCase):
                     single,standing=scalar.observe(obs[i:i+1],pos[i:i+1],rot[i:i+1],t)
                     self.assertAlmostEqual(float(memory._reference[i]),scalar.reference,places=12)
                     self.assertAlmostEqual(float(memory._blend[i]),scalar.left_cruise_blend,places=12)
+                    self.assertAlmostEqual(float(memory._feedback_blend[i]),scalar.left_feedback_blend,places=12)
                     if step in (0,149,150,219,269,300,350):
                         with torch.no_grad():
                             expected=commanded_action(base,walking,prior,single,standing,params,names,scalar.reference,scalar.turned,scalar)
                             actual=commanded_action(base,walking,prior,batch_obs,batch_prior,params,names,memory.reference,memory.turned,memory)[i:i+1]
                         self.assertTrue(torch.equal(actual,expected),(direction,step,i,float((actual-expected).abs().max())))
+                        with torch.no_grad():
+                            zero=commanded_action(base,walking,prior,single,standing,zero_feedback,names,scalar.reference,scalar.turned,scalar)
+                            feedback=commanded_action(base,walking,prior,single,standing,active_feedback,names,scalar.reference,scalar.turned,scalar)
+                            batched_feedback=commanded_action(base,walking,prior,batch_obs,batch_prior,active_feedback,names,memory.reference,memory.turned,memory)[i:i+1]
+                        self.assertTrue(torch.equal(zero,expected),'Zero extension changed baseline actions')
+                        self.assertTrue(torch.equal(feedback,batched_feedback),'Residual scalar/batch behavior differs')
+                        self.assertTrue(torch.equal(feedback[:,unaffected],expected[:,unaffected]))
+                        self.assertLessEqual(float((feedback-expected).abs().max()),.03/.08+1e-6)
+                        if direction=='right':self.assertTrue(torch.equal(feedback,expected))
 
     def test_gate_requires_crossing_width_and_keeps_terminal_result(self):
         gate=GateTracker('left',torch.zeros(3,3))
@@ -96,6 +110,8 @@ class DirectionTrainingTests(unittest.TestCase):
         memory.observe(obs,pos,rot,3.02,torch.tensor([False,True]))
         self.assertEqual(float(memory._reference[0]),0.)
         self.assertGreater(float(memory._reference[1]),0.)
+        self.assertEqual(float(memory._feedback_blend[0]),0.)
+        self.assertAlmostEqual(float(memory._feedback_blend[1]),.02)
 
 
 if __name__=='__main__':unittest.main()
