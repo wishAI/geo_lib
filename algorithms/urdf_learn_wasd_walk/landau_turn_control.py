@@ -458,6 +458,9 @@ def train(args):
         if args.left_balance_only:
             meta['objective']='Refine active-left sway amplitude/phase with force margin; preserve yaw calibration and cruise feedback; exact M5 recheck required'
             meta['left_turn_refinement']['searched_indices']=[5,6]
+        if args.left_cruise_balance_only:
+            meta['left_turn_refinement']['searched_indices']=[15,16]
+            meta['cruise_balance_scope']='Search post-left-turn sway amplitude/phase only; all other seed parameters restored bit-exactly after denormalization.'
         if closed_direction:
             meta['objective']='Per-world closed-loop world gate, unchanged physics limits, force margin and completion time; separate serial proof required'
             meta['closed_loop_direction']=closed_direction
@@ -522,6 +525,9 @@ def train(args):
         if args.left_balance_only:
             fixed=[i for i in range(len(TURN_PARAMETERS)) if i not in (5,6)]
             z[:,fixed]=mean[fixed]
+        if args.left_cruise_balance_only:
+            fixed=[i for i in range(len(TURN_PARAMETERS)) if i not in (15,16)]
+            z[:,fixed]=grid_center[fixed]
         if args.left_balance_grid:
             z=direction_training.balance_grid(grid_center,candidates,args.search_std)
         if include_feedback and not args.left_feedback_only:z[:,18:20]=mean[18:20]
@@ -558,6 +564,8 @@ def train(args):
             z[:,10]=torch.linspace(-1.,1.,side,device='cuda').repeat(side)
         if getattr(args,'right_grid',False) or getattr(args,'restart_grid',False):z[0]=mean
         params = (lows+(z+1)*.5*(highs-lows)).repeat_interleave(replicas, dim=0)
+        if args.left_cruise_balance_only:
+            params=direction_training.cruise_balance_parameters(z,lows,highs,seed_parameters).repeat_interleave(replicas,dim=0)
         if args.left_feedback_only:params[:,:frozen_count]=seed_parameters[:frozen_count]
         if args.left_damping_grid:
             params[:,18]=seed_parameters[18]
@@ -848,6 +856,7 @@ def main():
     parser.add_argument('--common-starts',action='store_true',help='Compare closed-loop candidates on identical bounded starting perturbations')
     parser.add_argument('--start-seed',type=int,default=4242)
     parser.add_argument('--left-balance-grid',action='store_true',help='Repeat fixed sway grid with two unchanged controls and common starts')
+    parser.add_argument('--left-cruise-balance-only',action='store_true',help='Search only post-left-turn sway amplitude/phase; preserve all other seed parameters exactly')
     parser.add_argument('--left-feedback-only',action='store_true',help='Learn two bounded left-turn torso roll/rate feedback corrections; freeze prior18parameters')
     parser.add_argument('--left-damping-grid',action='store_true',help='Repeat8left roll-rate gains, including duplicate unchanged controls')
     parser.add_argument('--turn-hold-training',action='store_true',help='Screen left feedback on exactM5commands and hold with the same force margin')
@@ -858,6 +867,8 @@ def main():
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     args = parser.parse_args()
     if args.common_starts and not (args.closed_loop_direction or args.turn_hold_training):raise ValueError('Common starts require closed-loop direction or exact turn/hold training')
+    if args.left_cruise_balance_only and (not args.left_turn_refine or not args.common_starts or args.closed_loop_direction not in ('left','backward') or args.left_balance_only or args.left_feedback_only or args.left_yaw_only or args.left_heading_grid):
+        raise ValueError('Cruise balance search requires a separate shared-start closed-loop left curriculum with force margin')
     if args.left_balance_grid and not (args.common_starts and args.left_balance_only):raise ValueError('Balance grid requires common starts and balance-only refinement')
     if args.left_feedback_only and (not args.left_turn_refine or not args.common_starts or not (args.closed_loop_direction in ('left','backward') or args.turn_hold_training) or args.left_balance_only or args.left_yaw_only or args.left_heading_grid):
         raise ValueError('Left feedback search requires its own shared-start closed-loop left curriculum with force margin')

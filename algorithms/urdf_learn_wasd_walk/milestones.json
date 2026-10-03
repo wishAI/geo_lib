@@ -1635,7 +1635,7 @@
       "status": "in_progress",
       "progress": {
         "canonical_pass": false,
-        "summary": "New bounded roll-feedback checkpoint independently passed M5 dynamics. M6 and four-direction validation remain pending; six milestones remain certified."
+        "summary": "Feedback model_3 passed reviewed independent M5 and M6; backward gate reached but one 2 ms force peak failed. Post-turn sway refinement active. Six milestones remain certified."
       }
     },
     {
@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T08:05:34.744310+00:00",
+    "updatedAt": "2026-10-03T08:15:56.248417+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Feedback model_3 passed independent M5 and M6 with reviewed videos. Backward gate evaluation active; all four directions and fresh M1-M4 proofs remain required.",
+    "nextWork": "Search only post-left-turn sway amplitude/phase (indices 15,16) on closed-loop backward gates with shared starts. Preserve all other feedback model_3 parameters exactly; require new independent cumulative proofs for any candidate.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1893,6 +1893,16 @@
         "status": "dynamics_passed_proof_pending",
         "failures": [],
         "note": "Independent M6 passed full visual review and check_walking. Peak force 2.98567 BW; stop drift 9.562 and 10.804 mm."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_feedback3_backward/dynamics.json",
+        "sha256": "d137a55b26e8eca4bdfd049fcc1c679084d080008cb205956be4d0a01bf7c0b7",
+        "status": "failed",
+        "failures": [
+          "peak support exceeded 3 body weights"
+        ],
+        "proofComplete": true,
+        "note": "Reached backward gate at 173.032 s, cross-track -0.292885 m, no falls/resets. Failed one force sample: 3.690413 BW at 132.802 s; next highest 2.877905 BW. Peak followed a hip-roll target update during landing; no physics-bug claim."
       }
     ],
     "candidateCheckpoint": {
@@ -1917,6 +1927,10 @@
       "sha256": "fa26b16cdd750a23958b97fc296e34a8f32a8b848e942003bb1a568f655da81d",
       "qualified": false,
       "promoted": false
+    },
+    "activeTraining": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_feedback3_cruise_balance",
+      "scope": "256 worlds, four common starts, two generations, only indices 15 and 16 searched; hard 3 BW and extra 2.85 BW target unchanged."
     }
   }
 }

@@ -226,6 +226,15 @@ evaluation passed dynamics, full-video review and the separate validator:
 the certified checkpoint remains unchanged. Earlier training winners varied
 on repeat, so the screening result is not a robustness claim.
 
+That candidate reached the backward gate at 173.032 s with −0.293 m
+cross-track error and no falls/resets, but failed one 2 ms force sample at
+132.802 s: 3.690 BW, versus 2.878 BW for the next highest sample. The peak
+occurred during landing just after a hip-roll target update. The next
+`--left-cruise-balance-only` search changes only indices 15/16 (post-left-turn
+sway amplitude/phase), preserving every other seed parameter bit-exactly.
+It uses actual per-world backward-gate steering and shared starts, retains
+the 2.85 BW training target, and does not change acceptance or walking speed.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
