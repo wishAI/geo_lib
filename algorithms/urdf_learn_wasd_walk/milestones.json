@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T13:43:29.082122+00:00",
+    "updatedAt": "2026-10-03T14:11:18.781263+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Independent backward 240 s gate evaluation of unchanged active_long600/model599 after nominal M5 validation and passing full M6 dynamics. Six certified milestones unchanged.",
+    "nextWork": "Finish targeted margin training; compare early-turn force tails and full-stop regressions, then independent nominal validation only if improved. Six certified milestones unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2184,11 +2184,65 @@
     "activeLongNominalM6": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_m6/dynamics.json",
       "sha256": "9451edbb9503de88de617b4170e27859b6c429b293933fb0a37fc5f345d322da",
-      "status": "dynamics passed; visual review pending",
+      "status": "visual review accepted; independent check_walking(10,teleop=True) passed",
       "peak_force_bw": 2.9614701004096804,
       "restart_ramp_peak_bw": 2.5737,
       "restart_walk_peak_bw": 2.8131,
+      "promoted": false,
+      "visual_review_sha256": "42241bb02e5c99fff7d9941f4d4cecd29ecee2e75545399951527054090d3750"
+    },
+    "activeLongBackward": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_backward/dynamics.json",
+      "sha256": "2c392ccfdb0d52233a238a286f45d622d1316020e3b099f3abef1649dfae1e42",
+      "status": "visual review accepted; independent check_walking(10,direction=backward) passed",
+      "metrics": {
+        "peak_support_body_weight_ratio": 2.9295519562377668,
+        "gate_crossing_time_s": 175.13035392760042,
+        "gate_cross_track_m": -0.039384627685766775,
+        "average_gate_speed_mps": 0.057100324276932825
+      },
+      "promoted": false,
+      "visual_review_sha256": "bdbec552abd9fcea679ac66a50c63acb65b14426e216c726b64c147b949033cd"
+    },
+    "activeLongLeft": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_left/dynamics.json",
+      "sha256": "8d8d7eb3fd4e52c09f8c5fa7c392b27d224f49ccf9aec42a827d5731f7f8475d",
+      "status": "failed force limit",
+      "peak_force_bw": 3.01006369303578,
+      "peak_time_s": 7.742,
+      "gate_time_s": 104.97374689826303,
+      "cross_track_m": 0.04886552420136177,
+      "diagnosis": "Single 2 ms early active-left impact; left42.11N plus right11.92N support overlap. Nominal M5 shared first8s commands but touchdown differed by10ms and opposite-foot load was lower. Cruise peak2.71314BW; no evidence for cruise-specific fix.",
       "promoted": false
+    },
+    "activeEarlyTurnRepeats": [
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_left10_repeat1/dynamics.json",
+        "sha256": "1f3cd92e2bc35358e47ed619ff4b7f450c7c66a6686def6e9cd1e957b9829c27",
+        "peak_force_bw": 2.754212059416373,
+        "scope": "Fixed 10 s repeatability diagnostic; deliberately too short for gate acceptance."
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active_long599_left10_repeat2/dynamics.json",
+        "sha256": "2713cd7e3f9d64af19f579f005d0e205f0b3953dbb40f8a9696996d81c32a437",
+        "peak_force_bw": 2.7557412959652456,
+        "scope": "Fixed 10 s repeatability diagnostic; deliberately too short for gate acceptance."
+      }
+    ],
+    "activeMarginTraining": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_margin400",
+      "status": "running",
+      "seed_checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_long600/model_599.pt",
+      "iterations": 400,
+      "num_envs": 256,
+      "training_force_limit_bw": 2.9,
+      "acceptance_force_limit_bw": 3.0,
+      "early_start_mixture_fraction": 0.5,
+      "early_age_range_s": [
+        3.0,
+        7.0
+      ],
+      "scope": "Same actor69/critic69, frozen cruise/CEM, same action bounds and speed; equal protocol allocation retained. Per-protocol stopping/settled/timeout coverage logged. Two-iteration GPU smoke and44 focused CPU tests passed."
     }
   }
 }

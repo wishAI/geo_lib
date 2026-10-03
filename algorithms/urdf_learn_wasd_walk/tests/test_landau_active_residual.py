@@ -12,6 +12,22 @@ from algorithms.urdf_learn_wasd_walk.tests.test_landau_cruise_residual import Re
 
 
 class ActiveTests(unittest.TestCase):
+    def test_early_mixture_preserves_protocol_and_reserved_rows(self):
+        ages=torch.arange(90,dtype=torch.float64)%30
+        pools=[torch.arange(i*30,(i+1)*30,2) for i in range(3)]
+        modes=torch.arange(12000)%3
+        torch.manual_seed(17)
+        rows=cruise.sample_active_rows(pools,ages,modes,.5)
+        self.assertTrue(torch.equal(rows//30,modes))
+        self.assertTrue(bool((rows%2==0).all()))
+        early=(ages[rows]>=3)&(ages[rows]<=7)
+        for mode in range(3):
+            fraction=float(early[modes==mode].float().mean())
+            self.assertGreater(fraction,.5);self.assertLess(fraction,.65)
+            self.assertTrue(bool((ages[rows[modes==mode]]>20).any()))
+        with self.assertRaisesRegex(ValueError,'No early'):
+            cruise.sample_active_rows([torch.tensor([0])],ages,torch.tensor([0]),.5)
+
     def test_roll_projection_keeps_control_and_bounds(self):
         from algorithms.urdf_learn_wasd_walk.landau_residual_screen import project_active_delta
         torch.manual_seed(12);baseline=torch.randn(3,3);delta=torch.rand(3,2)*.5-.25

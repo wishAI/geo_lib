@@ -345,8 +345,18 @@ worse and is rejected. The unchanged longer-run actor also had six force failure
 in that larger batch, so the earlier force-safe screen is not a robustness claim.
 Its independent nominal M5 dynamics passed at 2.83 BW, 2.66-degree held heading
 error and 1.88 cm drift; video review and independent validation passed. Full M6
-dynamics also passed at 2.96 BW, including restart. Its proof review and the
-independent backward gate evaluation are underway; no checkpoint is promoted.
+also passed full review and independent validation at 2.96 BW, including restart.
+The backward gate then passed independent validation and full video review:
+10 m in 175.13 s, 3.94 cm cross-track error, 2.93 BW peak force and 194 swings per
+foot. The left gate then failed one 2 ms impact at 7.742 s: 3.010 BW, with both
+feet loaded during touchdown. Cruise stayed below 2.72 BW. Two fixed ten-second
+nominal repeats peaked at 2.754/2.756 BW, confirming sensitivity despite identical
+early commands. The failed full run is retained.
+The next continuation warm-starts the same actor, mixes early 3–7 s starts with
+the broad curriculum equally, and tightens training termination to 2.9 BW.
+Per-protocol stop, settled and successful-completion counts expose any loss of
+hold coverage. Actor inputs, action bounds, command speed and the independent
+3 BW acceptance limit remain unchanged. No checkpoint is promoted.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

@@ -15,6 +15,22 @@ FEATURE_DIM = 69
 BOUND_RAD = .02
 
 
+def sample_active_rows(pools, ages, modes, early_fraction=0.):
+    """Mix early-turn starts with the original broad, training-only row pools."""
+    import torch
+    result=torch.empty(len(modes),device=modes.device,dtype=torch.long)
+    for mode,pool in enumerate(pools):
+        selected=modes==mode;count=int(selected.sum())
+        rows=pool[torch.randint(len(pool),(count,),device=modes.device)]
+        if early_fraction:
+            early=pool[(ages[pool]>=3.) & (ages[pool]<=7.)]
+            if not len(early):raise ValueError('No early training states for protocol')
+            use_early=torch.rand(count,device=modes.device)<early_fraction
+            rows=torch.where(use_early,early[torch.randint(len(early),(count,),device=modes.device)],rows)
+        result[selected]=rows
+    return result
+
+
 def features(observation, walking, memory):
     import torch
     # Derive phase exactly as the frozen gait does; never expose unbounded age.
@@ -272,6 +288,10 @@ def train(args):
             self.air=torch.zeros((self.num_envs,2),device=self.device);self.peak=torch.zeros_like(self.air)
             self.touched=torch.zeros_like(self.air,dtype=torch.bool)
             self.previous_residual=torch.zeros((self.num_envs,2),device=self.device)
+            self.seen_stop=torch.zeros(self.num_envs,device=self.device,dtype=torch.bool)
+            self.seen_settled=torch.zeros_like(self.seen_stop)
+            self.coverage={key:torch.zeros(3,device=self.device,dtype=torch.long)
+                for key in ('completed','failed','force_margin_failed','stopped','settled','successful_timeout')}
             self.completed=0;self.failed=0;self.returns=torch.zeros(self.num_envs,device=self.device)
             self.reset(torch.ones(self.num_envs,device=self.device,dtype=torch.bool))
         @property
@@ -283,9 +303,7 @@ def train(args):
             if not count:return
             if active_mode:
                 choice=self.mode[mask] if args.active_long else torch.randint(3,(count,),device=self.device)
-                ix=torch.empty(count,device=self.device,dtype=torch.long)
-                for mode,pool in enumerate(train_pools):
-                    selected=choice==mode;ix[selected]=pool[torch.randint(len(pool),(int(selected.sum()),),device=self.device)]
+                ix=sample_active_rows(train_pools,bank['age'],choice,args.early_start_fraction)
                 if not hasattr(self,'mode'):self.mode=torch.zeros(self.num_envs,device=self.device,dtype=torch.long)
                 self.mode[mask]=bank['mode'][ix]
                 for name in ('previous_moving','stop_xy','stop_time','hold_heading'):getattr(memory,name)[mask]=bank[name][ix].to(getattr(memory,name).dtype)
@@ -300,6 +318,7 @@ def train(args):
             memory._feedback[mask]=bank['feedback'][ix];memory.left_cruise_start[mask]=bank['cruise_start'][ix]
             memory.previous_yaw[mask]=bank['previous_yaw'][ix].double()
             self.air[mask]=0;self.peak[mask]=0;self.touched[mask]=False;self.previous_residual[mask]=0
+            self.seen_stop[mask]=False;self.seen_settled[mask]=False
             self.returns[mask]=0
             for value in audit.values():value[mask]=0
             torch.cuda.synchronize();wp.capture_launch(batch.forward_graph);wp.synchronize()
@@ -346,7 +365,7 @@ def train(args):
             tilt=batch.rot[:,batch.base,2,2].clamp(-1,1).acos()
             force=audit['force']/weight
             failed=(tilt>math.pi/6)|(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08)
-            failed|=(audit['speed']>4.+1e-6)|(force>3.)|(audit['nonfoot']!=0)|(audit['flight']>60)
+            failed|=(audit['speed']>4.+1e-6)|(force>args.training_force_limit)|(audit['nonfoot']!=0)|(audit['flight']>60)
             failed|=~torch.isfinite(batch.q).all(1)|~torch.isfinite(batch.v).all(1)
             contacts,slip,clearance,_=batch.feet(with_forces=True)
             landed=contacts&self.touched&(self.air>=.06)&(self.peak>=.015)
@@ -387,11 +406,20 @@ def train(args):
             self.get_observations()
             if active_mode:memory.advance_command(self.observation,batch.pos[:,batch.pelvis],self.age,.02)
             else:memory.advance(self.observation[:,65].double(),self.age,.02)
+            if active_mode:
+                stopped=torch.isfinite(memory.stop_time) & ~failed
+                settled=stopped & (self.age-memory.stop_time>=2.-1e-8)
+                masks={'completed':done,'failed':failed,'force_margin_failed':force>args.training_force_limit,
+                    'stopped':stopped & ~self.seen_stop,'settled':settled & ~self.seen_settled,
+                    'successful_timeout':timeout & ~failed}
+                for key,mask in masks.items():self.coverage[key]+=torch.bincount(self.mode[mask],minlength=3)
+                self.seen_stop|=stopped;self.seen_settled|=settled
+                stats['coverage_by_protocol']={key:value.tolist() for key,value in self.coverage.items()}
             self.completed+=int(done.sum());self.failed+=int(failed.sum())
             stats.update(completed=self.completed,failed=self.failed,mean_interval_peak_bw=float(force.mean()),
                 max_interval_peak_bw=float(force.max()),mean_forward_mps=float(linear[:,1].mean()),
                 mean_abs_residual_rad=float(residual.abs().mean())*BOUND_RAD)
-            extras={'time_outs':(timeout&~failed).float(),'log':dict(stats)}
+            extras={'time_outs':(timeout&~failed).float(),'log':{key:value for key,value in stats.items() if isinstance(value,(int,float))}}
             self.reset(done)
             return self.get_observations(),reward,done.float(),extras
 
@@ -426,7 +454,7 @@ def train(args):
         research_reference='https://arxiv.org/abs/1812.03201',checkpoints={},
         canonical_milestone_pass=False,
         training_reset_semantics='Recorded healthy state curriculum, qpos/qvel/previous-action/controller memory restored; solver warmstart zeroed; no evaluation resets',
-        training_hard_guards={'support_force_bw':3.,'joint_speed_rad_s':4.,'max_flight_s':.12,'tilt_rad':math.pi/6,'root_drop_m':.08},
+        training_hard_guards={'support_force_bw':args.training_force_limit,'joint_speed_rad_s':4.,'max_flight_s':.12,'tilt_rad':math.pi/6,'root_drop_m':.08},
         reward='dt*(alive+2*forward_tracking-8*excess_peak_over2.5BW^2-2*tilt^2-2*slip-.1*residual^2-.1*residual_change^2)+2*world_backward_progress+.1*qualified_swings-5*failure',
         training_timeout='6s curriculum truncation with RSL timeout bootstrap; nominal-start evaluation unchanged')
     for filename in ('control_source.py','turn_source.py','teleop_contract.py'):
@@ -455,6 +483,10 @@ def train(args):
             training.update(training_timeout='Per-world recorded-state truncations: backward min(start+24,90.8)s; M5 at55.8s; M6 at24.8s, with RSL timeout bootstrap.',
                 protocol_sampling='Fixed roughly equal world counts by protocol; even-index warm states independently resampled within each protocol on reset.')
             training['training_hard_guards'].update(hold_drift_m=.03,settled_hold_heading_rad=math.radians(5),settled_hold_speed_mps=.05,settled_hold_yaw_speed_rad_s=.1)
+            training.update(early_start_fraction=args.early_start_fraction,early_start_age_range_s=[3.,7.],
+                coverage_protocol_order=['backward','M5','M6'],
+                coverage_semantics='Per-episode first healthy stop/settled observation, including warm starts already in hold; successful timeout excludes all failures.',
+                force_margin_scope='Training-only stricter termination; independent acceptance remains 3 BW.')
         training['reward']=f'Existing force penalty coefficient {args.force_cost}, failure cost {args.failure_cost}, moving teacher-heading scale {args.heading_scale_deg}deg; command-speed/body-progress and hold costs otherwise preserved.'
     else:(directory/'residual_source.py').write_bytes(Path(__file__).read_bytes())
     # Training dependencies are separate from the frozen deployment turn source.
@@ -552,6 +584,8 @@ def main():
     parser.add_argument('--privileged-critic',action='store_true');parser.add_argument('--active-seed')
     parser.add_argument('--active-long',action='store_true')
     parser.add_argument('--force-cost',type=float,default=8.)
+    parser.add_argument('--training-force-limit',type=float,default=3.)
+    parser.add_argument('--early-start-fraction',type=float,default=0.)
     parser.add_argument('--failure-cost',type=float,default=5.)
     parser.add_argument('--heading-scale-deg',type=float,default=10.)
     parser.add_argument('--active-curriculum',nargs=3,metavar=('BACKWARD','M5','M6'))
@@ -564,6 +598,8 @@ def main():
     if args.active_curriculum and not args.residual_checkpoint:raise ValueError('Active training requires frozen cruise checkpoint')
     if (args.privileged_critic or args.active_seed) and not args.active_long:raise ValueError('Privileged critic/active seed require long active training')
     if args.active_long and not args.active_curriculum:raise ValueError('Long mixed episodes require active curriculum')
+    if not 2.85<=args.training_force_limit<=3. or not 0.<=args.early_start_fraction<=.75:raise ValueError('Invalid training margin or sampling mixture')
+    if (args.training_force_limit!=3. or args.early_start_fraction) and not args.active_long:raise ValueError('Margin curriculum requires long active training')
     if not math.isfinite(args.force_cost) or not math.isfinite(args.failure_cost) or args.force_cost<=0 or args.failure_cost<=0 or not 1.<=args.heading_scale_deg<=10.:raise ValueError('Invalid bounded residual reward weights')
     if not 16<=args.num_envs<=512 or not 1<=args.iterations<=1000 or args.seconds!=6.:
         raise ValueError('Bounded initial curriculum requires16..512worlds,1..1000iterations and6secondepisodes')
