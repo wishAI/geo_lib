@@ -28,6 +28,15 @@ write_json = backend.write_json
 digest = backend.digest
 
 def run(args):
+    direction=getattr(args,'direction',None)
+    if direction and (getattr(args,'turn',False) or getattr(args,'teleop',False) or not args.forward):
+        raise ValueError('Direction requires a separate moving-command evaluation')
+    if direction:
+        from algorithms.urdf_learn_wasd_walk.landau_direction_contract import DIRECTIONS, GATE_WIDTH_M
+        direction_axis=np.asarray(DIRECTIONS[direction])
+        previous_along=previous_cross=0.
+        direction_reached=False
+        direction_horizon=args.seconds
     turn_mode=bool(getattr(args,'turn',False))
     teleop_mode=bool(getattr(args,'teleop',False))
     if teleop_mode and (turn_mode or not args.forward or args.seconds!=60.):
@@ -38,8 +47,8 @@ def run(args):
         raise ValueError('Turn evaluation must include five seconds of zero-command hold')
     if args.forward and not args.checkpoint:
         raise ValueError('Forward evaluation requires a command-conditioned checkpoint')
-    if args.seconds <= 0 or args.seconds > 120 or args.dt <= 0 or args.gain_scale <= 0:
-        raise ValueError('Diagnostics require 0 < duration <= 120, positive dt and gains')
+    if args.seconds <= 0 or args.seconds > (240 if direction else 120) or args.dt <= 0 or args.gain_scale <= 0:
+        raise ValueError('Diagnostics require a positive bounded duration (M7: 240 s; otherwise: 120 s), dt and gains')
     target_distance=float(getattr(args,'target_distance_m',5.))
     if target_distance not in (5.,10.):raise ValueError('Unsupported distance gate')
     out = (OUTPUT / args.name).resolve()
@@ -235,15 +244,30 @@ def run(args):
                          'com_m': data.subtree_com[model.body('base_link').id].tolist(), 'tilt_rad': tilt,
                          'support_body_weight_ratio': support_ratios[-1], 'max_joint_speed': float(speed.max()),
                          'assistance_coefficient': assist.coefficient, 'external_wrench_world': wrench.tolist()})
+            if direction:
+                delta=data.xpos[pelvis,:2]-initial_pelvis[:2]
+                along=float(delta@direction_axis)
+                cross=float(delta[0]*direction_axis[1]-delta[1]*direction_axis[0])
+                if previous_along<10.<=along:
+                    fraction=(10.-previous_along)/(along-previous_along)
+                    direction_reached=abs(previous_cross+fraction*(cross-previous_cross))<=GATE_WIDTH_M
+                previous_along,previous_cross=along,cross
         if not np.isfinite(data.qpos).all() or any(w.number for w in data.warning):
             failure = 'nonfinite state or MuJoCo numerical warning'
             break
         if tilt > math.pi/6 or initial_pelvis[2]-data.xpos[pelvis,2] > .08:
             failure = 'fall'
             break
+        if direction and direction_reached:
+            break
     wall_s = time.perf_counter()-loop_start
     warp_info = warp_runtime.close() if warp_runtime is not None else None
     cpu = process.cpu_times()
+    if direction:
+        # A world gate ends at its first valid crossing on a control boundary.
+        # The declared search horizon remains recorded for exact reproduction.
+        args.direction_horizon_s=direction_horizon
+        if direction_reached:args.seconds=round(float(data.time)/.02)*.02
     metrics = {'duration_s': float(data.time), 'reset_count': 0, 'done_count': int(failure is not None),
                'fall_count': int(failure == 'fall'), 'max_reference_tilt_rad': max_tilt,
                'root_height_drop_m': max_drop, 'horizontal_drift_m': max_drift,
@@ -288,12 +312,17 @@ def run(args):
                 [0. if i==0 else r['heading_rad'] for i,r in enumerate(rows)],foot_samples)
             metrics['teleop_response']=responses
             failures=evaluate_teleop(metrics,responses)
+        elif direction:
+            from algorithms.urdf_learn_wasd_walk.landau_direction_contract import gate_metrics,evaluate_gate as evaluate_direction
+            metrics.update(gate_metrics(direction,[r['time_s'] for r in rows],
+                [initial_pelvis if i==0 else r['pelvis_position_m'] for i,r in enumerate(rows)]))
+            failures=evaluate_direction(metrics,args.seconds)
         else:failures=evaluate_forward_gate(metrics,required_distance_m=target_distance)
         for side in ('left','right'):
             if swing[side]['completed']<3:failures.append(f'{side} has fewer than 3 completed swings with 15 mm clearance and 60 ms airtime')
         if max_flight_s>.12:failures.append('continuous simultaneous flight exceeded 120 ms')
         if metrics['mean_contact_foot_slip_mps']>.1:failures.append('mean contact foot slip exceeded 0.1 m/s')
-        if not turn_mode and not teleop_mode and max_heading>math.radians(30):failures.append('forward heading deviated more than 30 degrees')
+        if not direction and not turn_mode and not teleop_mode and max_heading>math.radians(30):failures.append('forward heading deviated more than 30 degrees')
         write_json(out/'foot_trace.json',foot_samples)
     else:
         passed, failures = evaluate_gate(gate_metrics)
@@ -334,7 +363,7 @@ def run(args):
                         warp_runtime_source_sha256=warp_info['source_sha256'],warp_io_source_sha256=warp_info['warp_io_source_sha256'])
     result = {'status': 'dynamics_passed_proof_pending' if not failures else 'failed',
               'gate_passed': False, 'canonical_milestones_modified': False,
-              'milestone': 'teleop_60s_forward_turn' if teleop_mode else 'yaw_turn_90deg_hold' if turn_mode else f'gate_{target_distance:g}m_no_reset' if args.forward else 'stand_30s_no_reset' if policy is not None else 'stand_zero_signal_30s_no_reset', 'identity': identity, 'config': config,
+              'milestone': 'gate_10m_four_directions_no_reset' if direction else 'teleop_60s_forward_turn' if teleop_mode else 'yaw_turn_90deg_hold' if turn_mode else f'gate_{target_distance:g}m_no_reset' if args.forward else 'stand_30s_no_reset' if policy is not None else 'stand_zero_signal_30s_no_reset', 'identity': identity, 'config': config,
               'metrics': metrics, 'failures': failures, 'performance': performance,
               'reproduce': shlex.join(['env', *[f'{k}={os.environ[k]}' for k in ('MUJOCO_GL','LIBGL_ALWAYS_SOFTWARE') if k in os.environ],sys.executable, '-m', 'algorithms.urdf_learn_wasd_walk.landau_forward_control', *sys.argv[1:]]),
               'created_at': datetime.now(timezone.utc).isoformat(), 'visual_review': 'pending'}
@@ -345,6 +374,12 @@ def run(args):
             'minimum_swing_airtime_s':.06,'minimum_swing_clearance_m':.015,
             'maximum_continuous_flight_s':.12,'maximum_mean_contact_slip_mps':.1,
             'maximum_heading_deviation_degrees':30.}
+        if direction:
+            result['walking_acceptance'].pop('maximum_heading_deviation_degrees')
+            protocol=Path(__file__).with_name('landau_direction_contract.py')
+            (out/'direction_protocol_source.py').write_text(protocol.read_text())
+            result['direction_protocol_source_sha256']=digest(protocol)
+            result['direction_interpretation']='turn and walk to world gate from unchanged nominal start pose'
         if teleop_mode:
             result['walking_acceptance'].pop('maximum_heading_deviation_degrees')
             contract=Path(__file__).with_name('landau_teleop_contract.py')

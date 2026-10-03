@@ -39,9 +39,30 @@ class ExplorationTests(unittest.TestCase):
             unused=extended.clone();unused[9:11]=torch.tensor([2.,2.])
             actual=commanded_action(base,walking,prior,obs,obs[:,:63],unused,names,.4,True,memory)
             self.assertTrue(torch.equal(actual,expected))
+
             memory.restart_time=25.
             actual=commanded_action(base,walking,prior,obs,obs[:,:63],extended,names,.4,True,memory)
             self.assertTrue(torch.equal(actual,expected))
+
+    def test_right_roll_extension_preserves_left_and_neutral_right(self):
+        from algorithms.urdf_learn_wasd_walk import landau_gait_search as base
+        from algorithms.urdf_learn_wasd_walk.landau_turn_control import commanded_action,CommandMemory
+        names=[side+'_'+joint+'_joint' for side in ('left','right') for joint in ('hip_pitch','hip_yaw','hip_roll','knee','ankle_pitch','toe')]+['waist_yaw_joint','waist_roll_joint','waist_pitch_joint','left_shoulder_pitch_joint','right_shoulder_pitch_joint']
+        prior=make_actor(63);prior.eval()
+        obs=torch.zeros(1,70);obs[:,8]=-1.;obs[:,62]=.5;obs[:,63]=.2
+        walking=torch.tensor([(lo+hi)/2 for lo,hi in base.PARAMETERS.values()])
+        old=torch.tensor([.1,-.3,.04,.01,-.01,-.01,-.02,1.,.04,0.,0.,.07])
+        extended=torch.cat((old,old[5:7]))
+        memory=CommandMemory();memory.turned=True;memory.previous_time=15.
+        for sign in (-1,1):
+            memory.last_yaw_sign=sign;obs[:,65]=sign*.0357
+            with torch.no_grad():
+                expected=commanded_action(base,walking,prior,obs,obs[:,:63],old,names,.4,True,memory)
+                actual=commanded_action(base,walking,prior,obs,obs[:,:63],extended,names,.4,True,memory)
+                self.assertTrue(torch.equal(actual,expected))
+                changed=extended.clone();changed[12:14]=torch.tensor([.03,.2])
+                actual=commanded_action(base,walking,prior,obs,obs[:,:63],changed,names,.4,True,memory)
+                self.assertEqual(torch.equal(actual,expected),sign>0)
 
     def test_saved_parametric_source_is_hash_bound(self):
         import hashlib

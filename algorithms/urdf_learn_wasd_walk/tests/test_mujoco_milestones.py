@@ -93,6 +93,65 @@ class StandingCertificateTests(unittest.TestCase):
 
 
 class WalkingCertificateTests(StandingCertificateTests):
+    def direction_fixture(self):
+        from algorithms.urdf_learn_wasd_walk import landau_direction_contract as dc
+        cp=self.teleop_fixture()
+        self.cfg.update(teleop=False,direction='forward',target_distance_m=10.)
+        self.record['milestone']='gate_10m_four_directions_no_reset'
+        self.record['identity']['config_sha256']=hashlib.sha256(json.dumps(self.cfg,sort_keys=True).encode()).hexdigest()
+        t=np.arange(3001)*.02;q=np.zeros((3001,7));q[:,3]=1.;q[:,1]=np.linspace(0.,11.,3001)
+        np.savez(self.folder/'trajectory.npz',qpos=q,time=t)
+        self.record['trajectory_sha256']=gates.digest(self.folder/'trajectory.npz')
+        obs=np.zeros((3000,70));obs[:,63]=.2
+        np.savez(self.folder/'policy_trace.npz',observation=obs,time=t[:-1])
+        self.record['policy_trace_sha256']=gates.digest(self.folder/'policy_trace.npz')
+        (self.folder/'direction_protocol_source.py').write_text(Path(dc.__file__).read_text())
+        self.record['direction_protocol_source_sha256']=gates.digest(dc.__file__)
+        training=gates.read(self.folder/'training.json');training['nominal_q']=q[0].tolist()
+        gates.write(self.folder/'training.json',training)
+        control_hash=hashlib.sha256(json.dumps({'initial_qpos':training['nominal_q'],'initial_ctrl':training['nominal_ctrl']},sort_keys=True).encode()).hexdigest()
+        self.ledger['assetContract']['initialControlSha256']=control_hash
+        self.record['identity']['initial_control_sha256']=control_hash
+        self.metrics.update(dc.gate_metrics('forward',t,q[:,:3]),control_steps=3000,
+            left_foot_liftoff_count=100,right_foot_liftoff_count=100,mean_contact_foot_slip_mps=.01)
+        self.teleop_save()
+        return cp
+
+    def test_direction_reconstructs_gate_and_commands(self):
+        cp=self.direction_fixture()
+        gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        with np.load(self.folder/'policy_trace.npz') as trace:obs=trace['observation'];t=trace['time']
+        obs[:,64]=.2
+        np.savez(self.folder/'policy_trace.npz',observation=obs,time=t)
+        self.record['policy_trace_sha256']=gates.digest(self.folder/'policy_trace.npz');self.teleop_save()
+        with self.assertRaisesRegex(ValueError,'declared joystick commands'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+
+    def test_direction_claim_cannot_hide_short_trajectory(self):
+        cp=self.direction_fixture()
+        with np.load(self.folder/'trajectory.npz') as trace:q=trace['qpos'];t=trace['time']
+        q[:,1]*=.5
+        np.savez(self.folder/'trajectory.npz',qpos=q,time=t)
+        self.record['trajectory_sha256']=gates.digest(self.folder/'trajectory.npz');self.teleop_save()
+        with self.assertRaisesRegex(ValueError,'crossing differs|metric differs'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+
+    def test_direction_promotion_requires_four_distinct_runs_and_six_predecessors(self):
+        checkpoint=self.folder/'candidate.pt';checkpoint.write_bytes(b'candidate')
+        ledger=dict(lineage=gates.LINEAGE,milestones=[{'status':'passed'} for _ in range(6)]+
+                    [{'id':'gate_10m_four_directions_no_reset','status':'in_progress'}])
+        path=self.root/'milestones.json';gates.write(path,ledger)
+        with patch.object(gates,'LEDGER',path):
+            with self.assertRaisesRegex(ValueError,'Four independent'):
+                gates.certify_directions(self.root/'outputs/certificate',checkpoint,[self.folder]*4,[self.folder]*6)
+            with self.assertRaisesRegex(ValueError,'M1–M6 components'):
+                gates.certify_directions(self.root/'outputs/certificate',checkpoint,
+                    [self.root/f'outputs/{i}' for i in range(4)],[self.folder]*5)
+            ledger['milestones'][5]['status']='in_progress';gates.write(path,ledger)
+            with self.assertRaisesRegex(ValueError,'Prior milestone'):
+                gates.certify_directions(self.root/'outputs/certificate',checkpoint,[],[])
+        self.assertFalse((self.root/'outputs/certificate').exists())
+
     def turn_fixture(self):
         cp,_=self.walking_fixture(26.)
         self.cfg.update(turn=True,turn_hold_start=19.)

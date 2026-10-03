@@ -369,7 +369,11 @@ def evaluate(args):
     blob=torch.load(checkpoint,map_location='cpu',weights_only=False)
     turn_mode=getattr(args,'turn',False)
     teleop_mode=getattr(args,'teleop',False)
-    if turn_mode and teleop_mode:raise ValueError('Choose one command test')
+    direction_origin=None
+    direction=getattr(args,'direction',None)
+    if sum((bool(turn_mode),bool(teleop_mode),bool(direction)))>1:raise ValueError('Choose one command test')
+    if direction:
+        from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
     if teleop_mode:
         from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop_contract
         teleop_profile=teleop_contract.command_profile
@@ -383,7 +387,7 @@ def evaluate(args):
             teleop_profile=saved_protocol.command_profile
     has_turn=meta.get('command_extension')=='yaw_v1'
     turn_memory={}
-    if (turn_mode or teleop_mode) and not has_turn:raise ValueError('Checkpoint has no trained yaw extension')
+    if (turn_mode or teleop_mode or direction) and not has_turn:raise ValueError('Checkpoint has no trained yaw extension')
     if has_turn:
         import importlib.util
         turn_source=checkpoint.parent/'turn_source.py'
@@ -406,6 +410,7 @@ def evaluate(args):
         actor.eval()
     original_observe=old_policy.observe
     def observe(model,data,nominal,joints,previous):
+        nonlocal direction_origin
         base,pelvis=model.body('base_link').id,model.body('root_x').id
         rotation=data.xmat[base].reshape(3,3)
         displacement=np.r_[data.xpos[pelvis,:2]-np.array(meta['reference_xy']),0.]
@@ -419,6 +424,11 @@ def evaluate(args):
             result[60:62]=0.;result[63:66]=[forward,0.,yaw]
         if teleop_mode:
             result[60:62]=0.;result[63:66]=teleop_profile(round(float(data.time)/.02)*.02)
+        if direction:
+            if direction_origin is None:direction_origin=data.xpos[pelvis,:2].copy()
+            delta=data.xpos[pelvis,:2]-direction_origin
+            result[60:62]=0.
+            result[63:66]=direction_contract.command(direction,delta,np.arctan2(rotation[1,0],rotation[0,0]),float(data.time),args.forward)
         if command_memory is not None:
             adjusted,prior_obs=command_memory.observe(torch.from_numpy(result)[None],
                 torch.tensor(data.xpos[pelvis].copy(),dtype=torch.float32)[None],
@@ -459,7 +469,7 @@ def evaluate(args):
     run(SimpleNamespace(name=args.name,backend='mujoco_warp_cuda',seconds=args.seconds,dt=.002,seed=42,
         pose='geometric',gain_scale=1.,noslip_iterations=0,contact_timeconst=.004,assistance=0.,
         checkpoint=str(checkpoint),forward=args.forward,target_distance_m=getattr(args,'target_distance',5.),turn=turn_mode,
-        turn_hold_start=turn_implementation.HOLD_START if turn_mode else None,teleop=teleop_mode,render=False))
+        turn_hold_start=turn_implementation.HOLD_START if turn_mode else None,teleop=teleop_mode,direction=direction,render=False))
     if teleop_mode:
         protocol_path=protocol_source if meta.get('memory_version')==2 else Path(teleop_contract.__file__)
         (backend.OUTPUT/args.name/'command_protocol_source.py').write_text(protocol_path.read_text())
@@ -501,6 +511,7 @@ def main():
     p.add_argument('--forward',type=float,default=.2);p.add_argument('--seconds',type=float,default=30.)
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--turn',action='store_true',help='Evaluate the saved yaw-command profile and settled hold')
+    p.add_argument('--direction',choices=('forward','left','right','backward'),help='M7: turn and walk through a world-direction 10 m gate')
     p.add_argument('--teleop',action='store_true',help='Run the fixed60s joystick command replay')
     p.add_argument('--action-mapping',choices=('range_v1','legacy_radians_v2'),default='range_v1')
     p.add_argument('--moving-noise-floor',action='store_true')
@@ -508,10 +519,12 @@ def main():
     p.add_argument('--moving-tilt-weight',type=float,default=2.)
     p.add_argument('--initialization',choices=('transfer','fresh_moving'),default='transfer')
     args=p.parse_args()
-    if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=120:
+    if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=(240 if args.direction else 120):
         raise ValueError('Experiment exceeds bounded limits')
     if args.hip_roll_range not in (.2,.4):raise ValueError('Use an audited hip-roll range')
     if args.moving_tilt_weight not in (.5,2.):raise ValueError('Use a bounded tilt-penalty comparison')
+    if args.direction and (args.mode!='evaluate' or args.target_distance!=10. or args.forward<=0):
+        raise ValueError('Direction mode requires moving evaluation and a 10 m target')
     if args.mode=='train':
         if args.turn or args.teleop:raise ValueError('Use landau_turn_control for yaw/teleop training')
         if args.forward<=0:raise ValueError('Training requires a moving-command subset')

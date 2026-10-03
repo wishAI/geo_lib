@@ -1670,16 +1670,43 @@
     }
   ],
   "sessionStatus": {
-    "state": "paused_by_user",
-    "updatedAt": "2026-09-22T13:05:41.503942+00:00",
-    "reason": "User requested stopping for today, recording status, committing and pushing. Do not launch training until the user resumes.",
+    "state": "active",
+    "updatedAt": "2026-10-03T01:18:16.754003+00:00",
+    "reason": "User resumed walking milestone work and requested faster motion where stable.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Define and validate four 10 m directional gates through semantic commands on the certified M6 checkpoint; no M7 implementation or run started.",
+    "nextWork": "Complete independent M7 one-direction steering evaluation; require all four gates and M1\u2013M6 rechecks before promotion.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
       "sha256": "0c07a031b1921995f5c17e4a14f9a7dfee3d6854d376da4f2b0c205f2c63fb13"
+    },
+    "recentEvaluations": [
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/resume_20261003_m6_forward10/dynamics.json",
+        "sha256": "9e5658e8fff798bd7e2d8985aea3b5c0c3d367a13a3a8718de3bb4f77b5f06a2",
+        "status": "dynamics_passed_proof_pending"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_smoke60/dynamics.json",
+        "sha256": "4b23f01d9adbbbecce6890b6c0b48e0863fc62f2c9b0555f142d1d3e3e0a43b8",
+        "status": "failed"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_roll3_gate/dynamics.json",
+        "sha256": "877d9ba2553512173c5163a75e2122d36e5d8b9bf1e794877143233ad78bd598",
+        "status": "failed"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_roll3_deadband/dynamics.json",
+        "sha256": "6787bd81a5bb123e030c97bd1b38dd8ac3285f62e52f6a391cd3e815e45038f2",
+        "status": "failed"
+      }
+    ],
+    "candidateCheckpoint": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_right_roll_cem/model_3.pt",
+      "sha256": "559d94ec58157a0f2f12d61cfdf96e1fc6ed778f07311d3e0d857052916ee68f",
+      "promoted": false
     }
   }
 }
