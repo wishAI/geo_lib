@@ -23,6 +23,7 @@ if str(REPO_BOOTSTRAP_ROOT) not in sys.path:
 
 from algorithms.urdf_learn_wasd_walk import model_spec, passive_stand
 from algorithms.urdf_learn_wasd_walk import policy_stand_contract as contract
+from algorithms.urdf_learn_wasd_walk import policy_stand_initialization as initialization
 
 
 def _timestamp() -> str:
@@ -109,7 +110,11 @@ def _write_failure(args, error: Exception, traceback_text: str) -> None:
     payload = {
         "schema_version": 1,
         "milestone": contract.MILESTONE_ID,
+        "lineage": contract.LINEAGE,
         "status": "failed_to_execute",
+        "gate_eligible": False,
+        "initialization_protocol": initialization.protocol(),
+        "source_commit": _source_commit(),
         "mode": args.mode,
         "runtime_stage": getattr(args, "runtime_stage", "unknown"),
         "run_identity": _timestamp(),
@@ -122,6 +127,8 @@ def _write_failure(args, error: Exception, traceback_text: str) -> None:
         "traceback_sha256": contract.sha256(trace_path),
         "input": {
             "urdf_sha256": model_spec.EXPECTED_URDF_SHA256,
+            "expected_mesh_tree_sha256": model_spec.EXPECTED_MESH_TREE_SHA256,
+            "identity_is_runtime_verified": False,
             "robot_spec_sha256": contract.sha256(model_spec.ROBOT_SPEC_PATH),
         },
         "argv": list(sys.argv),
@@ -174,6 +181,12 @@ def _train(args) -> dict:
             )
         if set(env.scene["robot"].joint_names) != set(model_spec.build_robot_spec()["nominal_pose"]["joint_positions_rad"]):
             raise RuntimeError("runtime articulation joint set differs from the audited URDF")
+        _stage(args, "fixed_root_gravity_settling")
+        initial_state = initialization.initialize(env, prior)
+        (output_dir / "initialization.json").write_text(
+            json.dumps(initial_state, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        _stage(args, "free_root_release")
         wrapped = RslRlVecEnvWrapper(env)
         agent_cfg = _runner_cfg(args.seed, args.iterations)
         runner = OnPolicyRunner(
@@ -200,6 +213,7 @@ def _train(args) -> dict:
             "device": args.device,
             "single_process": True,
             "requested_contract": requested,
+            "initialization": initial_state,
             "runtime_contract": {
                 "environment_class": type(env).__name__,
                 "action_order": runtime_action_names,
@@ -327,6 +341,12 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
             if not imported_axes["passed"]:
                 raise RuntimeError("imported joint axes differ from the current URDF contract")
 
+        _stage(args, "fixed_root_gravity_settling")
+        initial_state = initialization.initialize(env, prior)
+        (output_dir / f"{phase}{'_smoke' if args.smoke else ''}_initialization.json").write_text(
+            json.dumps(initial_state, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        _stage(args, "free_root_release")
         wrapped = RslRlVecEnvWrapper(env)
         agent_cfg = _runner_cfg(args.seed, training["requested_contract"]["iterations"])
         runner = OnPolicyRunner(wrapped, agent_cfg.to_dict(), log_dir=None, device=args.device)
@@ -369,7 +389,7 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
         body_masses = robot.data.default_mass[0].to(device=robot.device, dtype=robot.data.joint_pos.dtype)
         total_mass = torch.sum(body_masses)
         robot_weight_n = float(total_mass.detach().cpu()) * 9.81
-        support_hull = spec["nominal_pose"]["geometry"]["support_hull_xy_m"]
+        support_hull = initial_state["environments"][0]["support_hull_xy_m"]
         initial_position = robot.data.body_pos_w[0, reference_ids[0]].detach().cpu().clone()
         initial_quaternion = robot.data.body_quat_w[0, reference_ids[0]].detach().cpu().clone()
         traces: list[dict] = []
@@ -613,6 +633,7 @@ def _run_evaluation(args, prior: dict, training: dict) -> dict:
                 "sha256": contract.sha256(output_dir / contract.TRAINING_EVIDENCE),
                 "run_identity": training["run_identity"],
             },
+            "initialization": initial_state,
             "source_commit": training["source_commit"],
             "versions": _versions(),
             "simulator": {

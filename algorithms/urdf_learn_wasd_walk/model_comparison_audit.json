@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "milestone": "stand_30s_no_reset",
+  "purpose": "G1 control diagnostic, not a Landau milestone",
+  "status": "g1_train_smoke_completed_gait_failed_published_checkpoint_control_pending",
+  "verified_g1_smoke": {
+    "experiment": "mdl_builtin_audit_smoke_20260906",
+    "training_status": "completed_not_promoted",
+    "num_envs": 64,
+    "iterations": 2,
+    "checkpoint_sha256": "1bcb62d5d3a55266bfb33c530744f4836855c6fec6a1ee6ac803bfa4f32946f0",
+    "checkpoint_size_bytes": 2026762,
+    "asset_tree_sha256": "0f48b1e9cee5781ee3fc33a3560294156ca33172fc2dbcdb556392f7dfcc4574",
+    "action_dimension": 37,
+    "actor_observation_dimension": 123,
+    "evaluation_status": "failed",
+    "duration_s": 1.24,
+    "reset_count": 1,
+    "done_count": 1,
+    "fall_count": 1,
+    "max_root_tilt_rad": 1.6033276410503305,
+    "root_height_drop_m": 0.6383360624313354,
+    "max_joint_target_error_rad": 0.4523351490497589,
+    "left_liftoffs": 1,
+    "right_liftoffs": 0,
+    "evolution_node": "comparison:unitree_g1:mdl_builtin_audit_smoke_20260906",
+    "next_experiment": "published_checkpoint_control_20260906",
+    "hypothesis": "the 3072-transition training smoke has not learned locomotion; a matching official published checkpoint distinguishes training budget from environment failure",
+    "single_factor": "checkpoint identity only; exact prior evaluation configuration and asset must match",
+    "next_test": "one 500-step evaluation; no retraining; imported checkpoint is not a locally trained or promoted result",
+    "landau_gate_eligible": false
+  },
+  "dependency_audit_experiment": {
+    "prior_experiment": "official_smoke_20260906",
+    "prior_failure_stage": "official_configuration_and_asset_dependencies",
+    "prior_console_sha256": "5ba1f9745e02bfb82038286b75ef98de40f23743d530b64c24c1c4f5d62b9104",
+    "prior_checkpoint": null,
+    "next_experiment": "mdl_builtin_audit_smoke_20260906",
+    "single_factor": "resolve exact bare OmniPBR.mdl against installed Kit core library and hash it",
+    "hypothesis": "USD dependency enumeration misses a renderer-provided core MDL module; this is not missing G1 robot geometry",
+    "bounded_test": "same official G1 64-env x 2-iteration train, then 500-step evaluation, serial only",
+    "installed_module": "/home/wishai/vscode/IsaacLab/_isaac_sim/kit/mdl/core/Base/OmniPBR.mdl",
+    "installed_module_sha256": "685a82c18b381f1cd29831490e4c356e61dbeac2d86803babc115cd6a4a845db",
+    "unknown_missing_dependencies": "remain fatal",
+    "landau_ledger_unchanged_sha256": "489f6f8941e4fbe9dac6f03a3e5459778c2be081accb2c764b1dcb7a1bc00454"
+  },
+  "references": [
+    "https://github.com/unitreerobotics/unitree_rl_lab",
+    "https://isaac-sim.github.io/IsaacLab/v2.0.0/source/overview/environments.html",
+    "https://docs.omniverse.nvidia.com/kit/docs/usd_resolver/latest/docs/resolver-details.html",
+    "https://docs.omniverse.nvidia.com/kit/docs/omni.kit.material.library/1.5.11/Overview.html"
+  ],
+  "installed_sources": [
+    {
+      "path": "/home/wishai/vscode/IsaacLab/scripts/reinforcement_learning/rsl_rl/train.py",
+      "sha256": "d726eea0a62286a68285983eb606499bda5b388a53ca0dd8b4b8292d62ef4539"
+    },
+    {
+      "path": "/home/wishai/vscode/IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/unitree.py",
+      "sha256": "50f71f33533f6b97737ba5ea119b0c7c44770a74d40e82fecf5180afa13c3473"
+    },
+    {
+      "path": "/home/wishai/vscode/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/g1/flat_env_cfg.py",
+      "sha256": "f7c41c812532ff64ae3cd8868b467031d6d3e41a54f31ba6817584b45d9e6594"
+    },
+    {
+      "path": "/home/wishai/vscode/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/g1/rough_env_cfg.py",
+      "sha256": "219a9295acac71354967719c4daaa455b86a2a6ed5b13973fe68704578113224"
+    },
+    {
+      "path": "/home/wishai/vscode/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/g1/agents/rsl_rl_ppo_cfg.py",
+      "sha256": "e80eb6c909d099ef4b5c4eec8fd11a07e1a7688fffc85d4668422def6a1c451b"
+    }
+  ],
+  "installed_versions": {
+    "isaac_sim": "4.5.0",
+    "isaaclab": "0.36.1",
+    "rsl_rl": "2.2.4"
+  },
+  "g1": {
+    "task": "Isaac-Velocity-Flat-G1-v0",
+    "asset": "installed G1_MINIMAL_CFG official USD URL, resolved after AppLauncher",
+    "local_alternative": "assets/unitree_g1/g1_with_hands.usd",
+    "local_alternative_rejected_reason": "MJCF-derived 29-DOF-family model; not official G1_MINIMAL_CFG topology/collision package",
+    "asset_downloads_this_audit": 0,
+    "asset_tree_sha256": "0f48b1e9cee5781ee3fc33a3560294156ca33172fc2dbcdb556392f7dfcc4574",
+    "nominal_offsets_rad": {
+      "hip_pitch": -0.2,
+      "knee": 0.42,
+      "ankle_pitch": -0.23,
+      "elbow_pitch": 0.87
+    },
+    "initial_root_height_m": 0.74,
+    "ppo_actor_hidden_dims": [
+      256,
+      128,
+      128
+    ],
+    "initial_action_noise_std": 1
+  },
+  "landau": {
+    "lineage": "rabbit_ear_parallel_mesh_recertification_2026_09_05",
+    "mesh_tree_sha256": "a34be1b4f2732de526c23fd1bc53e945b9e647110432fe466521fb7e73676f73",
+    "checkpoint_sha256": "c97e5a15c05190321a79ee240d65e1bd2505df0055c66d7d7284e385e102faa4",
+    "verified_smoke_sha256": "a7237b525fbefd48454845712906f3fcfbbe2d475317e9d5a43f15ac60a3079d",
+    "smoke_duration_s": 10,
+    "reset_count": 0,
+    "done_count": 0,
+    "fall_count": 0,
+    "max_tilt_rad": 0.14856077,
+    "horizontal_drift_m": 0.01491376,
+    "minimum_support_margin_m": 0.01116119,
+    "ppo_actor_hidden_dims": [
+      128,
+      128
+    ],
+    "initial_action_noise_std": 0.2,
+    "M1_rerun": false,
+    "M2_passed": false
+  },
+  "comparison": {
+    "execution": "shared ManagerBasedRLEnv / RslRlVecEnvWrapper / OnPolicyRunner train and inference loop",
+    "native_configuration_differences": "recorded, not concealed or attributed causally to morphology alone",
+    "first_test": "G1 native config, 64 environments, 2 iterations; then separate 500-control-step evaluation",
+    "landau_transfer_requires": "verified G1 diagnostic evaluation; no checkpoint cross-loading",
+    "gate_eligible": false,
+    "checkpoint_storage": "TK2/Nextcloud online-only; no Git or Mac hydration",
+    "source_sync": "preserve authoritative runtime; differential host patch only"
+  }
+}

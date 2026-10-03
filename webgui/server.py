@@ -114,6 +114,12 @@ def discover_manifests() -> list[dict]:
         sandbox = path.parents[1].name
         if payload.get("id") != sandbox:
             raise ValueError(f"Manifest id {payload.get('id')!r} does not match {sandbox!r}")
+        ledger_path = payload.get("milestonePath")
+        if ledger_path:
+            ledger = json.loads(_safe_under(REPO_ROOT, ledger_path).read_text())
+            statuses = {item["id"]: item for item in ledger.get("milestones", [])}
+            payload["milestones"] = [{**item, "status": statuses.get(item["id"], {}).get("status", "not_started")}
+                                     for item in payload.get("milestones", [])]
         payload["manifestPath"] = str(path.relative_to(REPO_ROOT))
         manifests.append(payload)
     return manifests
@@ -161,9 +167,42 @@ def resolve_artifact(relative: str) -> tuple[str, Path] | None:
     return max(available, key=lambda item: item[1].stat().st_mtime)
 
 
+def evolution_artifacts(manifest: dict) -> list[dict]:
+    """Allow only preview media explicitly attached to this sandbox's tree."""
+    inspector = manifest.get("inspector", {})
+    if inspector.get("type") != "evolutionTree" or not inspector.get("path"):
+        return []
+    resolved = resolve_artifact(inspector["path"])
+    if not resolved:
+        return []
+    try:
+        tree = json.loads(resolved[1].read_text())
+    except (OSError, ValueError):
+        return []
+    prefix = f"algorithms/{manifest['id']}/outputs/"
+    kinds = {".mp4": "video", ".webm": "video", ".png": "image", ".jpg": "image", ".json": "json"}
+    artifacts = {}
+    for node in tree.get("nodes", []):
+        for item in node.get("artifacts", []):
+            path = item.get("path", "")
+            if not isinstance(path, str) or not path.startswith(prefix) or ".." in Path(path).parts:
+                continue
+            kind = kinds.get(Path(path).suffix.lower())
+            if not kind:
+                continue
+            try:
+                for root in (REPO_ROOT, storage.cloud_root() / "remote_outputs", storage.cloud_root()):
+                    _safe_under(root / prefix, path[len(prefix):])
+            except ValueError:
+                continue
+            artifacts[path] = {**item, "kind": kind, "label": item.get("label") or f"{node.get('label', 'Run')} · {Path(path).name}", "evolutionOnly": True}
+    return list(artifacts.values())
+
+
 def declared_artifact_paths() -> set[str]:
     paths: set[str] = set()
     for manifest in discover_manifests():
+        paths.update(item["path"] for item in evolution_artifacts(manifest))
         for artifact in manifest.get("artifacts", []):
             paths.add(artifact["path"])
         for example in manifest.get("examples", []):
@@ -585,6 +624,7 @@ class Job:
     command: list[str]
     resource: str | None
     artifacts: list[dict]
+    preserve_runtime: bool = False
     status: str = "queued"
     createdAt: str = field(default_factory=utc_now)
     startedAt: str | None = None
@@ -649,6 +689,7 @@ class JobManager:
                 id=uuid.uuid4().hex[:12], sandbox=sandbox, example=example_id,
                 target=chosen_target, command=command, resource=resource,
                 artifacts=list(example.get("artifacts", [])),
+                preserve_runtime=example.get("sourceSync") == "preserve-runtime",
             )
             self.jobs[job.id] = job
         threading.Thread(target=self._run, args=(job,), daemon=True).start()
@@ -698,9 +739,11 @@ class JobManager:
             job.status = "running"
             job.startedAt = utc_now()
         if job.target == "tk2":
-            self._append(job, f"$ sync Mac source → {REMOTE_HOST}:{REMOTE_ROOT}\n")
+            self._append(job, ("$ use predeployed authoritative runtime\n" if job.preserve_runtime
+                               else f"$ sync Mac source → {REMOTE_HOST}:{REMOTE_ROOT}\n"))
             try:
-                synced = storage.sync_source_tk2(remote=REMOTE_HOST)
+                synced = ({"ok": True, "output": "Preserving authoritative runtime; source sync disabled by manifest.\n"}
+                          if job.preserve_runtime else storage.sync_source_tk2(remote=REMOTE_HOST))
             except Exception as error:  # noqa: BLE001
                 self._append(job, f"Source sync failed: {error}\n")
                 with self.lock:
@@ -786,6 +829,7 @@ def artifact_inventory(sandbox: str) -> list[dict]:
             if artifact.get("syncOnly"):
                 continue
             declared[artifact["path"]] = artifact
+    declared.update({item["path"]: item for item in evolution_artifacts(manifest)})
     inventory = []
     for path, artifact in declared.items():
         resolved = resolve_artifact(path)

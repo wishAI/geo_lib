@@ -13,6 +13,18 @@ def render(directory, *, azimuth=125., distance=2.1):
     start=time.perf_counter()
     states=np.load(out/'trajectory.npz')
     model=mujoco.MjModel.from_xml_path(str(out/'model.xml'))
+    floor_extent=max(10., float(np.max(np.abs(states['qpos'][:,:2])))+5.)
+    plane_display_overrides=[]
+    for geom_id in range(model.ngeom):
+        if model.geom_type[geom_id]==mujoco.mjtGeom.mjGEOM_PLANE:
+            plane_display_overrides.append({'geom_id':geom_id,'original_size':model.geom_size[geom_id].tolist()})
+            # Plane collisions are infinite; these two sizes bound only its display list.
+            model.geom_size[geom_id,:2]=floor_extent
+    # Rendering only: headlight follows the camera as the recorded character travels.
+    # Physical model, recorded states and collision geometry are never changed.
+    model.vis.headlight.active=1
+    model.vis.headlight.ambient[:]=[.25,.25,.25]
+    model.vis.headlight.diffuse[:]=[.65,.65,.65]
     data=mujoco.MjData(model)
     camera=mujoco.MjvCamera()
     camera.lookat[:]=[0,0,.43]
@@ -53,6 +65,7 @@ def render(directory, *, azimuth=125., distance=2.1):
     imageio.imwrite(out/'contact_sheet.png',np.concatenate(selected,axis=1))
     result={'kind':'state_replay_of_exact_dynamics_trajectory','video_sha256':digest(out/'proof.mp4'),
             'trajectory_sha256':digest(out/'trajectory.npz'),'frames':len(states['qpos']),'fps':50,
+            'visual_overrides':{'plane_display_half_extent_m':floor_extent,'camera_headlight_ambient':[.25,.25,.25],'camera_headlight_diffuse':[.65,.65,.65],'recorded_model_xml_or_trajectory_changed':False,'infinite_plane_display_overrides':plane_display_overrides},
             'render_wall_s':time.perf_counter()-start,'renderer_source_sha256':digest(__file__),
             'separate_process_without_torch':True,'same_state_render_retries':render_retries,'camera_azimuth':azimuth,'camera_distance':distance,'gl_renderer':renderer_name,'character_visible_every_frame':True}
     (out/'renderer_source.py').write_text(Path(__file__).read_text())

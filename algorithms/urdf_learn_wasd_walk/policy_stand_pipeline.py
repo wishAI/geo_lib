@@ -172,6 +172,10 @@ def finalize(output_dir: Path, *, smoke: bool = False) -> dict:
     }:
         raise ValueError("components do not identify the current training evidence")
     for component in (dynamics, proof):
+        from algorithms.urdf_learn_wasd_walk.policy_stand_initialization import validate_report
+
+        validate_report(component.get("initialization", {}), num_envs=1,
+                        prior=prior, source=training["input"])
         if component.get("cumulative_gates", [None])[0] != prior:
             raise ValueError("policy component does not carry the current exact passive gate")
     for component_name, component in (("dynamics", dynamics), ("proof", proof)):

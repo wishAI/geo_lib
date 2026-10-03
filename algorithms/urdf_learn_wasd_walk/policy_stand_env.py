@@ -175,6 +175,8 @@ class ObservationsCfg:
 
 @configclass
 class EventsCfg:
+    # Enabled only by the M2 builder, before existing reset perturbations.
+    restore_settled = None
     reset_base = EventTerm(
         func=mdp.reset_root_state_uniform,
         mode="reset",
@@ -283,6 +285,9 @@ def build_env_cfg(
     cfg.scene.num_envs = num_envs
     cfg.scene.robot = make_landau_articulation_cfg(force_usd_conversion=force_usd_conversion)
     cfg.seed = seed
+    from algorithms.urdf_learn_wasd_walk.policy_stand_initialization import restore_settled_baseline
+
+    cfg.events.restore_settled = EventTerm(func=restore_settled_baseline, mode="reset")
     if not training:
         cfg.events.reset_base = None
         cfg.events.reset_action_joints = None
