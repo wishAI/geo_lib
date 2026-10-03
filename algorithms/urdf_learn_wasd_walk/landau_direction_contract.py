@@ -17,13 +17,14 @@ class TurnTrainingProtocol:
     YAW_RATE = MAX_YAW_RATE
     HOLDS = ()
 
-    def __init__(self, seconds):
+    def __init__(self, seconds, side='right'):
         if seconds < 55.: raise ValueError('Sustained turn training requires at least 55 s')
-        self.BLOCKS = (('right', 3., 47., -1), ('straight_after_turn', 47., seconds, 0))
+        if side not in ('left', 'right'): raise ValueError('Unknown turn side')
+        self.sign = 1 if side == 'left' else -1
+        self.BLOCKS = ((side, 3., 47., self.sign), ('straight_after_turn', 47., seconds, 0))
 
-    @staticmethod
-    def command_profile(seconds):
-        return .2, 0., -MAX_YAW_RATE if 3. <= seconds < 47. else 0.
+    def command_profile(self, seconds):
+        return .2, 0., self.sign * MAX_YAW_RATE if 3. <= seconds < 47. else 0.
 
 
 def command(direction, displacement, heading, seconds, forward=.2):

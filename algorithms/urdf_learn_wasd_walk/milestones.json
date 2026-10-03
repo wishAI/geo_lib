@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T01:18:16.754003+00:00",
+    "updatedAt": "2026-10-03T01:53:34.064643+00:00",
     "reason": "User resumed walking milestone work and requested faster motion where stable.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Complete independent M7 one-direction steering evaluation; require all four gates and M1\u2013M6 rechecks before promotion.",
+    "nextWork": "Evaluate left-cruise candidate on all four world gates, then exact M1\u2013M6 cumulative rechecks with full proofs.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1701,12 +1701,50 @@
         "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_roll3_deadband/dynamics.json",
         "sha256": "6787bd81a5bb123e030c97bd1b38dd8ac3285f62e52f6a391cd3e815e45038f2",
         "status": "failed"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_right_roll3_oneway/dynamics.json",
+        "sha256": "2defe01d6169b52a039bdec7ee5d8c6fc8c8b35325384eaccd543775c703bd53",
+        "status": "dynamics_passed_proof_pending",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_roll3_m6/dynamics.json",
+        "sha256": "2f6188eec1727ca29cdee0fecfe7b2fa882d23240c8e42e59c21f4c0d8add0ee",
+        "status": "dynamics_passed_proof_pending",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_roll3_forward/dynamics.json",
+        "sha256": "da6e3f694f5f5f3efe4b66f7f0b6e535dbdbdf5cc9166fbfc2d6dc3fa7da9f54",
+        "status": "dynamics_passed_proof_pending",
+        "independentChecks": "passed",
+        "visualReview": "accepted"
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_roll3_left/dynamics.json",
+        "sha256": "94a66e2d06c46aedbfc5c1851bfd960d72b605293b876faff50665882de2222a",
+        "status": "failed",
+        "failures": [
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m"
+        ]
       }
     ],
     "candidateCheckpoint": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_right_roll_cem/model_3.pt",
-      "sha256": "559d94ec58157a0f2f12d61cfdf96e1fc6ed778f07311d3e0d857052916ee68f",
+      "kind": "periodic_feedback_cem",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_left_cruise_cem/model_3.pt",
+      "sha256": "bfdceab682dd6234f1a90c349f27630c098c7c3080e0d5bdbc17b9c9eb51c3c0",
       "promoted": false
+    },
+    "recentTraining": {
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_left_cruise_cem/training.json",
+      "sha256": "7027efc35cb7164f4f86fd455d6b7bd5d6d7b4d910f0cccb86d2c0682e25b340",
+      "qualifiedCandidatesFinalGeneration": 1,
+      "scope": "90 s left-turn/straight curriculum only; not milestone evidence"
     }
   }
 }

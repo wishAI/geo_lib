@@ -66,6 +66,17 @@ certify-directions` requires four distinct `--direction-directory` arguments,
 `--checkpoint`, all six prior component directories (including
 `--teleop-directory`), and a new output `--directory` for the certificate.
 
+The first M7 candidate (`m7_20261003_right_roll_cem/model_3.pt`) cleared the
+forward gate in 76.20 s and right gate in 97.20 s, and repeated M6 with 10.24 mm
+final hold drift. It is **not promoted**: its left run stayed upright for 180 s
+but curved away from the gate after the yaw command stopped. The follow-up
+`--direction-train --teleop --left-cruise-only` freezes those 14 parameters and
+searches three additional heading/sway parameters. They blend in only after
+0.2 s of uninterrupted full-forward, zero-yaw cruising following a left turn;
+braking, right turns and a restart without a new left turn retain prior behavior.
+The one-parameter heading-only grid failed the force limit and is rejected.
+Fresh four-direction and cumulative evidence is required for any new candidate.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
