@@ -61,6 +61,7 @@ class DirectionMemory:
         self.last_yaw_sign=-1 if direction=='right' else 1 if direction!='forward' else 0
         self._reference=torch.zeros(count,dtype=torch.float64,device=device)
         self._blend=torch.zeros_like(self._reference)
+        self._feedback_blend=torch.zeros_like(self._reference)
         self.previous_yaw=torch.zeros_like(self._reference)
         self.left_cruise_start=torch.full_like(self._reference,float('inf'))
         self.previous_time=None
@@ -68,6 +69,7 @@ class DirectionMemory:
         self.anchor_xy=None;self.anchor_time=None;self.restart_time=None
         self.reference=self._reference.float()
         self.left_cruise_blend=self._blend.float()
+        self.left_feedback_blend=self._feedback_blend.float()
 
     def observe(self, observation, positions, rotations, seconds, active=None):
         import torch
@@ -84,8 +86,10 @@ class DirectionMemory:
             torch.minimum(self.left_cruise_start,torch.full_like(yaw,seconds)),float('inf'))
         target=(cruising & (seconds-self.left_cruise_start>=.2-1e-9)).to(torch.float64)
         self._blend+=torch.where(live,(target-self._blend).clamp(-elapsed,elapsed),0.)
+        self._feedback_blend+=torch.where(live,((yaw>0.).to(torch.float64)-self._feedback_blend).clamp(-elapsed,elapsed),0.)
         self.reference=self._reference.to(observation.dtype)
         self.left_cruise_blend=self._blend.to(observation.dtype)
+        self.left_feedback_blend=self._feedback_blend.to(observation.dtype)
         self.previous_yaw=torch.where(live,yaw,0.);self.previous_time=seconds
         return observation.clone(),observation[:,:63].clone()
 
@@ -94,6 +98,7 @@ class DirectionMemory:
             'dispatch':'per_world_direction_commands','turned':self.turned,
             'integrated_reference_rad':self._reference.cpu().tolist(),
             'left_cruise_blend':self._blend.cpu().tolist(),
+            'left_feedback_blend':self._feedback_blend.cpu().tolist(),
             'restart_time':None,'gait_clock_global':True,'memory_version':2}
 
 

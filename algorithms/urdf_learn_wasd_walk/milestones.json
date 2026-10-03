@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T06:46:17.655435+00:00",
+    "updatedAt": "2026-10-03T07:27:19.339483+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Shared-start repeated sway grid with duplicate unchanged controls; retain stricter2.85BW training margin. Then exactM5/M6 and direction/cumulative proofs. Added per-foot diagnostic logging.",
+    "nextWork": "Test bounded left roll-rate feedback grid with20parametercontroller, prior18 frozenexactly, commonstarts andduplicatecontrols. Recheckallcumulativegatesaftercandidatequalifies. Pursuitovershootremainsaseparateknownnavigationissue.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1867,6 +1867,18 @@
         ],
         "note": "Gate177.553s,cross-0.711m,nofalls/resets; peak3.13417BW at18.460s and3.10066BW at27.396s. Failedcandidate despiteM5/M6pass. Fullfailedvideo retained.",
         "proofComplete": true
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_load_transfer_probe/dynamics.json",
+        "sha256": "6ac13a2586d8dcaff4f260a43aa6a5afe31aa73835f972e451404cfe156cece4",
+        "status": "diagnostic_only",
+        "failures": [
+          "semantic +Y forward displacement did not reach 10 m",
+          "strafe drift exceeded 0.75 m",
+          "no crossing of the 10 m directional gate within 0.75 m"
+        ],
+        "note": "60s load-transfer probe of unchangedfailedcontroller. Peak2.8253BW, landingfoot95.9percentoftotal. Didnotattemptcomplete10mwithin60s; noacceptanceclaim.",
+        "proofComplete": true
       }
     ],
     "candidateCheckpoint": {
@@ -1876,11 +1888,10 @@
       "promoted": false
     },
     "recentTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_closed_back_balance/training.json",
-      "sha256": "df1547724ff6e3d43b8d82cbdc4ccb15a11658b4293a5a5148b56db569737eef",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_common_balance_grid/training.json",
+      "sha256": "e1b738e297c05ca427ff404b09e4c9d0b35f7a12590f325904768b052c0ef22d",
       "qualifiedCandidatesFinalGeneration": 0,
-      "scope": "Two generations, 256 worlds, per-world closed-loop backward steering, 240s cap. Only sway indices5/6changed. Gen0model0 crossed all4starts in176.56\u2013182.02s, worst2.988BW, below3BWhardlimit but above2.85trainingtarget. Gen1best crossedonly1/4. Gen0selectedforindependentdiagnostics, notpromoted.",
-      "replication": "Gen1candidate0 exactly repeats gen0candidate51 but crosses2/4starts; two perturbedstarts hit3.0087/3.0323BW. Nominalcross179.024s peak2.9842BW. Candidate is not demonstrated robust."
+      "scope": "Fixed64candidate sway grid,4commonstarts,2repetitions,240scap. Zeroqualifiersboth. Onlycandidate55survivedall8startsinbothrepetitions; worst2.99409BW and0crossings. No candidate promoted."
     },
     "repeatabilityAudit": {
       "path": "algorithms/urdf_learn_wasd_walk/outputs/m7_20261003_repeatability_audit/result.json",

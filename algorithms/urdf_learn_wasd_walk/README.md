@@ -183,6 +183,25 @@ velocity and position, root vertical velocity, and hip-roll target/position
 at each 2 ms physics step to diagnose load transfer. These are read-only
 measurements; controller actions and acceptance limits are unchanged.
 
+The repeated sway grid produced no qualifiers in either generation. Only
+candidate 55 survived all eight starts across both repetitions, with a worst
+2.9941 BW peak, and none of those starts reached the gate. A separate unchanged
+60 s instrumented probe peaked at 2.8253 BW: about 48.6 N came from the landing
+left foot and 2.1 N from the other foot. It was a load-transfer diagnostic,
+not a successful 10 m run.
+
+The next optional extension adds two bounded torso roll/rate feedback gains
+while freezing the previous 18 parameters. Its correction is limited to
+0.03 rad at each hip and fades in/out at a command-envelope rate of 1/s.
+`--left-feedback-only --left-damping-grid --common-starts` first compares six
+rate-gain offsets with two unchanged controls; proportional correction stays
+zero in that grid. The [Digit feedback study](https://arxiv.org/abs/2103.15309)
+and [residual control study](https://arxiv.org/abs/1812.03201) motivate this
+bounded feedback experiment, not its numerical gains. It can alter the
+pre-landing state at 50 Hz; it cannot cancel an impact developing over 4–8 ms.
+Zero-extension action equivalence and scalar/batched envelope behavior are
+tested. No acceptance bound or policy speed is relaxed.
+
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.
 
