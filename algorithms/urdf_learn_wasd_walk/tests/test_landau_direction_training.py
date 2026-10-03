@@ -3,11 +3,18 @@ import unittest
 import torch
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
-from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters
+from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands,DirectionMemory,GateTracker,common_start_offsets,balance_grid,cruise_balance_parameters,cruise_rate_grid
 from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,commanded_action,candidate_table_reference,absolute_hold_fitness
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_cruise_rate_grid_preserves_seed_and_duplicate_controls(self):
+        seed=torch.linspace(-.1,.1,21);seed[20]=.012
+        result=cruise_rate_grid(seed)
+        self.assertTrue(torch.equal(result[:,:20],seed[:20].repeat(8,1)))
+        self.assertTrue(torch.equal(result[0],seed));self.assertTrue(torch.equal(result[1],seed))
+        self.assertTrue(torch.equal(result[:,20],torch.tensor([.012,.012,-.01,.005,.01,.015,.02,.03])))
+
     def test_cruise_search_preserves_calibrated_yaw_and_feedback_exactly(self):
         seed=torch.linspace(-.1,.1,20)
         lows=torch.full((20,),-.25);highs=-lows
@@ -77,14 +84,17 @@ class DirectionTrainingTests(unittest.TestCase):
         params=torch.tensor([.1,-.3,.04,.01,-.01,-.01,-.02,1.,.04,0.,0.,.07,-.01,-.02,.02,.005,-.02,1.4])
         zero_feedback=torch.cat((params,torch.zeros(2)))
         active_feedback=torch.cat((params,torch.tensor([.05,.015])))
+        zero_cruise=torch.cat((active_feedback,torch.zeros(1)))
+        active_cruise=torch.cat((active_feedback,torch.tensor([.03])))
         unaffected=[i for i,n in enumerate(names) if 'hip_roll' not in n]
+        hips=[i for i,n in enumerate(names) if 'hip_roll' in n]
         prior=make_actor(63);prior.eval()
         for direction,sign in [('left',1),('right',-1)]:
             memory=DirectionMemory(3,'cpu',direction);serial=[CommandMemory() for _ in range(3)]
             pos=torch.zeros(3,3);rot=torch.eye(3).repeat(3,1,1)
             for step in range(351):
                 t=step*.02;obs=torch.zeros(3,70);obs[:,8]=-1.;obs[:,62]=1.-t/30.;obs[:,63]=.2
-                obs[:,6]=.1;obs[:,4]=1.5
+                obs[:,6]=.1;obs[:,4]=torch.tensor([-3.,0.,3.])
                 for i in range(3):
                     active=t>=3. and (t<4.+.3*i or 5.+.1*i<=t<5.14+.1*i)
                     obs[i,65]=sign*.03 if active else 0.
@@ -104,11 +114,19 @@ class DirectionTrainingTests(unittest.TestCase):
                             zero=commanded_action(base,walking,prior,single,standing,zero_feedback,names,scalar.reference,scalar.turned,scalar)
                             feedback=commanded_action(base,walking,prior,single,standing,active_feedback,names,scalar.reference,scalar.turned,scalar)
                             batched_feedback=commanded_action(base,walking,prior,batch_obs,batch_prior,active_feedback,names,memory.reference,memory.turned,memory)[i:i+1]
+                            zero_rate=commanded_action(base,walking,prior,single,standing,zero_cruise,names,scalar.reference,scalar.turned,scalar)
+                            cruise=commanded_action(base,walking,prior,single,standing,active_cruise,names,scalar.reference,scalar.turned,scalar)
+                            batched_cruise=commanded_action(base,walking,prior,batch_obs,batch_prior,active_cruise,names,memory.reference,memory.turned,memory)[i:i+1]
                         self.assertTrue(torch.equal(zero,expected),'Zero extension changed baseline actions')
                         self.assertTrue(torch.equal(feedback,batched_feedback),'Residual scalar/batch behavior differs')
                         self.assertTrue(torch.equal(feedback[:,unaffected],expected[:,unaffected]))
                         self.assertLessEqual(float((feedback-expected).abs().max()),.03/.08+1e-6)
                         if direction=='right':self.assertTrue(torch.equal(feedback,expected))
+                        self.assertTrue(torch.equal(zero_rate,feedback),'Zero cruise extension changed actions')
+                        self.assertTrue(torch.equal(cruise,batched_cruise),'Cruise scalar/batch behavior differs')
+                        self.assertTrue(torch.equal(cruise[:,unaffected],feedback[:,unaffected]))
+                        expected_delta=scalar.left_cruise_blend*(.03*single[:,4]).clamp(-.05,.05)/.08
+                        self.assertTrue(torch.allclose((cruise-feedback)[:,hips],expected_delta[:,None].expand(-1,2),atol=1e-6,rtol=0.))
 
     def test_gate_requires_crossing_width_and_keeps_terminal_result(self):
         gate=GateTracker('left',torch.zeros(3,3))
