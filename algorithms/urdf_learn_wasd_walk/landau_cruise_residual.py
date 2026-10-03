@@ -147,6 +147,12 @@ class CruiseMemory:
         self.previous_yaw=yaw.double()
 
 
+def active_episode_end(mode,age):
+    """Complete both stops; bound the backward curriculum before cruise onset."""
+    import torch
+    return torch.where(mode==1,55.8,torch.where(mode==2,24.8,(age+24.).clamp_max(90.8)))
+
+
 def train(args):
     import hashlib
     import time
@@ -211,10 +217,12 @@ def train(args):
     stats={};began=time.perf_counter()
 
     class Env:
-        num_envs=args.num_envs;num_actions=2;device='cuda:0';max_episode_length=round(args.seconds/.02)
+        num_envs=args.num_envs;num_actions=2;device='cuda:0';max_episode_length=2640 if args.active_long else round(args.seconds/.02)
         cfg={'task':'recorded_active_left_residual' if active_mode else 'recorded_cruise_residual','is_finite_horizon':False};common_step_counter=0
         def __init__(self):
             self.age=torch.zeros(self.num_envs,device=self.device,dtype=torch.float64)
+            self.end_age=torch.zeros_like(self.age)
+            if args.active_long:self.mode=torch.arange(self.num_envs,device=self.device)%3
             self.air=torch.zeros((self.num_envs,2),device=self.device);self.peak=torch.zeros_like(self.air)
             self.touched=torch.zeros_like(self.air,dtype=torch.bool)
             self.previous_residual=torch.zeros((self.num_envs,2),device=self.device)
@@ -228,7 +236,7 @@ def train(args):
             count=int(mask.sum())
             if not count:return
             if active_mode:
-                choice=torch.randint(3,(count,),device=self.device)
+                choice=self.mode[mask] if args.active_long else torch.randint(3,(count,),device=self.device)
                 ix=torch.empty(count,device=self.device,dtype=torch.long)
                 for mode,pool in enumerate(train_pools):
                     selected=choice==mode;ix[selected]=pool[torch.randint(len(pool),(int(selected.sum()),),device=self.device)]
@@ -241,6 +249,7 @@ def train(args):
             wp.to_torch(batch.wd.qacc_warmstart)[mask]=0;wp.to_torch(batch.wd.qfrc_applied)[mask]=0
             batch.wrench[mask]=0;wp.to_torch(batch.wd.time)[mask]=bank['age'][ix].float()
             batch.episode_steps[mask]=0;self.age[mask]=bank['age'][ix]
+            if args.active_long:self.end_age[mask]=active_episode_end(self.mode[mask],self.age[mask])
             memory._reference[mask]=bank['reference'][ix];memory._blend[mask]=bank['blend'][ix]
             memory._feedback[mask]=bank['feedback'][ix];memory.left_cruise_start[mask]=bank['cruise_start'][ix]
             memory.previous_yaw[mask]=bank['previous_yaw'][ix].double()
@@ -296,7 +305,7 @@ def train(args):
             progress=-(batch.pos[:,batch.pelvis,1]-before[:,1])
             desired=previous_command[:,0].float() if active_mode else .2
             reward=.02*(1.+2.*torch.exp(-(linear[:,1]-desired).square()/.0225)
-                -8.*(force-2.5).clamp_min(0).square()-2.*tilt.square()-2.*slip
+                -args.force_cost*(force-2.5).clamp_min(0).square()-2.*tilt.square()-2.*slip
                 -.1*residual.square().sum(1)-.1*(residual-self.previous_residual).square().sum(1))
             if active_mode:
                 moving=previous_command.abs().amax(1)>0
@@ -307,14 +316,22 @@ def train(args):
                 error=torch.atan2((post_heading-teacher).sin(),(post_heading-teacher).cos())
                 target=torch.where(self.mode==1,math.pi/2,memory.hold_heading)
                 hold_error=torch.atan2((post_heading-target).sin(),(post_heading-target).cos())
-                heading_penalty=torch.where(moving,(error/math.radians(10)).square(),(hold_error/math.radians(5)).square())
+                heading_penalty=torch.where(moving,(error/math.radians(args.heading_scale_deg)).square(),(hold_error/math.radians(5)).square())
                 drift=(batch.pos[:,batch.pelvis,:2]-memory.stop_xy).square().sum(1)
+                if args.active_long:
+                    held=~moving & torch.isfinite(memory.stop_time)
+                    settled=held & (self.age-memory.stop_time>=2.-1e-8)
+                    failed|=held & (drift>.03**2)
+                    angular_world=torch.bmm(batch.rot[:,batch.base],batch.v[:,3:6,None]).squeeze(-1)
+                    pelvis_velocity=batch.v[:,:3]+torch.cross(angular_world,batch.pos[:,batch.pelvis]-batch.q[:,:3],dim=1)
+                    failed|=settled & ((hold_error.abs()>math.radians(5)) | (pelvis_velocity[:,:2].norm(dim=1)>.05) | (angular_world[:,2].abs()>.1))
                 reward-=.02*(2.*heading_penalty+torch.where(moving,0.,2.*drift/.03**2)).float()
                 progress=progress*moving;landed=landed & moving[:,None]
-            reward+=2.*progress+.1*landed.float().sum(1)-5.*failed.float()
-            reward=torch.nan_to_num(reward,nan=-5.,posinf=-5.,neginf=-5.)
+            reward+=2.*progress+.1*landed.float().sum(1)-args.failure_cost*failed.float()
+            reward=torch.nan_to_num(reward,nan=-args.failure_cost,posinf=-args.failure_cost,neginf=-args.failure_cost)
             self.previous_residual=residual.detach().clone();self.returns+=reward
-            timeout=batch.episode_steps>=self.max_episode_length;done=failed|timeout
+            timeout=self.age>=self.end_age-1e-8 if args.active_long else batch.episode_steps>=self.max_episode_length
+            done=failed|timeout
             # Integrate the preceding command once, then update the live-pose steering dwell.
             self.get_observations()
             if active_mode:memory.advance_command(self.observation,batch.pos[:,batch.pelvis],self.age,.02)
@@ -332,7 +349,7 @@ def train(args):
         distribution_cfg={'class_name':'GaussianDistribution','init_std':.1,'std_type':'scalar'}),
         critic=RslRlModelCfg(hidden_dims=(64,64),activation='elu',obs_normalization=False),
         algorithm=RslRlPpoAlgorithmCfg(value_loss_coef=1.,use_clipped_value_loss=True,clip_param=.2,entropy_coef=.001,
-            num_learning_epochs=5,num_mini_batches=4,learning_rate=3e-4,schedule='adaptive',gamma=.995,lam=.95,desired_kl=.01,max_grad_norm=1.),
+            num_learning_epochs=5,num_mini_batches=4,learning_rate=3e-4,schedule='adaptive',gamma=.998 if args.active_long else .995,lam=.95,desired_kl=.01,max_grad_norm=1.),
         experiment_name='landau_cruise_residual',save_interval=50,num_steps_per_env=24,max_iterations=args.iterations,
         logger='tensorboard',upload_model=False)
     config=asdict(cfg);runner=MjlabOnPolicyRunner(env,copy.deepcopy(config),str(directory),device='cuda:0')
@@ -371,6 +388,11 @@ def train(args):
             reward='Cruise force/stability costs plus command-speed tracking, body-forward progress and swings only while moving; 2*(teacher heading error/10deg)^2 moving or 2*(hold heading error/5deg)^2 holding and 2*(hold drift/.03m)^2; all rates multiplied by dt.')
         (directory/'residual_source.py').write_bytes((cruise_path.parent/'residual_source.py').read_bytes())
         (directory/'active_residual_source.py').write_bytes(Path(active_head.__file__).read_bytes())
+        if args.active_long:
+            training.update(training_timeout='Per-world recorded-state truncations: backward min(start+24,90.8)s; M5 at55.8s; M6 at24.8s, with RSL timeout bootstrap.',
+                protocol_sampling='Fixed roughly equal world counts by protocol; even-index warm states independently resampled within each protocol on reset.')
+            training['training_hard_guards'].update(hold_drift_m=.03,settled_hold_heading_rad=math.radians(5),settled_hold_speed_mps=.05,settled_hold_yaw_speed_rad_s=.1)
+        training['reward']=f'Existing force penalty coefficient {args.force_cost}, failure cost {args.failure_cost}, moving teacher-heading scale {args.heading_scale_deg}deg; command-speed/body-progress and hold costs otherwise preserved.'
     else:(directory/'residual_source.py').write_bytes(Path(__file__).read_bytes())
     # Training dependencies are separate from the frozen deployment turn source.
     from algorithms.urdf_learn_wasd_walk import landau_turn_control as audit_implementation
@@ -420,6 +442,7 @@ def rebase(args):
     old_meta=json.loads((old.parent/'training.json').read_text())
     if new_meta['checkpoints'][parent.name]!=backend.digest(parent) or old_meta['checkpoints'][old.name]!=backend.digest(old):
         raise ValueError('Composition input checkpoint changed')
+    if old_meta.get('residual_variant') is not None:raise ValueError('Rebase supports cruise-only residuals')
     if new_meta['policy_family']!='periodic_feedback_cem' or old_meta['policy_family']!=FAMILY:
         raise ValueError('Require calibrated CEM parent and learned cruise residual')
     if any(str(meta.get('status','')).startswith('invalidated_') for meta in (new_meta,old_meta)):
@@ -463,6 +486,10 @@ def main():
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--mode',choices=('train','rebase'),default='train')
     parser.add_argument('--residual-checkpoint');parser.add_argument('--curriculum');parser.add_argument('--num-envs',type=int,default=256)
+    parser.add_argument('--active-long',action='store_true')
+    parser.add_argument('--force-cost',type=float,default=8.)
+    parser.add_argument('--failure-cost',type=float,default=5.)
+    parser.add_argument('--heading-scale-deg',type=float,default=10.)
     parser.add_argument('--active-curriculum',nargs=3,metavar=('BACKWARD','M5','M6'))
     parser.add_argument('--iterations',type=int,default=200);parser.add_argument('--seconds',type=float,default=6.)
     args=parser.parse_args()
@@ -471,6 +498,8 @@ def main():
         rebase(args);return
     if not args.curriculum and not args.active_curriculum:raise ValueError('Training requires a recorded curriculum')
     if args.active_curriculum and not args.residual_checkpoint:raise ValueError('Active training requires frozen cruise checkpoint')
+    if args.active_long and not args.active_curriculum:raise ValueError('Long mixed episodes require active curriculum')
+    if not math.isfinite(args.force_cost) or not math.isfinite(args.failure_cost) or args.force_cost<=0 or args.failure_cost<=0 or not 1.<=args.heading_scale_deg<=10.:raise ValueError('Invalid bounded residual reward weights')
     if not 16<=args.num_envs<=512 or not 1<=args.iterations<=1000 or args.seconds!=6.:
         raise ValueError('Bounded initial curriculum requires16..512worlds,1..1000iterations and6secondepisodes')
     train(args)

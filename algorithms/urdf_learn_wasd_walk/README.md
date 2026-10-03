@@ -309,7 +309,7 @@ No changed sway candidate passed both repeated M5 and sustained-turn screens.
 Calibrating the existing left-yaw gain also failed repeatability: gain 2.10 passed
 once but exceeded 3 BW in three of four starts on its second run.
 
-The next experiment freezes the learned cruise network and trains a separate
+The active-turn experiment freezes the learned cruise network and trains a separate
 active-left hip-roll correction. Its envelope is `(1-cruise_blend)*left_feedback_blend`
 times forward-command magnitude; combined corrections remain bounded to 0.02 rad.
 Training samples long-turn, 90-degree turn/hold and teleoperation left-turn/stop
@@ -321,6 +321,16 @@ The original cruise residual independently passed M5 (0.80-degree hold error),
 but its fresh M6 run failed a restart impact at 30.378 s (3.148 BW). The healthy
 M6 prefix through 24.8 s is training input only. Every new checkpoint still needs
 fresh full M6 and all other cumulative proofs.
+The initial six-second curriculum's final checkpoint introduced three force
+failures in 96 reserved-state episodes. Its earlier checkpoint survived all 96
+physical screens but drifted 3.7 cm in one short stopping episode, then underturned
+full M5 by 6.31 degrees. Both remain rejected. The next run retains roughly equal
+world counts per protocol and trains through complete M5/M6 first holds, with up
+to 24 seconds for backward prefixes. It strengthens the existing force-margin
+cost and moving-heading cost, and checks hold drift and settled heading/speed.
+`landau_residual_screen --complete-stops` loads these episode endpoints from the
+saved trainer and freezes each world's metrics at its first failure or timeout.
+These are diagnostic training-state comparisons, never milestone certificates.
 
 Historical implementation notes below describe earlier states; `milestones.json`
 and its hash-bound validation artifacts determine current status.

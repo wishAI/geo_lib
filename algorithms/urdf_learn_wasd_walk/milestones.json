@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T11:44:15.086924+00:00",
+    "updatedAt": "2026-10-03T12:15:27.026732+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Train bounded active-left PPO correction over mixed long-turn, M5 turn/hold and M6 left-turn/stop prefixes, keeping cruise299 and CEM20 frozen. Then require independent nominal-start direction and cumulative checks.",
+    "nextWork": "Screen active_long600 through complete turn-and-stop episodes, then require nominal-start M5/M6 and four-direction plus cumulative proofs. Force3BW, heading5deg and all acceptance limits unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -1968,6 +1968,16 @@
         "status": "failed",
         "note": "Failed two2ms force samples at30.376/30.378s during restart; peak3.147640BW. No falls/resets/done. Left-turn/first-stop training prefix through24.8s remains healthy; not a passing proof.",
         "promoted": false
+      },
+      {
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active100_m5/dynamics.json",
+        "sha256": "e9e9cac0c9799c0feba10ee13bf77d6d14ef91ca5b8a961f1a0cafe4ef9ae309",
+        "status": "failed_turn_accuracy",
+        "peak_support_bw": 2.807830945796761,
+        "hold_heading_error_rad": 0.11016412274649423,
+        "hold_drift_m": 0.01876244671446058,
+        "promoted": false,
+        "note": "Full video visually upright; rejected diagnostic review. Underturn6.31deg confirms short-episode heading accumulation."
       }
     ],
     "candidateCheckpoint": {
@@ -2032,8 +2042,85 @@
       "result": "No gain passed both M5 repeats. Gain2.10 first peak2.864BW and max heading2.53deg; second peak3.095BW with3/4 force failures. Reject parameter family."
     },
     "activeTraining": {
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_ppo300",
-      "scope": "256 worlds,300 PPO iterations, balanced recorded-state long-turn/M5/M6-prefix episodes; frozen cruise299 and CEM20. Smoke and710-state CPU reconstruction/action parity passed. Not milestone evidence."
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_long600",
+      "scope": "256 worlds,600 PPO iterations; equal protocol world groups; backward up to24s, M5 to55.8s, M6 to24.8s. Force-margin coefficient80, failure cost20, moving-heading scale3deg. Existing cruise299/CEM20 frozen. Not milestone evidence.",
+      "trainingOnlyTimingNote": "Current run preserves its saved source: float comparison can begin the M6 settled guard at22.02s. Main trainer and next screen use2s minus1e-8 tolerance; independent acceptance unchanged."
+    },
+    "activeResidualShortCurriculum": {
+      "training": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261003_active_ppo300",
+      "status": "rejected_after_screen_and_M5",
+      "final_training_episodes": 6148,
+      "final_training_failures": 122,
+      "screens": [
+        {
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active299_screen/screen.json",
+          "sha256": "42267909167cc7fc45c23bf6b4bce33d5739f4bcc11571f80702fd9a1259d316",
+          "summary": [
+            {
+              "controller": "frozen",
+              "copy": 0,
+              "survived": 48,
+              "peak_bw": 2.975001335144043,
+              "hold_drift_m": 0.015289794653654099
+            },
+            {
+              "controller": "frozen",
+              "copy": 1,
+              "survived": 48,
+              "peak_bw": 2.858825922012329,
+              "hold_drift_m": 0.02075437270104885
+            },
+            {
+              "controller": "residual",
+              "copy": 0,
+              "survived": 46,
+              "peak_bw": 3.0269739627838135,
+              "hold_drift_m": 0.014074557460844517
+            },
+            {
+              "controller": "residual",
+              "copy": 1,
+              "survived": 47,
+              "peak_bw": 3.002146005630493,
+              "hold_drift_m": 0.01746394671499729
+            }
+          ]
+        },
+        {
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261003_active100_screen/screen.json",
+          "sha256": "b14c14c3d5afdb6d607a368e6378af1c0bd7cf950165b4b91a485ac2cfed034e",
+          "summary": [
+            {
+              "controller": "frozen",
+              "copy": 0,
+              "survived": 48,
+              "peak_bw": 2.8500008583068848,
+              "hold_drift_m": 0.01382229570299387
+            },
+            {
+              "controller": "frozen",
+              "copy": 1,
+              "survived": 48,
+              "peak_bw": 2.9000627994537354,
+              "hold_drift_m": 0.013856198638677597
+            },
+            {
+              "controller": "residual",
+              "copy": 0,
+              "survived": 48,
+              "peak_bw": 2.888033628463745,
+              "hold_drift_m": 0.03712737560272217
+            },
+            {
+              "controller": "residual",
+              "copy": 1,
+              "survived": 48,
+              "peak_bw": 2.9269118309020996,
+              "hold_drift_m": 0.01849829964339733
+            }
+          ]
+        }
+      ]
     }
   }
 }

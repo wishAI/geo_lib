@@ -181,6 +181,12 @@ class ResidualRebaseTests(unittest.TestCase):
         self.assertTrue(torch.equal(result['turn_parameters'],self.fresh['turn_parameters']))
         meta=json.loads((folder/'training.json').read_text())
         self.assertFalse(meta['canonical_milestone_pass']);self.assertEqual(meta['composition']['changed_turn_indices'],[5,6])
+    def test_rebase_rejects_active_variant(self):
+        self.old_meta['residual_variant']='cruise_plus_active_left_v1'
+        self.backend.write_json(self.old/'training.json',self.old_meta)
+        with self.assertRaisesRegex(ValueError,'cruise-only'):residual.rebase(self.args)
+        self.assertFalse((self.root/'training/composed').exists())
+
     def test_rebase_rejects_changed_cruise(self):
         self.fresh['turn_parameters'][15]+=.001;torch.save(self.fresh,self.parent)
         self.new_meta['checkpoints'][self.parent.name]=self.backend.digest(self.parent)

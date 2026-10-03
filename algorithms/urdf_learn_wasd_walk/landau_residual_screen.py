@@ -22,10 +22,14 @@ def run(args):
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract
     active_mode=check_contract(meta,blob,backend.digest)
     if active_mode:
-        if args.seconds!=6.:raise ValueError('Mixed active screen requires6s episodes before M6 restart')
-        from algorithms.urdf_learn_wasd_walk import landau_active_curriculum as active_bank
+        if args.seconds!=6. and not args.complete_stops:raise ValueError('Mixed active screen requires6s or complete-stop episodes')
+        if args.complete_stops and not meta['arguments'].get('active_long'):raise ValueError('Complete-stop screen requires long-episode training')
+        from algorithms.urdf_learn_wasd_walk import landau_active_curriculum as active_bank,landau_direction_training as active_direction
+        for module in (active_bank,active_direction):
+            if backend.digest(module.__file__)!=meta['training_source_sha256'][Path(module.__file__).name]:raise ValueError('Active screen training helper changed')
         active_head=load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'screen_saved_active')
     residual=load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'screen_saved_residual')
+    if args.complete_stops and not active_mode:raise ValueError('Complete-stop screen requires active residual')
     base,_=load_gait_source(checkpoint,meta)
     turn=load_source(checkpoint.parent/'turn_source.py',meta['turn_source_sha256'],'screen_saved_turn')
     turn.configure_profile(meta['arguments']['turn_duration'])
@@ -36,7 +40,7 @@ def run(args):
     if hashlib.sha256(batch.xml.encode()).hexdigest()!=meta['model_xml_sha256']:raise ValueError('Screen model changed')
     audit=install_physics_audit(batch,batches,n)
     bank={k:torch.tensor(v,device='cuda') for k,v in np.load(bank_path).items()}
-    #32held-out states, two copies of the frozen and learned controller each.
+    # Two copies of each controller share the same held-out states.
     if active_mode:
         pools=[torch.where(bank['mode']==i)[0][1::2] for i in range(3)]
         indices=torch.cat([pool[torch.linspace(0,len(pool)-1,16,device='cuda').long()] for pool in pools]).repeat(4)
@@ -47,6 +51,13 @@ def run(args):
     wp.to_torch(batch.wd.qacc_warmstart).zero_();wp.to_torch(batch.wd.qfrc_applied).zero_();batch.wrench.zero_()
     wp.to_torch(batch.wd.time)[:]=bank['age'][indices].float()
     age=bank['age'][indices].clone();start_age=age.clone()
+    ends=age+args.seconds
+    if args.complete_stops:
+        saved_trainer=load_source(checkpoint.parent/'training_sources/landau_cruise_residual.py',
+            meta['training_source_sha256']['landau_cruise_residual.py'],'screen_saved_trainer')
+        ends=saved_trainer.active_episode_end(mode,age)
+    horizons=ends-start_age
+    steps=round(float(horizons.max())/.02)
     memory=active_bank.ActiveMemory(n,'cuda') if active_mode else CruiseMemory(n,'cuda')
     if active_mode:
         for name in ('previous_moving','stop_xy','stop_time','hold_heading'):getattr(memory,name)[:]=bank[name][indices].to(getattr(memory,name).dtype)
@@ -61,6 +72,7 @@ def run(args):
     if active_mode:
         active_actor=residual.make_actor('cuda');active_actor.load_state_dict(blob['active_residual_actor_state_dict']);active_actor.eval()
     max_heading_error=torch.zeros(n,device='cuda');max_hold_drift=torch.zeros_like(max_heading_error)
+    max_hold_heading=torch.zeros_like(max_heading_error);body_progress=torch.zeros_like(max_heading_error)
     walking=blob['parameters'].to('cuda');turn_parameters=blob['turn_parameters'].to('cuda')
     live=torch.ones(n,device='cuda',dtype=torch.bool);peak=torch.zeros(n,device='cuda');duration=torch.zeros_like(peak)
     bits=torch.zeros(n,device='cuda',dtype=torch.int);origin=batch.pos[:,batch.pelvis,:2].clone();terminal=origin.clone()
@@ -76,7 +88,7 @@ def run(args):
         extra[:,8]=rotation[:,1,0].float();extra[:,9]=(rotation[:,0,0]-1).float()
         return torch.cat((batch.observations(),extra),dim=1)
     obs=observe()
-    for step in range(round(args.seconds/.02)):
+    for step in range(steps):
         if step%250==0:print(json.dumps({'step':step,'live':int(live.sum())}),flush=True)
         with torch.no_grad():
             prior_obs=memory.prior(obs,batch.pos[:,batch.pelvis],batch.rot[:,batch.base],age) if active_mode else obs[:,:63]
@@ -89,11 +101,13 @@ def run(args):
             correction=(action-baseline).abs().amax(1)*.08
             max_correction=torch.maximum(max_correction,torch.where(live,correction,0.))
             action=action.clamp(-limits,limits)
+        before_xy=batch.pos[:,batch.pelvis,:2].clone()
+        before_heading=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
         batch.ctrl[:]=batch.targets;batch.ctrl[:,batch.aids]+=.08*torch.where(live[:,None],action,0.);batch.wrench.zero_()
         torch.cuda.synchronize();wp.capture_launch(batch.graph);wp.synchronize()
         occupancy=batch.maximum_occupancy.numpy()
         if max(occupancy[:2])>=batch.wd.naconmax or occupancy[2]>=batch.wd.njmax:raise RuntimeError('Screen capacity exceeded')
-        batch.previous[:]=action;age+=.02
+        batch.previous[:]=action;age+=live.double()*.02
         tilt=batch.rot[:,batch.base,2,2].clamp(-1,1).acos()
         failure=(tilt>torch.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()
         failure+=4*(audit['speed']>4.+1e-6).int()+8*(audit['force']>3.*weight).int()
@@ -101,6 +115,8 @@ def run(args):
         failure+=64*(~torch.isfinite(batch.q).all(1)|~torch.isfinite(batch.v).all(1)).int()
         peak=torch.maximum(peak,torch.where(live,audit['force']/weight,0.));duration+=live.float()*.02
         terminal=torch.where(live[:,None],batch.pos[:,batch.pelvis,:2],terminal)
+        delta=batch.pos[:,batch.pelvis,:2]-before_xy
+        body_progress+=torch.where(live,-before_heading.sin()*delta[:,0]+before_heading.cos()*delta[:,1],0.)
         contacts,slip,clearance,_=batch.feet(with_forces=True)
         swings+=(contacts&touched&(air>=.06)&(height>=.015)&live[:,None]).long()
         slip_total+=torch.where(live,slip,0.)*.02;air_total+=torch.where(live,(~contacts.any(1)).float(),0.)*.02
@@ -113,7 +129,16 @@ def run(args):
             drift=(batch.pos[:,batch.pelvis,:2]-memory.stop_xy).norm(dim=1)
             held=torch.isfinite(memory.stop_time)&~memory.previous_moving
             max_hold_drift=torch.maximum(max_hold_drift,torch.where(live&held,drift,0.))
-        bits=torch.where(live&(failure!=0),failure,bits);live&=failure==0
+            target=torch.where(mode==1,torch.pi/2,memory.hold_heading)
+            error=torch.atan2((heading-target).sin(),(heading-target).cos()).abs()
+            max_hold_heading=torch.maximum(max_hold_heading,torch.where(live&held,error,0.))
+            if meta['arguments'].get('active_long'):
+                settled=held & (age-memory.stop_time>=2.-1e-8)
+                angular_world=torch.bmm(batch.rot[:,batch.base],batch.v[:,3:6,None]).squeeze(-1)
+                velocity=batch.v[:,:3]+torch.cross(angular_world,batch.pos[:,batch.pelvis]-batch.q[:,:3],dim=1)
+                failure+=128*(held & (drift>.03)).int()+256*(settled & (error>torch.pi/36)).int()
+                failure+=512*(settled & (velocity[:,:2].norm(dim=1)>.05)).int()+1024*(settled & (angular_world[:,2].abs()>.1)).int()
+        bits=torch.where(live&(failure!=0),failure,bits);live&=(failure==0)&(age<ends-1e-8)
         obs=observe()
         if active_mode:memory.advance_command(obs,batch.pos[:,batch.pelvis],age,.02)
         else:memory.advance(obs[:,65].double(),age,.02)
@@ -121,20 +146,24 @@ def run(args):
     for group in range(4):
         selection=slice(group*width,(group+1)*width)
         records.append({'controller':'frozen' if group<2 else 'residual','copy':group%2,
-            'survived_count':int(live[selection].sum()),'start_ages_s':start_age[selection].tolist(),
-            'duration_s':duration[selection].tolist(),'failure_bits':bits[selection].tolist(),
+            'survived_count':int(((bits==0)&(age>=ends-1e-8))[selection].sum()),'start_ages_s':start_age[selection].tolist(),
+            'terminal_age_s':age[selection].tolist(),'required_duration_s':horizons[selection].tolist(),'duration_s':duration[selection].tolist(),'failure_bits':bits[selection].tolist(),
+            'body_forward_progress_m':body_progress[selection].tolist(),
             'peak_support_bw':peak[selection].tolist(),'backward_progress_m':(-(terminal-origin)[:,1])[selection].tolist(),
             'mean_slip_mps':(slip_total/duration.clamp_min(.02))[selection].tolist(),
             'air_fraction':(air_total/duration.clamp_min(.02))[selection].tolist(),'qualified_swings':swings[selection].tolist(),
             'max_correction_rad':max_correction[selection].tolist(),
             **({'modes':mode[selection].tolist(),'max_teacher_heading_error_rad':max_heading_error[selection].tolist(),
-                'max_hold_drift_m':max_hold_drift[selection].tolist()} if active_mode else {})})
+                'max_hold_drift_m':max_hold_drift[selection].tolist(),'max_hold_heading_error_rad':max_hold_heading[selection].tolist()} if active_mode else {})})
     backend.write_json(folder/'screen.json',{'kind':'paired_training_state_diagnostic','canonical_milestone_pass':False,
-        'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),'seconds':args.seconds,
+        'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),'seconds':None if args.complete_stops else args.seconds,'complete_stops':args.complete_stops,'max_screen_seconds':steps*.02,
         'source_sha256':backend.digest(__file__),'residual_source_sha256':meta['residual_source_sha256'],
         'audit_source_sha256':backend.digest(Path(install_physics_audit.__code__.co_filename)),
         'curriculum_bank_sha256':backend.digest(bank_path),'records':records,
         'residual_variant':meta.get('residual_variant'),'active_residual_source_sha256':meta.get('active_residual_source_sha256'),
+        'memory_source_sha256':backend.digest(active_bank.__file__) if active_mode else backend.digest(Path(__file__).with_name('landau_cruise_residual.py')),
+        'direction_source_sha256':backend.digest(active_direction.__file__) if active_mode else None,
+        'comparison':'frozen cruise versus frozen cruise plus active head' if active_mode else 'frozen CEM versus cruise residual',
         'limitations':'Adjacent held-out states share one trajectory; repeats are simultaneousbatch copies, not independent nominal-start proof.'})
     print(json.dumps([{'controller':r['controller'],'copy':r['copy'],'survived':r['survived_count'],'worst_peak_bw':max(r['peak_support_bw'])} for r in records]),flush=True)
 
@@ -143,6 +172,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--seconds',type=float,default=20.)
+    parser.add_argument('--complete-stops',action='store_true')
     args=parser.parse_args()
     if not 6.<=args.seconds<=30.:raise ValueError('Screen horizon must be6..30s')
     run(args)

@@ -12,6 +12,13 @@ from algorithms.urdf_learn_wasd_walk.tests.test_landau_cruise_residual import Re
 
 
 class ActiveTests(unittest.TestCase):
+    def test_long_episodes_complete_stops_without_restart(self):
+        modes=torch.tensor([0,0,1,1,2,2]);ages=torch.tensor([3.,84.8,3.,49.8,6.,18.8],dtype=torch.float64)
+        ends=cruise.active_episode_end(modes,ages)
+        self.assertTrue(torch.allclose(ends,torch.tensor([27.,90.8,55.8,55.8,24.8,24.8],dtype=torch.float64)))
+        self.assertTrue(bool(((ends-ages)>=6.-1e-8).all()))
+        self.assertTrue(bool((ends[modes==2]<25.).all()))
+
     def test_commands_match_scalar_boundaries(self):
         turn.configure_profile(44.)
         ages=torch.tensor([2.98,3.,3.02,5.98,6.,6.02,17.98,18.,18.02,19.98,20.,20.02,46.98,47.,47.02,48.98,49.,49.02],dtype=torch.float64)
