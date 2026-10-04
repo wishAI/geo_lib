@@ -37,6 +37,15 @@ M7 certificate: `m7_20261004_right_controller63_certificate/milestone_validation
 under the preserved runtime's `outputs/mujoco/`. It independently revalidated
 all four directions and all six cumulative components against the exact checkpoint.
 M8 is the first unresolved gate: closed triangle following through joystick commands.
+The prospective first trial uses an 18 m counterclockwise equilateral triangle,
+4 m path lookahead, ordered 0.75 m midpoint regions, 3.5 m corner regions,
+a 2 m corridor, and closure within 0.75 m. The fixed ceiling is 600 s; the run
+ends at its first completed circuit. These dimensions accommodate the measured
+roughly 3 m left-turn radius while requiring all three sides. Forward command
+remains 0.2, steering uses V6 filtering/hysteresis/anti-windup, and controller
+memory remains continuous. No physical guard or checkpoint weight is changed.
+This is an unpassed trial contract, not a result. The lookahead design follows
+[geometric path pursuit](https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf).
 
 The `hysteretic_v6` navigator filters body-heading error with a 0.5 s time
 constant and uses 5° start / 2° stop steering hysteresis. It suppresses yaw that

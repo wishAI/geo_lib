@@ -371,7 +371,9 @@ def evaluate(args):
     teleop_mode=getattr(args,'teleop',False)
     direction_origin=None
     direction=getattr(args,'direction',None)
-    if sum((bool(turn_mode),bool(teleop_mode),bool(direction)))>1:raise ValueError('Choose one command test')
+    triangle=getattr(args,'triangle',False)
+    if triangle and (args.forward!=.2 or args.seconds!=600.):raise ValueError('Triangle requires .2 forward and600s horizon')
+    if sum((bool(turn_mode),bool(teleop_mode),bool(direction),bool(triangle)))>1:raise ValueError('Choose one command test')
     if direction:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
     direction_navigation=getattr(args,'direction_navigation','legacy')
@@ -381,6 +383,9 @@ def evaluate(args):
     if direction_navigation!='legacy':
         from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import make_navigator
         navigator=make_navigator(direction_navigation,direction)
+    if triangle:
+        from algorithms.urdf_learn_wasd_walk.landau_triangle_navigation import Navigator
+        navigator=Navigator()
     if teleop_mode:
         from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop_contract
         teleop_profile=teleop_contract.command_profile
@@ -394,7 +399,7 @@ def evaluate(args):
             teleop_profile=saved_protocol.command_profile
     has_turn=meta.get('command_extension')=='yaw_v1'
     turn_memory={}
-    if (turn_mode or teleop_mode or direction) and not has_turn:raise ValueError('Checkpoint has no trained yaw extension')
+    if (turn_mode or teleop_mode or direction or triangle) and not has_turn:raise ValueError('Checkpoint has no trained yaw extension')
     if has_turn:
         import importlib.util
         turn_source=checkpoint.parent/'turn_source.py'
@@ -489,7 +494,7 @@ def evaluate(args):
             result[60:62]=0.;result[63:66]=[forward,0.,yaw]
         if teleop_mode:
             result[60:62]=0.;result[63:66]=teleop_profile(round(float(data.time)/.02)*.02)
-        if direction:
+        if direction or triangle:
             if direction_origin is None:direction_origin=data.xpos[pelvis,:2].copy()
             delta=data.xpos[pelvis,:2]-direction_origin
             result[60:62]=0.
@@ -542,7 +547,7 @@ def evaluate(args):
         pose='geometric',gain_scale=1.,noslip_iterations=0,contact_timeconst=.004,assistance=0.,
         checkpoint=str(checkpoint),forward=args.forward,target_distance_m=getattr(args,'target_distance',5.),turn=turn_mode,
         turn_hold_start=turn_implementation.HOLD_START if turn_mode else None,teleop=teleop_mode,direction=direction,
-        direction_navigation=direction_navigation,render=False))
+        direction_navigation=direction_navigation,triangle=triangle,render=False))
     if teleop_mode:
         protocol_path=protocol_source if meta.get('memory_version')==2 else Path(teleop_contract.__file__)
         (backend.OUTPUT/args.name/'command_protocol_source.py').write_text(protocol_path.read_text())
@@ -560,6 +565,7 @@ def evaluate(args):
         result_path=backend.OUTPUT/args.name/'dynamics.json'
         result=json.loads(result_path.read_text());result['gait_source_sha256']=backend.digest(source)
         if direction_navigation in ('reference_v4','anti_windup_v5','hysteretic_v6'):result['direction_navigation_state']=navigator.record()
+        if triangle:result['triangle_navigation_state']=navigator.record()
         if has_turn:
             result.update(turn_source_sha256=backend.digest(turn_source),
                 controller_memory_sha256=backend.digest(backend.OUTPUT/args.name/'controller_memory.json'))
@@ -594,6 +600,7 @@ def main():
     p.add_argument('--forward',type=float,default=.2);p.add_argument('--seconds',type=float,default=30.)
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--turn',action='store_true',help='Evaluate the saved yaw-command profile and settled hold')
+    p.add_argument('--triangle',action='store_true',help='M8: closed18m triangle through joystick commands')
     p.add_argument('--direction',choices=('forward','left','right','backward'),help='M7: turn and walk through a world-direction 10 m gate')
     p.add_argument('--direction-navigation',choices=('legacy','signed_v2','filtered_signed_v3','reference_v4','anti_windup_v5','hysteretic_v6'),default='legacy')
     p.add_argument('--teleop',action='store_true',help='Run the fixed60s joystick command replay')
@@ -603,9 +610,10 @@ def main():
     p.add_argument('--moving-tilt-weight',type=float,default=2.)
     p.add_argument('--initialization',choices=('transfer','fresh_moving'),default='transfer')
     args=p.parse_args()
+    if args.triangle and args.mode!='evaluate':raise ValueError('Triangle is evaluation only')
     if args.direction_navigation!='legacy' and (args.mode!='evaluate' or not args.direction):
         raise ValueError('Signed navigation is serial evaluation only; legacy training memory is unchanged')
-    if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=(240 if args.direction else 120):
+    if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=(600 if args.triangle else 240 if args.direction else 120):
         raise ValueError('Experiment exceeds bounded limits')
     if args.hip_roll_range not in (.2,.4):raise ValueError('Use an audited hip-roll range')
     if args.moving_tilt_weight not in (.5,2.):raise ValueError('Use a bounded tilt-penalty comparison')

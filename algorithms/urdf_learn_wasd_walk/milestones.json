@@ -2826,15 +2826,15 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-04T04:26:17.596088+00:00",
+    "updatedAt": "2026-10-04T08:16:03.867412+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
-    "certifiedMilestones": 6,
-    "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "CurrentGPUrun m7_20261004_right_balance15_filtered_backward. Samecandidate stillneedsbackward/left/forward andfreshM1\u2013M6; rightproofaccepted. Sixcertifiedmilestones unchanged.",
+    "certifiedMilestones": 7,
+    "nextMilestone": "triangle_path_follow_no_reset",
+    "nextWork": "Implement and evaluate a closed triangle using joystick waypoint commands with the exact M7 checkpoint.",
     "checkpoint": {
-      "kind": "periodic_feedback_cem",
-      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
-      "sha256": "0c07a031b1921995f5c17e4a14f9a7dfee3d6854d376da4f2b0c205f2c63fb13"
+      "kind": "periodic_feedback_residual_ppo",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt",
+      "sha256": "e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47"
     },
     "recentEvaluations": [
       {
@@ -4125,6 +4125,50 @@
       "full_suite": "295 passed,3 skipped,8 failed",
       "existing_failures": "Legacy Isaac pipeline fixtures use another lineage/metadata schema; optional comparison mesh differs; two ragdoll tests require absent MAIN outputs/mujoco directory. Agent verified relevant code/ledger lineage/assets/milestones unchanged from HEAD.",
       "review": "Independent CPU reviews found no remaining blocker in four-gain composition, plane miss shaping or feedback nominal dispatch."
+    },
+    "triangleTrial": {
+      "status": "first GPU trial running; diagnostic pending complete provenance",
+      "contract": {
+        "version": "triangle_pursuit_v1",
+        "vertices_m": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            18.0
+          ],
+          [
+            -15.588457268119894,
+            9.0
+          ],
+          [
+            0.0,
+            0.0
+          ]
+        ],
+        "lookahead_m": 4.0,
+        "corner_radius_m": 3.5,
+        "corridor_m": 2.0,
+        "midpoint_radius_m": 0.75,
+        "closure_radius_m": 0.75,
+        "horizon_s": 600.0,
+        "forward_command": 0.2,
+        "orientation": "counterclockwise"
+      },
+      "checkpoint": {
+        "kind": "periodic_feedback_residual_ppo",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt",
+        "sha256": "e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47"
+      },
+      "tests": "59 focused tests passed before two provenance/reproduction tests;10 triangle tests passed after adding common gait-dispatch regression.",
+      "rationale": "18m sides allow measured roughly3m leftturn radius;4m polyline lookahead anticipates corners. Ordered .75m midpoint disks prevent cutting entire sides. Roundedcorners3.5m,2m corridor,closure.75m; unchanged physical guards, joystickonly, continuous memory.",
+      "references": [
+        "https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf"
+      ],
+      "run": "m8_20261004_right63_triangle_v1",
+      "review": "CPU command-path/physical-guard review found no controller changes. Fixed MAIN shared zero-yaw validator dispatch and added direct imported direction-contract snapshot for future evaluation; active runtime remains unchanged."
     }
   }
 }

@@ -78,7 +78,7 @@ def main():
             dynamics = json.loads((folder / 'dynamics.json').read_text())
             duration = float(dynamics.get('metrics', {}).get('duration_s', 30.))
             subprocess.run([sys.executable, '-m', 'algorithms.urdf_learn_wasd_walk.mujoco_render', str(folder)],
-                           check=True, timeout=max(240., 3.*min(duration, 240.)+60.))
+                           check=True, timeout=max(240., 3.*min(duration, 600.)+120.))
             proof = json.loads((folder / 'proof_metadata.json').read_text())
             proof.update(dynamics_sha256=backend.digest(folder / 'dynamics.json'),
                          model_xml_sha256=backend.digest(folder / 'model.xml'))
