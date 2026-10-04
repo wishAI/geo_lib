@@ -364,6 +364,21 @@ class CruiseAttributionLoaderTests(unittest.TestCase):
                 result['config']['direction']='left';save(observations=transitional,foot=cleanfeet)
                 with self.assertRaisesRegex(ValueError,'Triangle-active attribution requires'):
                     load_starts([folder],cp,meta,turn,'triangle_active',age,gates.digest)
+                result['config'].update(triangle=False,direction='backward')
+                save(observations=transitional,foot=cleanfeet)
+                _,memory,_=load_starts([folder],cp,meta,turn,'backward_active',age,gates.digest)
+                self.assertLess(memory.left_cruise_blend,1.)
+                save(observations=transitional)
+                with self.assertRaisesRegex(ValueError,'Unsafe warm start prefix'):
+                    load_starts([folder],cp,meta,turn,'backward_active',age,gates.digest)
+                result['config']['triangle']=True
+                save(observations=transitional,foot=cleanfeet)
+                with self.assertRaisesRegex(ValueError,'Backward-active attribution requires'):
+                    load_starts([folder],cp,meta,turn,'backward_active',age,gates.digest)
+                result['config'].update(triangle=False,direction='left')
+                save(observations=transitional,foot=cleanfeet)
+                with self.assertRaisesRegex(ValueError,'protocol mismatch'):
+                    load_starts([folder],cp,meta,turn,'backward_active',age,gates.digest)
 
 
 class HalfCruiseCompositionTests(unittest.TestCase):

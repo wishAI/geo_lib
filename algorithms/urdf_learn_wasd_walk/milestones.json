@@ -5087,7 +5087,53 @@
               "m8_20261004_half_cruise_prerequisite_backward_repeat1",
               "m8_20261004_half_cruise_prerequisite_backward_repeat2"
             ],
-            "status": "two fixedunchanged V6backward240s horizon repeats declared beforelaunch;retainallresults"
+            "status": "complete; both fixed repeats failed force; no further unchanged retry",
+            "repeat1": {
+              "peak_bw": 3.166638,
+              "visual_review_sha256": "0506e8d0a47af43a85762dc5e08554a48640617f42a405209a78b221cfa3f5fd"
+            },
+            "repeat2": {
+              "peak_bw": 3.0252760516076442,
+              "duration_s": 171.94,
+              "visual_review_sha256": "43ca416c0f6a28f8eb79ae75f2fb92976469c5e4ff16380613af9b4816e4dcfa"
+            }
+          },
+          "backward_active_attribution": {
+            "status": "preflight passed; starting diagnostic only",
+            "source_runs": [
+              "m8_20261004_half_cruise_prerequisite_backward",
+              "m8_20261004_half_cruise_prerequisite_backward_repeat1"
+            ],
+            "windows_s": [
+              [
+                122,
+                132
+              ],
+              [
+                124,
+                132
+              ],
+              [
+                98,
+                107
+              ],
+              [
+                100,
+                107
+              ]
+            ],
+            "active_scales": [
+              0,
+              0.25,
+              0.5,
+              0.75,
+              1
+            ],
+            "copies_per_scale": 2,
+            "cruise_scale": 0.5,
+            "forward": 0.2,
+            "full_prefix_safety_required": true,
+            "qualification": false
           }
         }
       }
