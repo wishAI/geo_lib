@@ -66,8 +66,10 @@ scales only cruise output by 0.5 before the unchanged active correction. Its
 first nominal triangle completed in 344.92 s without falls or resets but failed
 one 3.130 BW landing sample. The first of two predeclared unchanged repeats
 also completed (345.92 s), with three excessive landings and peak 3.143 BW.
-The second repeat is running. Both failures retain full videos and exact action
-replay; all limits and speed remain fixed. Fresh M1–M7 evidence is required
+The second repeat completed in 345.94 s with no numerical failures and peak
+2.976 BW; full review and fresh cumulative validation are in progress. Both
+failed trials retain full videos and exact action replay; all limits and speed
+remain fixed. This is a nominal passing trial, not broad repeatability. Fresh M1–M7 evidence is required
 before M8 promotion. The
 `qualify-directions` finalizer records that candidate's ten prerequisite runs
 without changing the historical M7 certificate; `certify-triangle` rechecks

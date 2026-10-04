@@ -2826,11 +2826,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-04T09:49:09.252958+00:00",
+    "updatedAt": "2026-10-04T10:32:02.379947+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 7,
     "nextMilestone": "triangle_path_follow_no_reset",
-    "nextWork": "Complete two unchanged half-cruise triangle repeats; retain force failures. Any candidate M8 pass needs fresh exact-checkpoint M1\u2013M7 validation.",
+    "nextWork": "Fresh half-cruise M1\u2013M6 accepted; fourdirection prerequisite suite running. Triangle component accepted; M8 awaits all four direction proofs.",
     "checkpoint": {
       "kind": "periodic_feedback_residual_ppo",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt",
@@ -4714,7 +4714,7 @@
             "m8_20261004_half_cruise_triangle_repeat1",
             "m8_20261004_half_cruise_triangle_repeat2"
           ],
-          "status": "repeat1 rejected; repeat2 running",
+          "status": "fixed experiment complete: initial and repeat1 failedforce;repeat2 numericalpass; independentreview pending",
           "purpose": "Assess exact nominal repeatability; preserve every result; no acceptance limits or controller changes",
           "repeat1": {
             "duration_s": 345.92,
@@ -4731,6 +4731,240 @@
             "diagnosis": "Active correction engaged/cruiseoff atall3landings, beforefinalendpointclamp; action/memoryreplay exact. No attenuationcausality claim.",
             "render": "Incomplete old renderer stopped; same untouched trajectory rerendered with cached NPZ array. All17297frames/visibility passed,54.113s wall.",
             "visual_review_sha256": "d019b0eaf4a58c1c8b580955e8b664f4d0eaa9cb9c0cd9979f08f3ac08f3d92f"
+          },
+          "repeat2": {
+            "name": "m8_20261004_half_cruise_triangle_repeat2",
+            "metrics": {
+              "duration_s": 345.94,
+              "reset_count": 0,
+              "done_count": 0,
+              "fall_count": 0,
+              "max_reference_tilt_rad": 0.2668180237598293,
+              "root_height_drop_m": 0.003591259063415564,
+              "horizontal_drift_m": 16.604381940129187,
+              "max_abs_action": 0.9113178253173828,
+              "max_abs_command": 0.2,
+              "policy_calls": 17297,
+              "max_joint_speed_rad_s": 3.425813674926758,
+              "max_motor_torque_nm": 2.633669853210449,
+              "peak_auxiliary_wrench_norm": 0.0,
+              "mean_support_body_weight_ratio": 1.0011764153520841,
+              "peak_support_body_weight_ratio": 2.9758993714420803,
+              "nonfoot_contacts": [],
+              "action_target_range_rad": {
+                "left_hip_pitch_joint": [
+                  -0.23937435150146488,
+                  0.13743433952331544
+                ],
+                "left_hip_yaw_joint": [
+                  -0.0662590217590332,
+                  0.05183623313903809
+                ],
+                "left_hip_roll_joint": [
+                  -0.36452713012695315,
+                  0.3409676361083984
+                ],
+                "left_knee_joint": [
+                  0.0,
+                  0.3959523010253907
+                ],
+                "left_ankle_pitch_joint": [
+                  -0.2231944084167481,
+                  0.14943227767944336
+                ],
+                "left_toe_joint": [
+                  0.0,
+                  0.0
+                ],
+                "right_hip_pitch_joint": [
+                  -0.2389800071716309,
+                  0.13807302474975586
+                ],
+                "right_hip_yaw_joint": [
+                  -0.057731494903564454,
+                  0.04536221981048584
+                ],
+                "right_hip_roll_joint": [
+                  -0.3608683395385742,
+                  0.34093914031982425
+                ],
+                "right_knee_joint": [
+                  0.0,
+                  0.3959523010253907
+                ],
+                "right_ankle_pitch_joint": [
+                  -0.22646799087524416,
+                  0.14055850982666016
+                ],
+                "right_toe_joint": [
+                  0.0,
+                  0.0
+                ],
+                "waist_yaw_joint": [
+                  0.0,
+                  0.0
+                ],
+                "waist_roll_joint": [
+                  0.0,
+                  0.0
+                ],
+                "waist_pitch_joint": [
+                  -0.0674717903137207,
+                  5.197675433009863e-05
+                ],
+                "left_shoulder_pitch_joint": [
+                  0.0,
+                  0.0
+                ],
+                "right_shoulder_pitch_joint": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "raw_actor_output_range": {
+                "left_hip_pitch_joint": [
+                  -2.9921793937683105,
+                  1.7179292440414429
+                ],
+                "left_hip_yaw_joint": [
+                  -0.828237771987915,
+                  0.6479529142379761
+                ],
+                "left_hip_roll_joint": [
+                  -4.556589126586914,
+                  4.2620954513549805
+                ],
+                "left_knee_joint": [
+                  0.0,
+                  4.949403762817383
+                ],
+                "left_ankle_pitch_joint": [
+                  -2.7899301052093506,
+                  1.867903470993042
+                ],
+                "left_toe_joint": [
+                  0.0,
+                  0.0
+                ],
+                "right_hip_pitch_joint": [
+                  -2.9872500896453857,
+                  1.7259128093719482
+                ],
+                "right_hip_yaw_joint": [
+                  -0.7216436862945557,
+                  0.567027747631073
+                ],
+                "right_hip_roll_joint": [
+                  -4.510854244232178,
+                  4.261739253997803
+                ],
+                "right_knee_joint": [
+                  0.0,
+                  4.949403762817383
+                ],
+                "right_ankle_pitch_joint": [
+                  -2.8308498859405518,
+                  1.756981372833252
+                ],
+                "right_toe_joint": [
+                  0.0,
+                  0.0
+                ],
+                "waist_yaw_joint": [
+                  0.0,
+                  0.0
+                ],
+                "waist_roll_joint": [
+                  0.0,
+                  0.0
+                ],
+                "waist_pitch_joint": [
+                  -0.8433973789215088,
+                  0.0006497094291262329
+                ],
+                "left_shoulder_pitch_joint": [
+                  0.0,
+                  0.0
+                ],
+                "right_shoulder_pitch_joint": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "semantic_forward_displacement_m": 0.365450986371994,
+              "semantic_strafe_displacement_m": -0.6542068123817444,
+              "left_foot_liftoff_count": 386,
+              "right_foot_liftoff_count": 386,
+              "mean_contact_foot_slip_mps": 0.02707557733737403,
+              "simultaneous_air_fraction": 0.012100364225010117,
+              "leg_joint_excursion_rad": {
+                "left_hip_pitch_joint": 0.3648168221116066,
+                "left_hip_yaw_joint": 0.08802927285432816,
+                "left_hip_roll_joint": 0.5191256999969482,
+                "left_knee_joint": 0.36033895611763,
+                "left_ankle_pitch_joint": 0.35177676379680634,
+                "left_toe_joint": 4.4448781409300864e-05,
+                "right_hip_pitch_joint": 0.36523549631237984,
+                "right_hip_yaw_joint": 0.08474540337920189,
+                "right_hip_roll_joint": 0.5276288837194443,
+                "right_knee_joint": 0.3617107719182968,
+                "right_ankle_pitch_joint": 0.35192543640732765,
+                "right_toe_joint": 4.26939623139333e-05,
+                "waist_yaw_joint": 0.03402511030435562,
+                "waist_roll_joint": 0.08324835449457169,
+                "waist_pitch_joint": 0.04443858191370964,
+                "left_shoulder_pitch_joint": 0.0448971139267087,
+                "right_shoulder_pitch_joint": 0.04162383545190096
+              },
+              "policy_inference_steps": 17297,
+              "control_steps": 17297,
+              "left_completed_swings": 385,
+              "right_completed_swings": 386,
+              "max_simultaneous_flight_s": 0.014,
+              "max_heading_deviation_rad": 3.1415729558975234,
+              "left_peak_clearance_m": 0.041070723194738104,
+              "right_peak_clearance_m": 0.03946976126305701,
+              "triangle_complete": true,
+              "triangle_visits": [
+                {
+                  "target": "edge_1_midpoint",
+                  "time_s": 63.02,
+                  "distance_m": 0.7480296331992543
+                },
+                {
+                  "target": "corner_1",
+                  "time_s": 109.60000000000001,
+                  "distance_m": 3.4964079624529956
+                },
+                {
+                  "target": "edge_2_midpoint",
+                  "time_s": 171.86,
+                  "distance_m": 0.7496939775165217
+                },
+                {
+                  "target": "corner_2",
+                  "time_s": 218.08,
+                  "distance_m": 3.498350632778578
+                },
+                {
+                  "target": "edge_3_midpoint",
+                  "time_s": 279.52,
+                  "distance_m": 0.7470809453179397
+                },
+                {
+                  "target": "closure",
+                  "time_s": 345.94,
+                  "distance_m": 0.7493603784608219
+                }
+              ],
+              "triangle_max_corridor_m": 1.3082240849957312,
+              "triangle_path_length_m": 65.9245069025352,
+              "triangle_closure_distance_m": 0.7493603784608219
+            },
+            "failures": [],
+            "canonical_milestone_pass": false,
+            "visual_review_sha256": "b93dc50b157b67d8368d7bd702fa08022d07722347d21f01e5ae90f1a377c961",
+            "independent_validation": "Full MAIN check_walking(triangle=True) accepted; allrawactions/finalmemory bitexact; M8notpromoted beforecumulative proofs"
           }
         },
         "visual_review_sha256": "8527cec92ee7d0897e9847608b8e317e842ebcfb5cddde34a6fc6f1661a7a0c8",
@@ -4739,7 +4973,7 @@
         "endpointDiagnosis": "Clamping pursuit target at finalendpoint shortens5.5m lookahead to2.136m at334.64s; savedtrajectory shadow extension removes333.22yawburst. No dynamics claim; no source change during fixedrepeats.",
         "activeAttributionPlan": {
           "name": "m8_20261004_half_active_attribution",
-          "status": "prepared; conditional on fixed second repeat outcome",
+          "status": "held: fixed second repeat passed; fresh cumulative validation is next",
           "sources": {
             "m8_20261004_half_cruise_triangle_v2": [
               [
@@ -4777,6 +5011,84 @@
           "fixed": "Cruiseoutput0.5,allweights/20parameters/physicalconstants unchanged; fullmemory,recordedcommands,evolvingobservations",
           "scope": "Diagnostic-only. Every selected state has fully healthy prefix; no earlier-force exception. No export or qualification credit.",
           "cpu_preflight": "Allfive actual states passed provenance/clock/finite/full-prefix checks; a state after first force violation correctly rejected."
+        },
+        "cumulativeValidation": {
+          "status": "M1\u2013M6 andforward/left independentlyaccepted; rightvisualaccepted; backwardfixedrepeatsrunning",
+          "prefix": "m8_20261004_half_cruise_prerequisite_",
+          "scope": "Fresh exact-checkpoint M1\u2013M7, ten independent nominal components, stop at first failed component; fullvideos and independentfinalization required",
+          "m3_first": {
+            "forward_m": 5.804447808013916,
+            "lateral_m": 0.8207576274871826,
+            "peak_bw": 2.8459322758079586,
+            "falls": 0
+          },
+          "m3_repeats": {
+            "names": [
+              "m8_20261004_half_cruise_prerequisite_m3_repeat1",
+              "m8_20261004_half_cruise_prerequisite_m3_repeat2"
+            ],
+            "status": "complete;repeat1visual+independentaccepted,repeat2rejectedforce",
+            "repeat1": {
+              "lateral_m": 0.23872557282447815,
+              "peak_bw": 2.8737910734354117,
+              "failures": []
+            },
+            "repeat2": {
+              "lateral_m": 0.3383916914463043,
+              "peak_bw": 3.0111616679294473,
+              "failures": [
+                "peak support exceeded 3 body weights"
+              ]
+            }
+          },
+          "selected_m3": "m8_20261004_half_cruise_prerequisite_m3_repeat1",
+          "m3_first_gate": {
+            "time_s": 38.67159837126115,
+            "lateral_m": 0.28698411968609333
+          },
+          "m6_first": {
+            "peak_bw": 3.066017483691881,
+            "force_time_s": 46.46,
+            "falls": 0,
+            "resets": 0,
+            "all_response_blocks_and_holds_passed": true,
+            "visual_review_sha256": "aec4a635d5193524c4f2c2fe698e2d65115e0e3c6ef8fb9ffe3c66538824806b"
+          },
+          "m6_repeats": {
+            "names": [
+              "m8_20261004_half_cruise_prerequisite_m6_repeat1",
+              "m8_20261004_half_cruise_prerequisite_m6_repeat2"
+            ],
+            "status": "complete; repeat1visual+independentaccepted,repeat2forcefailed",
+            "repeat1": {
+              "peak_bw": 2.758873247649208,
+              "failures": [],
+              "visual_review_sha256": "c3b10714a7206dcecf8dfc21c51f92e8ba693636b1c597b8fd3de4c41d314b97"
+            },
+            "repeat2": {
+              "peak_bw": 3.0391622027213123,
+              "failures": [
+                "peak support exceeded 3 body weights"
+              ],
+              "visual_review_sha256": "885e8733ac4dc1f26fb1c7349aec1ecb21db2390b41f0c41e7261c99b2ec6f40"
+            }
+          },
+          "selected_m6": "m8_20261004_half_cruise_prerequisite_m6_repeat1",
+          "backward_first": {
+            "duration_s": 167.6,
+            "peak_bw": 3.1718026995636235,
+            "lateral_m": 0.2251233607530594,
+            "force_samples_s": [
+              125.64
+            ]
+          },
+          "backward_repeats": {
+            "names": [
+              "m8_20261004_half_cruise_prerequisite_backward_repeat1",
+              "m8_20261004_half_cruise_prerequisite_backward_repeat2"
+            ],
+            "status": "two fixedunchanged V6backward240s horizon repeats declared beforelaunch;retainallresults"
+          }
         }
       }
     }
