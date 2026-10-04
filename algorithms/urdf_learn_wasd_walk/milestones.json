@@ -2669,7 +2669,7 @@
       "diagnosis": "First/peak97.058s during active-left blend.74; later force119.390/120.288 during cruise ramps.10/.12,127.428duringactivefade.90. Fullvideo upright; forcefailure notwaived."
     },
     "holdCalibration": {
-      "status": "Candidate15 composed; independent MAIN lineage validated; freshM5 running",
+      "status": "Fresh M5 and M6 independently validated with accepted full-video reviews; backward V6 running",
       "changed_indices": [
         3
       ],
@@ -2703,14 +2703,30 @@
       "checkpoint_sha256": "74afe56a9f64642d676cd14e3b365f4f1dbf59a16d705108fe4fde0dbaa0a777",
       "variant": "yaw_hold_calibrated_dual_residual_v1",
       "tests": "155 relevant CPU tests passed before final screen-provenance hardening;14focusedtests passed afterward. Independentactualcheckpoint lineage passed.",
-      "m5_run": "m7_20261004_yaw_hold15_m5"
+      "m5_run": "m7_20261004_yaw_hold15_m5",
+      "m5_metrics": {
+        "duration_s": 56,
+        "hold_heading_error_deg": 4.077417996333108,
+        "hold_drift_m": 0.018788559463565713,
+        "peak_support_body_weight_ratio": 2.778896255370648,
+        "fall_count": 0
+      },
+      "m6_run": "m7_20261004_yaw_hold15_m6",
+      "m6_metrics": {
+        "duration_s": 60,
+        "fall_count": 0,
+        "peak_support_body_weight_ratio": 2.9652376976507675
+      },
+      "m5_visual_review_sha256": "683298ad5409c6702fc334856aca9cd940f3e2248a32e4d437dd0742d566074d",
+      "m6_visual_review_sha256": "2db9a0478f649c07ea6f55d5e88e5415e6316684da8021a6aff291c552eca2fa"
     },
     "hystereticNavigation": {
       "version": "hysteretic_v6",
-      "status": "Implementedandreviewed: actualclassmatchesprototype, allV2/V3/V5commandsunchanged acrossfour240sstreams. Dynamics pendingnewcalibratedcheckpoint.",
+      "status": "Fresh calibrated checkpoint backward physical trial running",
       "design": "V5 bodyheading pursuit andconditionalintegration; replacecontinuous3degsubtractiveband with5degstart/2degstop hysteresis toreducelearned-headswitching.",
       "counterfactual": "On V5recordedposes, after80s yawonsets31\u21925 andmedianzero-yawdwell.54\u219211.18s. Cruisevariation26.72\u219210, active23.96\u21929. Firstforceeventstilltransition; nophysicalimprovementclaimed.",
-      "promoted": false
+      "promoted": false,
+      "run": "m7_20261004_yaw_hold15_hysteretic_backward"
     }
   }
 }

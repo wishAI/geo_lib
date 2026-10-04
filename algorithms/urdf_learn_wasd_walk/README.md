@@ -6,32 +6,24 @@ Current milestone truth (2026-10-04): **6/12 milestones certified; work resumed
 on M7.** Four directions mean turning and walking toward world-direction 10 m
 gates from the same nominal pose, as confirmed by the user. The M7 diagnostic
 emits only semantic forward/yaw commands through the checkpoint’s saved controller.
-Legacy direction runs keep one yaw sign (right for the right gate, left for the
-left/backward gates). The opt-in `--direction-navigation signed_v2` experiment
-permits both correction signs after choosing the initial backward left arc once.
-It latches the first backward-facing hemisphere and uses a three-degree zero-yaw
-band, with the same forward speed, yaw cap, pursuit gain, and gate geometry.
-Legacy training commands and saved controller memory remain unchanged. Negative
-yaw switches the frozen controller to right-side balance settings, so this
-transition requires fresh force and full-route validation. The validator replays
-the navigator from the full trajectory and binds its additional source snapshot.
-The first signed trial fell at95.882s after eight side reversals during88–94s.
-`filtered_signed_v3` filters circular bearing error with a0.5s time constant before
-the same deadband. Offline pose replay removed those eight reversals while
-retaining sustained course corrections. It passed individual left, right and
-backward proofs across candidates, but no single candidate passed the cumulative set.
-The new `reference_v4` experiment filters the gate bearing and commands the
-controller’s integrated yaw reference toward it, with 3° start / 1° stop
-hysteresis. This prevents continual integration against delayed body heading.
-Its shadow integrates delivered float32 commands and is independently checked
-against controller memory; it never assigns controller or simulator state.
-Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
-for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
-Speed improvements require measured faster completion and the same quality checks.
+The current directional adapter, `--direction-navigation hysteretic_v6`, filters
+body-heading error with a 0.5 s time constant and uses 5° start / 2° stop steering
+hysteresis. It suppresses delivered yaw that would worsen a reference/heading
+gap beyond 30°, releasing at 20°. The shadow reference integrates actual
+float32 joystick commands and is independently checked against controller memory.
+It never assigns controller or simulator state. Legacy navigator versions remain
+available for reproduction; saved checkpoint sources stay immutable.
+The bounded backward horizon is 240 s because the existing command rate needs
+88 s for 180 degrees. Forward command, yaw cap, standing, contact, speed, flight
+and no-reset limits are unchanged. Faster motion requires measured improvement
+with the same quality checks. Current V6 backward dynamics are running.
 
 Current M7 candidate: `m7_20261004_yaw_hold15_dual/model_0.pt`, SHA-256
 `74afe56a9f64642d676cd14e3b365f4f1dbf59a16d705108fe4fde0dbaa0a777`.
-Its fresh M5 turn/hold proof is running. This candidate changes only left hold
+Its fresh M5 dynamics passed (4.08° hold error, 18.79 mm drift, peak 2.779 BW);
+M6 also passed (60 s, peak 2.965 BW). Both have accepted full-video reviews
+and passed the independent validator. V6 backward dynamics are running.
+This candidate changes only left hold
 feedback (parameter 3: −0.03) and left yaw scale (17: 1.49) from right-balance15;
 both learned networks, standing, gait, other 18 parameters and saved deployment
 code stay frozen. The independent validator checked its complete donor lineage.
