@@ -1,108 +1,86 @@
 # URDF Learn WASD Walk — Clean Room
 
-This sandbox is being rebuilt from the clean restart contract one milestone at a time.
+Current milestone truth (2026-10-04): **7/12 certified; M8 in progress.**
+Four directions mean turning and walking toward world-direction 10 m gates,
+as confirmed by the user. No checkpoint is promoted until its exact weights
+re-pass all cumulative gates and all four directions with independent validation
+and complete video review.
 
-Current milestone truth (2026-10-04): **6/12 milestones certified; work resumed
-on M7.** Four directions mean turning and walking toward world-direction 10 m
-gates from the same nominal pose, as confirmed by the user. The M7 diagnostic
-emits only semantic forward/yaw commands through the checkpoint’s saved controller.
-The current directional adapter, `--direction-navigation hysteretic_v6`, filters
-body-heading error with a 0.5 s time constant and uses 5° start / 2° stop steering
-hysteresis. It suppresses delivered yaw that would worsen a reference/heading
-gap beyond 30°, releasing at 20°. The shadow reference integrates actual
-float32 joystick commands and is independently checked against controller memory.
-It never assigns controller or simulator state. Legacy navigator versions remain
-available for reproduction; saved checkpoint sources stay immutable.
-The bounded backward horizon is 240 s because the existing command rate needs
-88 s for 180 degrees. Forward command, yaw cap, standing, contact, speed, flight
-and no-reset limits are unchanged. Faster motion requires measured improvement
-with the same quality checks. Current V6 results remain rejected: backward reached the gate but exceeded
-force; right fell early.
+Current certified checkpoint: `m7_20261004_right_controller63_dual/model_0.pt`,
+SHA-256 `e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47`.
+The independent MAIN validator checked its complete donor lineage. It changes
+only right parameters 7/8/12/13 from yaw_hold15, preserving both learned actors,
+left calibration, gait, standing, all other parameters and saved deployment code.
+The exact right-gain candidate passed four shared starts in each of two search
+generations: all eight gates, worst peak 2.899 BW, completion under 100 s.
 
-Current M7 candidate: `m7_20261004_yaw_hold15_dual/model_0.pt`, SHA-256
-`74afe56a9f64642d676cd14e3b365f4f1dbf59a16d705108fe4fde0dbaa0a777`.
-Its fresh M5 dynamics passed (4.08° hold error, 18.79 mm drift, peak 2.779 BW);
-M6 also passed (60 s, peak 2.965 BW). Both have accepted full-video reviews
-and passed the independent validator. V6 backward reached 10 m upright in
-172.81 s but had one 3.100 BW impact; V6 right fell at 9.358 s. No uniform active-correction scale survived all six recorded-state replays.
-A bounded roll/rate feedback grid is prepared for the impact plus healthy turns.
-The four-gain right-turn search found an exact candidate passing all eight starts
-across two generations, worst peak 2.899 BW and gate times under 100 s.
-`m7_20261004_right_controller63_dual/model_0.pt` composes only 7/8/12/13
-onto this donor. Its nominal V6 right dynamics passed: 95.74 s, peak2.782BW,
-−0.667m lateral error; full-video review and independent MAIN validation passed.
-Its complete V6 backward evaluation is running.
-Both recorded feedback grids completed; row21 survived all24 window/copy cases
-with worst peak2.843BW, but one fullM6 restart case exceeded3BW. No feedback
-row passed both the repeated warm windows and the first fullM5/M6 grid, so
-no feedback gains were applied. The new right controller changes backward
-corrections; its own full trajectory is the next diagnostic.
-This candidate changes only left hold
-feedback (parameter 3: −0.03) and left yaw scale (17: 1.49) from right-balance15;
-both learned networks, standing, gait, other 18 parameters and saved deployment
-code stay frozen. The independent validator checked its complete donor lineage.
-No milestone is promoted until all required independent proofs pass.
+- V6 right: accepted full video and independent validation; gate 95.739 s,
+  lateral error −0.667 m, peak 2.782 BW, no falls/resets.
+- V6 backward: accepted full video and independent validation; gate170.954s,
+  lateral error+0.163m, peak2.844BW, no falls/resets.
+- V6 left: accepted full video and independent validation; gate102.175s,
+  lateral error+0.463m, peak2.866BW, no falls/resets.
+- Fresh M5 and M6: accepted full videos and independent validators passed.
+  M5 hold error0.98°, drift18.5mm, peak2.811BW; M6 peak2.978BW, all response
+  blocks and both holds passed.
+- V6 forward:accepted full video and independent validation; gate76.192s,
+  lateral+0.255m, peak2.914BW, no falls/resets.
+- M1–M4: accepted full videos and independent validators passed. M1 drift
+  3.484 mm; M2 drift 4.037 mm; M3 reached 5.840 m in 45 s; M4 reached
+  10.512 m in 80 s with peak 2.958 BW.
+- The original M3 failed lateral drift (0.841 m). Two predefined unchanged
+  45 s repeats were retained; repeat 2 crossed 5 m at lateral 0.398 m and
+  ended at 0.337 m. This certifies the recorded nominal proof, not broad
+  repeatability. No earlier checkpoint's proof was reused.
 
-The candidate passed the measured physical/hold subset in all 16 cases across
-two fixed grids: M5 and M6, each with nominal and three shared perturbed starts.
-Worst support was 2.867 BW, hold error 4.321°, and hold drift 24.95 mm. This is
-selection evidence; M6 response blocks, visual quality and independent nominal
-proofs remain required. Duplicate unchanged controls varied substantially, so
-these results do not establish broad robustness. The earlier hold-only search
-could not correct an already-overturned M5 approach.
+M7 certificate: `m7_20261004_right_controller63_certificate/milestone_validation.json`
+under the preserved runtime's `outputs/mujoco/`. It independently revalidated
+all four directions and all six cumulative components against the exact checkpoint.
+M8 is the first unresolved gate: closed triangle following through joystick commands.
 
-Predecessor `m7_20261004_right_balance15_dual/model_0.pt` has an accepted V3
-right-gate proof: 96.40 s, −0.539 m lateral error, peak 2.799 BW. Its V3 backward
-run fell at 141.042 s; reference-only V4 fell at 113.92 s. V5 reached the backward
-gate upright in 168.39 s with 0.216 m lateral error, but failed at 3.103 BW.
-Those excessive contacts occurred around active/cruise correction transitions.
-`hysteretic_v6` keeps V5 body-heading pursuit and conditional integration, with
-5° start / 2° stop yaw hysteresis. Recorded-pose replay reduced late yaw onsets
-from 31 to 5; fresh physical validation remains required. Forward command and
-yaw cap are unchanged. All four direction proofs must use one navigator version.
+The `hysteretic_v6` navigator filters body-heading error with a 0.5 s time
+constant and uses 5° start / 2° stop steering hysteresis. It suppresses yaw that
+would worsen the command-reference/heading gap beyond 30°, releasing at 20°.
+The shadow reference integrates delivered float32 joystick yaw and is checked
+against controller memory; no simulator or controller state is assigned.
+All four direction proofs must use the same navigator version. Forward command
+0.2, yaw cap and all physical/no-reset criteria remain unchanged. The backward
+horizon is 240 s. Search retains a completion-time objective and uses a stricter
+2.9 BW training target; independent acceptance remains 3 BW.
 
-The predecessor also failed fresh M5 heading (6.53°) and M6 restart force
-(3.157 BW). Neither event used the changed right-side parameters; the failures
-expose numerical sensitivity in the unchanged left-turn/stop/restart sequence.
-The new yaw/hold grid explicitly includes both learned heads throughout these
-sequences. Original checkpoint snapshots and rejected evidence remain intact.
-`landau_yaw_hold_rebase` binds the selected row to two distinct, hashed screens
-and checks immutable donor parameters, actors, sources, metadata and command
-profile. Screening and composition never promote a milestone.
+Donor `m7_20261004_yaw_hold15_dual/model_0.pt` changed only left hold feedback
+3 to −0.03 and yaw scale 17 to 1.49. It passed repeated M5/M6 subset screens,
+then independent M5 and M6 proofs with full video. Its V6 backward run reached
+the gate but exceeded force at 139.93 s; its right run fell early. A four-gain
+right search addressed the latter and also changed backward correction history.
+Both original donor snapshots and rejected evidence remain intact.
 
-The custom `balanced_hands_v1` Landau checkpoint passed the complete cumulative set:
+An active-correction attenuation diagnostic found no uniform scale surviving
+all six state/copy replays. A bounded existing roll/rate feedback grid varied
+only parameters 18/19, with both actors frozen. Row21 survived all24 recorded
+window/copy cases across two screens (worst 2.843 BW), but failed one perturbed
+M6 restart at 3.040 BW. No row passed both the repeated recorded windows and the
+first full M5/M6 grid, so no feedback gains were applied. The second nominal
+screen was stopped because it could not repair that missing joint qualification.
+The current checkpoint keeps the donor's original feedback gains.
 
-| Gate | Exact M6 checkpoint result |
-| --- | --- |
-| M1 passive standing | 30 s, 3.484 mm drift |
-| M2 policy standing | 30 s, 4.037 mm drift |
-| M3 forward 5 m | 5.835 m in 45 s |
-| M4 forward 10 m | 10.516 m in 80 s |
-| M5 turn and hold | 91.378°, 1.378° hold error, 18.45 mm drift |
-| M6 forward/turn commands | 60 s, left +27.0°, right −21.4°, successful stop/restart |
-
-All six runs have zero falls/resets/done events and reviewed proof videos. M6 is a
-scripted joystick replay, not a live human teleoperation claim. Its final hold drift
-is 18.46 mm. The 10 m run's peak force is 2.967 body weights, close to the unchanged
-3 BW limit; these results certify the recorded nominal runs, not broad robustness.
+`landau_right_controller_rebase` binds two exact candidate rows to distinct
+search generations, seed/donor identity, actor/gait tensors, and saved helper
+hashes. `landau_yaw_hold_rebase` preserves the earlier two-screen calibration.
+Both have independently implemented certificate checks; composition is never
+milestone acceptance. Generated weights, videos and traces remain outside Git.
 
 Resume checkpoint (relative to this algorithm folder):
-`outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt`
+`outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt`
 
-SHA-256: `0c07a031b1921995f5c17e4a14f9a7dfee3d6854d376da4f2b0c205f2c63fb13`.
-Its certificate is under the same runtime's `outputs/mujoco/` in
-`rsl_transfer_20260922_teleop_preserve1_m6/milestone_validation.json`.
-All cumulative folders share the prefix `rsl_transfer_20260922_teleop_preserve1_`
-with suffixes `m1`, `m2`, `gate5m45`, `gate10m80`, `m5`, and `m6`.
-Generated checkpoints, videos, and traces remain in ignored local outputs; this
-Git commit records code, status and evidence hashes, not those binary artifacts.
+All accepted components share the prefix `m7_20261004_right_controller63_`:
+`m1`, `m2`, `m3_repeat2`, `m4`, `m5`, `m6`, and
+`hysteretic_forward`, `hysteretic_left`, `hysteretic_right`, `hysteretic_backward`.
+Generated checkpoints, videos and traces remain in ignored local outputs.
+Preserve saved controller sources when resuming. Physics and acceptance guards
+remain unchanged; G1 is not the next training target.
 
-The successful correction freezes the seven certified left-turn parameters and
-learns separate right-turn/hold and restart parameters. An earlier M6 candidate
-passed the command test but failed M5 while settling; it remains rejected history.
-Mass, geometry, joint gains, physical guards and cumulative requirements stayed
-fixed. Preserve the saved controller sources with the checkpoint when resuming.
-G1 verification is complete and is not the next training target.
+The following sections retain experiment history; current milestone truth is above.
 
 M7 continuation uses `landau_forward_control --mode evaluate --direction right
 --target-distance 10 --seconds 180 --forward .2` (or `forward`, `left`, `backward`).

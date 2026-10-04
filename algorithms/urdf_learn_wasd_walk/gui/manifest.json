@@ -370,14 +370,14 @@
       "name": "Four directions \u00b7 10 m",
       "stage": "fwd_yaw",
       "passWhen": "One checkpoint clears forward, left, right, and backward.",
-      "status": "in progress"
+      "status": "passed"
     },
     {
       "id": "triangle_path_follow_no_reset",
       "name": "Triangle path",
       "stage": "fwd_yaw",
       "passWhen": "Joystick-style waypoint commands with no reset.",
-      "status": "not started"
+      "status": "in progress"
     },
     {
       "id": "square_path_follow_no_reset",

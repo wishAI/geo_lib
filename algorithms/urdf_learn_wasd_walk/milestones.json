@@ -2,7 +2,7 @@
   "version": 2,
   "lineage": "landau_balanced_hands_mujoco_20260922",
   "backend": "mujoco_warp_cuda",
-  "implementationStatus": "milestone_6_passed_milestone_7_in_progress",
+  "implementationStatus": "milestone_7_passed_milestone_8_in_progress",
   "historyCarriedForward": false,
   "assetContract": {
     "urdfSha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
@@ -1632,17 +1632,1172 @@
       "order": 7,
       "id": "gate_10m_four_directions_no_reset",
       "stage": "fwd_yaw",
-      "status": "in_progress",
+      "status": "passed",
       "progress": {
         "canonical_pass": false,
         "summary": "Residual cruise reaches backward gate in171.49s,cross-track7.5cm,no falls/reset; one3.029BWsample during activeleftturn at49.716s fails. Corrected-bufferactive-swaysearch underway; sixmilestonescertified."
-      }
+      },
+      "passedAt": "2026-10-04T08:06:00.738753+00:00",
+      "checkpoint": {
+        "kind": "periodic_feedback_residual_ppo",
+        "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt",
+        "sha256": "e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47"
+      },
+      "metrics": {
+        "directions": {
+          "forward": {
+            "duration_s": 76.2,
+            "reset_count": 0,
+            "done_count": 0,
+            "fall_count": 0,
+            "max_reference_tilt_rad": 0.25041981613477815,
+            "root_height_drop_m": 0.0033194022785950072,
+            "horizontal_drift_m": 10.00433806498132,
+            "max_abs_action": 0.8527346611022949,
+            "max_abs_command": 0.2,
+            "policy_calls": 3810,
+            "max_joint_speed_rad_s": 3.0559606552124023,
+            "max_motor_torque_nm": 2.4843316078186035,
+            "peak_auxiliary_wrench_norm": 0.0,
+            "mean_support_body_weight_ratio": 1.001418889027404,
+            "peak_support_body_weight_ratio": 2.914423669016492,
+            "nonfoot_contacts": [],
+            "action_target_range_rad": {
+              "left_hip_pitch_joint": [
+                -0.2391656684875488,
+                0.1374639892578125
+              ],
+              "left_hip_yaw_joint": [
+                -0.052193121910095217,
+                0.05029118061065674
+              ],
+              "left_hip_roll_joint": [
+                -0.33876617431640627,
+                0.341093864440918
+              ],
+              "left_knee_joint": [
+                0.0,
+                0.3959522247314453
+              ],
+              "left_ankle_pitch_joint": [
+                -0.21799325942993164,
+                0.1498572540283203
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -0.2382805633544922,
+                0.13743179321289062
+              ],
+              "right_hip_yaw_joint": [
+                -0.052193121910095217,
+                0.05029118061065674
+              ],
+              "right_hip_roll_joint": [
+                -0.33876617431640627,
+                0.341093864440918
+              ],
+              "right_knee_joint": [
+                0.0,
+                0.3959519958496094
+              ],
+              "right_ankle_pitch_joint": [
+                -0.22245971679687504,
+                0.1369406795501709
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.06785735130310058,
+                5.198595579713583e-05
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "raw_actor_output_range": {
+              "left_hip_pitch_joint": [
+                -2.9895708560943604,
+                1.7182998657226562
+              ],
+              "left_hip_yaw_joint": [
+                -0.6524140238761902,
+                0.6286397576332092
+              ],
+              "left_hip_roll_joint": [
+                -4.234577178955078,
+                4.263673305511475
+              ],
+              "left_knee_joint": [
+                0.0,
+                4.949402809143066
+              ],
+              "left_ankle_pitch_joint": [
+                -2.7249157428741455,
+                1.873215675354004
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -2.9785070419311523,
+                1.7178974151611328
+              ],
+              "right_hip_yaw_joint": [
+                -0.6524140238761902,
+                0.6286397576332092
+              ],
+              "right_hip_roll_joint": [
+                -4.234577178955078,
+                4.263673305511475
+              ],
+              "right_knee_joint": [
+                0.0,
+                4.949399948120117
+              ],
+              "right_ankle_pitch_joint": [
+                -2.7807464599609375,
+                1.7117584943771362
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.8482168912887573,
+                0.0006498244474641979
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "semantic_forward_displacement_m": 10.001072087036134,
+            "semantic_strafe_displacement_m": 0.25561147928237915,
+            "left_foot_liftoff_count": 84,
+            "right_foot_liftoff_count": 84,
+            "mean_contact_foot_slip_mps": 0.026753490521065234,
+            "simultaneous_air_fraction": 0.013517060367454068,
+            "leg_joint_excursion_rad": {
+              "left_hip_pitch_joint": 0.3619602583348751,
+              "left_hip_yaw_joint": 0.08938484080135822,
+              "left_hip_roll_joint": 0.5141553580760956,
+              "left_knee_joint": 0.3603019416332245,
+              "left_ankle_pitch_joint": 0.3467584066092968,
+              "left_toe_joint": 4.334117875259835e-05,
+              "right_hip_pitch_joint": 0.3635467253625393,
+              "right_hip_yaw_joint": 0.08698069676756859,
+              "right_hip_roll_joint": 0.5151089727878571,
+              "right_knee_joint": 0.36162763833999634,
+              "right_ankle_pitch_joint": 0.3455440029501915,
+              "right_toe_joint": 4.016525599581655e-05,
+              "waist_yaw_joint": 0.029536168090999126,
+              "waist_roll_joint": 0.08102042227983475,
+              "waist_pitch_joint": 0.04381336411461234,
+              "left_shoulder_pitch_joint": 0.044654894387349486,
+              "right_shoulder_pitch_joint": 0.04107170458883047
+            },
+            "policy_inference_steps": 3810,
+            "control_steps": 3810,
+            "left_completed_swings": 83,
+            "right_completed_swings": 84,
+            "max_simultaneous_flight_s": 0.014,
+            "max_heading_deviation_rad": 0.3843214749425893,
+            "left_peak_clearance_m": 0.03940603448775974,
+            "right_peak_clearance_m": 0.03950746149640645,
+            "direction": "forward",
+            "gate_crossing_time_s": 76.19191539204603,
+            "gate_cross_track_m": 0.25516193325756387,
+            "direction_progress_m": 10.001072087036134,
+            "direction_cross_track_m": 0.25561147928237915,
+            "average_gate_speed_mps": 0.13124752079725166
+          },
+          "left": {
+            "duration_s": 102.18,
+            "reset_count": 0,
+            "done_count": 0,
+            "fall_count": 0,
+            "max_reference_tilt_rad": 0.2676049481031201,
+            "root_height_drop_m": 0.003543515742950476,
+            "horizontal_drift_m": 10.011725385599732,
+            "max_abs_action": 0.9034997940063476,
+            "max_abs_command": 0.2,
+            "policy_calls": 5109,
+            "max_joint_speed_rad_s": 3.2524755001068115,
+            "max_motor_torque_nm": 2.5151472091674805,
+            "peak_auxiliary_wrench_norm": 0.0,
+            "mean_support_body_weight_ratio": 1.0014172210543546,
+            "peak_support_body_weight_ratio": 2.8658897345736896,
+            "nonfoot_contacts": [],
+            "action_target_range_rad": {
+              "left_hip_pitch_joint": [
+                -0.23930622100830076,
+                0.13780747413635255
+              ],
+              "left_hip_yaw_joint": [
+                -0.06418870449066162,
+                0.046554551124572754
+              ],
+              "left_hip_roll_joint": [
+                -0.3613999176025391,
+                0.3415357971191406
+              ],
+              "left_knee_joint": [
+                0.0,
+                0.3959522247314453
+              ],
+              "left_ankle_pitch_joint": [
+                -0.2229648590087891,
+                0.14948192596435547
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -0.23895435333251955,
+                0.1379110336303711
+              ],
+              "right_hip_yaw_joint": [
+                -0.05358947277069092,
+                0.05564739227294922
+              ],
+              "right_hip_roll_joint": [
+                -0.3582652282714844,
+                0.3409654998779297
+              ],
+              "right_knee_joint": [
+                0.0,
+                0.3959519958496094
+              ],
+              "right_ankle_pitch_joint": [
+                -0.22381975173950197,
+                0.14386737823486329
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.06765282154083252,
+                5.197999067604542e-05
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "raw_actor_output_range": {
+              "left_hip_pitch_joint": [
+                -2.9913277626037598,
+                1.7225934267044067
+              ],
+              "left_hip_yaw_joint": [
+                -0.8023588061332703,
+                0.5819318890571594
+              ],
+              "left_hip_roll_joint": [
+                -4.517498970031738,
+                4.269197463989258
+              ],
+              "left_knee_joint": [
+                0.0,
+                4.949402809143066
+              ],
+              "left_ankle_pitch_joint": [
+                -2.7870607376098633,
+                1.8685240745544434
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -2.986929416656494,
+                1.7238879203796387
+              ],
+              "right_hip_yaw_joint": [
+                -0.6698684096336365,
+                0.6955924034118652
+              ],
+              "right_hip_roll_joint": [
+                -4.478315353393555,
+                4.262068748474121
+              ],
+              "right_knee_joint": [
+                0.0,
+                4.949399948120117
+              ],
+              "right_ankle_pitch_joint": [
+                -2.7977468967437744,
+                1.798342227935791
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.8456602692604065,
+                0.0006497498834505677
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "semantic_forward_displacement_m": 0.46394667838668824,
+            "semantic_strafe_displacement_m": -10.000969886779785,
+            "left_foot_liftoff_count": 113,
+            "right_foot_liftoff_count": 113,
+            "mean_contact_foot_slip_mps": 0.026877749500164055,
+            "simultaneous_air_fraction": 0.01066744959874731,
+            "leg_joint_excursion_rad": {
+              "left_hip_pitch_joint": 0.36391952633857727,
+              "left_hip_yaw_joint": 0.08215328305959702,
+              "left_hip_roll_joint": 0.519202321767807,
+              "left_knee_joint": 0.36031463742256165,
+              "left_ankle_pitch_joint": 0.35170257464051247,
+              "left_toe_joint": 4.29826213803608e-05,
+              "right_hip_pitch_joint": 0.3653918653726578,
+              "right_hip_yaw_joint": 0.07850050926208496,
+              "right_hip_roll_joint": 0.5268163681030273,
+              "right_knee_joint": 0.36171557009220123,
+              "right_ankle_pitch_joint": 0.34816960990428925,
+              "right_toe_joint": 4.153649388172198e-05,
+              "waist_yaw_joint": 0.03401011414825916,
+              "waist_roll_joint": 0.08325931057333946,
+              "waist_pitch_joint": 0.04360035201534629,
+              "left_shoulder_pitch_joint": 0.04501526104286313,
+              "right_shoulder_pitch_joint": 0.0411806870251894
+            },
+            "policy_inference_steps": 5109,
+            "control_steps": 5109,
+            "left_completed_swings": 112,
+            "right_completed_swings": 113,
+            "max_simultaneous_flight_s": 0.014,
+            "max_heading_deviation_rad": 2.264957101594206,
+            "left_peak_clearance_m": 0.041032914789060404,
+            "right_peak_clearance_m": 0.03960609962475173,
+            "direction": "left",
+            "gate_crossing_time_s": 102.17465721040189,
+            "gate_cross_track_m": 0.4631662086861703,
+            "direction_progress_m": 10.000969886779785,
+            "direction_cross_track_m": 0.46394667838668824,
+            "average_gate_speed_mps": 0.09787162759359813
+          },
+          "right": {
+            "duration_s": 95.74000000000001,
+            "reset_count": 0,
+            "done_count": 0,
+            "fall_count": 0,
+            "max_reference_tilt_rad": 0.2629810102500272,
+            "root_height_drop_m": 0.0034648078095245727,
+            "horizontal_drift_m": 10.022317746340864,
+            "max_abs_action": 0.9058375358581543,
+            "max_abs_command": 0.2,
+            "policy_calls": 4787,
+            "max_joint_speed_rad_s": 3.3186862468719482,
+            "max_motor_torque_nm": 2.6672163009643555,
+            "peak_auxiliary_wrench_norm": 0.0,
+            "mean_support_body_weight_ratio": 1.0019064538571336,
+            "peak_support_body_weight_ratio": 2.7820232925432404,
+            "nonfoot_contacts": [],
+            "action_target_range_rad": {
+              "left_hip_pitch_joint": [
+                -0.23946531295776372,
+                0.13791587829589844
+              ],
+              "left_hip_yaw_joint": [
+                -0.05848681926727295,
+                0.055390939712524415
+              ],
+              "left_hip_roll_joint": [
+                -0.3623350143432617,
+                0.3368289184570313
+              ],
+              "left_knee_joint": [
+                0.0,
+                0.3959522247314453
+              ],
+              "left_ankle_pitch_joint": [
+                -0.22307727813720707,
+                0.14992546081542968
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -0.23873104095458983,
+                0.1378249168395996
+              ],
+              "right_hip_yaw_joint": [
+                -0.05772064208984375,
+                0.059328346252441405
+              ],
+              "right_hip_roll_joint": [
+                -0.36076759338378905,
+                0.33341781616210936
+              ],
+              "right_knee_joint": [
+                0.0,
+                0.3959519958496094
+              ],
+              "right_ankle_pitch_joint": [
+                -0.22159402847290038,
+                0.13656381607055665
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.06774319171905517,
+                0.0007487697899341584
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "raw_actor_output_range": {
+              "left_hip_pitch_joint": [
+                -2.993316411972046,
+                1.7239484786987305
+              ],
+              "left_hip_yaw_joint": [
+                -0.7310852408409119,
+                0.6923867464065552
+              ],
+              "left_hip_roll_joint": [
+                -4.5291876792907715,
+                4.210361480712891
+              ],
+              "left_knee_joint": [
+                0.0,
+                4.949402809143066
+              ],
+              "left_ankle_pitch_joint": [
+                -2.788465976715088,
+                1.874068260192871
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -2.984138011932373,
+                1.7228114604949951
+              ],
+              "right_hip_yaw_joint": [
+                -0.7215080261230469,
+                0.7416043281555176
+              ],
+              "right_hip_roll_joint": [
+                -4.509594917297363,
+                4.167722702026367
+              ],
+              "right_knee_joint": [
+                0.0,
+                4.949399948120117
+              ],
+              "right_ankle_pitch_joint": [
+                -2.769925355911255,
+                1.707047700881958
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.8467898964881897,
+                0.009359622374176979
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "semantic_forward_displacement_m": 0.6671282431945801,
+            "semantic_strafe_displacement_m": 10.000089645385742,
+            "left_foot_liftoff_count": 105,
+            "right_foot_liftoff_count": 106,
+            "mean_contact_foot_slip_mps": 0.02779942620195008,
+            "simultaneous_air_fraction": 0.009964487152705244,
+            "leg_joint_excursion_rad": {
+              "left_hip_pitch_joint": 0.36535710468888283,
+              "left_hip_yaw_joint": 0.08800032548606396,
+              "left_hip_roll_joint": 0.5122227966785431,
+              "left_knee_joint": 0.36031487584114075,
+              "left_ankle_pitch_joint": 0.35101088881492615,
+              "left_toe_joint": 4.53809534519678e-05,
+              "right_hip_pitch_joint": 0.36260512471199036,
+              "right_hip_yaw_joint": 0.08540448918938637,
+              "right_hip_roll_joint": 0.5216003209352493,
+              "right_knee_joint": 0.36174429953098297,
+              "right_ankle_pitch_joint": 0.3465987853705883,
+              "right_toe_joint": 4.050034476676956e-05,
+              "waist_yaw_joint": 0.03256130684167147,
+              "waist_roll_joint": 0.08215614408254623,
+              "waist_pitch_joint": 0.04354165308177471,
+              "left_shoulder_pitch_joint": 0.045006302651017904,
+              "right_shoulder_pitch_joint": 0.0415700925514102
+            },
+            "policy_inference_steps": 4787,
+            "control_steps": 4787,
+            "left_completed_swings": 105,
+            "right_completed_swings": 106,
+            "max_simultaneous_flight_s": 0.014,
+            "max_heading_deviation_rad": 2.4036916502128576,
+            "left_peak_clearance_m": 0.0407742503194064,
+            "right_peak_clearance_m": 0.039789896898910715,
+            "direction": "right",
+            "gate_crossing_time_s": 95.73944263267123,
+            "gate_cross_track_m": -0.6670155851499646,
+            "direction_progress_m": 10.000089645385742,
+            "direction_cross_track_m": -0.6671282431945801,
+            "average_gate_speed_mps": 0.10445015894198954
+          },
+          "backward": {
+            "duration_s": 170.96,
+            "reset_count": 0,
+            "done_count": 0,
+            "fall_count": 0,
+            "max_reference_tilt_rad": 0.26571623051829474,
+            "root_height_drop_m": 0.0036943750988769897,
+            "horizontal_drift_m": 10.002566474018593,
+            "max_abs_action": 0.9026954650878907,
+            "max_abs_command": 0.2,
+            "policy_calls": 8548,
+            "max_joint_speed_rad_s": 3.3078434467315674,
+            "max_motor_torque_nm": 2.590853214263916,
+            "peak_auxiliary_wrench_norm": 0.0,
+            "mean_support_body_weight_ratio": 1.0013812040232524,
+            "peak_support_body_weight_ratio": 2.8435294250919347,
+            "nonfoot_contacts": [],
+            "action_target_range_rad": {
+              "left_hip_pitch_joint": [
+                -0.239335994720459,
+                0.13780917167663576
+              ],
+              "left_hip_yaw_joint": [
+                -0.06470411777496338,
+                0.060408129692077636
+              ],
+              "left_hip_roll_joint": [
+                -0.36107818603515623,
+                0.3397458267211914
+              ],
+              "left_knee_joint": [
+                0.0,
+                0.3959522247314453
+              ],
+              "left_ankle_pitch_joint": [
+                -0.2252291488647461,
+                0.14946118354797364
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -0.23898838043212892,
+                0.1380452823638916
+              ],
+              "right_hip_yaw_joint": [
+                -0.05667672634124756,
+                0.060420799255371097
+              ],
+              "right_hip_roll_joint": [
+                -0.3589658737182617,
+                0.3398610305786133
+              ],
+              "right_knee_joint": [
+                0.0,
+                0.3959523010253907
+              ],
+              "right_ankle_pitch_joint": [
+                -0.22681671142578125,
+                0.13728965759277345
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.06764422416687012,
+                6.935095880180598e-05
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "raw_actor_output_range": {
+              "left_hip_pitch_joint": [
+                -2.9916999340057373,
+                1.7226146459579468
+              ],
+              "left_hip_yaw_joint": [
+                -0.8088014721870422,
+                0.7551016211509705
+              ],
+              "left_hip_roll_joint": [
+                -4.513477325439453,
+                4.246822834014893
+              ],
+              "left_knee_joint": [
+                0.0,
+                4.949402809143066
+              ],
+              "left_ankle_pitch_joint": [
+                -2.815364360809326,
+                1.8682647943496704
+              ],
+              "left_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "right_hip_pitch_joint": [
+                -2.9873547554016113,
+                1.725566029548645
+              ],
+              "right_hip_yaw_joint": [
+                -0.7084590792655945,
+                0.7552599906921387
+              ],
+              "right_hip_roll_joint": [
+                -4.4870734214782715,
+                4.248262882232666
+              ],
+              "right_knee_joint": [
+                0.0,
+                4.949403762817383
+              ],
+              "right_ankle_pitch_joint": [
+                -2.8352088928222656,
+                1.716120719909668
+              ],
+              "right_toe_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_yaw_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_roll_joint": [
+                0.0,
+                0.0
+              ],
+              "waist_pitch_joint": [
+                -0.8455528020858765,
+                0.0008668869850225747
+              ],
+              "left_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ],
+              "right_shoulder_pitch_joint": [
+                0.0,
+                0.0
+              ]
+            },
+            "semantic_forward_displacement_m": -10.001231990112304,
+            "semantic_strafe_displacement_m": -0.163385272026062,
+            "left_foot_liftoff_count": 190,
+            "right_foot_liftoff_count": 190,
+            "mean_contact_foot_slip_mps": 0.026859081667885188,
+            "simultaneous_air_fraction": 0.010844642021525503,
+            "leg_joint_excursion_rad": {
+              "left_hip_pitch_joint": 0.3631942942738533,
+              "left_hip_yaw_joint": 0.08835790678858757,
+              "left_hip_roll_joint": 0.5182032436132431,
+              "left_knee_joint": 0.3603179156780243,
+              "left_ankle_pitch_joint": 0.35374559089541435,
+              "left_toe_joint": 4.4622049244935624e-05,
+              "right_hip_pitch_joint": 0.3652767911553383,
+              "right_hip_yaw_joint": 0.08466210961341858,
+              "right_hip_roll_joint": 0.5285240411758423,
+              "right_knee_joint": 0.36169418692588806,
+              "right_ankle_pitch_joint": 0.3521259520202875,
+              "right_toe_joint": 4.307781273382716e-05,
+              "waist_yaw_joint": 0.03404400125145912,
+              "waist_roll_joint": 0.08324264734983444,
+              "waist_pitch_joint": 0.044188451021909714,
+              "left_shoulder_pitch_joint": 0.04510071035474539,
+              "right_shoulder_pitch_joint": 0.041277569718658924
+            },
+            "policy_inference_steps": 8548,
+            "control_steps": 8548,
+            "left_completed_swings": 189,
+            "right_completed_swings": 190,
+            "max_simultaneous_flight_s": 0.014,
+            "max_heading_deviation_rad": 3.1415558577126284,
+            "left_peak_clearance_m": 0.0406018008998793,
+            "right_peak_clearance_m": 0.03961843617705696,
+            "direction": "backward",
+            "gate_crossing_time_s": 170.95447815659756,
+            "gate_cross_track_m": 0.16286455938535993,
+            "direction_progress_m": 10.001231990112304,
+            "direction_cross_track_m": 0.163385272026062,
+            "average_gate_speed_mps": 0.058495104122629704
+          }
+        }
+      },
+      "evidence": [
+        {
+          "kind": "validation",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_certificate/milestone_validation.json",
+          "sha256": "c289e6f14210d06e31c085c5dc614575d809490a72604896b8925ac089db0c98"
+        },
+        {
+          "kind": "forward_signed_navigation_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/signed_navigation_source.py",
+          "sha256": "bec91b5a99c51a292abce9fb5ba8dfbf530ecc1ce725f2849e8777f8c244e668"
+        },
+        {
+          "kind": "forward_dynamics.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/dynamics.json",
+          "sha256": "44ba44b5b29ae67a6e7a877a83e44d09ec4f00e64394ecf4c8d0fecc16a3665b"
+        },
+        {
+          "kind": "forward_proof_metadata.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/proof_metadata.json",
+          "sha256": "5855e6350bf0b35731065dec2d2d6310123a9a676dab6bf0c9a289bf14273c4c"
+        },
+        {
+          "kind": "forward_visual_review.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/visual_review.json",
+          "sha256": "16b41b06161e79918897ed5453330057c6a20627a03c229dea915aa43e9b88f5"
+        },
+        {
+          "kind": "forward_proof.mp4",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/proof.mp4",
+          "sha256": "7f37d745848e3ff2e23f535b93f985e6d1e9c664a2fc51e31cacb5197ed52d42"
+        },
+        {
+          "kind": "forward_trajectory.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/trajectory.npz",
+          "sha256": "567b17730c4c171302fc5dbe14d378d1b8c5a6089fb1af9a9cd64a94bdd08f9e"
+        },
+        {
+          "kind": "forward_policy_trace.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/policy_trace.npz",
+          "sha256": "8555b74aab93df135db4a28968deac687c8d119e5a1d634eb8655bf1a6008e93"
+        },
+        {
+          "kind": "forward_foot_trace.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/foot_trace.json",
+          "sha256": "d0fce49e707b2e306154a284836ccff8d2d70d6635b16a58fc2bb5f6ccf97f98"
+        },
+        {
+          "kind": "forward_direction_protocol_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/direction_protocol_source.py",
+          "sha256": "cc185eed6c4394a0667089be6e4d06a446d5bbaf3c0ed292526d69da8480f3ff"
+        },
+        {
+          "kind": "forward_controller_memory.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/controller_memory.json",
+          "sha256": "54cefea25a2ad7e2fc724a20bfa715b1c5c38126fad05feaffa48f3de5f059f5"
+        },
+        {
+          "kind": "forward_turn_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/turn_source.py",
+          "sha256": "b34af333dcdde5505d9ec62f138d58d4e5c12d5ff2f3b17e118c4444b6f5cc06"
+        },
+        {
+          "kind": "forward_gait_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        },
+        {
+          "kind": "forward_controller_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/controller_source.py",
+          "sha256": "039f08c23cf48e7f76d0ec0baa98e7febd3f9f7353dfb033faa37574ebe6d1ae"
+        },
+        {
+          "kind": "forward_backend_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/backend_source.py",
+          "sha256": "d5142103f9a7ef2457368332f448ffe64474dbef83a6a81639afd60f161fac1b"
+        },
+        {
+          "kind": "forward_model.xml",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "forward_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/residual_source.py",
+          "sha256": "f248920f01059659c6e5ebbba7deb60810a6cf5dfe25e59b528ce6223cd611c9"
+        },
+        {
+          "kind": "forward_active_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_forward/active_residual_source.py",
+          "sha256": "020f3076c3e648450885716a1c7a7af1c0e94ce7528e8c2ee548fc1274e20788"
+        },
+        {
+          "kind": "left_signed_navigation_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/signed_navigation_source.py",
+          "sha256": "bec91b5a99c51a292abce9fb5ba8dfbf530ecc1ce725f2849e8777f8c244e668"
+        },
+        {
+          "kind": "left_dynamics.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/dynamics.json",
+          "sha256": "f6b11bdc54fcfd91bd6eeab84fbb025ae59c3f72a3bbf129d8ec87b657655a9d"
+        },
+        {
+          "kind": "left_proof_metadata.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/proof_metadata.json",
+          "sha256": "73fd8ca32e2ae5c9429c7ed0685f4005b4930056e5006a1a1d3912a7825baab9"
+        },
+        {
+          "kind": "left_visual_review.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/visual_review.json",
+          "sha256": "594fcbc5dbd6f456b666323315353e07cca6f3d3505052cd1ff809ed46c24cca"
+        },
+        {
+          "kind": "left_proof.mp4",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/proof.mp4",
+          "sha256": "7beedae74a6845099c79922c97f7a79428c37f87f4fc73794e5ab5abad4aba2f"
+        },
+        {
+          "kind": "left_trajectory.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/trajectory.npz",
+          "sha256": "9adde10ef1e32e060ba1f7b652a01c2392452e3944e1af65f970f2372627de7d"
+        },
+        {
+          "kind": "left_policy_trace.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/policy_trace.npz",
+          "sha256": "b4651d08c729ea0819d9d0c1f961c146a63a8a4ec841c6a3f87100a1d223d4b4"
+        },
+        {
+          "kind": "left_foot_trace.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/foot_trace.json",
+          "sha256": "dcc07762733a3633ca2e467988a459b0b8556de5f944aa0838e1af1e3427dc95"
+        },
+        {
+          "kind": "left_direction_protocol_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/direction_protocol_source.py",
+          "sha256": "cc185eed6c4394a0667089be6e4d06a446d5bbaf3c0ed292526d69da8480f3ff"
+        },
+        {
+          "kind": "left_controller_memory.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/controller_memory.json",
+          "sha256": "f65a0e70439c5f360efabc6d8a71b86ef49411ee9bb6e5f8fabc097753435c0b"
+        },
+        {
+          "kind": "left_turn_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/turn_source.py",
+          "sha256": "b34af333dcdde5505d9ec62f138d58d4e5c12d5ff2f3b17e118c4444b6f5cc06"
+        },
+        {
+          "kind": "left_gait_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        },
+        {
+          "kind": "left_controller_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/controller_source.py",
+          "sha256": "039f08c23cf48e7f76d0ec0baa98e7febd3f9f7353dfb033faa37574ebe6d1ae"
+        },
+        {
+          "kind": "left_backend_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/backend_source.py",
+          "sha256": "d5142103f9a7ef2457368332f448ffe64474dbef83a6a81639afd60f161fac1b"
+        },
+        {
+          "kind": "left_model.xml",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "left_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/residual_source.py",
+          "sha256": "f248920f01059659c6e5ebbba7deb60810a6cf5dfe25e59b528ce6223cd611c9"
+        },
+        {
+          "kind": "left_active_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_left/active_residual_source.py",
+          "sha256": "020f3076c3e648450885716a1c7a7af1c0e94ce7528e8c2ee548fc1274e20788"
+        },
+        {
+          "kind": "right_signed_navigation_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/signed_navigation_source.py",
+          "sha256": "bec91b5a99c51a292abce9fb5ba8dfbf530ecc1ce725f2849e8777f8c244e668"
+        },
+        {
+          "kind": "right_dynamics.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/dynamics.json",
+          "sha256": "3f2b72ed89c45c11eaadc03b653e7841cffd29bd1695f02102eebf1c4b4b5b8c"
+        },
+        {
+          "kind": "right_proof_metadata.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/proof_metadata.json",
+          "sha256": "a7c306cf3e507e5ead00488ebe5426479db181f8fd9b062e8939ccb3c8632e8d"
+        },
+        {
+          "kind": "right_visual_review.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/visual_review.json",
+          "sha256": "6059f991f628018fdb80125d326c8d1acecc40890d68b76f7fd52d3a09f7ddeb"
+        },
+        {
+          "kind": "right_proof.mp4",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/proof.mp4",
+          "sha256": "adcbfe68a5c6f7c14f4d1f105c4c5d48aa3a926ad10e461693e36fb89c1ce539"
+        },
+        {
+          "kind": "right_trajectory.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/trajectory.npz",
+          "sha256": "a39c236429c19ce0d6bd87919050fb64cc1bd8c717874ee8869d2b3787ccb3f3"
+        },
+        {
+          "kind": "right_policy_trace.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/policy_trace.npz",
+          "sha256": "d1f9d055cde6e789bf324f31ac549d9d3644c23784ddc8084e00bbd895409077"
+        },
+        {
+          "kind": "right_foot_trace.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/foot_trace.json",
+          "sha256": "7b5742f1304dc9c809731426b245a0589ffc009b0e54484be7b6b2c7480944d1"
+        },
+        {
+          "kind": "right_direction_protocol_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/direction_protocol_source.py",
+          "sha256": "cc185eed6c4394a0667089be6e4d06a446d5bbaf3c0ed292526d69da8480f3ff"
+        },
+        {
+          "kind": "right_controller_memory.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/controller_memory.json",
+          "sha256": "01afb8dcc5d1ff81bb1174c3f06fa7cdd28fb5750b6ea4c883a98f9d3613b7c2"
+        },
+        {
+          "kind": "right_turn_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/turn_source.py",
+          "sha256": "b34af333dcdde5505d9ec62f138d58d4e5c12d5ff2f3b17e118c4444b6f5cc06"
+        },
+        {
+          "kind": "right_gait_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        },
+        {
+          "kind": "right_controller_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/controller_source.py",
+          "sha256": "039f08c23cf48e7f76d0ec0baa98e7febd3f9f7353dfb033faa37574ebe6d1ae"
+        },
+        {
+          "kind": "right_backend_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/backend_source.py",
+          "sha256": "d5142103f9a7ef2457368332f448ffe64474dbef83a6a81639afd60f161fac1b"
+        },
+        {
+          "kind": "right_model.xml",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "right_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/residual_source.py",
+          "sha256": "f248920f01059659c6e5ebbba7deb60810a6cf5dfe25e59b528ce6223cd611c9"
+        },
+        {
+          "kind": "right_active_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_right/active_residual_source.py",
+          "sha256": "020f3076c3e648450885716a1c7a7af1c0e94ce7528e8c2ee548fc1274e20788"
+        },
+        {
+          "kind": "backward_signed_navigation_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/signed_navigation_source.py",
+          "sha256": "bec91b5a99c51a292abce9fb5ba8dfbf530ecc1ce725f2849e8777f8c244e668"
+        },
+        {
+          "kind": "backward_dynamics.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/dynamics.json",
+          "sha256": "2becc4a910b33b27aebf80814912f8e44bb8680c265cfc04c91be9b27498df56"
+        },
+        {
+          "kind": "backward_proof_metadata.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/proof_metadata.json",
+          "sha256": "ef17908af6799fd4cc6f50a868f0d7abda974ccc5e51128a8c9bb0af4eb3445c"
+        },
+        {
+          "kind": "backward_visual_review.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/visual_review.json",
+          "sha256": "d136f7f92213811ff84fdec49385475b1577c1aca4ea30e2d60731efcc3478eb"
+        },
+        {
+          "kind": "backward_proof.mp4",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/proof.mp4",
+          "sha256": "83ebadd9cb93dedd1be5cbe05090534f337d452342327d7fb497c7b017fe0d91"
+        },
+        {
+          "kind": "backward_trajectory.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/trajectory.npz",
+          "sha256": "495d74423f59a4494b85bb065505ccc37305d71a72cb154d22a63439730934f1"
+        },
+        {
+          "kind": "backward_policy_trace.npz",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/policy_trace.npz",
+          "sha256": "e4fb63847031164e50a5a844ecd8bee01e99aa4fbcad2b6adfe6c156339070ac"
+        },
+        {
+          "kind": "backward_foot_trace.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/foot_trace.json",
+          "sha256": "5ba67e8d5d0310d74f45ab1376d35c2930bf0a070401117811d13f5e5cffea41"
+        },
+        {
+          "kind": "backward_direction_protocol_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/direction_protocol_source.py",
+          "sha256": "cc185eed6c4394a0667089be6e4d06a446d5bbaf3c0ed292526d69da8480f3ff"
+        },
+        {
+          "kind": "backward_controller_memory.json",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/controller_memory.json",
+          "sha256": "c7442bb12aa831448155d320e7e4ded5fc54ec3b0001e6f493a12d5c67c24a85"
+        },
+        {
+          "kind": "backward_turn_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/turn_source.py",
+          "sha256": "b34af333dcdde5505d9ec62f138d58d4e5c12d5ff2f3b17e118c4444b6f5cc06"
+        },
+        {
+          "kind": "backward_gait_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/gait_source.py",
+          "sha256": "c957cde28260addd2e1dfc076c6232d4c16a48bd396a51fb954532b0cac6c100"
+        },
+        {
+          "kind": "backward_controller_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/controller_source.py",
+          "sha256": "039f08c23cf48e7f76d0ec0baa98e7febd3f9f7353dfb033faa37574ebe6d1ae"
+        },
+        {
+          "kind": "backward_backend_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/backend_source.py",
+          "sha256": "d5142103f9a7ef2457368332f448ffe64474dbef83a6a81639afd60f161fac1b"
+        },
+        {
+          "kind": "backward_model.xml",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/model.xml",
+          "sha256": "4c9241a9bd5550853e0d29d8750a5549a0e607c5a5bde4ca3cbf9990820af0d2"
+        },
+        {
+          "kind": "backward_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/residual_source.py",
+          "sha256": "f248920f01059659c6e5ebbba7deb60810a6cf5dfe25e59b528ce6223cd611c9"
+        },
+        {
+          "kind": "backward_active_residual_source.py",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/m7_20261004_right_controller63_hysteretic_backward/active_residual_source.py",
+          "sha256": "020f3076c3e648450885716a1c7a7af1c0e94ce7528e8c2ee548fc1274e20788"
+        },
+        {
+          "kind": "checkpoint_training_metadata",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/training.json",
+          "sha256": "a3aca4d546735e32695bf6ffd5b7b2b4f85a33e2ee955ec62ffcbe8f4111c0ef"
+        },
+        {
+          "kind": "checkpoint_right_controller_composition_source",
+          "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/right_controller_rebase_source.py",
+          "sha256": "fc8415697a6b566e1e065e28f4caa88cca5d6be277c3efa67d23cc833c506c97"
+        }
+      ]
     },
     {
       "order": 8,
       "id": "triangle_path_follow_no_reset",
       "stage": "fwd_yaw",
-      "status": "not_started"
+      "status": "in_progress"
     },
     {
       "order": 9,
@@ -2764,7 +3919,7 @@
       "conclusion": "Fullscale139s reproduces139.94s impact; attenuation reduces it but fails other earlier-start replays. No scale selected or exported."
     },
     "rightControllerSearch": {
-      "status": "completed; exact candidate passed all four starts in two generations",
+      "status": "M7 certified with exact-checkpoint cumulative and four-direction validation",
       "run": "m7_20261004_right_controller_search",
       "searched_indices": [
         7,
@@ -2810,7 +3965,122 @@
       },
       "right_visual_review_sha256": "6059f991f628018fdb80125d326c8d1acecc40890d68b76f7fd52d3a09f7ddeb",
       "backward_run": "m7_20261004_right_controller63_hysteretic_backward",
-      "backward_status": "running"
+      "backward_status": "accepted full video and independent MAIN backward validator passed",
+      "backward_metrics": {
+        "duration_s": 170.96,
+        "gate_crossing_time_s": 170.95447815659756,
+        "gate_cross_track_m": 0.16286455938535993,
+        "peak_support_body_weight_ratio": 2.8435294250919347,
+        "fall_count": 0
+      },
+      "next_step": "M7 certified; implement M8 closed triangle joystick path",
+      "backward_visual_review_sha256": "d136f7f92213811ff84fdec49385475b1577c1aca4ea30e2d60731efcc3478eb",
+      "remaining_validation_sequence": "m7_20261004_right_controller63_validation_sequence.jsonl",
+      "left_run": "m7_20261004_right_controller63_hysteretic_left",
+      "left_status": "accepted full video and independent MAIN left validator passed",
+      "left_metrics": {
+        "gate_crossing_time_s": 102.17465721040189,
+        "gate_cross_track_m": 0.4631662086861703,
+        "peak_support_body_weight_ratio": 2.8658897345736896,
+        "fall_count": 0
+      },
+      "left_visual_review_sha256": "594fcbc5dbd6f456b666323315353e07cca6f3d3505052cd1ff809ed46c24cca",
+      "cumulative": {
+        "m5": {
+          "run": "m7_20261004_right_controller63_m5",
+          "status": "accepted fullvideo and independentMAINvalidator passed",
+          "hold_error_rad": 0.017064128174497872,
+          "hold_drift_m": 0.018515438594514357,
+          "peak_support_bw": 2.8107936656175645,
+          "visual_review_sha256": "c12c9f16099d6262d2b473a160d9b0c9be7595c3f1d661dd70fed9c8f7a65021"
+        },
+        "m6": {
+          "run": "m7_20261004_right_controller63_m6",
+          "status": "accepted fullvideo and independentMAINvalidator passed",
+          "duration_s": 60.0,
+          "peak_support_bw": 2.9783974707014456,
+          "visual_review_sha256": "9ae79394ad79f40d361b6687d1a6010a8b671498405caf87591c894196051aea"
+        },
+        "m2": {
+          "run": "m7_20261004_right_controller63_m2",
+          "status": "accepted full video and independent MAIN standingvalidator passed",
+          "duration_s": 30.0,
+          "drift_m": 0.004036888645700357,
+          "visual_review_sha256": "19a0ff656f6c14407e22544ac84a302cf7e8fa1e810e845c0637147ceaa2d77d"
+        },
+        "m3": {
+          "run": "m7_20261004_right_controller63_m3_repeat2",
+          "status": "accepted full video and independent MAIN walkingvalidator passed",
+          "duration_s": 45.0,
+          "forward_m": 5.8396007201538085,
+          "lateral_m": 0.3371531069278717,
+          "first5m_lateral_m": 0.398454437,
+          "peak_support_bw": 2.8649722882781004,
+          "visual_review_sha256": "8415fa9e89264819c2a88e3d4d4c5bff5c0f25232ad2b0080485f51fb1dc7230"
+        },
+        "m1": {
+          "run": "m7_20261004_right_controller63_m1",
+          "status": "accepted full video and independent MAIN standingvalidator passed",
+          "duration_s": 30.0,
+          "drift_m": 0.0034843327525078014,
+          "visual_review_sha256": "b7d68b9b3a0896981f062a241df9d8774c5d8f1978c5a46b7a33f10129c226f0"
+        },
+        "m3_rejected_initial": {
+          "run": "m7_20261004_right_controller63_m3",
+          "status": "rejected; lateral drift exceeded.75m",
+          "duration_s": 45.0,
+          "forward_m": 5.783943333374023,
+          "lateral_m": 0.8405773639678955,
+          "peak_support_bw": 2.8536138164692613,
+          "fall_count": 0,
+          "visual_review_sha256": "443869effac2ede58e78b7e4dcf3a04976887672ee0c3c0781b62f59d3439f35"
+        },
+        "m4": {
+          "run": "m7_20261004_right_controller63_m4",
+          "status": "accepted full video and independent MAIN validator passed",
+          "duration_s": 80.0,
+          "forward_m": 10.511635937438966,
+          "lateral_m": -0.12635251879692078,
+          "first10m_time_s": 76.140784,
+          "first10m_lateral_m": -0.001291,
+          "peak_support_bw": 2.9582890833067945,
+          "visual_review_sha256": "23f21376df7c083e593660b57b38a5c78de385804d2a8f5a8d3b36007a9f01c9"
+        }
+      },
+      "forward_run": "m7_20261004_right_controller63_hysteretic_forward",
+      "forward_status": "accepted full video and independent MAIN forward validator passed",
+      "forward_metrics": {
+        "gate_crossing_time_s": 76.19191539204603,
+        "gate_cross_track_m": 0.25516193325756387,
+        "peak_support_body_weight_ratio": 2.914423669016492,
+        "fall_count": 0
+      },
+      "sequence_status": "stopped at rejected M3 plainforward lateral drift",
+      "forwardRepeatDiagnostic": {
+        "reason": "Allcommands/actions/modelinitialstate match passingM7forward; numericalphysicsdivergence at.02s and narrow straight-gait margin. Two fixed45s repeats declared in advance; no gains changed.",
+        "original_failure_retained": true,
+        "repeats": [
+          {
+            "run": "m7_20261004_right_controller63_m3_repeat1",
+            "first5m_time_s": 39.040704536,
+            "first5m_lateral_m": 0.750201382,
+            "endpoint_lateral_m": 0.659721051,
+            "peak_support_bw": 2.7569410742978255,
+            "dynamics_pass": true
+          },
+          {
+            "run": "m7_20261004_right_controller63_m3_repeat2",
+            "first5m_time_s": 38.765995399,
+            "first5m_lateral_m": 0.398454437,
+            "endpoint_lateral_m": 0.337153114,
+            "peak_support_bw": 2.864972,
+            "dynamics_pass": true
+          }
+        ],
+        "selected_proof": "repeat2; accepted full video and independent validation, included in M7 certificate",
+        "claim_limit": "Nominal successful proof; no broad repeatability claim"
+      },
+      "forward_visual_review_sha256": "16b41b06161e79918897ed5453330057c6a20627a03c229dea915aa43e9b88f5"
     },
     "feedbackCalibration": {
       "status": "no jointly qualified row; no gains applied or checkpoint exported",
