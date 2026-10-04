@@ -421,7 +421,8 @@ def evaluate(args):
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
     residual=None;active_residual=None
-    active_scaled=meta.get('residual_variant')=='scaled_active_half_cruise_v1'
+    zero_active=meta.get('residual_variant')=='zero_active_half_cruise_v1'
+    active_scaled=zero_active or meta.get('residual_variant')=='scaled_active_half_cruise_v1'
     if not active_scaled and any(k.startswith(('active_scale_','active_output_scale')) for k in (*meta,*blob)):raise ValueError('Unexpected active scaling metadata')
     half_cruise=active_scaled or meta.get('residual_variant')=='half_cruise_frozen_dual_v1'
     if not half_cruise and any(k.startswith(('cruise_scale_','cruise_output_scale')) for k in (*meta,*blob)):raise ValueError('Unexpected cruise scaling metadata')
@@ -431,11 +432,14 @@ def evaluate(args):
     calibrated=meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1'
     if not (calibrated or right_calibrated or half_cruise) and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
         raise ValueError('Unexpected yaw/hold calibration metadata')
-    if meta.get('residual_variant') not in ('scaled_active_half_cruise_v1','half_cruise_frozen_dual_v1','right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
+    if meta.get('residual_variant') not in ('zero_active_half_cruise_v1','scaled_active_half_cruise_v1','half_cruise_frozen_dual_v1','right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
         raise ValueError('Unexpected right rebase metadata')
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
     if active_scaled:
-        from algorithms.urdf_learn_wasd_walk import landau_active_scale as active_scale
+        if zero_active:
+            from algorithms.urdf_learn_wasd_walk import landau_zero_active as active_scale
+        else:
+            from algorithms.urdf_learn_wasd_walk import landau_active_scale as active_scale
         from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as cruise_scale
         check_active_contract=active_scale.check_contract
         active_scale.check_sources(checkpoint.parent,meta,backend.digest)

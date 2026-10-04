@@ -67,13 +67,41 @@ first nominal triangle completed in 344.92 s without falls or resets but failed
 one 3.130 BW landing sample. The first of two predeclared unchanged repeats
 also completed (345.92 s), with three excessive landings and peak 3.143 BW.
 The second repeat completed in 345.94 s with no numerical failures and peak
-2.976 BW; full review and fresh cumulative validation are in progress. Both
+2.976 BW; full visual review and independent triangle validation passed. Both
 failed trials retain full videos and exact action replay; all limits and speed
 remain fixed. This is a nominal passing trial, not broad repeatability. Fresh M1–M7 evidence is required
 before M8 promotion. The
 `qualify-directions` finalizer records that candidate's ten prerequisite runs
 without changing the historical M7 certificate; `certify-triangle` rechecks
 them against an explicitly supplied certificate path and SHA-256.
+
+The half-cruise candidate independently passed fresh M1–M6 and forward/left/right
+prerequisites, but all three fixed backward attempts failed the 3 BW limit
+(peaks 3.172, 3.167, and 3.025 BW), despite reaching the gate without falls.
+The candidate therefore cannot receive M8 credit. All failed proofs and reviews
+remain available; no additional unchanged backward repeat is planned.
+
+Exact action audits attributed the backward impacts to active steering and the
+transition from cruise into steering. Three restored-state screens compared
+active correction fractions 0, 0.25, 0.5, 0.75, and 1 while fixing cruise at 0.5.
+Quarter active correction passed all 30 cases, with worst peak 2.944 BW;
+0.5 and 0.75 each failed the expanded backward screen. These are diagnostics,
+not nominal acceptance. The new experimental `m8_20261004_quarter_active_dual`
+(SHA-256 `949d65ac87e3e59c2cad75f330ed95214f4732896e264ed6c033a6b1bd025139`)
+keeps all learned tensors, all 20 turn parameters, and forward command 0.2 fixed.
+Its first nominal backward trial reached the gate in 170.21 s without falling,
+but one 3.037 BW impact at 153.34 s failed the force limit. Diagnosis is in
+progress. Any promotion requires fresh
+proofs for this exact checkpoint through M8, including both standing gates.
+
+The quarter-active failure occurred during a renewed-steering transition.
+A crossed diagnostic tested cruise 0/0.25/0.5 and active 0/0.25 from three
+healthy prefixes. No pair passed all six cases. Half cruise with zero active
+passed the four earlier-start cases but failed the two latest-start cases;
+reducing cruise further did not improve this consistently. A full nominal
+`m8_20261004_zero_active_dual` backward trial is now running. The zero-active
+setting had also passed all 30 preceding diagnostic cases, but it receives no
+credit until complete fresh nominal evidence passes.
 
 Proof rendering now caches the recorded qpos array instead of decompressing it
 twice per frame. The repeat video retained all 17,297 frames at 50 fps and every

@@ -380,6 +380,8 @@ def check_scaled_active(folder,result,training,checkpoint):
     """Independently verify a scalar-only experimental edge, then its donor."""
     import torch
     folder=Path(folder);checkpoint=Path(checkpoint)
+    zero_active=training.get('residual_variant')=='zero_active_half_cruise_v1'
+    expected_variant='zero_active_half_cruise_v1' if zero_active else 'scaled_active_half_cruise_v1'
     donor=Path(training['active_scale_donor_checkpoint']);old=read(donor.parent/'training.json')
     require(old.get('residual_variant')=='half_cruise_frozen_dual_v1' and
             digest(donor)==training['active_scale_donor_checkpoint_sha256'] and
@@ -387,10 +389,10 @@ def check_scaled_active(folder,result,training,checkpoint):
             old['checkpoints'][donor.name]==digest(donor) and not str(old.get('status','')).startswith('invalidated_'), 'Scaled-active donor changed')
     candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
     original=torch.load(donor,map_location='cpu',weights_only=False)
-    require(candidate.get('residual_variant')==training['residual_variant']==result.get('residual_variant')=='scaled_active_half_cruise_v1', 'Scaled-active variant mismatch')
+    require(candidate.get('residual_variant')==training['residual_variant']==result.get('residual_variant')==expected_variant, 'Scaled-active variant mismatch')
     for record in (training,candidate,result):
-        require(type(record.get('active_output_scale')) is float and record['active_output_scale']==.25, 'Scaled-active scale must equal0.25')
-    require(result.get('residual_dispatch')=='deterministic_half_cruise_quarter_active_v1', 'Scaled-active dispatch mismatch')
+        require(type(record.get('active_output_scale')) is float and record['active_output_scale']==(0.0 if zero_active else .25), 'Scaled-active scale must match its exact variant')
+    require(result.get('residual_dispatch')==('deterministic_half_cruise_zero_active_v1' if zero_active else 'deterministic_half_cruise_quarter_active_v1'), 'Scaled-active dispatch mismatch')
     require(candidate.keys()==original.keys()|{'active_output_scale'}, 'Scaled-active checkpoint schema changed')
     def identical(a,b):
         if torch.is_tensor(a):return torch.is_tensor(b) and a.dtype==b.dtype and torch.equal(a,b)
@@ -410,7 +412,7 @@ def check_scaled_active(folder,result,training,checkpoint):
                      'active_residual_source.py','right_rebase_source.py','yaw_hold_rebase_source.py','right_controller_rebase_source.py','cruise_scale_source.py'):
         require(digest(checkpoint.parent/filename)==digest(donor.parent/filename), 'Scaled-active inherited source changed')
     require(training['active_scale_source_sha256']==digest(checkpoint.parent/'active_scale_source.py')==
-            digest(folder/'active_scale_source.py')==result.get('active_scale_source_sha256')==digest(ALG/'landau_active_scale.py'), 'Scaled-active composition source mismatch')
+            digest(folder/'active_scale_source.py')==result.get('active_scale_source_sha256')==digest(ALG/('landau_zero_active.py' if zero_active else 'landau_active_scale.py')), 'Scaled-active composition source mismatch')
     for source in ('residual_source','active_residual_source'):
         require(training[source+'_sha256']==digest(checkpoint.parent/(source+'.py'))==
                 digest(folder/(source+'.py'))==result.get(source+'_sha256'), 'Scaled-active actor source mismatch')
@@ -424,7 +426,7 @@ def check_scaled_active(folder,result,training,checkpoint):
 def check_residual_source(folder,result,training,checkpoint):
     """Independently bind the hybrid controller and its unchanged frozen parent."""
     import torch
-    if training.get('residual_variant')=='scaled_active_half_cruise_v1':
+    if training.get('residual_variant') in ('scaled_active_half_cruise_v1','zero_active_half_cruise_v1'):
         check_scaled_active(folder,result,training,checkpoint)
         return
     candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
@@ -1033,9 +1035,9 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
         evidence.append(artifact(checkpoint.parent/'right_controller_rebase_source.py','checkpoint_right_controller_composition_source'))
     if read(checkpoint.parent/'training.json').get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
         evidence.append(artifact(checkpoint.parent/'yaw_hold_rebase_source.py','checkpoint_yaw_hold_composition_source'))
-    if read(checkpoint.parent/'training.json').get('residual_variant') in ('half_cruise_frozen_dual_v1','scaled_active_half_cruise_v1'):
+    if read(checkpoint.parent/'training.json').get('residual_variant') in ('half_cruise_frozen_dual_v1','scaled_active_half_cruise_v1','zero_active_half_cruise_v1'):
         evidence.append(artifact(checkpoint.parent/'cruise_scale_source.py','checkpoint_cruise_scale_source'))
-    if read(checkpoint.parent/'training.json').get('residual_variant')=='scaled_active_half_cruise_v1':
+    if read(checkpoint.parent/'training.json').get('residual_variant') in ('scaled_active_half_cruise_v1','zero_active_half_cruise_v1'):
         evidence.append(artifact(checkpoint.parent/'active_scale_source.py','checkpoint_active_scale_source'))
     metrics={'directions':{k:v['metrics'] for k,v in directions.items()}}
     final={'status':'passed','lineage':LINEAGE,'backend':ledger['backend'],'milestone':target['id'],
@@ -1113,9 +1115,9 @@ def certify_triangle(folder, checkpoint, triangle_folder, *, prerequisite_certif
                  'controller_source.py','backend_source.py','renderer_source.py','warp_runtime_source.py','warp_health_source.py','model.xml'):
         evidence.append(artifact(triangle_folder/name,name))
     evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
-    if read(checkpoint.parent/'training.json').get('residual_variant') in ('half_cruise_frozen_dual_v1','scaled_active_half_cruise_v1'):
+    if read(checkpoint.parent/'training.json').get('residual_variant') in ('half_cruise_frozen_dual_v1','scaled_active_half_cruise_v1','zero_active_half_cruise_v1'):
         evidence.append(artifact(triangle_folder/'cruise_scale_source.py','cruise_scale_source.py'))
-    if read(checkpoint.parent/'training.json').get('residual_variant')=='scaled_active_half_cruise_v1':
+    if read(checkpoint.parent/'training.json').get('residual_variant') in ('scaled_active_half_cruise_v1','zero_active_half_cruise_v1'):
         evidence.append(artifact(triangle_folder/'active_scale_source.py','active_scale_source.py'))
     final=dict(status='passed',lineage=LINEAGE,backend=ledger['backend'],milestone=target['id'],
                assembled_at=datetime.now(timezone.utc).isoformat(),checkpoint=prior['checkpoint'],metrics=metrics,

@@ -66,12 +66,12 @@ def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
         folder = Path(folder).resolve()
         result = json.loads((folder/'dynamics.json').read_text())
         cfg = result['config']
-        protocol_ok = (cfg.get('direction') in ('left','backward') and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_retention' else (bool(cfg.get('triangle')) and cfg['checkpoint_sha256']==digest(checkpoint)) if mode in ('cruise_attribution','triangle_active') else (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode in ('active','backward_active') else cfg.get('turn' if mode=='m5' else 'teleop')
+        protocol_ok = (cfg.get('direction') in ('left','backward') and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_retention' else (bool(cfg.get('triangle')) and cfg['checkpoint_sha256']==digest(checkpoint)) if mode in ('cruise_attribution','triangle_active') else (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode in ('active','backward_active','quarter_cruise_transition') else cfg.get('turn' if mode=='m5' else 'teleop')
         if cfg['checkpoint_sha256'] not in allowed or not protocol_ok:
             raise ValueError('Warm start checkpoint or protocol mismatch')
-        if mode in ('triangle_active','backward_active'):
+        if mode in ('triangle_active','backward_active','quarter_cruise_transition'):
             from algorithms.urdf_learn_wasd_walk import mujoco_milestones as gates
-            if (meta.get('residual_variant')!='half_cruise_frozen_dual_v1' or
+            if (meta.get('residual_variant')!=('scaled_active_half_cruise_v1' if mode=='quarter_cruise_transition' else 'half_cruise_frozen_dual_v1') or
                 any(cfg.get(k) for k in (('turn','teleop','direction') if mode=='triangle_active' else ('turn','teleop','triangle'))) or
                 any(result['metrics'].get(k,1)!=0 for k in ('reset_count','done_count','fall_count')) or
                 result['metrics'].get('nonfoot_contacts',True)):
@@ -152,7 +152,8 @@ def run(args):
     from algorithms.urdf_learn_wasd_walk.landau_turn_control import install_physics_audit
     from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop
     nominal_mode=args.nominal_grid or args.feedback_nominal_grid
-    cruise_diagnostic=getattr(args,'cruise_scale_diagnostic',False) or getattr(args,'cruise_retention_diagnostic',False)
+    quarter_transition=getattr(args,'quarter_cruise_transition_diagnostic',False)
+    cruise_diagnostic=getattr(args,'cruise_scale_diagnostic',False) or getattr(args,'cruise_retention_diagnostic',False) or quarter_transition
     triangle_active=getattr(args,'triangle_active_scale_diagnostic',False)
     backward_active=getattr(args,'half_backward_active_scale_diagnostic',False)
     half_active=triangle_active or backward_active
@@ -164,9 +165,16 @@ def run(args):
     if meta['checkpoints'][checkpoint.name] != backend.digest(checkpoint):raise ValueError('Checkpoint changed')
     if meta['action_scale'] != action_scales(meta['action_joints'],.4):raise ValueError('Calibration action scales changed')
     blob = torch.load(checkpoint,map_location='cpu',weights_only=False)
+    quarter_active=meta.get('residual_variant')=='scaled_active_half_cruise_v1'
+    if quarter_transition!=quarter_active:raise ValueError('Quarter-active candidate requires cruise-transition diagnostic')
     half_cruise=meta.get('residual_variant')=='half_cruise_frozen_dual_v1'
     if half_active != half_cruise:raise ValueError('Half-cruise calibration requires triangle or backward active attribution')
-    if half_cruise:
+    if quarter_active:
+        from algorithms.urdf_learn_wasd_walk import landau_active_scale as active_scale
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as half
+        check_contract=active_scale.check_contract
+        active_scale.check_sources(checkpoint.parent,meta,backend.digest)
+    elif half_cruise:
         from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as half
         check_contract=half.check_contract
         half.check_sources(checkpoint.parent,meta,backend.digest)
@@ -181,7 +189,10 @@ def run(args):
     base,_ = load_gait_source(checkpoint,meta)
     residual = load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'hold_saved_cruise')
     active = load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'hold_saved_active')
-    if backward_active:
+    if quarter_transition:
+        prepared=[('quarter_cruise_transition',*load_starts([args.backward_directory],checkpoint,meta,turn,'quarter_cruise_transition',age,backend.digest),age,159.)
+                  for age in (151.,152.,153.)]
+    elif backward_active:
         backward_sources=[args.backward_directory,args.backward_repeat_directory]
         if args.backward_third_directory:backward_sources.append(args.backward_third_directory)
         if len({Path(p).resolve() for p in backward_sources})!=len(backward_sources):
@@ -217,13 +228,14 @@ def run(args):
     folder = backend.OUTPUT/args.name
     folder.mkdir(exist_ok=False)
     (folder/'screen_source.py').write_bytes(Path(__file__).read_bytes())
-    if half_cruise:(folder/'cruise_scale_source.py').write_bytes((checkpoint.parent/'cruise_scale_source.py').read_bytes())
+    if quarter_active:(folder/'active_scale_source.py').write_bytes((checkpoint.parent/'active_scale_source.py').read_bytes())
+    if half_cruise or quarter_active:(folder/'cruise_scale_source.py').write_bytes((checkpoint.parent/'cruise_scale_source.py').read_bytes())
     (folder/'audit_source.py').write_bytes(Path(install_physics_audit.__code__.co_filename).read_bytes())
     if backend.digest(teleop.__file__) != backend.digest(checkpoint.parent/'teleop_contract.py'):
         raise ValueError('Calibration teleop protocol differs from saved controller')
     (folder/'teleop_source.py').write_bytes(Path(teleop.__file__).read_bytes())
     torch.set_num_threads(4);torch.manual_seed(42)
-    grid = (blob['turn_parameters'].repeat(3 if cruise_diagnostic else 5,1) if scale_diagnostic else
+    grid = (blob['turn_parameters'].repeat(6 if quarter_transition else 3 if cruise_diagnostic else 5,1) if scale_diagnostic else
             (feedback_grid if args.feedback_grid or args.feedback_nominal_grid else nominal_grid if nominal_mode else parameter_grid)(blob['turn_parameters'])).to('cuda')
     prior = make_actor(63,'cuda');prior.load_state_dict(blob['standing_actor_state_dict']);prior.eval()
     cruise_actor = residual.make_actor('cuda');cruise_actor.load_state_dict(blob['residual_actor_state_dict']);cruise_actor.eval()
@@ -252,9 +264,10 @@ def run(args):
         wp.capture_launch(batch.forward_graph);wp.synchronize()
         for value in audit.values():value.zero_()
         params = grid.repeat_interleave(width,dim=0)
-        scales = torch.tensor([0.,.5,1.] if cruise_diagnostic else [0.,.25,.5,.75,1.],device='cuda').repeat_interleave(width) if scale_diagnostic else None
+        scales = torch.tensor([0.,0.,.5,.5,1.,1.] if quarter_transition else [0.,.5,1.] if cruise_diagnostic else [0.,.25,.5,.75,1.],device='cuda').repeat_interleave(width) if scale_diagnostic else None
+        active_factors=torch.tensor([0.,1.,0.,1.,0.,1.],device='cuda').repeat_interleave(width) if quarter_transition else None
         replay=None
-        if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active'):
+        if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active','quarter_cruise_transition'):
             with np.load(Path(sources[0]['directory'])/'policy_trace.npz') as saved:
                 replay={key:saved[key] for key in ('time','observation')}
         if replay is not None:
@@ -272,7 +285,7 @@ def run(args):
         first_failure = torch.full((n,),float('nan'),device='cuda')
         hold_error = torch.zeros(n,device='cuda');hold_drift = torch.zeros_like(hold_error)
         hold_speed = torch.zeros_like(hold_error);hold_yaw_speed = torch.zeros_like(hold_error)
-        holds = () if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active') else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
+        holds = () if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active','quarter_cruise_transition') else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
         max_heading_deviation = torch.zeros(n,device='cuda')
         body_progress = torch.zeros(n,device='cuda')
         end_heading = torch.zeros(n,device='cuda')
@@ -285,7 +298,7 @@ def run(args):
             age = round((start+step*.02)/.02)*.02
             if step%500 == 0:print(json.dumps(dict(mode=mode,age_s=age,live=int(live.sum()))),flush=True)
             if mode == 'm5':forward,yaw,_ = turn.command_profile(age);command = (forward,0.,yaw)
-            elif mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active'):command = replay['observation'][round(age/.02),63:66]
+            elif mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active','quarter_cruise_transition'):command = replay['observation'][round(age/.02),63:66]
             else:command = teleop.command_profile(age)
             rot = batch.rot[:,batch.base]
             extra = torch.zeros((n,10),device='cuda')
@@ -299,9 +312,10 @@ def run(args):
                                                memory.reference,memory.turned,memory=memory)
                 baseline=action
                 action = residual.apply(cruise_actor,action,obs,walking,memory,names)
-                if half_cruise:action=half.apply(baseline,action)
+                if half_cruise or quarter_active:action=half.apply(baseline,action)
                 if cruise_diagnostic:action=scale_active(baseline,action,scales)
                 complete = active.apply(active_actor,action,obs,walking,memory,names,residual)
+                if quarter_active:complete=scale_active(action,active_scale.apply(action,complete),active_factors)
                 action = (scale_active(action,complete,scales) if active_diagnostic else complete).clamp(-limits,limits)
             heading = torch.atan2(rot[:,1,0],rot[:,0,0])
             before_heading = heading.clone()
@@ -319,7 +333,7 @@ def run(args):
             batch.previous[:] = action
             xy = batch.pos[:,batch.pelvis,:2]
             heading = torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
-            if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active'):
+            if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active','quarter_cruise_transition'):
                 teacher = replay['observation'][round((age+.02)/.02)]
                 target = math.atan2(float(teacher[68]),float(teacher[69]+1.))
                 error = torch.atan2((heading-target).sin(),(heading-target).cos()).abs()
@@ -359,11 +373,11 @@ def run(args):
         if set(hold_origins) != {a for a,b in holds}:raise ValueError('Incomplete calibration hold windows')
         air_fraction = audit['flight_total'].float()*.002/(end-start)
         eligible = (air_fraction<=.05)&(bits==0)&(hold_error<=math.pi/36)&(hold_drift<=.03)&(hold_speed<=.05)&(hold_yaw_speed<=.1)
-        result_key = mode+'_'+str(start) if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active') else mode
+        result_key = mode+'_'+str(start) if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active','quarter_cruise_transition') else mode
         results[result_key] = dict(sources=sources,start_s=start,end_s=end,
             candidate_records=[dict(index=i,gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),
-                active_scale=float(scales[i*width]) if active_diagnostic else 1.,
-                cruise_scale=float(scales[i*width]) if cruise_diagnostic else .5 if half_cruise else 1.,
+                active_scale=float(scales[i*width]) if active_diagnostic else .25*float(active_factors[i*width]) if quarter_active else 1.,
+                cruise_scale=float(scales[i*width])*(.5 if quarter_active else 1.) if cruise_diagnostic else .5 if half_cruise else 1.,
                 first_failure_control_time_s=[v if math.isfinite(v) else None for v in first_failure[i*width:(i+1)*width].tolist()],
                 per_foot_peak_bw=foot_peak[i*width:(i+1)*width].tolist(),
                 max_heading_deviation_rad=max_heading_deviation[i*width:(i+1)*width].tolist(),
@@ -375,11 +389,14 @@ def run(args):
                 hold_speed_mps=hold_speed[i*width:(i+1)*width].tolist(),hold_yaw_speed_rad_s=hold_yaw_speed[i*width:(i+1)*width].tolist(),duration_s=durations[i*width:(i+1)*width].tolist())
                 for i in range(len(grid))])
         del batch,audit
-    backend.write_json(folder/'screen.json',dict(kind='recorded_state_half_backward_active_scale_attribution' if backward_active else 'recorded_state_triangle_active_scale_attribution' if triangle_active else 'recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
+    backend.write_json(folder/'screen.json',dict(kind='recorded_state_quarter_cruise_transition_attribution' if quarter_transition else 'recorded_state_half_backward_active_scale_attribution' if backward_active else 'recorded_state_triangle_active_scale_attribution' if triangle_active else 'recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
         checkpoint=str(checkpoint),checkpoint_sha256=backend.digest(checkpoint),training_sha256=backend.digest(checkpoint.parent/'training.json'),
         source_sha256=backend.digest(__file__),turn_source_sha256=meta['turn_source_sha256'],
-        frozen_cruise_output_scale=.5 if half_cruise else 1.,
-        cruise_scale_source_sha256=meta['cruise_scale_source_sha256'] if half_cruise else None,
+        frozen_cruise_output_scale=None if quarter_active else .5 if half_cruise else 1.,
+        frozen_active_output_scale=None,
+        crossed_cruise_active_scales=[[c,a] for c in (0.,.25,.5) for a in (0.,.25)] if quarter_transition else None,
+        active_scale_source_sha256=meta['active_scale_source_sha256'] if quarter_active else None,
+        cruise_scale_source_sha256=meta['cruise_scale_source_sha256'] if half_cruise or quarter_active else None,
         residual_source_sha256=meta['residual_source_sha256'],active_residual_source_sha256=meta['active_residual_source_sha256'],
         audit_source_sha256=backend.digest(Path(install_physics_audit.__code__.co_filename)),
         teleop_source_sha256=backend.digest(folder/'teleop_source.py'),
@@ -399,6 +416,7 @@ def main():
     parser.add_argument('--triangle-active-scale-diagnostic',action='store_true')
     parser.add_argument('--triangle-repeat-directory')
     parser.add_argument('--half-backward-active-scale-diagnostic',action='store_true')
+    parser.add_argument('--quarter-cruise-transition-diagnostic',action='store_true')
     parser.add_argument('--backward-repeat-directory')
     parser.add_argument('--backward-third-directory')
     parser.add_argument('--cruise-scale-diagnostic',action='store_true')
@@ -411,11 +429,14 @@ def main():
     parser.add_argument('--m5-directory',action='append',default=[])
     parser.add_argument('--m6-directory',action='append',default=[])
     args = parser.parse_args()
-    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic,args.triangle_active_scale_diagnostic,args.half_backward_active_scale_diagnostic))>1:
+    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic,args.triangle_active_scale_diagnostic,args.half_backward_active_scale_diagnostic,args.quarter_cruise_transition_diagnostic))>1:
         raise ValueError('Choose exactly one calibration mode')
     if (args.backward_repeat_directory or args.backward_third_directory) and not args.half_backward_active_scale_diagnostic:
         raise ValueError('Backward repeat directory requires half backward active attribution')
-    if args.half_backward_active_scale_diagnostic:
+    if args.quarter_cruise_transition_diagnostic:
+        if (not args.backward_directory or args.left_directory or args.triangle_directory or args.triangle_repeat_directory or args.m5_directory or args.m6_directory):
+            raise ValueError('Quarter cruise transition requires one backward source only')
+    elif args.half_backward_active_scale_diagnostic:
         if (not args.backward_directory or not args.backward_repeat_directory or args.left_directory or
             args.triangle_directory or args.triangle_repeat_directory or args.m5_directory or args.m6_directory):
             raise ValueError('Half backward active attribution requires two backward source directories and optional third source')

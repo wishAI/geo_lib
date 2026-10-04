@@ -380,6 +380,14 @@ class CruiseAttributionLoaderTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'protocol mismatch'):
                     load_starts([folder],cp,meta,turn,'backward_active',age,gates.digest)
 
+                result['config']['direction']='backward';meta['residual_variant']='scaled_active_half_cruise_v1'
+                save(observations=transitional,foot=cleanfeet)
+                _,memory,_=load_starts([folder],cp,meta,turn,'quarter_cruise_transition',age,gates.digest)
+                self.assertLess(memory.left_cruise_blend,1.)
+                save(observations=transitional)
+                with self.assertRaisesRegex(ValueError,'Unsafe warm start prefix'):
+                    load_starts([folder],cp,meta,turn,'quarter_cruise_transition',age,gates.digest)
+
 
 class HalfCruiseCompositionTests(unittest.TestCase):
     def setUp(self):
@@ -509,6 +517,40 @@ class ActiveScaleCompositionTests(unittest.TestCase):
             torch.save(blob,self.fixture.cp)
             with self.subTest(location=location),self.assertRaisesRegex(ValueError,'Unexpected active scaling'):
                 gates.check_residual_source(self.fixture.cp.parent,result,meta,self.fixture.cp)
+
+
+class ZeroActiveCompositionTests(ActiveScaleCompositionTests):
+    def setUp(self):
+        from algorithms.urdf_learn_wasd_walk import landau_zero_active as active
+        self.active=active;self.fixture=HalfCruiseCompositionTests();self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        (gates.ALG/'landau_zero_active.py').write_bytes(Path(active.__file__).read_bytes())
+        self.cp=active.compose(self.fixture.cp,'zero_active')
+        self.meta=gates.read(self.cp.parent/'training.json');self.blob=torch.load(self.cp,weights_only=False)
+        self.result={**self.fixture.result,'residual_variant':active.VARIANT,'residual_dispatch':active.DISPATCH,
+                     'active_output_scale':0.0,'active_scale_source_sha256':gates.digest(active.__file__)}
+
+    def test_exact_quarter_active_after_half_cruise(self):
+        for check in self.checks():check()
+        baseline=torch.tensor([[1.,2.,3.]])
+        self.assertTrue(torch.equal(self.active.apply(baseline,baseline+.03),baseline))
+        self.assertEqual(self.blob['cruise_output_scale'],.5)
+
+    def test_scales_schema_sources_and_result_binding(self):
+        original=copy.deepcopy(self.blob)
+        for scale in (.25,.5,False,None,float('nan')):
+            self.blob['active_output_scale']=self.meta['active_output_scale']=self.result['active_output_scale']=scale
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'scalar|scale'):check()
+        self.blob=original;self.meta['active_output_scale']=self.result['active_output_scale']=0.0
+        torch.save(self.blob,self.cp)
+        self.result['cruise_output_scale']=.4
+        with self.assertRaisesRegex(ValueError,'cruise composition'):
+            gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+        self.result['cruise_output_scale']=.5
+        (self.cp.parent/'active_scale_source.py').write_text('changed')
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'snapshot|source'):check()
 
 
 if __name__=='__main__':unittest.main()

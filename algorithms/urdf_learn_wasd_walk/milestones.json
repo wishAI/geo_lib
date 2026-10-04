@@ -5155,6 +5155,76 @@
               }
             ],
             "selection": "largest tested active scale passing all three screens: .25; .5 and .75 failed expanded repeat; unchanged cruise=.5,forward=.2,all tensors frozen"
+          },
+          "quarter_active_trial": {
+            "checkpoint": "m8_20261004_quarter_active_dual/model_0.pt",
+            "sha256": "949d65ac87e3e59c2cad75f330ed95214f4732896e264ed6c033a6b1bd025139",
+            "run": "m8_20261004_quarter_active_backward",
+            "status": "rejected; full video review and exact action audit retained",
+            "duration_s": 170.22,
+            "peak_bw": 3.0368136639971617,
+            "force_time_s": 153.34,
+            "falls": 0,
+            "resets": 0,
+            "gate_time_s": 170.20750775197808,
+            "cross_track_m": 0.3999956636398283,
+            "visual_review_sha256": "7facd530c8c86523fe8d843e53a93291a8bd0d366d6ba8776f443dabd1c3411c",
+            "raw_applied_actions_bit_exact": 8511
+          },
+          "quarter_transition_crossed_attribution": {
+            "run": "m8_20261004_quarter_transition_crossed_attribution",
+            "windows_s": [
+              [
+                151,
+                159
+              ],
+              [
+                152,
+                159
+              ],
+              [
+                153,
+                159
+              ]
+            ],
+            "pairs": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                0.25
+              ],
+              [
+                0.25,
+                0
+              ],
+              [
+                0.25,
+                0.25
+              ],
+              [
+                0.5,
+                0
+              ],
+              [
+                0.5,
+                0.25
+              ]
+            ],
+            "copies": 2,
+            "status": "complete; no6/6combination; halfcruisezeroactivepassedboth earlierwindows4/4,failedlatest2/2; lowercruisenotselected",
+            "qualification": false
+          },
+          "zero_active_trial": {
+            "checkpoint": "m8_20261004_zero_active_dual/model_0.pt",
+            "sha256": "e5209aa9af53e58356fcd6b65a29579cdaca09010c49ec0defe212931136985e",
+            "run": "m8_20261004_zero_active_backward",
+            "status": "nominal running; experimental no inherited credit",
+            "cruise_scale": 0.5,
+            "active_scale": 0.0,
+            "forward": 0.2
           }
         }
       }
