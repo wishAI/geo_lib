@@ -444,4 +444,71 @@ class HalfCruiseCompositionTests(unittest.TestCase):
                 gates.check_residual_source(cp.parent,changed_result,changed_meta,cp)
 
 
+class ActiveScaleCompositionTests(unittest.TestCase):
+    def setUp(self):
+        from algorithms.urdf_learn_wasd_walk import landau_active_scale as active
+        self.active=active;self.fixture=HalfCruiseCompositionTests();self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        (gates.ALG/'landau_active_scale.py').write_bytes(Path(active.__file__).read_bytes())
+        self.cp=active.compose(self.fixture.cp,'quarter_active')
+        self.meta=gates.read(self.cp.parent/'training.json');self.blob=torch.load(self.cp,weights_only=False)
+        self.result={**self.fixture.result,'residual_variant':active.VARIANT,'residual_dispatch':active.DISPATCH,
+                     'active_output_scale':.25,'active_scale_source_sha256':gates.digest(active.__file__)}
+
+    def checks(self):
+        torch.save(self.blob,self.cp)
+        def loader():
+            self.active.check_contract(self.meta,self.blob,gates.digest)
+            self.active.check_sources(self.cp.parent,self.meta,gates.digest)
+        return loader,lambda:gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+    def test_exact_quarter_active_after_half_cruise(self):
+        for check in self.checks():check()
+        for key in self.fixture.blob:
+            if key!='residual_variant':self.assertTrue(self.active.same_tree(self.blob[key],self.fixture.blob[key]))
+        baseline=torch.tensor([[1.,2.,3.]])
+        cruise=self.fixture.half.apply(baseline,baseline+torch.tensor([[.1,-.2,0.]]))
+        complete=cruise+torch.tensor([[-.02,.03,0.]])
+        self.assertTrue(torch.equal(self.active.apply(cruise,complete),cruise+.25*(complete-cruise)))
+        self.assertTrue(torch.equal(self.active.apply(cruise,cruise),cruise))
+
+    def test_frozen_parameters_and_actors_and_cruise_scale(self):
+        original=copy.deepcopy(self.blob)
+        for index in range(20):
+            self.blob=copy.deepcopy(original);self.blob['turn_parameters'][index]+=.001
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'frozen'):check()
+        for key in ('standing_actor_state_dict','residual_actor_state_dict','active_residual_actor_state_dict'):
+            self.blob=copy.deepcopy(original);first=next(iter(self.blob[key]));self.blob[key][first]+=.01
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'frozen'):check()
+        self.blob=copy.deepcopy(original);self.blob['cruise_output_scale']=.4
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'frozen'):check()
+
+    def test_scales_schema_sources_and_result_binding(self):
+        original=copy.deepcopy(self.blob)
+        for scale in (0.,.5,True,None,float('nan')):
+            self.blob['active_output_scale']=self.meta['active_output_scale']=self.result['active_output_scale']=scale
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'scalar|scale'):check()
+        self.blob=original;self.meta['active_output_scale']=self.result['active_output_scale']=.25
+        torch.save(self.blob,self.cp)
+        self.result['cruise_output_scale']=.4
+        with self.assertRaisesRegex(ValueError,'cruise composition'):
+            gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+        self.result['cruise_output_scale']=.5
+        (self.cp.parent/'active_scale_source.py').write_text('changed')
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'snapshot|source'):check()
+
+    def test_half_donor_rejects_active_scaling_claims(self):
+        for location in ('metadata','result','checkpoint'):
+            meta=copy.deepcopy(self.fixture.meta);result=copy.deepcopy(self.fixture.result);blob=copy.deepcopy(self.fixture.blob)
+            {'metadata':meta,'result':result,'checkpoint':blob}[location]['active_output_scale']=.25
+            torch.save(blob,self.fixture.cp)
+            with self.subTest(location=location),self.assertRaisesRegex(ValueError,'Unexpected active scaling'):
+                gates.check_residual_source(self.fixture.cp.parent,result,meta,self.fixture.cp)
+
+
 if __name__=='__main__':unittest.main()

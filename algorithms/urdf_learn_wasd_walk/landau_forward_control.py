@@ -421,7 +421,9 @@ def evaluate(args):
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
     residual=None;active_residual=None
-    half_cruise=meta.get('residual_variant')=='half_cruise_frozen_dual_v1'
+    active_scaled=meta.get('residual_variant')=='scaled_active_half_cruise_v1'
+    if not active_scaled and any(k.startswith(('active_scale_','active_output_scale')) for k in (*meta,*blob)):raise ValueError('Unexpected active scaling metadata')
+    half_cruise=active_scaled or meta.get('residual_variant')=='half_cruise_frozen_dual_v1'
     if not half_cruise and any(k.startswith(('cruise_scale_','cruise_output_scale')) for k in (*meta,*blob)):raise ValueError('Unexpected cruise scaling metadata')
     right_calibrated=meta.get('residual_variant')=='right_controller_calibrated_dual_residual_v1'
     if not (right_calibrated or half_cruise) and any(k.startswith('right_controller_') for k in meta):
@@ -429,10 +431,15 @@ def evaluate(args):
     calibrated=meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1'
     if not (calibrated or right_calibrated or half_cruise) and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
         raise ValueError('Unexpected yaw/hold calibration metadata')
-    if meta.get('residual_variant') not in ('half_cruise_frozen_dual_v1','right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
+    if meta.get('residual_variant') not in ('scaled_active_half_cruise_v1','half_cruise_frozen_dual_v1','right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
         raise ValueError('Unexpected right rebase metadata')
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
-    if half_cruise:
+    if active_scaled:
+        from algorithms.urdf_learn_wasd_walk import landau_active_scale as active_scale
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as cruise_scale
+        check_active_contract=active_scale.check_contract
+        active_scale.check_sources(checkpoint.parent,meta,backend.digest)
+    elif half_cruise:
         from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as cruise_scale
         check_active_contract=cruise_scale.check_contract
         cruise_scale.check_sources(checkpoint.parent,meta,backend.digest)
@@ -546,7 +553,9 @@ def evaluate(args):
                     baseline=residual.apply(residual_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'])
                     if half_cruise:baseline=cruise_scale.apply(before_cruise,baseline)
                     if active_residual is not None:
+                        before_active=baseline
                         baseline=active_residual.apply(active_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'],residual)
+                        if active_scaled:baseline=active_scale.apply(before_active,baseline)
                 return baseline[0]
             if meta.get('policy_family') in ('periodic_feedback_cem','periodic_feedback_residual_ppo'):
                 return gait_implementation.evaluate_mean(actor,obs[None],meta['action_joints'])[0]
@@ -592,6 +601,9 @@ def evaluate(args):
         if half_cruise:
             (backend.OUTPUT/args.name/'cruise_scale_source.py').write_bytes((checkpoint.parent/'cruise_scale_source.py').read_bytes())
             result.update(cruise_output_scale=meta['cruise_output_scale'],cruise_scale_source_sha256=meta['cruise_scale_source_sha256'],residual_dispatch=cruise_scale.DISPATCH)
+        if active_scaled:
+            (backend.OUTPUT/args.name/'active_scale_source.py').write_bytes((checkpoint.parent/'active_scale_source.py').read_bytes())
+            result.update(active_output_scale=meta['active_output_scale'],active_scale_source_sha256=meta['active_scale_source_sha256'],residual_dispatch=active_scale.DISPATCH)
         backend.write_json(result_path,result)
     backend.write_json(backend.OUTPUT/args.name/'transfer.json',{
         'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),

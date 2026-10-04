@@ -5099,7 +5099,7 @@
             }
           },
           "backward_active_attribution": {
-            "status": "preflight passed; starting diagnostic only",
+            "status": "complete; quarter active passed all30diagnostic cases; preparing nominal candidate",
             "source_runs": [
               "m8_20261004_half_cruise_prerequisite_backward",
               "m8_20261004_half_cruise_prerequisite_backward_repeat1"
@@ -5133,7 +5133,28 @@
             "cruise_scale": 0.5,
             "forward": 0.2,
             "full_prefix_safety_required": true,
-            "qualification": false
+            "qualification": false,
+            "screens": [
+              {
+                "run": "m8_20261004_half_backward_active_attribution",
+                "quarter_active_passed": 8,
+                "quarter_active_cases": 8,
+                "quarter_active_peak_bw": 2.9440555572509766
+              },
+              {
+                "run": "m8_20261004_half_triangle_active_attribution",
+                "quarter_active_passed": 10,
+                "quarter_active_cases": 10,
+                "quarter_active_peak_bw": 2.7736072540283203
+              },
+              {
+                "run": "m8_20261004_half_backward_active_attribution_repeat",
+                "quarter_active_passed": 12,
+                "quarter_active_cases": 12,
+                "quarter_active_peak_bw": 2.901982307434082
+              }
+            ],
+            "selection": "largest tested active scale passing all three screens: .25; .5 and .75 failed expanded repeat; unchanged cruise=.5,forward=.2,all tensors frozen"
           }
         }
       }
