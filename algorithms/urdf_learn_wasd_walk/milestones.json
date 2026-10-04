@@ -2584,7 +2584,7 @@
       "tests": "139 relevant CPU tests passed, includingindependent frozenhead/leftparameter/donor/source rejection andarity projection."
     },
     "rightBalanceComposite": {
-      "status": "V3 right accepted; V3 backward and M5 failed; reference_v4 backward trial running",
+      "status": "V3 right accepted; V3/V4 backward, M5 hold and M6 force failed. V5 conditional yaw integration under CPU review.",
       "checkpoint": "m7_20261004_right_balance15_dual/model_0.pt",
       "cem_parent": "m7_20261004_right_balance_fine15/model_0.pt",
       "donor": "m7_20261003_active_margin400/model_399.pt",
@@ -2622,15 +2622,94 @@
         "peak_support_body_weight_ratio": 2.8092138,
         "visual_review_sha256": "2a88c034c8a61e9293868e9830cadf53a9d4ed31e8130b31f37f03be4c663b96",
         "diagnosis": "All2800 saved observations yield identical donor/candidate baseline actions; changed right parameters never activate. Initial state exact; numerical divergence starts at0.02s. Acceptance remains failed."
+      },
+      "m6_rejection": {
+        "run": "m7_20261004_right_balance15_m6",
+        "duration_s": 60,
+        "fall_count": 0,
+        "peak_support_body_weight_ratio": 3.1571780966279497,
+        "first_force_violation_s": 30.376,
+        "phase": "forward restart after first left-turn hold; before right turn32s",
+        "visual_review_sha256": "766f4fc9c9fc8f68dcceddb637dd067b54dc1bfaf6e9e819cdb6f7b912600e9c"
       }
     },
     "referenceNavigation": {
       "version": "reference_v4",
-      "status": "backward dynamics running",
+      "status": "rejected backward trial; mechanism audit in progress",
       "run": "m7_20261004_right_balance15_reference_backward",
       "design": "Filter circular gate bearing with0.5s constant; servo shadow integrated reference through bounded semantic yaw; 3degstart/1degstop hysteresis. Backward initialleftarc and permanenthemisphere latch retained. Forward command0.2 and physicalguards unchanged.",
       "validation": "46 focusedCPUtests passed; shadow exactlymatches deliveredfloat32 CommandMemory integration; state and commands independently reconstructed.",
       "research_reference": "https://www.mathworks.com/help/simulink/slref/prevent-block-windup-in-multiloop-control.html",
+      "promoted": false,
+      "visual_review_sha256": "7ee8f5a4c0ba7e48c1e433e2f82842a33809d3527c465fcb2d85414519268339",
+      "metrics": {
+        "duration_s": 113.92,
+        "peak_support_body_weight_ratio": 3.057732414469382,
+        "progress_m": 2.5339971401824952,
+        "cross_track_m": 2.7997448444366455
+      },
+      "diagnosis": "Reference-only servo retained positive yaw until105.06s, with actual heading about249deg versus205deg reference. First >3BW at108.68s precedes first negativeyaw111.48s. No promotion."
+    },
+    "antiWindupNavigation": {
+      "version": "anti_windup_v5",
+      "status": "upright gate reached but rejected for force",
+      "run": "m7_20261004_right_balance15_antiwindup_backward",
+      "design": "V3 filtered body-heading pursuit plus delivered-yaw conditional integration. Block commands that increase wrapped reference-heading gap beyond30deg, release at20deg. Opposite commands remain available. No state assignment, same forward speed and yawcap.",
+      "cpu_replay": "Right15 failedV3backward: firstchange90.58s; all2296negativeframes blocked; finalrecorded-posegap36.44deg. Margin399passedV3backward: firstchange138.06s; release167.84s; gap29.52deg. Shadowreference exactlymatches CommandMemory. Right399failedprefixunchanged. Counterfactual commands only.",
+      "tests": "49 focused navigation/certificate tests passed; independent review found no blocker.",
+      "reference": "https://www.mathworks.com/help/simulink/slref/anti-windup-control-using-a-pid-controller.html",
+      "promoted": false,
+      "metrics": {
+        "gate_crossing_time_s": 168.38632447159048,
+        "gate_cross_track_m": 0.21599826914239145,
+        "peak_support_body_weight_ratio": 3.1031315016512533,
+        "fall_count": 0
+      },
+      "visual_review_sha256": "4c4d501539c3ff19e5f0341528266c68619657a1765a3183ff7ce775be1e34a4",
+      "diagnosis": "First/peak97.058s during active-left blend.74; later force119.390/120.288 during cruise ramps.10/.12,127.428duringactivefade.90. Fullvideo upright; forcefailure notwaived."
+    },
+    "holdCalibration": {
+      "status": "Candidate15 composed; independent MAIN lineage validated; freshM5 running",
+      "changed_indices": [
+        3
+      ],
+      "sources": [
+        "m7_20261003_active_margin399_m5",
+        "m7_20261004_right_balance15_m5",
+        "m7_20261003_active_margin399_m6",
+        "m7_20261004_right_balance15_m6"
+      ],
+      "design": "11candidate existing p3 gains includingduplicatecontrols;2copies\u00d72recordedsources each. SavedscalarCommandMemory, frozenbothactors/standing/gait/allother19params. M5warm46.8\u219256s; M6warm18\u219260s includingrestart/right/secondstop.",
+      "limits": "Recordedstates withclearedsolver warmstart; physical/hold diagnostic only, notallM6responses or nominalacceptance.",
+      "promoted": false,
+      "hold_only_result": "M5 everygain2/4: donorpassingstatespass; failedstatesremainabove5deg. M6 gains-.06/-.03/+.03 achieved4/4physical/holdsubset; controls2/4. Nojointcandidate andnocomposition.",
+      "hold_only_run": "m7_20261004_dual_hold_grid",
+      "nominal_run": "m7_20261004_dual_nominal_yaw_hold_grid",
+      "nominal_design": "35candidates\u00d74commonstarts: twoexactcontrols plus p3[-.06,-.03,current]\u00d7p17[1.45..1.65 step.02]. FullM5andM6withbothfrozenheads. Eighteenotherturnparams, gait/standing fixed. Responseblockvalidation remainsrequired.",
+      "repeat_run": "m7_20261004_dual_nominal_yaw_hold_repeat",
+      "selected_candidate": {
+        "index": 15,
+        "p3": -0.029999999329447746,
+        "p17": 1.4900000095367432,
+        "screen_successes": 16,
+        "screen_cases": 16,
+        "max_support_bw": 2.8672525882720947,
+        "max_hold_error_deg": 4.321023555760187,
+        "max_hold_drift_m": 0.02494852803647518,
+        "scope": "Physical/hold subset on two nominal/common-start screens; allM6responseblocks andindependentproof stillrequired.",
+        "comparison": "Only4,15,29 passedall16. Candidate15 hadlowestworstforce; currentduplicatecontrolsvariedsubstantially."
+      },
+      "checkpoint": "m7_20261004_yaw_hold15_dual/model_0.pt",
+      "checkpoint_sha256": "74afe56a9f64642d676cd14e3b365f4f1dbf59a16d705108fe4fde0dbaa0a777",
+      "variant": "yaw_hold_calibrated_dual_residual_v1",
+      "tests": "155 relevant CPU tests passed before final screen-provenance hardening;14focusedtests passed afterward. Independentactualcheckpoint lineage passed.",
+      "m5_run": "m7_20261004_yaw_hold15_m5"
+    },
+    "hystereticNavigation": {
+      "version": "hysteretic_v6",
+      "status": "Implementedandreviewed: actualclassmatchesprototype, allV2/V3/V5commandsunchanged acrossfour240sstreams. Dynamics pendingnewcalibratedcheckpoint.",
+      "design": "V5 bodyheading pursuit andconditionalintegration; replacecontinuous3degsubtractiveband with5degstart/2degstop hysteresis toreducelearned-headswitching.",
+      "counterfactual": "On V5recordedposes, after80s yawonsets31\u21925 andmedianzero-yawdwell.54\u219211.18s. Cruisevariation26.72\u219210, active23.96\u21929. Firstforceeventstilltransition; nophysicalimprovementclaimed.",
       "promoted": false
     }
   }

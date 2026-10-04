@@ -195,9 +195,70 @@ def check_gait_source(folder,result,training):
 
 
 
+def check_yaw_hold_calibration(folder,result,training,checkpoint):
+    """Independently verify bounded parameter overrides and recurse through donor lineage."""
+    import torch
+    checkpoint=Path(checkpoint);folder=Path(folder)
+    donor=Path(training['calibration_donor_checkpoint']);old=read(donor.parent/'training.json')
+    require(digest(donor)==training['calibration_donor_checkpoint_sha256'] and
+        digest(donor.parent/'training.json')==training['calibration_donor_training_sha256'] and
+        old['checkpoints'][donor.name]==digest(donor) and not str(old.get('status','')).startswith('invalidated_'), 'Calibration donor changed')
+    require(old.get('residual_variant')=='right_balance_rebased_dual_residual_v1', 'Wrong calibration donor variant')
+    candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    original=torch.load(donor,map_location='cpu',weights_only=False)
+    require(candidate.get('residual_variant')==training['residual_variant']==result.get('residual_variant'), 'Calibration variant mismatch')
+    mutable={'residual_variant','arguments','checkpoints','created_at','status','canonical_milestone_pass','policy_composition'}
+    for key,value in old.items():
+        if key not in mutable:require(training.get(key)==value, 'Calibration metadata changed: '+key)
+    require({k:v for k,v in training['arguments'].items() if k!='name'}==
+        {k:v for k,v in old['arguments'].items() if k!='name'}, 'Calibration arguments changed')
+    p=candidate['turn_parameters'];fixed=[i for i in range(20) if i not in (3,17)]
+    require(tuple(p.shape)==(20,) and bool(torch.isfinite(p).all()) and
+        torch.equal(p[fixed],original['turn_parameters'][fixed]), 'Only calibration parameters3/17 may change')
+    require(-.12<=float(p[3])<=.12 and .5<=float(p[17])<=2., 'Calibration bounds changed')
+    require(torch.equal(candidate['parameters'],original['parameters']), 'Calibration gait changed')
+    for key in ('standing_actor_state_dict','residual_actor_state_dict','active_residual_actor_state_dict'):
+        left,right=candidate[key],original[key]
+        require(left.keys()==right.keys() and all(torch.equal(left[k],right[k]) for k in left), 'Calibration frozen actor changed')
+    for filename in ('control_source.py','turn_source.py','teleop_contract.py','model.xml','right_rebase_source.py'):
+        require(digest(checkpoint.parent/filename)==digest(donor.parent/filename), 'Calibration deployment changed: '+filename)
+    for source in ('residual_source','active_residual_source'):
+        require(training[source+'_sha256']==digest(checkpoint.parent/(source+'.py'))==
+            digest(folder/(source+'.py'))==result.get(source+'_sha256'), 'Calibration residual source mismatch')
+    require(result.get('residual_dispatch')=='deterministic_cruise_plus_active_left_hip_roll_v1', 'Calibration dispatch mismatch')
+    calibration=training['yaw_hold_calibration'];index=calibration['candidate_index'];screens=calibration['screens']
+    require(calibration['source_sha256']==digest(checkpoint.parent/'yaw_hold_rebase_source.py'), 'Calibration composition source changed')
+    require(calibration['changed_indices']==[3,17] and isinstance(index,int) and index>=0 and len(screens)>=2 and
+        len({str(Path(r['path']).resolve()) for r in screens})==len(screens) and
+        len({r['sha256'] for r in screens})==len(screens), 'Calibration repeated screen contract changed')
+    for evidence in screens:
+        path=Path(evidence['path']);screen=read(path)
+        require(digest(path)==evidence['sha256'] and screen['checkpoint_sha256']==digest(donor) and
+            screen['kind']=='nominal_common_start_yaw_hold_calibration' and screen['changed_indices']==[3,17] and
+            digest(path.parent/'screen_source.py')==screen['source_sha256'], 'Calibration screen changed')
+        require(screen.get('training_sha256')==digest(donor.parent/'training.json'), 'Calibration screen donor metadata changed')
+        for key in ('turn_source_sha256','residual_source_sha256','active_residual_source_sha256'):
+            require(screen.get(key)==old[key], 'Calibration screen controller source changed')
+        for filename,key in (('audit_source.py','audit_source_sha256'),('teleop_source.py','teleop_source_sha256'),
+                             ('direction_training_source.py','common_start_source_sha256')):
+            require(digest(path.parent/filename)==screen.get(key), 'Calibration screen helper changed')
+        require(torch.equal(torch.tensor(screen['candidate_parameters'][index],dtype=p.dtype),p.cpu()), 'Calibration screen parameters changed')
+        for mode in ('m5','m6'):
+            row=screen['results'][mode]['candidate_records'][index]
+            require(row['index']==index and len(row['eligible'])==4 and all(row['eligible']), 'Calibration screen qualification missing')
+    donor_result={'residual_variant':old['residual_variant'],
+        'residual_dispatch':'deterministic_cruise_plus_active_left_hip_roll_v1',
+        **{key:old[key] for key in ('residual_source_sha256','active_residual_source_sha256')}}
+    check_residual_source(donor.parent,donor_result,old,donor)
+
+
 def check_residual_source(folder,result,training,checkpoint):
     """Independently bind the hybrid controller and its unchanged frozen parent."""
     import torch
+    if training.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
+        check_yaw_hold_calibration(folder,result,training,checkpoint)
+        return
+    require(not any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in training), 'Unexpected yaw/hold calibration metadata')
     adapted=training.get('residual_variant')=='adapted_cruise_frozen_active_v1'
     rebased=training.get('residual_variant')=='right_balance_rebased_dual_residual_v1'
     require(rebased or not any(k.startswith('frozen_dual_') for k in training), 'Unexpected right rebase metadata')
@@ -525,7 +586,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
             else:require(value==metrics[key], 'Direction crossing differs from trajectory')
         require(not dc.evaluate_gate({**metrics,**measured},duration), 'Reconstructed directional gate failed')
         navigation=cfg.get('direction_navigation','legacy')
-        require(navigation in ('legacy','signed_v2','filtered_signed_v3','reference_v4'), 'Unknown directional navigation')
+        require(navigation in ('legacy','signed_v2','filtered_signed_v3','reference_v4','anti_windup_v5','hysteretic_v6'), 'Unknown directional navigation')
         navigator=None
         if navigation!='legacy':
             from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
@@ -540,7 +601,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
         memory=read(folder/'controller_memory.json')
         require(memory['simulation_reset'] is False and memory.get('memory_version')==2, 'Wrong direction memory semantics')
         require(abs(memory['integrated_reference_rad']-float(obs[:-1,65].sum())*.02)<1e-4, 'Direction heading reference differs from commands')
-        if navigation=='reference_v4':
+        if navigation in ('reference_v4','anti_windup_v5','hysteretic_v6'):
             state=navigator.record();reported=result.get('direction_navigation_state',{})
             require(state.keys()==reported.keys(), 'Missing navigation reference state')
             for key,value in state.items():
@@ -711,6 +772,8 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
     evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
     if read(checkpoint.parent/'training.json').get('residual_variant')=='right_balance_rebased_dual_residual_v1':
         evidence.append(artifact(checkpoint.parent/'right_rebase_source.py','checkpoint_right_composition_source'))
+    if read(checkpoint.parent/'training.json').get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
+        evidence.append(artifact(checkpoint.parent/'yaw_hold_rebase_source.py','checkpoint_yaw_hold_composition_source'))
     metrics={'directions':{k:v['metrics'] for k,v in directions.items()}}
     final={'status':'passed','lineage':LINEAGE,'backend':ledger['backend'],'milestone':target['id'],
            'assembled_at':datetime.now(timezone.utc).isoformat(),'checkpoint':ckpt,'metrics':metrics,

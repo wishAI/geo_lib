@@ -106,4 +106,105 @@ class RightRebaseTests(unittest.TestCase):
         self.assertNotEqual(rebase.deployment_ast(original),rebase.deployment_ast(other))
 
 
+
+class HoldCalibrationTests(unittest.TestCase):
+    def test_gain_grid_preserves_every_other_parameter_and_duplicates_controls(self):
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import parameter_grid
+        seed = torch.linspace(-.02,.03,20)
+        rows = parameter_grid(seed)
+        self.assertEqual(tuple(rows.shape),(11,20))
+        self.assertTrue(torch.equal(rows[0],seed))
+        self.assertTrue(torch.equal(rows[1],seed))
+        mask = torch.arange(20)!=3
+        self.assertTrue(torch.equal(rows[:,mask],seed[mask].repeat(11,1)))
+        self.assertGreater(float(rows[:,3].max()),.11)
+        self.assertLess(float(rows[:,3].min()),-.11)
+        for invalid in (torch.zeros(19),torch.full((20,),float('nan'))):
+            with self.assertRaises(ValueError):parameter_grid(invalid)
+
+
+
+class NominalHoldCalibrationTests(unittest.TestCase):
+    def test_yaw_hold_grid_preserves_the_other_eighteen_parameters(self):
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import nominal_grid
+        seed = torch.linspace(-.02,.03,20);seed[17] = 1.603
+        rows = nominal_grid(seed)
+        self.assertEqual(tuple(rows.shape),(35,20))
+        self.assertTrue(torch.equal(rows[0],seed))
+        self.assertTrue(torch.equal(rows[1],seed))
+        fixed = [i for i in range(20) if i not in (3,17)]
+        self.assertTrue(torch.equal(rows[:,fixed],seed[fixed].repeat(35,1)))
+        self.assertTrue(bool(((rows[:,17]>=1.45)&(rows[:,17]<=1.65)).all()))
+
+
+class YawHoldRebaseTests(unittest.TestCase):
+    def setUp(self):
+        from algorithms.urdf_learn_wasd_walk import landau_yaw_hold_rebase as calibration
+        self.calibration = calibration
+        self.fixture = RightRebaseTests()
+        self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        f = self.fixture
+        params = f.blob['turn_parameters'].clone();params[3] = -.03;params[17] = 1.49
+        screens = []
+        for i in range(2):
+            folder = f.root/('screen'+str(i));folder.mkdir()
+            source = folder/'screen_source.py';source.write_text('test bounded screen')
+            screen = dict(test_run=i,kind='nominal_common_start_yaw_hold_calibration',changed_indices=[3,17],
+                checkpoint_sha256=gates.digest(f.cp),source_sha256=gates.digest(source),
+                candidate_parameters=[params.tolist()],results={mode:{'candidate_records':[
+                    {'index':0,'eligible':[True]*4}]} for mode in ('m5','m6')})
+            screen['training_sha256'] = gates.digest(f.cp.parent/'training.json')
+            for key in ('turn_source_sha256','residual_source_sha256','active_residual_source_sha256'):
+                screen[key] = f.meta[key]
+            for filename,key in (('audit_source.py','audit_source_sha256'),('teleop_source.py','teleop_source_sha256'),
+                                 ('direction_training_source.py','common_start_source_sha256')):
+                helper = folder/filename;helper.write_text(filename);screen[key] = gates.digest(helper)
+            path = folder/'screen.json';gates.write(path,screen);screens.append(path)
+        self.cp = calibration.compose(f.cp,screens,0,'yaw_hold')
+        self.meta = gates.read(self.cp.parent/'training.json')
+        self.blob = torch.load(self.cp,weights_only=False)
+        self.result = {**f.result,'residual_variant':calibration.VARIANT}
+
+    def check(self):
+        torch.save(self.blob,self.cp)
+        self.assertTrue(self.calibration.check_contract(self.meta,self.blob,gates.digest))
+        gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+    def test_composition_preserves_parent_and_both_learned_heads(self):
+        self.check()
+        self.assertEqual(self.meta['parent_checkpoint'],self.fixture.meta['parent_checkpoint'])
+        self.assertEqual(self.meta['calibration_donor_checkpoint'],str(self.fixture.cp))
+
+    def test_fixed_controller_and_actors_rejected_independently(self):
+        self.blob['turn_parameters'][12] += .001;torch.save(self.blob,self.cp)
+        for check in (lambda:self.calibration.check_contract(self.meta,self.blob,gates.digest),
+                      lambda:gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)):
+            with self.assertRaisesRegex(ValueError,'Only .*parameters3/17'):check()
+        self.blob['turn_parameters'][12] -= .001
+        self.blob['active_residual_actor_state_dict']['weight'] += .01
+        torch.save(self.blob,self.cp)
+        with self.assertRaisesRegex(ValueError,'actor'):self.calibration.check_contract(self.meta,self.blob,gates.digest)
+        with self.assertRaisesRegex(ValueError,'actor'):gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+    def test_same_screen_cannot_claim_two_repeats(self):
+        self.meta['yaw_hold_calibration']['screens'][1] = self.meta['yaw_hold_calibration']['screens'][0]
+        with self.assertRaisesRegex(ValueError,'distinct'):self.calibration.check_contract(self.meta,self.blob,gates.digest)
+        with self.assertRaisesRegex(ValueError,'repeated screen'):gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+    def test_selected_row_and_turn_duration_are_bound(self):
+        self.blob['turn_parameters'][17] += .01;torch.save(self.blob,self.cp)
+        with self.assertRaisesRegex(ValueError,'selected screen row'):self.calibration.check_contract(self.meta,self.blob,gates.digest)
+        with self.assertRaisesRegex(ValueError,'screen parameters'):gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+        self.meta['arguments']['turn_duration'] = 45.
+        with self.assertRaisesRegex(ValueError,'arguments'):self.calibration.check_contract(self.meta,self.blob,gates.digest)
+        with self.assertRaisesRegex(ValueError,'arguments'):gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+    def test_screen_helper_changes_rejected_independently(self):
+        screen = Path(self.meta['yaw_hold_calibration']['screens'][0]['path'])
+        (screen.parent/'direction_training_source.py').write_text('changed')
+        with self.assertRaisesRegex(ValueError,'screen helper'):self.calibration.check_contract(self.meta,self.blob,gates.digest)
+        with self.assertRaisesRegex(ValueError,'screen helper'):gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+
 if __name__=='__main__':unittest.main()

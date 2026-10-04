@@ -388,7 +388,7 @@ def run(args):
             (out/'direction_protocol_source.py').write_text(protocol.read_text())
             result['direction_protocol_source_sha256']=digest(protocol)
             navigation=getattr(args,'direction_navigation','legacy')
-            if navigation not in ('legacy','signed_v2','filtered_signed_v3','reference_v4'):raise ValueError('Unknown direction navigation')
+            if navigation not in ('legacy','signed_v2','filtered_signed_v3','reference_v4','anti_windup_v5','hysteretic_v6'):raise ValueError('Unknown direction navigation')
             if navigation!='legacy':
                 source=Path(__file__).with_name('landau_signed_navigation.py')
                 (out/'signed_navigation_source.py').write_bytes(source.read_bytes())

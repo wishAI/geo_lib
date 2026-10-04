@@ -375,7 +375,7 @@ def evaluate(args):
     if direction:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
     direction_navigation=getattr(args,'direction_navigation','legacy')
-    if direction_navigation not in ('legacy','signed_v2','filtered_signed_v3','reference_v4') or (direction_navigation!='legacy' and not direction):
+    if direction_navigation not in ('legacy','signed_v2','filtered_signed_v3','reference_v4','anti_windup_v5','hysteretic_v6') or (direction_navigation!='legacy' and not direction):
         raise ValueError('Signed navigation requires a directional evaluation')
     navigator=None
     if direction_navigation!='legacy':
@@ -416,11 +416,16 @@ def evaluate(args):
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
     residual=None;active_residual=None
-    if meta.get('residual_variant')!='right_balance_rebased_dual_residual_v1' and any(k.startswith('frozen_dual_') for k in meta):
+    calibrated=meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1'
+    if not calibrated and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
+        raise ValueError('Unexpected yaw/hold calibration metadata')
+    if meta.get('residual_variant') not in ('right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
         raise ValueError('Unexpected right rebase metadata')
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
     if meta.get('residual_variant')=='adapted_cruise_frozen_active_v1':
         from algorithms.urdf_learn_wasd_walk.landau_cruise_adaptation import check_contract as check_active_contract
+    elif calibrated:
+        from algorithms.urdf_learn_wasd_walk.landau_yaw_hold_rebase import check_contract as check_active_contract
     elif meta.get('residual_variant')=='right_balance_rebased_dual_residual_v1':
         from algorithms.urdf_learn_wasd_walk.landau_right_rebase import check_contract as check_active_contract
     elif any(key.startswith(('frozen_active_','cruise_initialization_','frozen_dual_')) for key in meta):
@@ -442,7 +447,8 @@ def evaluate(args):
             raise ValueError('Invalid frozen residual parent')
         frozen=torch.load(frozen_parent,map_location='cpu',weights_only=False)
         if tuple(frozen['turn_parameters'].shape)!=(20,):raise ValueError('Frozen parent requires20turnparameters')
-        if any(not torch.equal(frozen[key],blob[key]) for key in ('parameters','turn_parameters')):
+        fixed=[i for i in range(20) if i not in (3,17)] if calibrated else list(range(20))
+        if not torch.equal(frozen['parameters'],blob['parameters']) or not torch.equal(frozen['turn_parameters'][fixed],blob['turn_parameters'][fixed]):
             raise ValueError('Frozen controller tensors changed')
         standing=frozen['standing_actor_state_dict'];candidate_standing=blob['standing_actor_state_dict']
         if standing.keys()!=candidate_standing.keys() or any(not torch.equal(standing[k],candidate_standing[k]) for k in standing):
@@ -544,7 +550,7 @@ def evaluate(args):
         (backend.OUTPUT/args.name/'gait_source.py').write_text(source.read_text())
         result_path=backend.OUTPUT/args.name/'dynamics.json'
         result=json.loads(result_path.read_text());result['gait_source_sha256']=backend.digest(source)
-        if direction_navigation=='reference_v4':result['direction_navigation_state']=navigator.record()
+        if direction_navigation in ('reference_v4','anti_windup_v5','hysteretic_v6'):result['direction_navigation_state']=navigator.record()
         if has_turn:
             result.update(turn_source_sha256=backend.digest(turn_source),
                 controller_memory_sha256=backend.digest(backend.OUTPUT/args.name/'controller_memory.json'))
@@ -580,7 +586,7 @@ def main():
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--turn',action='store_true',help='Evaluate the saved yaw-command profile and settled hold')
     p.add_argument('--direction',choices=('forward','left','right','backward'),help='M7: turn and walk through a world-direction 10 m gate')
-    p.add_argument('--direction-navigation',choices=('legacy','signed_v2','filtered_signed_v3','reference_v4'),default='legacy')
+    p.add_argument('--direction-navigation',choices=('legacy','signed_v2','filtered_signed_v3','reference_v4','anti_windup_v5','hysteretic_v6'),default='legacy')
     p.add_argument('--teleop',action='store_true',help='Run the fixed60s joystick command replay')
     p.add_argument('--action-mapping',choices=('range_v1','legacy_radians_v2'),default='range_v1')
     p.add_argument('--moving-noise-floor',action='store_true')

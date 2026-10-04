@@ -178,5 +178,62 @@ class ReferenceNavigationTests(unittest.TestCase):
             self.assertTrue(nav.backward_aligned)
 
 
+class AntiWindupNavigationTests(unittest.TestCase):
+    def test_only_commands_worsening_reference_tracking_are_limited(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import AntiWindupNavigator
+        nav = AntiWindupNavigator('backward')
+        nav.reference = math.radians(170.)
+        # Facing beyond the gate, with the controller reference already lagging.
+        self.assertEqual(nav.command((0.,0.),math.radians(215.),100.)[2], 0.)
+        self.assertEqual(nav.blocked_sign, -1)
+        # Remain blocked between the start and release thresholds.
+        self.assertEqual(nav.command((0.,0.),math.radians(195.),101.)[2], 0.)
+        self.assertEqual(nav.blocked_sign, -1)
+        nav.command((0.,0.),math.radians(189.),102.)
+        self.assertEqual(nav.blocked_sign, 0)
+        # A command that reduces the same reference lag remains available.
+        nav = AntiWindupNavigator('backward')
+        nav.reference = math.radians(130.)
+        self.assertGreater(nav.command((0.,0.),math.radians(175.),100.)[2], 0.)
+
+    def test_delivered_commands_match_memory_including_blocked_intervals(self):
+        import torch
+        from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import AntiWindupNavigator
+        nav, memory = AntiWindupNavigator('backward'), CommandMemory()
+        blocked = 0
+        for step in range(10001):
+            age = step*.02
+            heading = min(.047*age,math.radians(220.))
+            obs = torch.zeros((1,70))
+            obs[0,63:66] = torch.tensor(nav.command((0.,0.),heading,age))
+            memory.observe(obs,torch.zeros((1,3)),torch.eye(3)[None],age)
+            self.assertEqual(nav.reference,memory.reference)
+            blocked += int(bool(nav.blocked_sign))
+        self.assertGreater(blocked,100)
+
+
+class HystereticNavigationTests(unittest.TestCase):
+    def test_body_error_hysteresis_preserves_steering_between_thresholds(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import HystereticNavigator
+        for sign in (-1,1):
+            nav = HystereticNavigator('left')
+            self.assertEqual(nav.steering_yaw(sign*math.radians(4.)),0.)
+            self.assertGreater(sign*nav.steering_yaw(sign*math.radians(6.)),0.)
+            self.assertGreater(sign*nav.steering_yaw(sign*math.radians(3.)),0.)
+            self.assertEqual(nav.steering_yaw(sign*math.radians(1.9)),0.)
+            self.assertEqual(nav.steering_yaw(sign*math.radians(4.9)),0.)
+
+    def test_filtered_heading_sway_retains_zero_command_dwell(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import HystereticNavigator
+        for direction,bearing in [('left',math.pi/2),('right',-math.pi/2)]:
+            nav = HystereticNavigator(direction)
+            for step in range(501):
+                age = 3.+step*.02
+                yaw = nav.command((0.,0.),bearing+.07*math.sin(step*.14),age)[2]
+                self.assertEqual(yaw,0.)
+            self.assertEqual(nav.record()['steering_sign'],0)
+
+
 if __name__ == '__main__':
     unittest.main()

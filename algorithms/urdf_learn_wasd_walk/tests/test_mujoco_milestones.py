@@ -183,6 +183,42 @@ class WalkingCertificateTests(StandingCertificateTests):
                 gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
             self.record['direction_navigation_state'] = nav.record()
 
+    def test_anti_windup_navigation_evidence(self):
+        from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
+        cp = self.direction_fixture()
+        self.cfg['direction_navigation'] = 'anti_windup_v5'
+        self.record['identity']['config_sha256'] = hashlib.sha256(json.dumps(self.cfg, sort_keys=True).encode()).hexdigest()
+        source = self.folder/'signed_navigation_source.py'
+        source.write_bytes(Path(signed.__file__).read_bytes())
+        self.record['signed_navigation_source_sha256'] = gates.digest(source)
+        nav = signed.AntiWindupNavigator('forward')
+        for step in range(3000):nav.command((0.,0.),0.,step*.02)
+        self.record['direction_navigation_state'] = nav.record()
+        self.teleop_save()
+        gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        self.record['direction_navigation_state']['blocked_sign'] = -1
+        self.teleop_save()
+        with self.assertRaisesRegex(ValueError, 'Navigation state differs'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+
+    def test_hysteretic_navigation_evidence(self):
+        from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
+        cp = self.direction_fixture()
+        self.cfg['direction_navigation'] = 'hysteretic_v6'
+        self.record['identity']['config_sha256'] = hashlib.sha256(json.dumps(self.cfg, sort_keys=True).encode()).hexdigest()
+        source = self.folder/'signed_navigation_source.py'
+        source.write_bytes(Path(signed.__file__).read_bytes())
+        self.record['signed_navigation_source_sha256'] = gates.digest(source)
+        nav = signed.HystereticNavigator('forward')
+        for step in range(3000):nav.command((0.,0.),0.,step*.02)
+        self.record['direction_navigation_state'] = nav.record()
+        self.teleop_save()
+        gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        self.record['direction_navigation_state']['steering_sign'] = -1
+        self.teleop_save()
+        with self.assertRaisesRegex(ValueError, 'Navigation state differs'):
+            gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+
     def test_direction_promotion_requires_four_distinct_runs_and_six_predecessors(self):
         checkpoint=self.folder/'candidate.pt';checkpoint.write_bytes(b'candidate')
         ledger=dict(lineage=gates.LINEAGE,milestones=[{'status':'passed'} for _ in range(6)]+

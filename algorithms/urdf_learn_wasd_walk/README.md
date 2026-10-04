@@ -29,31 +29,40 @@ Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
 for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
 Speed improvements require measured faster completion and the same quality checks.
 
-Current M7 candidate: `m7_20261004_right_balance15_dual/model_0.pt`, SHA-256
-`06c99bbaa5418c241ae72e82fc34d4ea60d9ef919c05a0b712be044b013825e8`,
-Its `filtered_signed_v3` right-gate proof passed
-independent validation and full visual review: 10 m in 96.40 s, lateral error
-−0.539 m, peak force 2.799 BW, and no falls or resets. Its backward run failed
-at 141.042 s after reference/heading error grew toward 98° and peak support
-reached 3.238 BW. Its M5 recheck stayed upright but failed the 5° hold limit
-with 6.53° error. CPU replay confirms identical donor/candidate M5 actions;
-small numerical state divergence begins before turning. Neither failure is
-waived. The first `reference_v4` backward trial is running; all four directions
-must pass with the same navigator version, plus fresh M1–M6, before promotion.
+Current M7 candidate: `m7_20261004_yaw_hold15_dual/model_0.pt`, SHA-256
+`74afe56a9f64642d676cd14e3b365f4f1dbf59a16d705108fe4fde0dbaa0a777`.
+Its fresh M5 turn/hold proof is running. This candidate changes only left hold
+feedback (parameter 3: −0.03) and left yaw scale (17: 1.49) from right-balance15;
+both learned networks, standing, gait, other 18 parameters and saved deployment
+code stay frozen. The independent validator checked its complete donor lineage.
+No milestone is promoted until all required independent proofs pass.
 
-This checkpoint preserves both learned correction networks, standing, gait,
-and all turn parameters except the two right-sway settings (12/13). A repeated
-fine grid selected candidate 15: six of eight training gate trials passed,
-including both nominal starts. This is selection evidence, not a robustness
-certificate. The preceding margin399 checkpoint had accepted backward and left
-proofs but showed right-turn physical sensitivity under identical commands.
-The new checkpoint must re-pass those directions and every predecessor.
+The candidate passed the measured physical/hold subset in all 16 cases across
+two fixed grids: M5 and M6, each with nominal and three shared perturbed starts.
+Worst support was 2.867 BW, hold error 4.321°, and hold drift 24.95 mm. This is
+selection evidence; M6 response blocks, visual quality and independent nominal
+proofs remain required. Duplicate unchanged controls varied substantially, so
+these results do not establish broad robustness. The earlier hold-only search
+could not correct an already-overturned M5 approach.
 
-Right-sway searches use duplicate controls and shared starting perturbations.
-Training targets 2.9 BW; the physical acceptance limit remains 3 BW. The
-`landau_right_rebase` composition checks frozen tensors, source lineage,
-20-parameter deployment code, and the unchanged turn duration. Original
-checkpoint snapshots and rejected experiments remain intact.
+Predecessor `m7_20261004_right_balance15_dual/model_0.pt` has an accepted V3
+right-gate proof: 96.40 s, −0.539 m lateral error, peak 2.799 BW. Its V3 backward
+run fell at 141.042 s; reference-only V4 fell at 113.92 s. V5 reached the backward
+gate upright in 168.39 s with 0.216 m lateral error, but failed at 3.103 BW.
+Those excessive contacts occurred around active/cruise correction transitions.
+`hysteretic_v6` keeps V5 body-heading pursuit and conditional integration, with
+5° start / 2° stop yaw hysteresis. Recorded-pose replay reduced late yaw onsets
+from 31 to 5; fresh physical validation remains required. Forward command and
+yaw cap are unchanged. All four direction proofs must use one navigator version.
+
+The predecessor also failed fresh M5 heading (6.53°) and M6 restart force
+(3.157 BW). Neither event used the changed right-side parameters; the failures
+expose numerical sensitivity in the unchanged left-turn/stop/restart sequence.
+The new yaw/hold grid explicitly includes both learned heads throughout these
+sequences. Original checkpoint snapshots and rejected evidence remain intact.
+`landau_yaw_hold_rebase` binds the selected row to two distinct, hashed screens
+and checks immutable donor parameters, actors, sources, metadata and command
+profile. Screening and composition never promote a milestone.
 
 The custom `balanced_hands_v1` Landau checkpoint passed the complete cumulative set:
 
