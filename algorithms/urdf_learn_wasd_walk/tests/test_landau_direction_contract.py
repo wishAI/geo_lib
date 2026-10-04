@@ -124,5 +124,59 @@ class SignedNavigationTests(unittest.TestCase):
         with self.assertRaises(ValueError):make_navigator('unknown','left')
 
 
+class ReferenceNavigationTests(unittest.TestCase):
+    def test_shadow_matches_real_controller_for_delivered_commands(self):
+        import torch
+        from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import ReferenceNavigator
+        for direction in contract.DIRECTIONS:
+            nav, memory = ReferenceNavigator(direction), CommandMemory()
+            for step in range(7501):
+                age = step*.02
+                obs = torch.zeros((1, 70))
+                obs[0, 63:66] = torch.tensor(nav.command((.2*math.sin(age), -.03*age),
+                    .04*age, age))
+                memory.observe(obs, torch.zeros((1, 3)), torch.eye(3)[None], age)
+                self.assertEqual(nav.reference, memory.reference)
+            self.assertAlmostEqual(nav.record()['shadow_reference_rad'], memory.record()['integrated_reference_rad'])
+            with self.assertRaisesRegex(ValueError, 'clock must increase'):
+                nav.command((0., 0.), 0., age)
+
+    def test_reference_reaches_finite_zero_dwell_without_heading_chatter(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import ReferenceNavigator
+        for direction, bearing in [('left', math.pi/2), ('right', -math.pi/2)]:
+            nav = ReferenceNavigator(direction)
+            yaws = [nav.command((0., 0.), bearing+.1*math.sin(step*.14), step*.02)[2]
+                    for step in range(6000)]
+            self.assertTrue(any(yaws))
+            self.assertEqual(set(yaws[-1000:]), {0.})
+            self.assertLess(abs(nav.reference-bearing), math.radians(1.))
+            onsets = sum(y != 0. and p == 0. for p,y in zip(yaws, yaws[1:]))
+            self.assertEqual(onsets, 1)
+
+    def test_hysteresis_continues_inside_start_band_and_stops_inside_one_degree(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import ReferenceNavigator
+        nav = ReferenceNavigator('left')
+        nav.reference = math.pi/2-math.radians(2.)
+        self.assertEqual(nav.command((0.,0.),0.,3.)[2], 0.)
+        nav.steering_sign = 1
+        self.assertGreater(nav.command((0.,0.),0.,3.02)[2], 0.)
+        nav.reference = math.pi/2-math.radians(.9)
+        self.assertEqual(nav.command((0.,0.),0.,3.04)[2], 0.)
+        self.assertEqual(nav.steering_sign, 0)
+
+    def test_backward_initial_sway_latch_and_wrapped_reference(self):
+        from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import ReferenceNavigator
+        for heading in (-.2, 0., .2):
+            nav = ReferenceNavigator('backward')
+            self.assertGreater(nav.command((.02,.2),heading,3.)[2], 0.)
+            self.assertFalse(nav.backward_aligned)
+            nav.command((0.,0.),2.,60.)
+            self.assertTrue(nav.backward_aligned)
+            nav.reference = math.pi+.2
+            self.assertLess(nav.command((0.,0.),-.2,60.02)[2], 0.)
+            self.assertTrue(nav.backward_aligned)
+
+
 if __name__ == '__main__':
     unittest.main()

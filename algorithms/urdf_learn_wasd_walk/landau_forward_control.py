@@ -375,7 +375,7 @@ def evaluate(args):
     if direction:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as direction_contract
     direction_navigation=getattr(args,'direction_navigation','legacy')
-    if direction_navigation not in ('legacy','signed_v2','filtered_signed_v3') or (direction_navigation!='legacy' and not direction):
+    if direction_navigation not in ('legacy','signed_v2','filtered_signed_v3','reference_v4') or (direction_navigation!='legacy' and not direction):
         raise ValueError('Signed navigation requires a directional evaluation')
     navigator=None
     if direction_navigation!='legacy':
@@ -544,6 +544,7 @@ def evaluate(args):
         (backend.OUTPUT/args.name/'gait_source.py').write_text(source.read_text())
         result_path=backend.OUTPUT/args.name/'dynamics.json'
         result=json.loads(result_path.read_text());result['gait_source_sha256']=backend.digest(source)
+        if direction_navigation=='reference_v4':result['direction_navigation_state']=navigator.record()
         if has_turn:
             result.update(turn_source_sha256=backend.digest(turn_source),
                 controller_memory_sha256=backend.digest(backend.OUTPUT/args.name/'controller_memory.json'))
@@ -579,7 +580,7 @@ def main():
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--turn',action='store_true',help='Evaluate the saved yaw-command profile and settled hold')
     p.add_argument('--direction',choices=('forward','left','right','backward'),help='M7: turn and walk through a world-direction 10 m gate')
-    p.add_argument('--direction-navigation',choices=('legacy','signed_v2','filtered_signed_v3'),default='legacy')
+    p.add_argument('--direction-navigation',choices=('legacy','signed_v2','filtered_signed_v3','reference_v4'),default='legacy')
     p.add_argument('--teleop',action='store_true',help='Run the fixed60s joystick command replay')
     p.add_argument('--action-mapping',choices=('range_v1','legacy_radians_v2'),default='range_v1')
     p.add_argument('--moving-noise-floor',action='store_true')

@@ -525,7 +525,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
             else:require(value==metrics[key], 'Direction crossing differs from trajectory')
         require(not dc.evaluate_gate({**metrics,**measured},duration), 'Reconstructed directional gate failed')
         navigation=cfg.get('direction_navigation','legacy')
-        require(navigation in ('legacy','signed_v2','filtered_signed_v3'), 'Unknown directional navigation')
+        require(navigation in ('legacy','signed_v2','filtered_signed_v3','reference_v4'), 'Unknown directional navigation')
         navigator=None
         if navigation!='legacy':
             from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
@@ -540,6 +540,14 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
         memory=read(folder/'controller_memory.json')
         require(memory['simulation_reset'] is False and memory.get('memory_version')==2, 'Wrong direction memory semantics')
         require(abs(memory['integrated_reference_rad']-float(obs[:-1,65].sum())*.02)<1e-4, 'Direction heading reference differs from commands')
+        if navigation=='reference_v4':
+            state=navigator.record();reported=result.get('direction_navigation_state',{})
+            require(state.keys()==reported.keys(), 'Missing navigation reference state')
+            for key,value in state.items():
+                if isinstance(value,float):require(abs(value-reported[key])<1e-6, 'Navigation state differs: '+key)
+                else:require(value==reported[key], 'Navigation state differs: '+key)
+            require(abs(state['shadow_reference_rad']-memory['integrated_reference_rad'])<1e-7, 'Navigator shadow reference differs from controller')
+        else:require('direction_navigation_state' not in result, 'Unexpected reference navigation state')
     media=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=nb_frames,duration','-of','json',str(folder/'proof.mp4')]))['streams'][0]
     require(int(media['nb_frames'])==control_steps+1 and float(media['duration'])>=duration, 'Walking video incomplete')
     return result,metrics

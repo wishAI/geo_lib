@@ -163,6 +163,26 @@ class WalkingCertificateTests(StandingCertificateTests):
         with self.assertRaisesRegex(ValueError,'Legacy direction mislabeled'):
             gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
 
+    def test_reference_navigation_state_is_reconstructed_and_bound_to_memory(self):
+        from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed
+        cp = self.direction_fixture()
+        self.cfg['direction_navigation'] = 'reference_v4'
+        self.record['identity']['config_sha256'] = hashlib.sha256(json.dumps(self.cfg, sort_keys=True).encode()).hexdigest()
+        source = self.folder/'signed_navigation_source.py'
+        source.write_bytes(Path(signed.__file__).read_bytes())
+        self.record['signed_navigation_source_sha256'] = gates.digest(source)
+        nav = signed.ReferenceNavigator('forward')
+        for step in range(3000):nav.command((0.,0.),0.,step*.02)
+        self.record['direction_navigation_state'] = nav.record()
+        self.teleop_save()
+        gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+        for key in ('shadow_reference_rad', 'previous_yaw', 'previous_time_s', 'steering_sign'):
+            self.record['direction_navigation_state'][key] += 1.
+            self.teleop_save()
+            with self.assertRaisesRegex(ValueError, 'Navigation state differs'):
+                gates.check_walking(self.folder,self.ledger,cp,10.,direction='forward')
+            self.record['direction_navigation_state'] = nav.record()
+
     def test_direction_promotion_requires_four_distinct_runs_and_six_predecessors(self):
         checkpoint=self.folder/'candidate.pt';checkpoint.write_bytes(b'candidate')
         ledger=dict(lineage=gates.LINEAGE,milestones=[{'status':'passed'} for _ in range(6)]+

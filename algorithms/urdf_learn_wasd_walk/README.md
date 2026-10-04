@@ -18,30 +18,42 @@ the navigator from the full trajectory and binds its additional source snapshot.
 The first signed trial fell at95.882s after eight side reversals during88–94s.
 `filtered_signed_v3` filters circular bearing error with a0.5s time constant before
 the same deadband. Offline pose replay removed those eight reversals while
-retaining sustained course corrections; fresh physical evaluation is pending.
+retaining sustained course corrections. It passed individual left, right and
+backward proofs across candidates, but no single candidate passed the cumulative set.
+The new `reference_v4` experiment filters the gate bearing and commands the
+controller’s integrated yaw reference toward it, with 3° start / 1° stop
+hysteresis. This prevents continual integration against delayed body heading.
+Its shadow integrates delivered float32 commands and is independently checked
+against controller memory; it never assigns controller or simulator state.
 Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
 for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
 Speed improvements require measured faster completion and the same quality checks.
 
-Current M7 candidate: `m7_20261003_active_margin400/model_399.pt`, SHA-256
-`92b887acb77f0ba112156b8d486158baf7c039af0b28fab0eba79c874844c70f`,
-using `--direction-navigation filtered_signed_v3`. Its backward dynamics cleared
-10 m in169.24s at2.970BW and left in102.25s at2.948BW, with zero falls or resets.
-Backward and left now have accepted full videos and independent validation.
-The right trial failed at47.764s after a3.432BW landing; its initial observations
-and commands were bit-identical to the prior passing right run. This exposes
-physical sensitivity in the inherited right-turn controller. Forward and
-cumulative M1–M4 remain required. Existing exact-checkpoint M5/M6 proofs validate.
-This candidate is not promoted. The adapted-cruise399 branch failed under the same
-navigator after entering prolonged right-mode control; its force breaches and
-fall remain rejected evidence. Keep all acceptance limits unchanged.
-A bounded right-sway search now changes only CEM indices12/13, with duplicate
-controls and identical starting perturbations. A coarse64-candidate grid repeated
-twice produced no full qualification; candidate34 cleared5/8 gate trials and is
-the center of a finer grid. The original controller remains a separate control.
-Training targets2.9BW while the acceptance limit remains3BW. Any selected CEM
-candidate must be explicitly composed with the frozen margin399 dual residuals
-using `landau_right_rebase`, then receive fresh full cumulative validation.
+Current M7 candidate: `m7_20261004_right_balance15_dual/model_0.pt`, SHA-256
+`06c99bbaa5418c241ae72e82fc34d4ea60d9ef919c05a0b712be044b013825e8`,
+Its `filtered_signed_v3` right-gate proof passed
+independent validation and full visual review: 10 m in 96.40 s, lateral error
+−0.539 m, peak force 2.799 BW, and no falls or resets. Its backward run failed
+at 141.042 s after reference/heading error grew toward 98° and peak support
+reached 3.238 BW. Its M5 recheck stayed upright but failed the 5° hold limit
+with 6.53° error. CPU replay confirms identical donor/candidate M5 actions;
+small numerical state divergence begins before turning. Neither failure is
+waived. The first `reference_v4` backward trial is running; all four directions
+must pass with the same navigator version, plus fresh M1–M6, before promotion.
+
+This checkpoint preserves both learned correction networks, standing, gait,
+and all turn parameters except the two right-sway settings (12/13). A repeated
+fine grid selected candidate 15: six of eight training gate trials passed,
+including both nominal starts. This is selection evidence, not a robustness
+certificate. The preceding margin399 checkpoint had accepted backward and left
+proofs but showed right-turn physical sensitivity under identical commands.
+The new checkpoint must re-pass those directions and every predecessor.
+
+Right-sway searches use duplicate controls and shared starting perturbations.
+Training targets 2.9 BW; the physical acceptance limit remains 3 BW. The
+`landau_right_rebase` composition checks frozen tensors, source lineage,
+20-parameter deployment code, and the unchanged turn duration. Original
+checkpoint snapshots and rejected experiments remain intact.
 
 The custom `balanced_hands_v1` Landau checkpoint passed the complete cumulative set:
 

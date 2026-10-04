@@ -4,12 +4,14 @@ Legacy one-sided training and evidence retain their original command generator.
 This serial navigator is replayed from the full pose trace by the validator.
 """
 import math
+import struct
 
 from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
 
 VERSION = 'signed_v2'
 FILTERED_VERSION = 'filtered_signed_v3'
-VERSIONS = (VERSION, FILTERED_VERSION)
+REFERENCE_VERSION = 'reference_v4'
+VERSIONS = (VERSION, FILTERED_VERSION, REFERENCE_VERSION)
 HEADING_TOLERANCE_RAD = math.radians(3.)
 
 
@@ -68,7 +70,64 @@ class FilteredNavigator(Navigator):
         return self.filtered_error
 
 
+class ReferenceNavigator(Navigator):
+    """Servo the frozen controller's integrated reference using joystick yaw.
+
+    The shadow reference integrates delivered float32 commands exactly; it never
+    assigns controller or simulation state. Bearing is filtered, with 3 degree
+    start / 1 degree stop hysteresis so straight-walking dwell remains possible.
+    Related multiloop tracking principle (this adapter still requires validation):
+    https://www.mathworks.com/help/simulink/slref/prevent-block-windup-in-multiloop-control.html
+    """
+    STOP_TOLERANCE_RAD = math.radians(1.)
+
+    def __init__(self, direction):
+        super().__init__(direction)
+        self.bearing_filter = FilteredNavigator(direction)
+        self.reference = 0.
+        self.previous_yaw = 0.
+        self.previous_time = None
+        self.steering_sign = 0
+
+    def command(self, displacement, heading, seconds, forward=.2):
+        if self.previous_time is not None:
+            elapsed = seconds-self.previous_time
+            if elapsed <= 0.:
+                raise ValueError('Navigation clock must increase')
+            self.reference += self.previous_yaw*elapsed
+        yaw = 0.
+        if self.direction != 'forward' and seconds >= 3.:
+            axis = contract.DIRECTIONS[self.direction]
+            dx, dy = displacement
+            ahead = max(10., dx*axis[0]+dy*axis[1]+2.)
+            bearing = math.atan2(-(ahead*axis[0]-dx), ahead*axis[1]-dy)
+            bearing = self.bearing_filter.correction_error(bearing, seconds)
+            if self.direction == 'backward' and not self.backward_aligned:
+                self.backward_aligned = math.cos(heading) < 0.
+            if self.direction == 'backward' and not self.backward_aligned:
+                yaw = contract.command(self.direction, displacement, heading, seconds, forward)[2]
+                self.steering_sign = 1 if yaw > 0. else 0
+            else:
+                error = math.atan2(math.sin(bearing-self.reference), math.cos(bearing-self.reference))
+                if self.steering_sign and error*self.steering_sign <= self.STOP_TOLERANCE_RAD:
+                    self.steering_sign = 0
+                if not self.steering_sign and abs(error) > HEADING_TOLERANCE_RAD:
+                    self.steering_sign = 1 if error > 0. else -1
+                if self.steering_sign:
+                    yaw = max(-contract.MAX_YAW_RATE, min(contract.MAX_YAW_RATE, .3*error))
+        self.previous_yaw = struct.unpack('f', struct.pack('f', yaw))[0]
+        self.previous_time = seconds
+        return forward, 0., self.previous_yaw
+
+    def record(self):
+        return {'shadow_reference_rad': self.reference, 'previous_yaw': self.previous_yaw,
+                'previous_time_s': self.previous_time, 'steering_sign': self.steering_sign,
+                'backward_aligned': self.backward_aligned,
+                'filtered_bearing_rad': self.bearing_filter.filtered_error}
+
+
 def make_navigator(version, direction):
     if version == VERSION:return Navigator(direction)
     if version == FILTERED_VERSION:return FilteredNavigator(direction)
+    if version == REFERENCE_VERSION:return ReferenceNavigator(direction)
     raise ValueError('Unknown directional navigation')

@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-04T04:12:43.760212+00:00",
+    "updatedAt": "2026-10-04T04:26:17.596088+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Finishindependent filteredrightgate forright_balance15_dual. Newcheckpoint needsfreshall4directions andM1\u2013M6; previousmargin399 proofsremainhistoricalcomparisons.",
+    "nextWork": "CurrentGPUrun m7_20261004_right_balance15_filtered_backward. Samecandidate stillneedsbackward/left/forward andfreshM1\u2013M6; rightproofaccepted. Sixcertifiedmilestones unchanged.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2584,7 +2584,7 @@
       "tests": "139 relevant CPU tests passed, includingindependent frozenhead/leftparameter/donor/source rejection andarity projection."
     },
     "rightBalanceComposite": {
-      "status": "fresh filteredrightgate running",
+      "status": "V3 right accepted; V3 backward and M5 failed; reference_v4 backward trial running",
       "checkpoint": "m7_20261004_right_balance15_dual/model_0.pt",
       "cem_parent": "m7_20261004_right_balance_fine15/model_0.pt",
       "donor": "m7_20261003_active_margin400/model_399.pt",
@@ -2597,6 +2597,40 @@
         0.04179389774799347
       ],
       "run": "m7_20261004_right_balance15_filtered_right",
+      "promoted": false,
+      "checkpoint_sha256": "06c99bbaa5418c241ae72e82fc34d4ea60d9ef919c05a0b712be044b013825e8",
+      "dynamics_sha256": "231a279f9e151c46c523840b58e38c078e9202fe3ef45a4f0c75ed4d55642db1",
+      "metrics": {
+        "duration_s": 96.42,
+        "fall_count": 0,
+        "peak_support_body_weight_ratio": 2.7991396988507398,
+        "gate_crossing_time_s": 96.40009935419772,
+        "gate_cross_track_m": -0.5387496655642627
+      },
+      "visual_review_sha256": "a63c34ab0af568eee3e34ab194c7313568b0dae96d433c1a77c666c2e27e4ae1",
+      "backward_rejection": {
+        "run": "m7_20261004_right_balance15_filtered_backward",
+        "duration_s": 141.042,
+        "peak_support_body_weight_ratio": 3.237806,
+        "direction_progress_m": 6.584569,
+        "cross_track_m": 1.56636,
+        "visual_review_sha256": "aec90093c913a40a86a7ea94fe6b94865d99a2a117072f113282c0c50685bb6b"
+      },
+      "m5_rejection": {
+        "run": "m7_20261004_right_balance15_m5",
+        "hold_heading_error_deg": 6.52981,
+        "peak_support_body_weight_ratio": 2.8092138,
+        "visual_review_sha256": "2a88c034c8a61e9293868e9830cadf53a9d4ed31e8130b31f37f03be4c663b96",
+        "diagnosis": "All2800 saved observations yield identical donor/candidate baseline actions; changed right parameters never activate. Initial state exact; numerical divergence starts at0.02s. Acceptance remains failed."
+      }
+    },
+    "referenceNavigation": {
+      "version": "reference_v4",
+      "status": "backward dynamics running",
+      "run": "m7_20261004_right_balance15_reference_backward",
+      "design": "Filter circular gate bearing with0.5s constant; servo shadow integrated reference through bounded semantic yaw; 3degstart/1degstop hysteresis. Backward initialleftarc and permanenthemisphere latch retained. Forward command0.2 and physicalguards unchanged.",
+      "validation": "46 focusedCPUtests passed; shadow exactlymatches deliveredfloat32 CommandMemory integration; state and commands independently reconstructed.",
+      "research_reference": "https://www.mathworks.com/help/simulink/slref/prevent-block-windup-in-multiloop-control.html",
       "promoted": false
     }
   }
