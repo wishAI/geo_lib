@@ -3,6 +3,8 @@
 Both saved learned corrections run during deceleration and restart. Only the
 existing left hold gain varies in paired-state mode. Nominal mode also varies
 left yaw scale; model, gait, actors and all other turn gains stay frozen.
+The separate active-scale mode is attribution only, with recorded joystick
+commands and evolving simulated observations; it never exports a policy.
 """
 import argparse
 import hashlib
@@ -33,6 +35,27 @@ def nominal_grid(seed):
     return rows
 
 
+def feedback_grid(seed):
+    """Small existing roll/rate gain grid with two exact incumbent controls."""
+    import torch
+    parameter_grid(seed)
+    rows=seed.repeat(27,1)
+    offsets=seed.new_tensor([(a,b) for a in (-.005,-.0025,0.,.0025,.005)
+                            for b in (-.0015,-.00075,0.,.00075,.0015)])
+    rows[2:,18:20]+=offsets
+    if bool((rows[:,18].abs()>.05).any() or (rows[:,19].abs()>.015).any()):
+        raise ValueError('Feedback grid exceeds existing controller bounds')
+    return rows
+
+
+def scale_active(baseline, complete, scales):
+    """Bounded attribution only; preserve the exact incumbent at scale one."""
+    import torch
+    if scales.ndim != 1 or len(scales) != len(baseline) or not torch.isfinite(scales).all() or bool(((scales<0)|(scales>1)).any()):
+        raise ValueError('Active diagnostic scale must be in0..1 per world')
+    return torch.where((scales==1)[:,None],complete,baseline+scales[:,None]*(complete-baseline))
+
+
 def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
     import numpy as np
     import torch
@@ -43,13 +66,17 @@ def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
         folder = Path(folder).resolve()
         result = json.loads((folder/'dynamics.json').read_text())
         cfg = result['config']
-        if cfg['checkpoint_sha256'] not in allowed or not cfg.get('turn' if mode == 'm5' else 'teleop'):
+        protocol_ok = (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='active' else cfg.get('turn' if mode=='m5' else 'teleop')
+        if cfg['checkpoint_sha256'] not in allowed or not protocol_ok:
             raise ValueError('Warm start checkpoint or protocol mismatch')
         if any(cfg[key] != value for key,value in dict(forward=.2, assistance=0., dt=.002,
-                contact_timeconst=.004, gain_scale=1.).items()):
+                contact_timeconst=.004, gain_scale=1., noslip_iterations=0).items()):
             raise ValueError('Warm start physics changed')
         for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','backend','mujoco_version'):
             if result['identity'][key] != meta[key]:raise ValueError('Warm start model changed')
+        if cfg['checkpoint_sha256']==digest(checkpoint):
+            for key in ('turn_source_sha256','residual_source_sha256','active_residual_source_sha256'):
+                if result.get(key)!=meta[key]:raise ValueError('Warm start controller source changed')
         hashes = {}
         for filename,key in (('trajectory.npz','trajectory_sha256'),('policy_trace.npz','policy_trace_sha256'),
                              ('foot_trace.json','foot_trace_sha256')):
@@ -97,12 +124,17 @@ def run(args):
     from algorithms.urdf_learn_wasd_walk.landau_right_rebase import check_contract
     from algorithms.urdf_learn_wasd_walk.landau_turn_control import install_physics_audit
     from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop
+    nominal_mode=args.nominal_grid or args.feedback_nominal_grid
     backend,batches,_ = configure_model('balanced_hands_v1')
     checkpoint = Path(args.checkpoint).resolve()
     meta = json.loads((checkpoint.parent/'training.json').read_text())
     if meta['checkpoints'][checkpoint.name] != backend.digest(checkpoint):raise ValueError('Checkpoint changed')
     if meta['action_scale'] != action_scales(meta['action_joints'],.4):raise ValueError('Calibration action scales changed')
     blob = torch.load(checkpoint,map_location='cpu',weights_only=False)
+    if meta.get('residual_variant')=='right_controller_calibrated_dual_residual_v1':
+        from algorithms.urdf_learn_wasd_walk.landau_right_controller_rebase import check_contract
+    elif meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
+        from algorithms.urdf_learn_wasd_walk.landau_yaw_hold_rebase import check_contract
     check_contract(meta,blob,backend.digest)
     turn = load_source(checkpoint.parent/'turn_source.py',meta['turn_source_sha256'],'hold_saved_turn')
     if meta['arguments']['turn_duration'] != 44.:raise ValueError('Calibration requires the current44s turn profile')
@@ -110,7 +142,13 @@ def run(args):
     base,_ = load_gait_source(checkpoint,meta)
     residual = load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'hold_saved_cruise')
     active = load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'hold_saved_active')
-    if args.nominal_grid:
+    if args.feedback_grid:
+        prepared = [('active',*load_starts([args.backward_directory],checkpoint,meta,turn,'active',age,backend.digest),age,end)
+                    for age,end in ((137.,145.),(138.,145.),(139.,145.),(111.,119.),(126.,134.),(4.,15.))]
+    elif args.active_scale_diagnostic:
+        prepared = [('active',*load_starts([args.backward_directory],checkpoint,meta,turn,'active',age,backend.digest),age,145.)
+                    for age in (137.,138.,139.)]
+    elif nominal_mode:
         prepared = [(mode,[],turn.CommandMemory(),[],0.,end) for mode,end in [('m5',56.),('m6',60.)]]
     else:
         prepared = [(mode,*load_starts(folders,checkpoint,meta,turn,mode,age,backend.digest),age,end)
@@ -123,19 +161,20 @@ def run(args):
         raise ValueError('Calibration teleop protocol differs from saved controller')
     (folder/'teleop_source.py').write_bytes(Path(teleop.__file__).read_bytes())
     torch.set_num_threads(4);torch.manual_seed(42)
-    grid = (nominal_grid if args.nominal_grid else parameter_grid)(blob['turn_parameters']).to('cuda')
+    grid = (blob['turn_parameters'].repeat(5,1) if args.active_scale_diagnostic else
+            (feedback_grid if args.feedback_grid or args.feedback_nominal_grid else nominal_grid if nominal_mode else parameter_grid)(blob['turn_parameters'])).to('cuda')
     prior = make_actor(63,'cuda');prior.load_state_dict(blob['standing_actor_state_dict']);prior.eval()
     cruise_actor = residual.make_actor('cuda');cruise_actor.load_state_dict(blob['residual_actor_state_dict']);cruise_actor.eval()
     active_actor = residual.make_actor('cuda');active_actor.load_state_dict(blob['active_residual_actor_state_dict']);active_actor.eval()
     walking = blob['parameters'].to('cuda')
     results = {}
     for mode,states,memory,sources,start,end in prepared:
-        width = 4 if args.nominal_grid else 2*len(states)
+        width = 4 if nominal_mode else 2*len(states)
         n = len(grid)*width
         batch = batches.WarpBatch(n,42,0.,'stand','load',.004,.2,.0225)
         if hashlib.sha256(batch.xml.encode()).hexdigest() != meta['model_xml_sha256']:raise ValueError('Calibration model changed')
         audit = install_physics_audit(batch,batches,n)
-        if args.nominal_grid:
+        if nominal_mode:
             from algorithms.urdf_learn_wasd_walk.landau_direction_training import common_start_offsets
             (folder/'direction_training_source.py').write_bytes(Path(common_start_offsets.__code__.co_filename).read_bytes())
             offsets = common_start_offsets(batch.nominal,batch.jq,width,42)
@@ -151,15 +190,29 @@ def run(args):
         wp.capture_launch(batch.forward_graph);wp.synchronize()
         for value in audit.values():value.zero_()
         params = grid.repeat_interleave(width,dim=0)
+        scales = torch.tensor([0.,.25,.5,.75,1.],device='cuda').repeat_interleave(width) if args.active_scale_diagnostic else None
+        replay = np.load(Path(args.backward_directory)/'policy_trace.npz') if mode=='active' else None
+        if replay is not None:
+            stop = round(end/.02)+1
+            if (len(replay['time']) < stop or not np.allclose(replay['time'][:stop],np.arange(stop)*.02,atol=1e-6,rtol=0) or
+                not np.isfinite(replay['observation'][:stop]).all()):
+                raise ValueError('Active replay has a missing or invalid future command suffix')
         names = batch.spec['action_joints']
         limits = torch.tensor(action_scales(names,.4),device='cuda')/.08
         weight = float(batch.model.body_mass.sum())*9.81
         live = torch.ones(n,dtype=torch.bool,device='cuda')
         bits = torch.zeros(n,dtype=torch.int,device='cuda')
         peak = torch.zeros(n,device='cuda')
+        foot_peak = torch.zeros((n,2),device='cuda')
+        first_failure = torch.full((n,),float('nan'),device='cuda')
         hold_error = torch.zeros(n,device='cuda');hold_drift = torch.zeros_like(hold_error)
         hold_speed = torch.zeros_like(hold_error);hold_yaw_speed = torch.zeros_like(hold_error)
-        holds = ((51.,56.),) if mode == 'm5' else teleop.HOLDS
+        holds = () if mode=='active' else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
+        max_heading_deviation = torch.zeros(n,device='cuda')
+        body_progress = torch.zeros(n,device='cuda')
+        end_heading = torch.zeros(n,device='cuda')
+        origin = batch.pos[:,batch.pelvis,:2].clone()
+        terminal_xy = origin.clone()
         hold_origins = {};hold_headings = {}
         durations = torch.zeros(n,device='cuda')
         last_xy = batch.pos[:,batch.pelvis,:2].clone()
@@ -167,6 +220,7 @@ def run(args):
             age = round((start+step*.02)/.02)*.02
             if step%500 == 0:print(json.dumps(dict(mode=mode,age_s=age,live=int(live.sum()))),flush=True)
             if mode == 'm5':forward,yaw,_ = turn.command_profile(age);command = (forward,0.,yaw)
+            elif mode=='active':command = replay['observation'][round(age/.02),63:66]
             else:command = teleop.command_profile(age)
             rot = batch.rot[:,batch.base]
             extra = torch.zeros((n,10),device='cuda')
@@ -179,8 +233,10 @@ def run(args):
                 action = turn.commanded_action(base,walking,prior,obs,prior_obs,params,names,
                                                memory.reference,memory.turned,memory=memory)
                 action = residual.apply(cruise_actor,action,obs,walking,memory,names)
-                action = active.apply(active_actor,action,obs,walking,memory,names,residual).clamp(-limits,limits)
+                complete = active.apply(active_actor,action,obs,walking,memory,names,residual)
+                action = (scale_active(action,complete,scales) if scales is not None else complete).clamp(-limits,limits)
             heading = torch.atan2(rot[:,1,0],rot[:,0,0])
+            before_heading = heading.clone()
             for a,b in holds:
                 # M5 drift begins at49s, but heading acceptance begins at51s.
                 anchor_age = a-2. if mode == 'm5' else a
@@ -195,12 +251,23 @@ def run(args):
             batch.previous[:] = action
             xy = batch.pos[:,batch.pelvis,:2]
             heading = torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
+            if mode=='active':
+                teacher = replay['observation'][round((age+.02)/.02)]
+                target = math.atan2(float(teacher[68]),float(teacher[69]+1.))
+                error = torch.atan2((heading-target).sin(),(heading-target).cos()).abs()
+                max_heading_deviation = torch.maximum(max_heading_deviation,torch.where(live,error,0.))
+                delta = xy-last_xy
+                body_progress += torch.where(live,-before_heading.sin()*delta[:,0]+before_heading.cos()*delta[:,1],0.)
+                terminal_xy = torch.where(live[:,None],xy,terminal_xy)
+                end_heading = torch.where(live,heading,end_heading)
             tilt = batch.rot[:,batch.base,2,2].clamp(-1,1).acos()
             failure = (tilt>math.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()
             failure += 4*(audit['speed']>4.+1e-6).int()+8*(audit['force']>3.*weight).int()
             failure += 16*(audit['nonfoot']!=0).int()+32*(audit['flight']>60).int()
             failure += 64*(~torch.isfinite(batch.q).all(1)|~torch.isfinite(batch.v).all(1)).int()
             peak = torch.maximum(peak,torch.where(live,audit['force']/weight,0.))
+            foot_peak = torch.maximum(foot_peak,torch.where(live[:,None],audit['foot_peak']/weight,0.))
+            first_failure = torch.where(live & (failure!=0),age+.02,first_failure)
             angular_world = torch.bmm(batch.rot[:,batch.base],batch.v[:,3:6,None]).squeeze(-1)
             velocity = batch.v[:,:3]+torch.cross(angular_world,batch.pos[:,batch.pelvis]-batch.q[:,:3],dim=1)
             for a,b in holds:
@@ -224,23 +291,32 @@ def run(args):
         if set(hold_origins) != {a for a,b in holds}:raise ValueError('Incomplete calibration hold windows')
         air_fraction = audit['flight_total'].float()*.002/(end-start)
         eligible = (air_fraction<=.05)&(bits==0)&(hold_error<=math.pi/36)&(hold_drift<=.03)&(hold_speed<=.05)&(hold_yaw_speed<=.1)
-        results[mode] = dict(sources=sources,start_s=start,end_s=end,
-            candidate_records=[dict(index=i,gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),eligible=eligible[i*width:(i+1)*width].tolist(),
+        result_key = 'active_'+str(start) if mode=='active' else mode
+        results[result_key] = dict(sources=sources,start_s=start,end_s=end,
+            candidate_records=[dict(index=i,gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),
+                active_scale=float(scales[i*width]) if scales is not None else 1.,
+                first_failure_control_time_s=[v if math.isfinite(v) else None for v in first_failure[i*width:(i+1)*width].tolist()],
+                per_foot_peak_bw=foot_peak[i*width:(i+1)*width].tolist(),
+                max_heading_deviation_rad=max_heading_deviation[i*width:(i+1)*width].tolist(),
+                body_forward_progress_m=body_progress[i*width:(i+1)*width].tolist(),
+                terminal_xy_m=terminal_xy[i*width:(i+1)*width].tolist(),
+                final_heading_rad=end_heading[i*width:(i+1)*width].tolist(),eligible=eligible[i*width:(i+1)*width].tolist(),
                 failure_bits=bits[i*width:(i+1)*width].tolist(),air_fraction=air_fraction[i*width:(i+1)*width].tolist(),peak_support_bw=peak[i*width:(i+1)*width].tolist(),
                 hold_error_rad=hold_error[i*width:(i+1)*width].tolist(),hold_drift_m=hold_drift[i*width:(i+1)*width].tolist(),
                 hold_speed_mps=hold_speed[i*width:(i+1)*width].tolist(),hold_yaw_speed_rad_s=hold_yaw_speed[i*width:(i+1)*width].tolist(),duration_s=durations[i*width:(i+1)*width].tolist())
                 for i in range(len(grid))])
         del batch,audit
-    backend.write_json(folder/'screen.json',dict(kind='nominal_common_start_yaw_hold_calibration' if args.nominal_grid else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
+    backend.write_json(folder/'screen.json',dict(kind='nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
         checkpoint=str(checkpoint),checkpoint_sha256=backend.digest(checkpoint),training_sha256=backend.digest(checkpoint.parent/'training.json'),
         source_sha256=backend.digest(__file__),turn_source_sha256=meta['turn_source_sha256'],
         residual_source_sha256=meta['residual_source_sha256'],active_residual_source_sha256=meta['active_residual_source_sha256'],
         audit_source_sha256=backend.digest(Path(install_physics_audit.__code__.co_filename)),
         teleop_source_sha256=backend.digest(folder/'teleop_source.py'),
-        common_start_source_sha256=backend.digest(folder/'direction_training_source.py') if args.nominal_grid else None,
-        candidate_parameters=grid.cpu().tolist(),changed_indices=[3,17] if args.nominal_grid else [3],results=results,
-        screen_criteria='Physical survival, force, joint speed, contacts, flight and hold metrics only; M6 block response/qualified swings still require nominal validation.',
-        limitations=('Common nominal/perturbed starts with simultaneous batched duplicate controls; no independent serial proof. ' if args.nominal_grid else 'Cleared solver warmstart; correlated states and batched copies, not exact continuation or nominal acceptance. M6 prefix before18s is not simulated. ')+'Hold metrics sampled20ms; physical force/speed/contact guards sampled2ms.'))
+        common_start_source_sha256=backend.digest(folder/'direction_training_source.py') if nominal_mode else None,
+        candidate_parameters=grid.cpu().tolist(),changed_indices=[18,19] if args.feedback_grid or args.feedback_nominal_grid else [] if args.active_scale_diagnostic else [3,17] if nominal_mode else [3],results=results,
+        screen_criteria=('Physical survival and force margin across late, healthy renewed-turn and early-turn windows; independent nominal proofs required.' if args.feedback_grid else 'Physical survival/forces only; active-scale attribution is not training or qualification.' if args.active_scale_diagnostic else
+            'Physical survival, force, joint speed, contacts, flight and hold metrics only; M6 block response/qualified swings still require nominal validation.'),
+        limitations=('Recorded pre-action states and full command memory; cleared solver warmstart; recorded joystick replay, not nominal navigation or acceptance. ' if args.active_scale_diagnostic or args.feedback_grid else 'Common nominal/perturbed starts with simultaneous batched duplicate controls; no independent serial proof. ' if nominal_mode else 'Cleared solver warmstart; correlated states and batched copies, not exact continuation or nominal acceptance. M6 prefix before18s is not simulated. ')+'Hold metrics sampled20ms; physical force/speed/contact guards sampled2ms.'))
     print(json.dumps({mode:[sum(r['eligible']) for r in result['candidate_records']] for mode,result in results.items()}),flush=True)
 
 
@@ -248,10 +324,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--nominal-grid',action='store_true')
+    parser.add_argument('--active-scale-diagnostic',action='store_true')
+    parser.add_argument('--feedback-grid',action='store_true')
+    parser.add_argument('--feedback-nominal-grid',action='store_true')
+    parser.add_argument('--backward-directory')
     parser.add_argument('--m5-directory',action='append',default=[])
     parser.add_argument('--m6-directory',action='append',default=[])
     args = parser.parse_args()
-    if args.nominal_grid:
+    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid))>1:
+        raise ValueError('Choose exactly one calibration mode')
+    if args.active_scale_diagnostic or args.feedback_grid:
+        if (args.active_scale_diagnostic and args.feedback_grid) or args.nominal_grid or not args.backward_directory or args.m5_directory or args.m6_directory:
+            raise ValueError('Recorded-state modes require exactly one mode and one backward directory')
+    elif args.backward_directory:raise ValueError('Backward directory requires a recorded-state mode')
+    elif args.nominal_grid or args.feedback_nominal_grid:
         if args.m5_directory or args.m6_directory:raise ValueError('Nominal grid cannot use warm starts')
     elif len(args.m5_directory)!=2 or len(args.m6_directory)!=2:
         raise ValueError('Require paired passing and failed M5/M6 states')

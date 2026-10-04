@@ -115,6 +115,21 @@ def right_balance_grid(seed, candidates, lows, highs, amplitude_radius=.015, pha
     return result
 
 
+def right_controller_parameters(normalized, lows, highs, seed):
+    """Search four right gains; preserve every other physical parameter exactly."""
+    import torch
+    if seed.shape!=(20,) or normalized.ndim!=2 or normalized.shape[1]!=20 or len(normalized)<3:
+        raise ValueError('Right controller search requires CEM20 and at least3candidates')
+    result=seed.repeat(len(normalized),1)
+    indices=[7,8,12,13]
+    result[:,indices]=lows[indices]+(normalized[:,indices].clamp(-1.,1.)+1)*.5*(highs[indices]-lows[indices])
+    # Row2 keeps the adaptive incumbent previously in row0; rows0/1 are seed controls.
+    result[2]=result[0].clone()
+    result[:2]=seed
+    if not torch.isfinite(result).all():raise ValueError('Nonfinite right search parameters')
+    return result
+
+
 def commands(direction, displacement, heading, seconds):
     import torch
     from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract
@@ -195,6 +210,9 @@ class GateTracker:
         self.origins=origins[:,:2].clone().to(torch.float64)
         self.axis=self.origins.new_tensor(DIRECTIONS[direction])
         self.previous=torch.zeros_like(self.origins)
+        self.plane_crossed=torch.zeros(len(origins),device=origins.device,dtype=torch.bool)
+        self.first_plane_time=torch.full((len(origins),),float('inf'),device=origins.device,dtype=torch.float64)
+        self.first_plane_lateral=torch.full_like(self.first_plane_time,float('nan'))
         self.completed=torch.zeros(len(origins),device=origins.device,dtype=torch.bool)
         self.crossing_time=torch.full((len(origins),),float('inf'),device=origins.device,dtype=torch.float64)
         self.crossing_lateral=torch.full_like(self.crossing_time,float('nan'))
@@ -210,6 +228,10 @@ class GateTracker:
         old_lateral=self.previous[:,0]*self.axis[1]-self.previous[:,1]*self.axis[0]
         fraction=(10.-old)/(progress-old).clamp_min(1e-12)
         crossing=old_lateral+fraction*(lateral-old_lateral)
+        plane=active & ~self.plane_crossed & (old<10.) & (progress>=10.)
+        self.first_plane_time=torch.where(plane,seconds-.02+fraction*.02,self.first_plane_time)
+        self.first_plane_lateral=torch.where(plane,crossing,self.first_plane_lateral)
+        self.plane_crossed|=plane
         fresh=active & ~self.completed & (old<10.) & (progress>=10.) & (crossing.abs()<=GATE_WIDTH_M)
         self.crossing_time=torch.where(fresh,seconds-.02+fraction*.02,self.crossing_time)
         self.crossing_lateral=torch.where(fresh,crossing,self.crossing_lateral)
@@ -222,6 +244,8 @@ class GateTracker:
     def record(self, members):
         def finite(values):return [v if math.isfinite(v) else None for v in values.detach().cpu().tolist()]
         return {'completed':self.completed[members].cpu().tolist(),
+            'first_plane_crossing_time_s':finite(self.first_plane_time[members]),
+            'first_plane_cross_track_m':finite(self.first_plane_lateral[members]),
             'crossing_time_s':finite(self.crossing_time[members]),
             'cross_track_m':finite(self.crossing_lateral[members]),
             'progress_m':finite(self.progress[members]),'final_lateral_m':finite(self.lateral[members])}

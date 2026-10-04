@@ -16,13 +16,23 @@ available for reproduction; saved checkpoint sources stay immutable.
 The bounded backward horizon is 240 s because the existing command rate needs
 88 s for 180 degrees. Forward command, yaw cap, standing, contact, speed, flight
 and no-reset limits are unchanged. Faster motion requires measured improvement
-with the same quality checks. Current V6 backward dynamics are running.
+with the same quality checks. Current V6 results remain rejected: backward reached the gate but exceeded
+force; right fell early.
 
 Current M7 candidate: `m7_20261004_yaw_hold15_dual/model_0.pt`, SHA-256
 `74afe56a9f64642d676cd14e3b365f4f1dbf59a16d705108fe4fde0dbaa0a777`.
 Its fresh M5 dynamics passed (4.08° hold error, 18.79 mm drift, peak 2.779 BW);
 M6 also passed (60 s, peak 2.965 BW). Both have accepted full-video reviews
-and passed the independent validator. V6 backward dynamics are running.
+and passed the independent validator. V6 backward reached 10 m upright in
+172.81 s but had one 3.100 BW impact; V6 right fell at 9.358 s. No uniform active-correction scale survived all six recorded-state replays.
+A bounded roll/rate feedback grid is prepared for the impact plus healthy turns.
+The four-gain right-turn search found an exact candidate passing all eight starts
+across two generations, worst peak 2.899 BW and gate times under 100 s.
+`m7_20261004_right_controller63_dual/model_0.pt` composes only 7/8/12/13
+onto this donor. Its nominal V6 right dynamics passed: 95.74 s, peak2.782BW,
+−0.667m lateral error; full-video review and independent final validation are pending.
+Both recorded feedback grids completed; row21 survived all24 window/copy cases
+with worst peak2.843BW. FullM5/M6 screening remains required.
 This candidate changes only left hold
 feedback (parameter 3: −0.03) and left yaw scale (17: 1.49) from right-balance15;
 both learned networks, standing, gait, other 18 parameters and saved deployment

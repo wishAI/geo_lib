@@ -252,9 +252,94 @@ def check_yaw_hold_calibration(folder,result,training,checkpoint):
     check_residual_source(donor.parent,donor_result,old,donor)
 
 
+def check_right_controller_calibration(folder,result,training,checkpoint):
+    """Independent four-gain composition audit, followed by the complete donor audit."""
+    import torch
+    from algorithms.urdf_learn_wasd_walk.landau_right_rebase import deployment_ast
+    checkpoint=Path(checkpoint);folder=Path(folder)
+    donor=Path(training['right_controller_donor_checkpoint']);old=read(donor.parent/'training.json')
+    require(digest(donor)==training['right_controller_donor_checkpoint_sha256'] and
+        digest(donor.parent/'training.json')==training['right_controller_donor_training_sha256'] and
+        old['checkpoints'][donor.name]==digest(donor) and not str(old.get('status','')).startswith('invalidated_'), 'Right donor changed')
+    require(old.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1', 'Wrong right controller donor variant')
+    original=torch.load(donor,map_location='cpu',weights_only=False)
+    candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    require(candidate.get('residual_variant')==training['residual_variant']==result.get('residual_variant'), 'Right calibration variant mismatch')
+    mutable={'residual_variant','arguments','checkpoints','created_at','status','canonical_milestone_pass','policy_composition'}
+    for key,value in old.items():
+        if key not in mutable:require(training.get(key)==value, 'Right donor metadata changed: '+key)
+    require({k:v for k,v in training['arguments'].items() if k!='name'}==
+        {k:v for k,v in old['arguments'].items() if k!='name'}, 'Right calibration arguments changed')
+    indices=[7,8,12,13];fixed=[i for i in range(20) if i not in indices];p=candidate['turn_parameters']
+    require(tuple(p.shape)==(20,) and bool(torch.isfinite(p).all()) and
+        torch.equal(p[fixed],original['turn_parameters'][fixed]), 'Only right calibration parameters7/8/12/13 may change')
+    require(all(lo<=float(p[i])<=hi for i,lo,hi in ((7,0.,3.),(8,-.12,.12),(12,-.06,.03),(13,-.25,.25))), 'Right calibration bounds changed')
+    require(torch.equal(candidate['parameters'],original['parameters']), 'Right calibration gait changed')
+    for key in ('standing_actor_state_dict','residual_actor_state_dict','active_residual_actor_state_dict'):
+        a,b=candidate[key],original[key]
+        require(a.keys()==b.keys() and all(torch.equal(a[k],b[k]) for k in a), 'Right calibration actor changed')
+    for filename in ('control_source.py','turn_source.py','teleop_contract.py','model.xml','right_rebase_source.py','yaw_hold_rebase_source.py'):
+        require(digest(checkpoint.parent/filename)==digest(donor.parent/filename), 'Right calibration deployment changed')
+    for source in ('residual_source','active_residual_source'):
+        require(training[source+'_sha256']==digest(checkpoint.parent/(source+'.py'))==
+            digest(folder/(source+'.py'))==result.get(source+'_sha256'), 'Right calibration residual source mismatch')
+    require(result.get('residual_dispatch')=='deterministic_cruise_plus_active_left_hip_roll_v1', 'Right calibration dispatch mismatch')
+    evidence=training['right_controller_calibration'];search=Path(evidence['search_checkpoint']);sm=read(search.parent/'training.json')
+    require(digest(checkpoint.parent/'right_controller_rebase_source.py')==evidence['source_sha256'], 'Right composition helper changed')
+    require(digest(search)==evidence['search_checkpoint_sha256']==sm['checkpoints'][search.name] and
+        digest(search.parent/'training.json')==evidence['search_training_sha256'] and
+        sm['status']=='completed' and sm['policy_family']=='periodic_feedback_cem', 'Right search changed')
+    args=sm['arguments'];contract=sm['right_controller_search']
+    require(all(args[k] for k in ('right_controller_search','right_only','teleop','direction_train','common_starts')) and
+        args['closed_loop_direction']=='right' and args['seconds']>=100. and args['turn_duration']==old['arguments']['turn_duration'] and
+        contract['searched_indices']==evidence['changed_indices']==indices and contract['training_force_target_bw']==2.9 and
+        contract['hard_force_limit_bw']==3., 'Right search contract changed')
+    for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','action_joints','action_scale','nominal_q','nominal_ctrl'):
+        require(sm[key]==old[key], 'Right search model changed')
+    require(digest(search.parent/'turn_source.py')==sm['turn_source_sha256'] and
+        deployment_ast(search.parent/'turn_source.py')==deployment_ast(donor.parent/'turn_source.py') and
+        digest(search.parent/'control_source.py')==digest(donor.parent/'control_source.py'), 'Right search deployment changed')
+    for filename,key in (('direction_training_source.py','direction_training_source_sha256'),
+                         ('direction_training_protocol.py','direction_training_protocol_sha256'),('teleop_contract.py','teleop_contract_sha256')):
+        require(digest(search.parent/filename)==sm[key], 'Right search helper changed')
+    seed=Path(evidence['seed_checkpoint']);seed_meta=read(seed.parent/'training.json')
+    require(seed==(search.parent.parent/Path(args['seed_checkpoint']).parent.name/Path(args['seed_checkpoint']).name).resolve() and
+        digest(seed)==evidence['seed_checkpoint_sha256']==seed_meta['checkpoints'][seed.name] and
+        digest(seed.parent/'training.json')==evidence['seed_training_sha256'], 'Right search seed changed')
+    require(seed==Path(old['parent_checkpoint']) and digest(seed)==old['parent_checkpoint_sha256'] and
+        digest(seed.parent/'training.json')==old['parent_training_sha256'], 'Right search seed differs from donor parent')
+    seed_blob=torch.load(seed,map_location='cpu',weights_only=False)
+    search_blob=torch.load(search,map_location='cpu',weights_only=False)
+    for base_blob in (seed_blob,search_blob):
+        a,b=base_blob['standing_actor_state_dict'],original['standing_actor_state_dict']
+        require(torch.equal(base_blob['parameters'],original['parameters']) and a.keys()==b.keys() and
+            all(torch.equal(a[k],b[k]) for k in a), 'Right search gait or standing differs from donor')
+    require(tuple(seed_blob['turn_parameters'].shape)==(20,), 'Right search seed schema changed')
+    records=evidence['records']
+    require(len(records)>=2 and len({r['table'] for r in records})==len(records), 'Right search repetition missing')
+    for item in records:
+        filename=item['table']
+        require(Path(filename).name==filename and filename in sm['generation_candidate_tables'], 'Right search generation not bound')
+        path=search.parent/filename
+        require(digest(path)==item['sha256']==sm['generation_candidate_tables'][filename], 'Right search table changed')
+        index=item['candidate'];row=read(path)[index];values=torch.tensor(row['parameters'],dtype=p.dtype)
+        require(row['candidate']==index and row['eligible'] and row['world_gates']['completed']==[True]*4 and
+            len(row['failure_bits'])==4 and not any(row['failure_bits']) and len(row['peak_support_bw'])==4 and
+            all(math.isfinite(x) and 0<=x<=2.9 for x in row['peak_support_bw']) and tuple(values.shape)==(20,) and
+            torch.equal(values[indices],p[indices].cpu()) and torch.equal(values[fixed],seed_blob['turn_parameters'][fixed]),
+            'Right repeated candidate qualification changed')
+    donor_result={'residual_variant':old['residual_variant'],'residual_dispatch':'deterministic_cruise_plus_active_left_hip_roll_v1',
+        **{key:old[key] for key in ('residual_source_sha256','active_residual_source_sha256')}}
+    check_residual_source(donor.parent,donor_result,old,donor)
+
+
 def check_residual_source(folder,result,training,checkpoint):
     """Independently bind the hybrid controller and its unchanged frozen parent."""
     import torch
+    if training.get('residual_variant')=='right_controller_calibrated_dual_residual_v1':
+        check_right_controller_calibration(folder,result,training,checkpoint)
+        return
+    require(not any(k.startswith('right_controller_') for k in training), 'Unexpected right controller calibration metadata')
     if training.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
         check_yaw_hold_calibration(folder,result,training,checkpoint)
         return
@@ -772,6 +857,8 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
     evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
     if read(checkpoint.parent/'training.json').get('residual_variant')=='right_balance_rebased_dual_residual_v1':
         evidence.append(artifact(checkpoint.parent/'right_rebase_source.py','checkpoint_right_composition_source'))
+    if read(checkpoint.parent/'training.json').get('residual_variant')=='right_controller_calibrated_dual_residual_v1':
+        evidence.append(artifact(checkpoint.parent/'right_controller_rebase_source.py','checkpoint_right_controller_composition_source'))
     if read(checkpoint.parent/'training.json').get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
         evidence.append(artifact(checkpoint.parent/'yaw_hold_rebase_source.py','checkpoint_yaw_hold_composition_source'))
     metrics={'directions':{k:v['metrics'] for k,v in directions.items()}}

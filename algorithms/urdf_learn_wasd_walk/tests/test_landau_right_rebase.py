@@ -13,6 +13,18 @@ from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
 
 
 class RightRebaseTests(unittest.TestCase):
+    def test_feedback_grid_preserves_actors_parameter_scope(self):
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import feedback_grid
+        seed=torch.linspace(-.001,.001,20);seed[18]=-.00996226;seed[19]=-.00627491
+        rows=feedback_grid(seed)
+        self.assertEqual(rows.shape,(27,20))
+        self.assertTrue(torch.equal(rows[:2],seed.repeat(2,1)))
+        self.assertTrue(torch.equal(rows[:,:18],seed[:18].repeat(27,1)))
+        self.assertTrue(torch.allclose(rows[:,18].min(),seed[18]-.005))
+        self.assertTrue(torch.allclose(rows[:,19].max(),seed[19]+.0015))
+        seed[19]=.015
+        with self.assertRaisesRegex(ValueError,'bounds'):feedback_grid(seed)
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name);self.training=self.root/'training';self.training.mkdir()
@@ -205,6 +217,90 @@ class YawHoldRebaseTests(unittest.TestCase):
         (screen.parent/'direction_training_source.py').write_text('changed')
         with self.assertRaisesRegex(ValueError,'screen helper'):self.calibration.check_contract(self.meta,self.blob,gates.digest)
         with self.assertRaisesRegex(ValueError,'screen helper'):gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+
+class ActiveAttributionTests(unittest.TestCase):
+    def test_scales_preserve_exact_incumbent_and_baseline_endpoints(self):
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import scale_active
+        base = torch.tensor([[1000.,-3.],[.001,2.],[.7,-.1]])
+        full = base+torch.tensor([[.01,.02],[-.03,.01],[.2,-.1]])
+        out = scale_active(base,full,torch.tensor([1.,0.,.5]))
+        self.assertTrue(torch.equal(out[0],full[0]))
+        self.assertTrue(torch.equal(out[1],base[1]))
+        self.assertTrue(torch.equal(out[2],base[2]+.5*(full[2]-base[2])))
+        for scales in (torch.tensor([1.,0.,1.1]),torch.tensor([1.,0.,float('nan')]),torch.ones(2)):
+            with self.assertRaises(ValueError):scale_active(base,full,scales)
+
+
+class RightControllerRebaseTests(unittest.TestCase):
+    def setUp(self):
+        from algorithms.urdf_learn_wasd_walk import landau_right_controller_rebase as calibration
+        self.calibration=calibration;self.fixture=YawHoldRebaseTests();self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        f=self.fixture;root=f.fixture.root;seed=Path(f.meta['parent_checkpoint'])
+        self.search=root/'training'/'right_search';self.search.mkdir()
+        for filename in ('turn_source.py','control_source.py','teleop_contract.py'):
+            (self.search/filename).write_bytes((f.cp.parent/filename).read_bytes())
+        sb=copy.deepcopy(torch.load(seed,weights_only=False));sb['turn_parameters'][[7,8,12,13]]=torch.tensor([1.55,.07,-.006,.04])
+        torch.save(sb,self.search/'model_1.pt')
+        sm=copy.deepcopy(gates.read(seed.parent/'training.json'))
+        sm.update(status='completed',arguments=dict(turn_duration=44.,right_controller_search=True,right_only=True,
+            teleop=True,direction_train=True,common_starts=True,closed_loop_direction='right',seconds=120.,seed_checkpoint=str(seed)),
+            checkpoints={'model_1.pt':gates.digest(self.search/'model_1.pt')},
+            right_controller_search={'searched_indices':[7,8,12,13],'training_force_target_bw':2.9,'hard_force_limit_bw':3.})
+        for filename,key in (('direction_training_source.py','direction_training_source_sha256'),
+                             ('direction_training_protocol.py','direction_training_protocol_sha256'),('teleop_contract.py','teleop_contract_sha256')):
+            if not (self.search/filename).exists():(self.search/filename).write_text(filename)
+            sm[key]=gates.digest(self.search/filename)
+        sm['generation_candidate_tables']={}
+        for generation in (0,1):
+            filename=f'candidates_{generation}.json'
+            gates.write(self.search/filename,[{'candidate':0,'parameters':sb['turn_parameters'].tolist(),'eligible':True,
+                'failure_bits':[0]*4,'peak_support_bw':[2.8]*4,'world_gates':{'completed':[True]*4},'generation':generation}])
+            sm['generation_candidate_tables'][filename]=gates.digest(self.search/filename)
+        gates.write(self.search/'training.json',sm)
+        self.cp=calibration.compose(f.cp,self.search/'model_1.pt',['0:0','1:0'],'right_controller')
+        self.meta=gates.read(self.cp.parent/'training.json');self.blob=torch.load(self.cp,weights_only=False)
+        self.result={**f.result,'residual_variant':calibration.VARIANT}
+
+    def checks(self):
+        torch.save(self.blob,self.cp)
+        return (lambda:self.calibration.check_contract(self.meta,self.blob,gates.digest),
+                lambda:gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp))
+
+    def test_preserves_calibrated_left_and_recursive_parent(self):
+        for check in self.checks():check()
+        self.assertTrue(torch.equal(self.blob['turn_parameters'][[3,17]],self.fixture.blob['turn_parameters'][[3,17]]))
+
+    def test_left_and_actor_changes_rejected_independently(self):
+        original=copy.deepcopy(self.blob)
+        for index in (3,17,18):
+            self.blob=copy.deepcopy(original);self.blob['turn_parameters'][index]+=.001
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'Only right'):check()
+        self.blob=copy.deepcopy(original);self.blob['active_residual_actor_state_dict']['weight']+=.01
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'actor'):check()
+
+    def test_repeated_table_and_source_tampering_rejected(self):
+        records=self.meta['right_controller_calibration']['records']
+        records[1]=copy.deepcopy(records[0])
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'repet|repeated'):check()
+        self.meta=gates.read(self.cp.parent/'training.json')
+        (self.search/'direction_training_source.py').write_text('changed')
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'helper'):check()
+
+    def test_search_standing_change_rejected_even_with_updated_hashes(self):
+        search=self.search/'model_1.pt';sb=torch.load(search,weights_only=False)
+        sb['standing_actor_state_dict']['weight']+=.1;torch.save(sb,search)
+        sm=gates.read(self.search/'training.json');sm['checkpoints'][search.name]=gates.digest(search)
+        gates.write(self.search/'training.json',sm)
+        self.meta['right_controller_calibration'].update(search_checkpoint_sha256=gates.digest(search),
+            search_training_sha256=gates.digest(self.search/'training.json'))
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'standing'):check()
 
 
 if __name__=='__main__':unittest.main()

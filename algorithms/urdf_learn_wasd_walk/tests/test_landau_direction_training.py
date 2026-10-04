@@ -8,6 +8,34 @@ from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,co
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_right_controller_search_freezes_physical_seed_and_controls(self):
+        from algorithms.urdf_learn_wasd_walk.landau_direction_training import right_controller_parameters
+        seed=torch.linspace(-.05,.05,20)
+        lows=torch.full((20,),-.25);highs=-lows
+        z=torch.randn(64,20)
+        result=right_controller_parameters(z,lows,highs,seed)
+        fixed=[i for i in range(20) if i not in (7,8,12,13)]
+        self.assertTrue(torch.equal(result[:,fixed],seed[fixed].repeat(64,1)))
+        self.assertTrue(torch.equal(result[:2],seed.repeat(2,1)))
+        expected=lows+(z[0].clamp(-1,1)+1)*.5*(highs-lows)
+        self.assertTrue(torch.equal(result[2,[7,8,12,13]],expected[[7,8,12,13]]))
+        self.assertTrue(bool(((result>=lows)&(result<=highs)).all()))
+        with self.assertRaises(ValueError):right_controller_parameters(z[:,:14],lows,highs,seed[:14])
+
+    def test_right_controller_search_rejects_conflicting_modes(self):
+        from unittest.mock import patch
+        from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+        argv=['turn','--name','unused','--checkpoint','unused','--seed-checkpoint','unused',
+              '--right-controller-search','--right-only','--teleop','--direction-train','--common-starts',
+              '--closed-loop-direction','right','--seconds','120']
+        for extra in (['--left-checkpoint','unused'],['--preserve-yaw-amplitude'],['--seed-candidate','0'],
+                      ['--right-balance-grid'],['--left-feedback-only'],['--diagnostic-grid']):
+            with patch('sys.argv',argv+extra),patch.object(turn,'train') as train:
+                with self.assertRaisesRegex(ValueError,'Right controller search requires'):turn.main()
+                train.assert_not_called()
+        with patch('sys.argv',argv),patch.object(turn,'train') as train:
+            turn.main();train.assert_called_once()
+
     def test_right_balance_grid_freezes_left_controller_exactly(self):
         from algorithms.urdf_learn_wasd_walk.landau_direction_training import right_balance_grid
         seed=torch.linspace(-.05,.05,20)
@@ -223,6 +251,24 @@ class DirectionTrainingTests(unittest.TestCase):
         gate.update(torch.zeros(3,3),1.04,active & ~gate.completed)
         self.assertEqual(float(gate.progress[0]),11.)
         self.assertAlmostEqual(float(gate.crossing_time[0]),1.01)
+
+    def test_missed_plane_error_stays_frozen_after_lateral_correction(self):
+        gate=GateTracker('right',torch.zeros(1,3));live=torch.ones(1,dtype=torch.bool)
+        gate.update(torch.tensor([[9.,2.,0.]]),1.,live)
+        gate.update(torch.tensor([[11.,2.,0.]]),1.02,live)
+        self.assertFalse(bool(gate.completed[0]))
+        self.assertTrue(bool(gate.plane_crossed[0]))
+        self.assertAlmostEqual(abs(float(gate.first_plane_lateral[0])),2.)
+        gate.update(torch.tensor([[12.,0.,0.]]),1.04,live)
+        self.assertEqual(float(gate.lateral[0]),0.)
+        self.assertAlmostEqual(abs(float(gate.first_plane_lateral[0])),2.)
+        self.assertFalse(bool(gate.completed[0]))
+        # An actual return and valid recross still counts; the first miss stays recorded.
+        gate.update(torch.tensor([[9.,0.,0.]]),1.06,live)
+        gate.update(torch.tensor([[11.,0.,0.]]),1.08,live)
+        self.assertTrue(bool(gate.completed[0]))
+        self.assertAlmostEqual(float(gate.crossing_time[0]),1.07)
+        self.assertAlmostEqual(float(gate.first_plane_time[0]),1.01)
 
     def test_terminal_memory_does_not_accumulate_further_commands(self):
         memory=DirectionMemory(2,'cpu','left');obs=torch.zeros(2,70);obs[:,63]=.2;obs[:,65]=.03

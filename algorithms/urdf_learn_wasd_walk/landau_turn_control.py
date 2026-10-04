@@ -343,7 +343,7 @@ def train(args):
     include_cruise_rate=args.left_cruise_rate_grid or include_cruise_bias or (sb is not None and len(sb['turn_parameters'])>=21)
     include_feedback=args.left_feedback_only or include_cruise_rate or (sb is not None and len(sb['turn_parameters'])>=20)
     include_left_yaw = args.left_yaw_only or include_feedback or (sb is not None and len(sb['turn_parameters']) >= 18)
-    if include_left_yaw and not (args.left_cruise_only or args.right_balance_grid):
+    if include_left_yaw and not (args.left_cruise_only or args.right_balance_grid or args.right_controller_search):
         raise ValueError('18-parameter seed requires the left-cruise curriculum')
     teleop=bool(getattr(args,'teleop',False))
     if teleop:
@@ -351,7 +351,7 @@ def train(args):
             restart_ramp_s=(0.,2.5),restart_phase_rad=(-math.pi,math.pi),right_hold_feedback=(-.12,.12))
     if getattr(args,'direction_train',False):
         TURN_PARAMETERS.update(right_roll_amplitude_offset=(-.06,.03),right_roll_phase_offset=(-.25,.25))
-    if getattr(args,'left_cruise_only',False) or args.right_balance_grid:
+    if getattr(args,'left_cruise_only',False) or args.right_balance_grid or args.right_controller_search:
         TURN_PARAMETERS.update(left_cruise_heading_feedback=(-.12,.12),
             left_cruise_roll_amplitude=(-.06,.03),left_cruise_roll_phase=(-.25,.25))
     if include_left_yaw:TURN_PARAMETERS.update(left_yaw_scale=(.5,2.))
@@ -364,7 +364,7 @@ def train(args):
     initial = torch.tensor([.02*rate_scale, -.3, .0514, -.04, -.0343*rate_scale,0.,0.], device='cuda')
     if teleop:initial=torch.cat((initial,initial.new_tensor([1.,.0514,0.,0.,-.04])))
     if getattr(args,'direction_train',False):initial=torch.cat((initial,initial.new_zeros(2)))
-    if getattr(args,'left_cruise_only',False) or args.right_balance_grid:initial=torch.cat((initial,initial[2:3],initial[5:7]))
+    if getattr(args,'left_cruise_only',False) or args.right_balance_grid or args.right_controller_search:initial=torch.cat((initial,initial[2:3],initial[5:7]))
     if include_left_yaw:initial=torch.cat((initial,initial.new_ones(1)))
     if include_feedback:initial=torch.cat((initial,initial.new_zeros(2)))
     if include_cruise_rate:initial=torch.cat((initial,initial.new_zeros(1)))
@@ -429,6 +429,8 @@ def train(args):
     if args.common_starts:
         from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction_training
     common_offsets=direction_training.common_start_offsets(batch.nominal,batch.jq,replicas,args.start_seed) if args.common_starts else None
+    if args.right_controller_search and len(seed_parameters)!=20:
+        raise ValueError('Right controller search requires exact CEM20 seed')
     grid_center=mean.clone()
     right_reference=None
     if args.right_balance_reference:
@@ -526,6 +528,12 @@ def train(args):
             if right_reference is not None:
                 meta['right_balance_grid'].update(reference_checkpoint=str(rp),reference_checkpoint_sha256=backend.digest(rp),
                     reference_training_sha256=backend.digest(rp.parent/'training.json'),reference_control_candidates=[2,3])
+        if args.right_controller_search:
+            meta['right_controller_search']={'searched_indices':[7,8,12,13],
+                'unchanged_control_candidates':[0,1], 'training_force_target_bw':2.9,
+                'hard_force_limit_bw':3.,'selection':'worst of four common starts',
+                'miss_shaping':'Retain first plane-crossing lateral error for unsuccessful runs; gate acceptance unchanged',
+                'scope':'Freeze other16 CEM20 parameters bit-exactly; learned left heads inactive. Separate composite proofs required.'}
         if args.left_balance_grid:
             meta['balance_grid']={'center_normalized':grid_center.cpu().tolist(),'radius_normalized':args.search_std,
                 'unchanged_control_candidates':[0,1],'repeat_same_grid_each_generation':True}
@@ -629,6 +637,10 @@ def train(args):
         if args.right_balance_grid:
             grid=direction_training.right_balance_grid(seed_parameters,candidates,lows,highs,
                 args.right_balance_amplitude_radius,args.right_balance_phase_radius,right_reference)
+            params=grid.repeat_interleave(replicas,dim=0)
+            z=2*(grid-lows)/(highs-lows)-1.
+        if args.right_controller_search:
+            grid=direction_training.right_controller_parameters(z,lows,highs,seed_parameters)
             params=grid.repeat_interleave(replicas,dim=0)
             z=2*(grid-lows)/(highs-lows)-1.
         if args.left_balance_only:
@@ -842,12 +854,15 @@ def train(args):
             fitness=absolute_hold_fitness(duration,yaw_error,hold_error,hold_drift)
         if closed_direction:
             eligible_world=physics & gate.completed & (counts.min(1).values>=3) & (slip_total/duration.clamp_min(.02)<=.1)
-            fitness=20.*duration+100.*gate.progress.float().clamp(-10.,10.)-20.*gate.lateral.float().abs()
+            scored_lateral=gate.lateral
+            if args.right_controller_search:
+                scored_lateral=torch.where(gate.plane_crossed & ~gate.completed,gate.first_plane_lateral,gate.lateral)
+            fitness=20.*duration+100.*gate.progress.float().clamp(-10.,10.)-20.*scored_lateral.float().abs()
             fitness+=10000.*gate.completed.float()-21.*torch.where(gate.completed,duration,0.)
         if args.left_turn_refine:
             eligible_world &= post_turn_force_max<=2.85
             fitness-=1000.*(post_turn_force_max-2.85).clamp_min(0.)
-        if args.right_balance_grid:
+        if args.right_balance_grid or args.right_controller_search:
             eligible_world &= force_max<=2.9
             fitness-=1000.*(force_max-2.9).clamp_min(0.)
         fitness += 1000.*physics.float()+10000.*eligible_world.float()
@@ -895,7 +910,7 @@ def train(args):
             for key in ('last_two_seconds_mean_yaw_rate','turn_end_heading_rad','last_two_turn_seconds_mean_yaw_rate'):
                 metrics.pop(key,None)
         with (folder/'generations.jsonl').open('a') as stream: stream.write(json.dumps(metrics)+'\n')
-        if teleop and (getattr(args,'right_grid',False) or getattr(args,'restart_grid',False) or getattr(args,'left_cruise_only',False) or args.right_balance_grid):
+        if teleop and (getattr(args,'right_grid',False) or getattr(args,'restart_grid',False) or getattr(args,'left_cruise_only',False) or args.right_balance_grid or args.right_controller_search):
             backend.write_json(folder/'candidates.json',[{'candidate':i,
                 'parameters':params[i*replicas].tolist(),'survival_s':duration[i*replicas:(i+1)*replicas].tolist(),
                 'failure_bits':failure_bits[i*replicas:(i+1)*replicas].tolist(),
@@ -988,6 +1003,7 @@ def main():
     parser.add_argument('--restart-grid',action='store_true',help='One-generation restart ramp/phase grid')
     parser.add_argument('--right-only',action='store_true',help='Freeze the certified seven left/hold parameters; search right-specific feedback')
     parser.add_argument('--right-grid',action='store_true',help='One-generation right amplitude/heading grid')
+    parser.add_argument('--right-controller-search',action='store_true',help='Search right yaw/heading/sway only with exact frozen CEM20 controls')
     parser.add_argument('--right-balance-grid',action='store_true',help='Repeat a frozen CEM20 right-sway grid with two unchanged controls')
     parser.add_argument('--right-balance-amplitude-radius',type=float,default=.015)
     parser.add_argument('--right-balance-phase-radius',type=float,default=.12)
@@ -1027,6 +1043,17 @@ def main():
             args.left_cruise_only or args.right_grid or args.diagnostic_sweep or args.teleop_refine or args.restart_only or
             args.left_checkpoint or args.preserve_yaw_amplitude or args.seed_candidate is not None):
         raise ValueError('Right balance grid requires a seeded common-start right gate with100s or more and no other search')
+    if args.right_controller_search:
+        incompatible=('right_balance_grid','right_grid','restart_grid','restart_only','teleop_refine',
+            'left_cruise_only','left_turn_refine','left_yaw_grid','left_yaw_only','left_heading_grid',
+            'left_balance_only','left_balance_grid','left_cruise_balance_only','left_cruise_balance_grid',
+            'left_cruise_rate_grid','left_cruise_bias_grid','left_feedback_only','left_damping_grid',
+            'turn_hold_training','feedback_yaw_refine','diagnostic_sweep','diagnostic_grid','stride_grid',
+            'left_checkpoint','preserve_yaw_amplitude','direction_command_trace')
+        if (not all((args.right_only,args.teleop,args.direction_train,args.common_starts,args.seed_checkpoint)) or
+                args.closed_loop_direction!='right' or args.seconds<100. or args.seed_candidate is not None or
+                any(getattr(args,key) for key in incompatible)):
+            raise ValueError('Right controller search requires separate seeded CEM20 common-start right gate')
     if args.export_candidate is not None:
         export_candidate(args.checkpoint,args.export_candidate,args.name);return
     if args.diagnostic_sweep and (args.left_cruise_bias_grid or args.left_cruise_rate_grid or args.left_cruise_balance_only):

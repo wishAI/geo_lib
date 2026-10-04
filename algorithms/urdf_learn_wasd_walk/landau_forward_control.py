@@ -416,14 +416,19 @@ def evaluate(args):
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
     residual=None;active_residual=None
+    right_calibrated=meta.get('residual_variant')=='right_controller_calibrated_dual_residual_v1'
+    if not right_calibrated and any(k.startswith('right_controller_') for k in meta):
+        raise ValueError('Unexpected right controller calibration metadata')
     calibrated=meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1'
-    if not calibrated and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
+    if not (calibrated or right_calibrated) and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
         raise ValueError('Unexpected yaw/hold calibration metadata')
-    if meta.get('residual_variant') not in ('right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
+    if meta.get('residual_variant') not in ('right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
         raise ValueError('Unexpected right rebase metadata')
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
     if meta.get('residual_variant')=='adapted_cruise_frozen_active_v1':
         from algorithms.urdf_learn_wasd_walk.landau_cruise_adaptation import check_contract as check_active_contract
+    elif right_calibrated:
+        from algorithms.urdf_learn_wasd_walk.landau_right_controller_rebase import check_contract as check_active_contract
     elif calibrated:
         from algorithms.urdf_learn_wasd_walk.landau_yaw_hold_rebase import check_contract as check_active_contract
     elif meta.get('residual_variant')=='right_balance_rebased_dual_residual_v1':
@@ -448,6 +453,10 @@ def evaluate(args):
         frozen=torch.load(frozen_parent,map_location='cpu',weights_only=False)
         if tuple(frozen['turn_parameters'].shape)!=(20,):raise ValueError('Frozen parent requires20turnparameters')
         fixed=[i for i in range(20) if i not in (3,17)] if calibrated else list(range(20))
+        if right_calibrated:
+            # Its strict recursive edge contract has already bound this immediate donor.
+            frozen=torch.load(meta['right_controller_donor_checkpoint'],map_location='cpu',weights_only=False)
+            fixed=[i for i in range(20) if i not in (7,8,12,13)]
         if not torch.equal(frozen['parameters'],blob['parameters']) or not torch.equal(frozen['turn_parameters'][fixed],blob['turn_parameters'][fixed]):
             raise ValueError('Frozen controller tensors changed')
         standing=frozen['standing_actor_state_dict'];candidate_standing=blob['standing_actor_state_dict']

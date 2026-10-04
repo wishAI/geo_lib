@@ -2669,7 +2669,7 @@
       "diagnosis": "First/peak97.058s during active-left blend.74; later force119.390/120.288 during cruise ramps.10/.12,127.428duringactivefade.90. Fullvideo upright; forcefailure notwaived."
     },
     "holdCalibration": {
-      "status": "Fresh M5 and M6 independently validated with accepted full-video reviews; backward V6 running",
+      "status": "Fresh M5/M6 accepted; V6 backward force failure and right fall rejected; controller stability refinement in progress",
       "changed_indices": [
         3
       ],
@@ -2722,11 +2722,129 @@
     },
     "hystereticNavigation": {
       "version": "hysteretic_v6",
-      "status": "Fresh calibrated checkpoint backward physical trial running",
+      "status": "Both independent direction proofs rejected; diagnostic refinement in progress",
       "design": "V5 bodyheading pursuit andconditionalintegration; replacecontinuous3degsubtractiveband with5degstart/2degstop hysteresis toreducelearned-headswitching.",
       "counterfactual": "On V5recordedposes, after80s yawonsets31\u21925 andmedianzero-yawdwell.54\u219211.18s. Cruisevariation26.72\u219210, active23.96\u21929. Firstforceeventstilltransition; nophysicalimprovementclaimed.",
       "promoted": false,
-      "run": "m7_20261004_yaw_hold15_hysteretic_backward"
+      "run": "m7_20261004_yaw_hold15_hysteretic_backward",
+      "backward_result": {
+        "run": "m7_20261004_yaw_hold15_hysteretic_backward",
+        "gate_crossing_time_s": 172.8104539018832,
+        "gate_cross_track_m": 0.3812762073477607,
+        "peak_support_body_weight_ratio": 3.100187324149025,
+        "fall_count": 0,
+        "visual_review_sha256": "b88e4bb64e13a8e4e1f03542f6fc29993f4eea62e04ecaf395ed788c05066eec",
+        "force_event": "Only139.930/139.932 exceed3BW; fullactive/cruise0, yaw+.0142754. Otherphasepeaks transition2.81209/cruise2.75010/right2.67599. No clipping; active envelope full0.4s beforeimpact."
+      },
+      "right_result": {
+        "run": "m7_20261004_yaw_hold15_hysteretic_right",
+        "duration_s": 9.358,
+        "fall_count": 1,
+        "peak_support_body_weight_ratio": 3.7167208380055565,
+        "status": "rejected; complete video reviewed",
+        "visual_review_sha256": "88a4c271c6545b24dd47c250aa0e7e74f347ef2b81a0de2db9d07e609107d14e",
+        "diagnosis": "Early commands and controller actions match previously passing right run; numerical physical divergence from0.02s exposes insufficient right stability margin."
+      }
+    },
+    "activeScaleAttribution": {
+      "status": "completed; no uniform scale qualified all six copies",
+      "run": "m7_20261004_late_active_scale",
+      "checkpoint": "m7_20261004_yaw_hold15_dual/model_0.pt",
+      "design": "Three synchronized recordedstate starts137/138/139 through145s; gatedactive scales0/.25/.5/.75/1 with2copies. Baseline/cruise/actors/params unchanged; exactscalar memory andpreviousactions restored. Recordedsemanticcommands, evolving observations. No checkpoint export.",
+      "cause_evidence": "CPUreconstruction rawactions bitexact137..141. At139.92 active hiproll deltas[-.00234659,+.00360703]rad; no saturation. Recordedoldpositive bank commandsallfullrate; no partialpositiveyaw. Doesnot establish onlinecoverage or causation.",
+      "promoted": false,
+      "survival_counts": {
+        "0": 5,
+        "0.25": 5,
+        "0.5": 5,
+        "0.75": 4,
+        "1": 3
+      },
+      "cases_per_scale": 6,
+      "conclusion": "Fullscale139s reproduces139.94s impact; attenuation reduces it but fails other earlier-start replays. No scale selected or exported."
+    },
+    "rightControllerSearch": {
+      "status": "completed; exact candidate passed all four starts in two generations",
+      "run": "m7_20261004_right_controller_search",
+      "searched_indices": [
+        7,
+        8,
+        12,
+        13
+      ],
+      "worlds": 256,
+      "generations": 8,
+      "seconds": 120,
+      "controls": "two exact incumbent rows plus adaptive best proposal; same four starting states per candidate",
+      "selection": "worst-start gate/force fitness,2.9BW training target,unchanged3BW guard; completion-time objective retained",
+      "promoted": false,
+      "tests": "18 direction tests passed; independent CPU review found no blocker",
+      "qualified_records": [
+        {
+          "generation": 6,
+          "candidate": 63,
+          "peak_support_bw": 2.817091941833496
+        },
+        {
+          "generation": 7,
+          "candidate": 2,
+          "peak_support_bw": 2.8993804454803467
+        }
+      ],
+      "new_parameters": {
+        "7": 1.560147762298584,
+        "8": 0.078321672976017,
+        "12": -0.005689904093742371,
+        "13": 0.036524057388305664
+      },
+      "checkpoint": "m7_20261004_right_controller63_dual/model_0.pt",
+      "checkpoint_sha256": "e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47",
+      "nominal_right_run": "m7_20261004_right_controller63_hysteretic_right",
+      "nominal_status": "dynamics passed; full visual review pending",
+      "lineage": "Independent MAINrecursive validation passed; only four right gains differ from yaw_hold15; p3/17, both learned actors, gait/standing and deployment sources preserved",
+      "nominal_metrics": {
+        "gate_crossing_time_s": 95.73944263267123,
+        "gate_cross_track_m": -0.6670155851499646,
+        "peak_support_body_weight_ratio": 2.7820232925432404,
+        "fall_count": 0
+      }
+    },
+    "feedbackCalibration": {
+      "status": "full M5/M6 screen running on composed right63 donor",
+      "runs": [
+        "m7_20261004_active_feedback_grid",
+        "m7_20261004_active_feedback_repeat"
+      ],
+      "checkpoint": "m7_20261004_yaw_hold15_dual/model_0.pt",
+      "changed_indices": [
+        18,
+        19
+      ],
+      "design": "27rows including exactcontrols,2copies in6windows; bothactors fullscale; safe recordedprefix and futurecommands bound; clearedsolver warmstart",
+      "all_24_survivors": [
+        10,
+        16,
+        21,
+        25
+      ],
+      "lowest_worst_force_row": 21,
+      "row21_parameters": [
+        -0.007462264504283667,
+        -0.004774907603859901
+      ],
+      "row21_peak_support_bw": 2.8429040908813477,
+      "promoted": false,
+      "nominal_run": "m7_20261004_right63_feedback_nominal_serial",
+      "discarded_attempt": {
+        "run": "m7_20261004_right63_feedback_nominal",
+        "reason": "Interrupted immediately when prior renderer session was found unfinished; no evidence or results used. Restarted only after both processes exited."
+      }
+    },
+    "controllerRefinementTests": {
+      "focused": "35 direction/rebase tests passed before adding right-composition tests;20 rebase tests passed afterward",
+      "full_suite": "295 passed,3 skipped,8 failed",
+      "existing_failures": "Legacy Isaac pipeline fixtures use another lineage/metadata schema; optional comparison mesh differs; two ragdoll tests require absent MAIN outputs/mujoco directory. Agent verified relevant code/ledger lineage/assets/milestones unchanged from HEAD.",
+      "review": "Independent CPU reviews found no remaining blocker in four-gain composition, plane miss shaping or feedback nominal dispatch."
     }
   }
 }
