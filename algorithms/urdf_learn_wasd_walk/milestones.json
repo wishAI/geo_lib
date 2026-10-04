@@ -2800,17 +2800,20 @@
       "checkpoint": "m7_20261004_right_controller63_dual/model_0.pt",
       "checkpoint_sha256": "e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47",
       "nominal_right_run": "m7_20261004_right_controller63_hysteretic_right",
-      "nominal_status": "dynamics passed; full visual review pending",
+      "nominal_status": "accepted full video and independent MAIN right validator passed",
       "lineage": "Independent MAINrecursive validation passed; only four right gains differ from yaw_hold15; p3/17, both learned actors, gait/standing and deployment sources preserved",
       "nominal_metrics": {
         "gate_crossing_time_s": 95.73944263267123,
         "gate_cross_track_m": -0.6670155851499646,
         "peak_support_body_weight_ratio": 2.7820232925432404,
         "fall_count": 0
-      }
+      },
+      "right_visual_review_sha256": "6059f991f628018fdb80125d326c8d1acecc40890d68b76f7fd52d3a09f7ddeb",
+      "backward_run": "m7_20261004_right_controller63_hysteretic_backward",
+      "backward_status": "running"
     },
     "feedbackCalibration": {
-      "status": "full M5/M6 screen running on composed right63 donor",
+      "status": "no jointly qualified row; no gains applied or checkpoint exported",
       "runs": [
         "m7_20261004_active_feedback_grid",
         "m7_20261004_active_feedback_repeat"
@@ -2838,7 +2841,14 @@
       "discarded_attempt": {
         "run": "m7_20261004_right63_feedback_nominal",
         "reason": "Interrupted immediately when prior renderer session was found unfinished; no evidence or results used. Restarted only after both processes exited."
-      }
+      },
+      "nominal_result": "Rows2/18/20 pass all8 nominal cases but fail recordedstate windows; all24 warm-window survivors10/16/21/25 fail at leastone nominal case.",
+      "row21_nominal_failure": "One perturbed M6 restart force3.0400679BW at30.38s, before rightturn onset32s; M5 all4passed",
+      "nominal_repeat": {
+        "run": "m7_20261004_right63_feedback_nominal_repeat",
+        "status": "interrupted during M5 because no row could qualify combined screens; no evidence used"
+      },
+      "next_step": "Evaluate actual right63 backward trajectory before attributing old yawhold impact to new controller"
     },
     "controllerRefinementTests": {
       "focused": "35 direction/rebase tests passed before adding right-composition tests;20 rebase tests passed afterward",

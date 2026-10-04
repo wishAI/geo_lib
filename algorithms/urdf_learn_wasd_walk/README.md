@@ -30,9 +30,13 @@ The four-gain right-turn search found an exact candidate passing all eight start
 across two generations, worst peak 2.899 BW and gate times under 100 s.
 `m7_20261004_right_controller63_dual/model_0.pt` composes only 7/8/12/13
 onto this donor. Its nominal V6 right dynamics passed: 95.74 s, peak2.782BW,
-−0.667m lateral error; full-video review and independent final validation are pending.
+−0.667m lateral error; full-video review and independent MAIN validation passed.
+Its complete V6 backward evaluation is running.
 Both recorded feedback grids completed; row21 survived all24 window/copy cases
-with worst peak2.843BW. FullM5/M6 screening remains required.
+with worst peak2.843BW, but one fullM6 restart case exceeded3BW. No feedback
+row passed both the repeated warm windows and the first fullM5/M6 grid, so
+no feedback gains were applied. The new right controller changes backward
+corrections; its own full trajectory is the next diagnostic.
 This candidate changes only left hold
 feedback (parameter 3: −0.03) and left yaw scale (17: 1.49) from right-balance15;
 both learned networks, standing, gait, other 18 parameters and saved deployment
