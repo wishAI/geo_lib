@@ -346,6 +346,24 @@ class CruiseAttributionLoaderTests(unittest.TestCase):
             result['config']['turn']=True;save()
             with self.assertRaisesRegex(ValueError,'Unsafe warm start prefix'):
                 load_starts([folder],cp,meta,turn,'m5',age,gates.digest)
+            # Triangle-active attribution permits a transitional envelope, but
+            # still checks exact half provenance and the entire safe prefix.
+            result['config'].pop('turn');result['metrics'].update(done_count=0,fall_count=0,nonfoot_contacts=[])
+            meta['residual_variant']='half_cruise_frozen_dual_v1'
+            cleanfeet=copy.deepcopy(feet);cleanfeet[499]['support_body_weight_ratio']=1.
+            transitional=obs.copy();transitional[575:,65]=.02
+            save(observations=transitional,foot=cleanfeet)
+            with patch.object(gates,'check_residual_source') as provenance:
+                _,memory,_=load_starts([folder],cp,meta,turn,'triangle_active',age,gates.digest)
+                provenance.assert_called_once()
+                self.assertLess(memory.left_cruise_blend,1.)
+                save(observations=transitional)
+                with self.assertRaisesRegex(ValueError,'Unsafe warm start prefix'):
+                    load_starts([folder],cp,meta,turn,'triangle_active',age,gates.digest)
+                save(observations=transitional,foot=cleanfeet)
+                result['config']['direction']='left';save(observations=transitional,foot=cleanfeet)
+                with self.assertRaisesRegex(ValueError,'Triangle-active attribution requires'):
+                    load_starts([folder],cp,meta,turn,'triangle_active',age,gates.digest)
 
 
 class HalfCruiseCompositionTests(unittest.TestCase):

@@ -4729,13 +4729,55 @@
               169.41
             ],
             "diagnosis": "Active correction engaged/cruiseoff atall3landings, beforefinalendpointclamp; action/memoryreplay exact. No attenuationcausality claim.",
-            "render": "Incomplete old renderer stopped; same untouched trajectory rerendered with cached NPZ array. All17297frames/visibility passed,54.113s wall."
+            "render": "Incomplete old renderer stopped; same untouched trajectory rerendered with cached NPZ array. All17297frames/visibility passed,54.113s wall.",
+            "visual_review_sha256": "d019b0eaf4a58c1c8b580955e8b664f4d0eaa9cb9c0cd9979f08f3ac08f3d92f"
           }
         },
         "visual_review_sha256": "8527cec92ee7d0897e9847608b8e317e842ebcfb5cddde34a6fc6f1661a7a0c8",
         "actionReplay": "All17246raw/applied actions and finalCommandMemory bit-exact; composition only, not physical qualification",
         "independentGeometry": "Orderedtargets,finitecorridor,firstclosure,joystickreplay independently passed; force failure remains",
-        "endpointDiagnosis": "Clamping pursuit target at finalendpoint shortens5.5m lookahead to2.136m at334.64s; savedtrajectory shadow extension removes333.22yawburst. No dynamics claim; no source change during fixedrepeats."
+        "endpointDiagnosis": "Clamping pursuit target at finalendpoint shortens5.5m lookahead to2.136m at334.64s; savedtrajectory shadow extension removes333.22yawburst. No dynamics claim; no source change during fixedrepeats.",
+        "activeAttributionPlan": {
+          "name": "m8_20261004_half_active_attribution",
+          "status": "prepared; conditional on fixed second repeat outcome",
+          "sources": {
+            "m8_20261004_half_cruise_triangle_v2": [
+              [
+                332,
+                339
+              ],
+              [
+                333,
+                339
+              ],
+              [
+                334,
+                339
+              ]
+            ],
+            "m8_20261004_half_cruise_triangle_repeat1": [
+              [
+                78,
+                85
+              ],
+              [
+                80,
+                85
+              ]
+            ]
+          },
+          "active_scales": [
+            0,
+            0.25,
+            0.5,
+            0.75,
+            1
+          ],
+          "copies_per_scale": 2,
+          "fixed": "Cruiseoutput0.5,allweights/20parameters/physicalconstants unchanged; fullmemory,recordedcommands,evolvingobservations",
+          "scope": "Diagnostic-only. Every selected state has fully healthy prefix; no earlier-force exception. No export or qualification credit.",
+          "cpu_preflight": "Allfive actual states passed provenance/clock/finite/full-prefix checks; a state after first force violation correctly rejected."
+        }
       }
     }
   }

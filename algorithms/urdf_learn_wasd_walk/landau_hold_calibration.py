@@ -66,9 +66,17 @@ def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
         folder = Path(folder).resolve()
         result = json.loads((folder/'dynamics.json').read_text())
         cfg = result['config']
-        protocol_ok = (cfg.get('direction') in ('left','backward') and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_retention' else (bool(cfg.get('triangle')) and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_attribution' else (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='active' else cfg.get('turn' if mode=='m5' else 'teleop')
+        protocol_ok = (cfg.get('direction') in ('left','backward') and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_retention' else (bool(cfg.get('triangle')) and cfg['checkpoint_sha256']==digest(checkpoint)) if mode in ('cruise_attribution','triangle_active') else (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='active' else cfg.get('turn' if mode=='m5' else 'teleop')
         if cfg['checkpoint_sha256'] not in allowed or not protocol_ok:
             raise ValueError('Warm start checkpoint or protocol mismatch')
+        if mode=='triangle_active':
+            from algorithms.urdf_learn_wasd_walk import mujoco_milestones as gates
+            if (meta.get('residual_variant')!='half_cruise_frozen_dual_v1' or
+                any(cfg.get(k) for k in ('turn','teleop','direction')) or
+                any(result['metrics'].get(k,1)!=0 for k in ('reset_count','done_count','fall_count')) or
+                result['metrics'].get('nonfoot_contacts',True)):
+                raise ValueError('Triangle-active attribution requires exact half-cruise, no falls/resets/nonfoot contact')
+            gates.check_residual_source(folder,result,meta,checkpoint)
         if any(cfg[key] != value for key,value in dict(forward=.2, assistance=0., dt=.002,
                 contact_timeconst=.004, gain_scale=1., noslip_iterations=0).items()):
             raise ValueError('Warm start physics changed')
@@ -145,14 +153,22 @@ def run(args):
     from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop
     nominal_mode=args.nominal_grid or args.feedback_nominal_grid
     cruise_diagnostic=getattr(args,'cruise_scale_diagnostic',False) or getattr(args,'cruise_retention_diagnostic',False)
-    scale_diagnostic=args.active_scale_diagnostic or cruise_diagnostic
+    triangle_active=getattr(args,'triangle_active_scale_diagnostic',False)
+    active_diagnostic=args.active_scale_diagnostic or triangle_active
+    scale_diagnostic=active_diagnostic or cruise_diagnostic
     backend,batches,_ = configure_model('balanced_hands_v1')
     checkpoint = Path(args.checkpoint).resolve()
     meta = json.loads((checkpoint.parent/'training.json').read_text())
     if meta['checkpoints'][checkpoint.name] != backend.digest(checkpoint):raise ValueError('Checkpoint changed')
     if meta['action_scale'] != action_scales(meta['action_joints'],.4):raise ValueError('Calibration action scales changed')
     blob = torch.load(checkpoint,map_location='cpu',weights_only=False)
-    if meta.get('residual_variant')=='right_controller_calibrated_dual_residual_v1':
+    half_cruise=meta.get('residual_variant')=='half_cruise_frozen_dual_v1'
+    if triangle_active != half_cruise:raise ValueError('Half-cruise calibration is supported only by triangle-active attribution')
+    if half_cruise:
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as half
+        check_contract=half.check_contract
+        half.check_sources(checkpoint.parent,meta,backend.digest)
+    elif meta.get('residual_variant')=='right_controller_calibrated_dual_residual_v1':
         from algorithms.urdf_learn_wasd_walk.landau_right_controller_rebase import check_contract
     elif meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
         from algorithms.urdf_learn_wasd_walk.landau_yaw_hold_rebase import check_contract
@@ -163,7 +179,13 @@ def run(args):
     base,_ = load_gait_source(checkpoint,meta)
     residual = load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'hold_saved_cruise')
     active = load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'hold_saved_active')
-    if getattr(args,'cruise_retention_diagnostic',False):
+    if triangle_active:
+        if Path(args.triangle_directory).resolve()==Path(args.triangle_repeat_directory).resolve():
+            raise ValueError('Triangle active attribution requires two distinct source runs')
+        prepared=[('triangle_active',*load_starts([source],checkpoint,meta,turn,'triangle_active',age,backend.digest),age,end)
+                  for source,age,end in [(args.triangle_directory,age,339.) for age in (332.,333.,334.)]+
+                                        [(args.triangle_repeat_directory,age,85.) for age in (78.,80.)]]
+    elif getattr(args,'cruise_retention_diagnostic',False):
         prepared=[('cruise_retention',*load_starts([source],checkpoint,meta,turn,'cruise_retention',age,backend.digest),age,end)
                   for source,age,end in ((args.left_directory,60.,72.),(args.left_directory,84.,96.),
                                          (args.backward_directory,96.,108.),(args.backward_directory,140.,152.))]
@@ -184,6 +206,7 @@ def run(args):
     folder = backend.OUTPUT/args.name
     folder.mkdir(exist_ok=False)
     (folder/'screen_source.py').write_bytes(Path(__file__).read_bytes())
+    if half_cruise:(folder/'cruise_scale_source.py').write_bytes((checkpoint.parent/'cruise_scale_source.py').read_bytes())
     (folder/'audit_source.py').write_bytes(Path(install_physics_audit.__code__.co_filename).read_bytes())
     if backend.digest(teleop.__file__) != backend.digest(checkpoint.parent/'teleop_contract.py'):
         raise ValueError('Calibration teleop protocol differs from saved controller')
@@ -219,7 +242,10 @@ def run(args):
         for value in audit.values():value.zero_()
         params = grid.repeat_interleave(width,dim=0)
         scales = torch.tensor([0.,.5,1.] if cruise_diagnostic else [0.,.25,.5,.75,1.],device='cuda').repeat_interleave(width) if scale_diagnostic else None
-        replay = np.load(Path(sources[0]['directory'])/'policy_trace.npz') if mode in ('active','cruise_attribution','cruise_retention') else None
+        replay=None
+        if mode in ('active','cruise_attribution','cruise_retention','triangle_active'):
+            with np.load(Path(sources[0]['directory'])/'policy_trace.npz') as saved:
+                replay={key:saved[key] for key in ('time','observation')}
         if replay is not None:
             stop = round(end/.02)+1
             if (len(replay['time']) < stop or not np.allclose(replay['time'][:stop],np.arange(stop)*.02,atol=1e-6,rtol=0) or
@@ -235,7 +261,7 @@ def run(args):
         first_failure = torch.full((n,),float('nan'),device='cuda')
         hold_error = torch.zeros(n,device='cuda');hold_drift = torch.zeros_like(hold_error)
         hold_speed = torch.zeros_like(hold_error);hold_yaw_speed = torch.zeros_like(hold_error)
-        holds = () if mode in ('active','cruise_attribution','cruise_retention') else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
+        holds = () if mode in ('active','cruise_attribution','cruise_retention','triangle_active') else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
         max_heading_deviation = torch.zeros(n,device='cuda')
         body_progress = torch.zeros(n,device='cuda')
         end_heading = torch.zeros(n,device='cuda')
@@ -248,7 +274,7 @@ def run(args):
             age = round((start+step*.02)/.02)*.02
             if step%500 == 0:print(json.dumps(dict(mode=mode,age_s=age,live=int(live.sum()))),flush=True)
             if mode == 'm5':forward,yaw,_ = turn.command_profile(age);command = (forward,0.,yaw)
-            elif mode in ('active','cruise_attribution','cruise_retention'):command = replay['observation'][round(age/.02),63:66]
+            elif mode in ('active','cruise_attribution','cruise_retention','triangle_active'):command = replay['observation'][round(age/.02),63:66]
             else:command = teleop.command_profile(age)
             rot = batch.rot[:,batch.base]
             extra = torch.zeros((n,10),device='cuda')
@@ -262,9 +288,10 @@ def run(args):
                                                memory.reference,memory.turned,memory=memory)
                 baseline=action
                 action = residual.apply(cruise_actor,action,obs,walking,memory,names)
+                if half_cruise:action=half.apply(baseline,action)
                 if cruise_diagnostic:action=scale_active(baseline,action,scales)
                 complete = active.apply(active_actor,action,obs,walking,memory,names,residual)
-                action = (scale_active(action,complete,scales) if args.active_scale_diagnostic else complete).clamp(-limits,limits)
+                action = (scale_active(action,complete,scales) if active_diagnostic else complete).clamp(-limits,limits)
             heading = torch.atan2(rot[:,1,0],rot[:,0,0])
             before_heading = heading.clone()
             for a,b in holds:
@@ -281,7 +308,7 @@ def run(args):
             batch.previous[:] = action
             xy = batch.pos[:,batch.pelvis,:2]
             heading = torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
-            if mode in ('active','cruise_attribution','cruise_retention'):
+            if mode in ('active','cruise_attribution','cruise_retention','triangle_active'):
                 teacher = replay['observation'][round((age+.02)/.02)]
                 target = math.atan2(float(teacher[68]),float(teacher[69]+1.))
                 error = torch.atan2((heading-target).sin(),(heading-target).cos()).abs()
@@ -321,11 +348,11 @@ def run(args):
         if set(hold_origins) != {a for a,b in holds}:raise ValueError('Incomplete calibration hold windows')
         air_fraction = audit['flight_total'].float()*.002/(end-start)
         eligible = (air_fraction<=.05)&(bits==0)&(hold_error<=math.pi/36)&(hold_drift<=.03)&(hold_speed<=.05)&(hold_yaw_speed<=.1)
-        result_key = mode+'_'+str(start) if mode in ('active','cruise_attribution','cruise_retention') else mode
+        result_key = mode+'_'+str(start) if mode in ('active','cruise_attribution','cruise_retention','triangle_active') else mode
         results[result_key] = dict(sources=sources,start_s=start,end_s=end,
             candidate_records=[dict(index=i,gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),
-                active_scale=float(scales[i*width]) if args.active_scale_diagnostic else 1.,
-                cruise_scale=float(scales[i*width]) if cruise_diagnostic else 1.,
+                active_scale=float(scales[i*width]) if active_diagnostic else 1.,
+                cruise_scale=float(scales[i*width]) if cruise_diagnostic else .5 if half_cruise else 1.,
                 first_failure_control_time_s=[v if math.isfinite(v) else None for v in first_failure[i*width:(i+1)*width].tolist()],
                 per_foot_peak_bw=foot_peak[i*width:(i+1)*width].tolist(),
                 max_heading_deviation_rad=max_heading_deviation[i*width:(i+1)*width].tolist(),
@@ -337,9 +364,11 @@ def run(args):
                 hold_speed_mps=hold_speed[i*width:(i+1)*width].tolist(),hold_yaw_speed_rad_s=hold_yaw_speed[i*width:(i+1)*width].tolist(),duration_s=durations[i*width:(i+1)*width].tolist())
                 for i in range(len(grid))])
         del batch,audit
-    backend.write_json(folder/'screen.json',dict(kind='recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
+    backend.write_json(folder/'screen.json',dict(kind='recorded_state_triangle_active_scale_attribution' if triangle_active else 'recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
         checkpoint=str(checkpoint),checkpoint_sha256=backend.digest(checkpoint),training_sha256=backend.digest(checkpoint.parent/'training.json'),
         source_sha256=backend.digest(__file__),turn_source_sha256=meta['turn_source_sha256'],
+        frozen_cruise_output_scale=.5 if half_cruise else 1.,
+        cruise_scale_source_sha256=meta['cruise_scale_source_sha256'] if half_cruise else None,
         residual_source_sha256=meta['residual_source_sha256'],active_residual_source_sha256=meta['active_residual_source_sha256'],
         audit_source_sha256=backend.digest(Path(install_physics_audit.__code__.co_filename)),
         teleop_source_sha256=backend.digest(folder/'teleop_source.py'),
@@ -356,6 +385,8 @@ def main():
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--nominal-grid',action='store_true')
     parser.add_argument('--active-scale-diagnostic',action='store_true')
+    parser.add_argument('--triangle-active-scale-diagnostic',action='store_true')
+    parser.add_argument('--triangle-repeat-directory')
     parser.add_argument('--cruise-scale-diagnostic',action='store_true')
     parser.add_argument('--cruise-retention-diagnostic',action='store_true')
     parser.add_argument('--left-directory')
@@ -366,9 +397,14 @@ def main():
     parser.add_argument('--m5-directory',action='append',default=[])
     parser.add_argument('--m6-directory',action='append',default=[])
     args = parser.parse_args()
-    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic))>1:
+    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic,args.triangle_active_scale_diagnostic))>1:
         raise ValueError('Choose exactly one calibration mode')
-    if args.cruise_retention_diagnostic:
+    if args.triangle_active_scale_diagnostic:
+        if (not args.triangle_directory or not args.triangle_repeat_directory or args.left_directory or
+            args.backward_directory or args.m5_directory or args.m6_directory):
+            raise ValueError('Triangle active attribution requires exactly two declared triangle source directories')
+    elif args.triangle_repeat_directory:raise ValueError('Triangle repeat directory requires triangle active attribution')
+    elif args.cruise_retention_diagnostic:
         if not args.left_directory or not args.backward_directory or args.triangle_directory or args.m5_directory or args.m6_directory:raise ValueError('Cruise retention requires left and backward source directories only')
     elif args.left_directory:raise ValueError('Left directory requires cruise retention')
     elif args.cruise_scale_diagnostic:
