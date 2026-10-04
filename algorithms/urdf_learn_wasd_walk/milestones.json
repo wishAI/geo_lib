@@ -5221,7 +5221,7 @@
             "checkpoint": "m8_20261004_zero_active_dual/model_0.pt",
             "sha256": "e5209aa9af53e58356fcd6b65a29579cdaca09010c49ec0defe212931136985e",
             "run": "m8_20261004_zero_active_backward",
-            "status": "fresh M1-M7 cumulative candidate certificate passed; canonical M8 pending full triangle",
+            "status": "triangle first trial completed but rejected force; two fixed unchanged repeats prospectively declared",
             "cruise_scale": 0.5,
             "active_scale": 0.0,
             "forward": 0.2,
@@ -5305,7 +5305,21 @@
             },
             "triangle_run": "m8_20261004_zero_active_triangle",
             "prerequisite_certificate": "m8_20261004_zero_active_prerequisites_certificate/milestone_validation.json",
-            "prerequisite_certificate_sha256": "f75f941ccf6e9182876d7bf1803f593fbf7373a0f90957da3c079349e70134d2"
+            "prerequisite_certificate_sha256": "f75f941ccf6e9182876d7bf1803f593fbf7373a0f90957da3c079349e70134d2",
+            "triangle_first": {
+              "duration_s": 346.12,
+              "peak_bw": 3.192615296590246,
+              "failures": [
+                "peak support exceeded 3 body weights"
+              ]
+            },
+            "triangle_repeats": {
+              "names": [
+                "m8_20261004_zero_active_triangle_repeat1",
+                "m8_20261004_zero_active_triangle_repeat2"
+              ],
+              "status": "two fixed repeats declared before launch; retain both; no further unchanged retries"
+            }
           }
         }
       }

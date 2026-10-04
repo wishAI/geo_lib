@@ -112,7 +112,10 @@ forward, left, and right direction proofs passed full review and independent
 validation. The exact candidate now has accepted M1–M7 components; the
 noncanonical cumulative certificate has passed (SHA-256
 `f75f941ccf6e9182876d7bf1803f593fbf7373a0f90957da3c079349e70134d2`).
-Its full triangle trial is running. The zero-active
+Its first full triangle completed in 346.12 s, with all ordered visits and
+1.308 m maximum corridor error, but one 3.193 BW sample at 201.56 s failed
+the force limit. Two fixed unchanged repeats were declared before launch;
+both outcomes will be retained. M8 remains unresolved. The zero-active
 setting had also passed all 30 preceding diagnostic cases, but it receives no
 credit until complete fresh nominal evidence passes.
 
