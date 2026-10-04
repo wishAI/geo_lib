@@ -5,7 +5,7 @@ This sandbox is being rebuilt from the clean restart contract one milestone at a
 Current milestone truth (2026-10-04): **6/12 milestones certified; work resumed
 on M7.** Four directions mean turning and walking toward world-direction 10 m
 gates from the same nominal pose, as confirmed by the user. The M7 diagnostic
-emits only semantic forward/yaw commands; it preserves the saved M6 controller.
+emits only semantic forward/yaw commands through the checkpoint’s saved controller.
 Legacy direction runs keep one yaw sign (right for the right gate, left for the
 left/backward gates). The opt-in `--direction-navigation signed_v2` experiment
 permits both correction signs after choosing the initial backward left arc once.
@@ -22,6 +22,26 @@ retaining sustained course corrections; fresh physical evaluation is pending.
 Its bounded horizon is 240 s because the existing trained turn rate needs 88 s
 for 180 degrees. Standing, contact, speed, flight and no-reset limits are unchanged.
 Speed improvements require measured faster completion and the same quality checks.
+
+Current M7 candidate: `m7_20261003_active_margin400/model_399.pt`, SHA-256
+`92b887acb77f0ba112156b8d486158baf7c039af0b28fab0eba79c874844c70f`,
+using `--direction-navigation filtered_signed_v3`. Its backward dynamics cleared
+10 m in169.24s at2.970BW and left in102.25s at2.948BW, with zero falls or resets.
+Backward and left now have accepted full videos and independent validation.
+The right trial failed at47.764s after a3.432BW landing; its initial observations
+and commands were bit-identical to the prior passing right run. This exposes
+physical sensitivity in the inherited right-turn controller. Forward and
+cumulative M1–M4 remain required. Existing exact-checkpoint M5/M6 proofs validate.
+This candidate is not promoted. The adapted-cruise399 branch failed under the same
+navigator after entering prolonged right-mode control; its force breaches and
+fall remain rejected evidence. Keep all acceptance limits unchanged.
+A bounded right-sway search now changes only CEM indices12/13, with duplicate
+controls and identical starting perturbations. A coarse64-candidate grid repeated
+twice produced no full qualification; candidate34 cleared5/8 gate trials and is
+the center of a finer grid. The original controller remains a separate control.
+Training targets2.9BW while the acceptance limit remains3BW. Any selected CEM
+candidate must be explicitly composed with the frozen margin399 dual residuals
+using `landau_right_rebase`, then receive fresh full cumulative validation.
 
 The custom `balanced_hands_v1` Landau checkpoint passed the complete cumulative set:
 

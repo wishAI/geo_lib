@@ -343,7 +343,7 @@ def train(args):
     include_cruise_rate=args.left_cruise_rate_grid or include_cruise_bias or (sb is not None and len(sb['turn_parameters'])>=21)
     include_feedback=args.left_feedback_only or include_cruise_rate or (sb is not None and len(sb['turn_parameters'])>=20)
     include_left_yaw = args.left_yaw_only or include_feedback or (sb is not None and len(sb['turn_parameters']) >= 18)
-    if include_left_yaw and not args.left_cruise_only:
+    if include_left_yaw and not (args.left_cruise_only or args.right_balance_grid):
         raise ValueError('18-parameter seed requires the left-cruise curriculum')
     teleop=bool(getattr(args,'teleop',False))
     if teleop:
@@ -351,7 +351,7 @@ def train(args):
             restart_ramp_s=(0.,2.5),restart_phase_rad=(-math.pi,math.pi),right_hold_feedback=(-.12,.12))
     if getattr(args,'direction_train',False):
         TURN_PARAMETERS.update(right_roll_amplitude_offset=(-.06,.03),right_roll_phase_offset=(-.25,.25))
-    if getattr(args,'left_cruise_only',False):
+    if getattr(args,'left_cruise_only',False) or args.right_balance_grid:
         TURN_PARAMETERS.update(left_cruise_heading_feedback=(-.12,.12),
             left_cruise_roll_amplitude=(-.06,.03),left_cruise_roll_phase=(-.25,.25))
     if include_left_yaw:TURN_PARAMETERS.update(left_yaw_scale=(.5,2.))
@@ -364,7 +364,7 @@ def train(args):
     initial = torch.tensor([.02*rate_scale, -.3, .0514, -.04, -.0343*rate_scale,0.,0.], device='cuda')
     if teleop:initial=torch.cat((initial,initial.new_tensor([1.,.0514,0.,0.,-.04])))
     if getattr(args,'direction_train',False):initial=torch.cat((initial,initial.new_zeros(2)))
-    if getattr(args,'left_cruise_only',False):initial=torch.cat((initial,initial[2:3],initial[5:7]))
+    if getattr(args,'left_cruise_only',False) or args.right_balance_grid:initial=torch.cat((initial,initial[2:3],initial[5:7]))
     if include_left_yaw:initial=torch.cat((initial,initial.new_ones(1)))
     if include_feedback:initial=torch.cat((initial,initial.new_zeros(2)))
     if include_cruise_rate:initial=torch.cat((initial,initial.new_zeros(1)))
@@ -430,6 +430,15 @@ def train(args):
         from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction_training
     common_offsets=direction_training.common_start_offsets(batch.nominal,batch.jq,replicas,args.start_seed) if args.common_starts else None
     grid_center=mean.clone()
+    right_reference=None
+    if args.right_balance_reference:
+        rp=Path(args.right_balance_reference).resolve();rm=json.loads((rp.parent/'training.json').read_text())
+        if (rm['checkpoints'][rp.name]!=backend.digest(rp) or rm['parent_checkpoint_sha256']!=backend.digest(parent) or
+            rm.get('policy_family')!='periodic_feedback_cem' or str(rm.get('status','')).startswith('invalidated_')):
+            raise ValueError('Invalid right balance reference')
+        rb=torch.load(rp,map_location='cpu',weights_only=False)
+        if not torch.equal(rb['parameters'],blob['parameters']):raise ValueError('Reference gait changed')
+        right_reference=rb['turn_parameters'].to('cuda')
     body_weight = float(batch.model.body_mass.sum())*9.81
     meta = dict(parent_meta)
     for key in ('forward_fitness_contract','lateral_acceptance','initial_search_parameters','metrics','wall_s',
@@ -509,6 +518,14 @@ def train(args):
             (folder/'direction_training_source.py').write_text(Path(direction_training.__file__).read_text())
             meta['common_starts_reference']='https://pubsonline.informs.org/doi/10.1287/mnsc.45.11.1570'
             meta['common_starts_scope']='Same nominal plus3joint perturbations for every candidate/generation; does not claim deterministic physics.'
+        if args.right_balance_grid:
+            meta['right_balance_grid']={'searched_indices':[12,13],'unchanged_control_candidates':[0,1],
+                'amplitude_radius_rad':args.right_balance_amplitude_radius,'phase_radius_rad':args.right_balance_phase_radius,'repeat_same_grid_each_generation':True,
+                'training_force_target_bw':2.9,'hard_force_limit_bw':3.,
+                'scope':'Freeze every other CEM20 bit and gait/standing; learned left heads are inactive in this right-only command curriculum. Independent composite checkpoint proofs still required.'}
+            if right_reference is not None:
+                meta['right_balance_grid'].update(reference_checkpoint=str(rp),reference_checkpoint_sha256=backend.digest(rp),
+                    reference_training_sha256=backend.digest(rp.parent/'training.json'),reference_control_candidates=[2,3])
         if args.left_balance_grid:
             meta['balance_grid']={'center_normalized':grid_center.cpu().tolist(),'radius_normalized':args.search_std,
                 'unchanged_control_candidates':[0,1],'repeat_same_grid_each_generation':True}
@@ -609,6 +626,11 @@ def train(args):
             z[:,10]=torch.linspace(-1.,1.,side,device='cuda').repeat(side)
         if getattr(args,'right_grid',False) or getattr(args,'restart_grid',False):z[0]=mean
         params = (lows+(z+1)*.5*(highs-lows)).repeat_interleave(replicas, dim=0)
+        if args.right_balance_grid:
+            grid=direction_training.right_balance_grid(seed_parameters,candidates,lows,highs,
+                args.right_balance_amplitude_radius,args.right_balance_phase_radius,right_reference)
+            params=grid.repeat_interleave(replicas,dim=0)
+            z=2*(grid-lows)/(highs-lows)-1.
         if args.left_balance_only:
             from algorithms.urdf_learn_wasd_walk import landau_direction_training
             params=landau_direction_training.active_balance_parameters(z,lows,highs,seed_parameters).repeat_interleave(replicas,dim=0)
@@ -825,6 +847,9 @@ def train(args):
         if args.left_turn_refine:
             eligible_world &= post_turn_force_max<=2.85
             fitness-=1000.*(post_turn_force_max-2.85).clamp_min(0.)
+        if args.right_balance_grid:
+            eligible_world &= force_max<=2.9
+            fitness-=1000.*(force_max-2.9).clamp_min(0.)
         fitness += 1000.*physics.float()+10000.*eligible_world.float()
         score = fitness.reshape(candidates,replicas).min(1).values
         eligible = eligible_world.reshape(candidates,replicas).all(1)
@@ -870,7 +895,7 @@ def train(args):
             for key in ('last_two_seconds_mean_yaw_rate','turn_end_heading_rad','last_two_turn_seconds_mean_yaw_rate'):
                 metrics.pop(key,None)
         with (folder/'generations.jsonl').open('a') as stream: stream.write(json.dumps(metrics)+'\n')
-        if teleop and (getattr(args,'right_grid',False) or getattr(args,'restart_grid',False) or getattr(args,'left_cruise_only',False)):
+        if teleop and (getattr(args,'right_grid',False) or getattr(args,'restart_grid',False) or getattr(args,'left_cruise_only',False) or args.right_balance_grid):
             backend.write_json(folder/'candidates.json',[{'candidate':i,
                 'parameters':params[i*replicas].tolist(),'survival_s':duration[i*replicas:(i+1)*replicas].tolist(),
                 'failure_bits':failure_bits[i*replicas:(i+1)*replicas].tolist(),
@@ -963,6 +988,10 @@ def main():
     parser.add_argument('--restart-grid',action='store_true',help='One-generation restart ramp/phase grid')
     parser.add_argument('--right-only',action='store_true',help='Freeze the certified seven left/hold parameters; search right-specific feedback')
     parser.add_argument('--right-grid',action='store_true',help='One-generation right amplitude/heading grid')
+    parser.add_argument('--right-balance-grid',action='store_true',help='Repeat a frozen CEM20 right-sway grid with two unchanged controls')
+    parser.add_argument('--right-balance-amplitude-radius',type=float,default=.015)
+    parser.add_argument('--right-balance-phase-radius',type=float,default=.12)
+    parser.add_argument('--right-balance-reference',help='Additional unchanged right-sway control, at rows2/3 of the grid')
     parser.add_argument('--direction-train',action='store_true',help='M7 sustained right-turn curriculum; requires teleop memory and frozen left parameters')
     parser.add_argument('--left-cruise-only',action='store_true',help='M7 left-turn curriculum; search straight-after-left heading and lateral sway feedback')
     parser.add_argument('--direction-command-trace',help='Replay semantic commands from a recorded left gate, then continue straight; training only')
@@ -989,6 +1018,15 @@ def main():
     parser.add_argument('--stride-grid',action='store_true',help='Sweep differential sagittal stride and heading correction')
     parser.add_argument('--export-candidate',type=int,help='Export one row from this checkpoint generation without running physics')
     args = parser.parse_args()
+    if not 0.<args.right_balance_amplitude_radius<=.015 or not 0.<args.right_balance_phase_radius<=.12:
+        raise ValueError('Right balance grid radius outside bounded search')
+    if not args.right_balance_grid and (args.right_balance_reference or args.right_balance_amplitude_radius!=.015 or args.right_balance_phase_radius!=.12):
+        raise ValueError('Right balance options require the right balance grid')
+    if args.right_balance_grid and (not args.right_only or not args.direction_train or not args.common_starts or
+            args.closed_loop_direction!='right' or not args.seed_checkpoint or args.seconds<100. or
+            args.left_cruise_only or args.right_grid or args.diagnostic_sweep or args.teleop_refine or args.restart_only or
+            args.left_checkpoint or args.preserve_yaw_amplitude or args.seed_candidate is not None):
+        raise ValueError('Right balance grid requires a seeded common-start right gate with100s or more and no other search')
     if args.export_candidate is not None:
         export_candidate(args.checkpoint,args.export_candidate,args.name);return
     if args.diagnostic_sweep and (args.left_cruise_bias_grid or args.left_cruise_rate_grid or args.left_cruise_balance_only):

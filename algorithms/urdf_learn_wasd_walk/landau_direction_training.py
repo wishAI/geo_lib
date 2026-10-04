@@ -96,6 +96,25 @@ def cruise_balance_grid(seed, candidates, lows, highs):
     return result
 
 
+def right_balance_grid(seed, candidates, lows, highs, amplitude_radius=.015, phase_radius=.12, reference=None):
+    """Right sway only; duplicate incumbents and bit-exact frozen controller."""
+    import torch
+    side=math.isqrt(candidates)
+    if len(seed)!=20 or side*side!=candidates or side<3:
+        raise ValueError('Right balance grid requires CEM20 and a square of at least9candidates')
+    result=seed.repeat(candidates,1)
+    sweep=torch.linspace(-1.,1.,side,device=seed.device,dtype=seed.dtype)
+    result[:,12]=(seed[12]+amplitude_radius*sweep.repeat_interleave(side)).clamp(lows[12],highs[12])
+    result[:,13]=(seed[13]+phase_radius*sweep.repeat(side)).clamp(lows[13],highs[13])
+    result[:2]=seed
+    if reference is not None:
+        fixed=[i for i in range(20) if i not in (12,13)]
+        if reference.shape!=seed.shape or not torch.equal(reference[fixed],seed[fixed]):
+            raise ValueError('Right balance reference changes frozen parameters')
+        result[2:4]=reference
+    return result
+
+
 def commands(direction, displacement, heading, seconds):
     import torch
     from algorithms.urdf_learn_wasd_walk import landau_direction_contract as contract

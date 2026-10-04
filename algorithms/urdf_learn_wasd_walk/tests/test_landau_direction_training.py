@@ -8,6 +8,36 @@ from algorithms.urdf_learn_wasd_walk.landau_turn_control import CommandMemory,co
 
 
 class DirectionTrainingTests(unittest.TestCase):
+    def test_right_balance_grid_freezes_left_controller_exactly(self):
+        from algorithms.urdf_learn_wasd_walk.landau_direction_training import right_balance_grid
+        seed=torch.linspace(-.05,.05,20)
+        lows=torch.full((20,),-.25);highs=-lows
+        result=right_balance_grid(seed,64,lows,highs)
+        fixed=[i for i in range(20) if i not in (12,13)]
+        self.assertTrue(torch.equal(result[:,fixed],seed[fixed].repeat(64,1)))
+        self.assertTrue(torch.equal(result[0],seed));self.assertTrue(torch.equal(result[1],seed))
+        self.assertAlmostEqual(float(result[:,12].max()-result[:,12].min()),.03,places=6)
+        self.assertAlmostEqual(float(result[:,13].max()-result[:,13].min()),.24,places=6)
+        self.assertTrue(torch.equal(result,right_balance_grid(seed,64,lows,highs)))
+        with self.assertRaises(ValueError):right_balance_grid(seed[:14],64,lows,highs)
+        reference=seed.clone();reference[12:14]+=.001
+        narrow=right_balance_grid(seed,64,lows,highs,.0035,.025,reference)
+        self.assertTrue(torch.equal(narrow[2],reference));self.assertTrue(torch.equal(narrow[3],reference))
+        self.assertTrue(torch.equal(narrow[:,fixed],seed[fixed].repeat(64,1)))
+        reference[5]+=.001
+        with self.assertRaisesRegex(ValueError,'frozen parameters'):right_balance_grid(seed,64,lows,highs,reference=reference)
+
+    def test_right_balance_grid_rejects_seed_mutation_flags(self):
+        from unittest.mock import patch
+        from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn
+        args=['turn','--name','unused','--checkpoint','unused','--seed-checkpoint','unused',
+              '--right-balance-grid','--right-only','--teleop','--direction-train','--common-starts',
+              '--closed-loop-direction','right','--seconds','120']
+        for extra in (['--left-checkpoint','unused'],['--preserve-yaw-amplitude'],['--seed-candidate','0']):
+            with patch('sys.argv',args+extra),patch.object(turn,'train') as train:
+                with self.assertRaisesRegex(ValueError,'Right balance grid requires'):turn.main()
+                train.assert_not_called()
+
     def test_diagnostic_sweep_cannot_overwrite_frozen_cruise_grids(self):
         from unittest.mock import patch
         from algorithms.urdf_learn_wasd_walk import landau_turn_control as turn

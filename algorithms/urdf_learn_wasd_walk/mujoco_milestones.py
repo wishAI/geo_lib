@@ -199,12 +199,14 @@ def check_residual_source(folder,result,training,checkpoint):
     """Independently bind the hybrid controller and its unchanged frozen parent."""
     import torch
     adapted=training.get('residual_variant')=='adapted_cruise_frozen_active_v1'
-    active=adapted or training.get('residual_variant')=='cruise_plus_active_left_v1'
+    rebased=training.get('residual_variant')=='right_balance_rebased_dual_residual_v1'
+    require(rebased or not any(k.startswith('frozen_dual_') for k in training), 'Unexpected right rebase metadata')
+    active=adapted or rebased or training.get('residual_variant')=='cruise_plus_active_left_v1'
     candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
     require(candidate.get('residual_variant')==training.get('residual_variant'), 'Active residual variant mismatch')
     if not active:
         require(training.get('residual_variant') is None and 'active_residual_actor_state_dict' not in candidate and
-            not any(k.startswith(('active_residual_','frozen_cruise_','frozen_active_','cruise_initialization_')) for k in training) and
+            not any(k.startswith(('active_residual_','frozen_cruise_','frozen_active_','cruise_initialization_','frozen_dual_')) for k in training) and
             not any(k.startswith('active_residual_') for k in result) and result.get('residual_variant') is None,
             'Unexpected active residual weights or metadata')
     else:
@@ -243,6 +245,50 @@ def check_residual_source(folder,result,training,checkpoint):
             digest(folder/'active_residual_source.py')==result.get('active_residual_source_sha256'), 'Active residual source mismatch')
         cruise_comparison=candidate
         lineage=training
+        if rebased:
+            require(not any(k.startswith(('frozen_cruise_','frozen_active_','cruise_initialization_')) for k in training), 'Right rebase has misleading frozen lineage')
+            require(training.get('right_rebase',{}).get('source_sha256')==digest(checkpoint.parent/'right_rebase_source.py'), 'Right composition source changed')
+            donor=Path(training['frozen_dual_checkpoint']);lineage=read(donor.parent/'training.json')
+            require(digest(donor)==training['frozen_dual_checkpoint_sha256'] and digest(donor.parent/'training.json')==training['frozen_dual_training_sha256'], 'Frozen dual input changed')
+            require(lineage.get('policy_family')=='periodic_feedback_residual_ppo' and lineage.get('residual_variant')=='cruise_plus_active_left_v1' and
+                not str(lineage.get('status','')).startswith('invalidated_') and lineage['checkpoints'][donor.name]==digest(donor), 'Invalid frozen dual donor')
+            duration=training.get('arguments',{}).get('turn_duration')
+            require(isinstance(duration,(int,float)) and 14.<=duration<=90. and duration==lineage.get('arguments',{}).get('turn_duration') and
+                duration==parent_meta.get('arguments',{}).get('turn_duration'), 'Frozen turn duration changed')
+            cruise_comparison=torch.load(donor,map_location='cpu',weights_only=False)
+            require(cruise_comparison.get('residual_variant')=='cruise_plus_active_left_v1', 'Frozen dual donor mislabeled')
+            for key in ('residual_source_sha256','active_residual_source_sha256','residual_bound_rad','residual_feature_dim','residual_action_joints','residual_gate',
+                        'active_residual_bound_rad','active_residual_feature_dim','active_residual_action_joints','active_residual_gate'):
+                require(lineage.get(key)==training[key], 'Frozen dual contract changed')
+            for source in ('residual_source','active_residual_source','turn_source'):
+                require(digest(donor.parent/(source+'.py'))==lineage[source+'_sha256'], 'Frozen dual source changed')
+            fixed=[i for i in range(20) if i not in (12,13)]
+            require(tuple(candidate['turn_parameters'].shape)==(20,) and
+                torch.equal(candidate['turn_parameters'][fixed],cruise_comparison['turn_parameters'][fixed]), 'Only right sway parameters12/13 may change')
+            p=candidate['turn_parameters']
+            require(bool(torch.isfinite(p).all()) and -.06<=float(p[12])<=.03 and -.25<=float(p[13])<=.25, 'Right sway outside bounded calibration')
+            require(torch.equal(candidate['parameters'],cruise_comparison['parameters']), 'Frozen dual gait changed')
+            for key in ('standing_actor_state_dict','residual_actor_state_dict','active_residual_actor_state_dict'):
+                left,right=cruise_comparison[key],candidate[key]
+                require(left.keys()==right.keys() and all(torch.equal(left[k],right[k]) for k in left), 'Frozen dual weights changed')
+            import ast
+            def deployment(path):
+                names={'CommandMemory','commanded_action','configure_profile','command_profile','evaluate_turn_gate'}
+                tree=ast.parse(path.read_text())
+                nodes=[n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.ClassDef)) and n.name in names]
+                constants=[n for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id in {'TURN_START','TURN_END','HOLD_START','TURN_RATE'} for t in n.targets)]
+                require({n.name for n in nodes}==names and len(constants)==4, 'Incomplete saved turn implementation')
+                class FixedArity(ast.NodeTransformer):
+                    def visit_If(self,node):
+                        test=node.test
+                        first=test.values[0] if isinstance(test,ast.BoolOp) and isinstance(test.op,ast.And) else test
+                        if (isinstance(first,ast.Compare) and ast.dump(first.left)==ast.dump(ast.parse('p.shape[1]',mode='eval').body) and
+                            len(first.ops)==1 and isinstance(first.ops[0],ast.GtE) and isinstance(first.comparators[0],ast.Constant) and
+                            isinstance(first.comparators[0].value,int) and first.comparators[0].value>20):
+                            return [self.visit(n) for n in node.orelse]
+                        return self.generic_visit(node)
+                return ast.dump(FixedArity().visit(ast.Module(body=constants+nodes,type_ignores=[])),include_attributes=False)
+            require(deployment(checkpoint.parent/'turn_source.py')==deployment(donor.parent/'turn_source.py'), 'Right rebase deployment changed')
         if adapted:
             require(not any(k.startswith('frozen_cruise_') for k in training), 'Adapted cruise falsely marked frozen')
             donor=Path(training['frozen_active_checkpoint']);lineage=read(donor.parent/'training.json')
@@ -265,14 +311,14 @@ def check_residual_source(folder,result,training,checkpoint):
             require(Path(training['cruise_initialization_checkpoint']).resolve()==Path(lineage['frozen_cruise_checkpoint']).resolve() and
                 training['cruise_initialization_checkpoint_sha256']==lineage['frozen_cruise_checkpoint_sha256'] and
                 training['cruise_initialization_training_sha256']==lineage['frozen_cruise_training_sha256'], 'Cruise initialization changed')
-        else:
-            require(not any(k.startswith(('frozen_active_','cruise_initialization_')) for k in training), 'Unexpected adapted cruise metadata')
+        elif not rebased:
+            require(not any(k.startswith(('frozen_active_','cruise_initialization_','frozen_dual_')) for k in training), 'Unexpected adapted cruise metadata')
         cruise=Path(lineage['frozen_cruise_checkpoint']);cruise_meta=read(cruise.parent/'training.json')
         require(digest(cruise)==lineage['frozen_cruise_checkpoint_sha256'] and digest(cruise.parent/'training.json')==lineage['frozen_cruise_training_sha256'], 'Frozen cruise input changed')
         require(cruise_meta.get('policy_family')=='periodic_feedback_residual_ppo' and cruise_meta.get('residual_variant') is None and
             not str(cruise_meta.get('status','')).startswith('invalidated_') and cruise_meta['checkpoints'][cruise.name]==digest(cruise), 'Invalid frozen cruise input')
         for key in ('parent_checkpoint_sha256','parent_training_sha256','residual_source_sha256','turn_source_sha256'):
-            require(cruise_meta[key]==training[key], 'Frozen cruise lineage changed')
+            require(cruise_meta[key]==lineage[key], 'Frozen cruise lineage changed')
         require(digest(cruise.parent/'residual_source.py')==expected, 'Frozen cruise source changed')
         cruise_blob=torch.load(cruise,map_location='cpu',weights_only=False)
         require(cruise_blob.get('residual_variant') is None and 'active_residual_actor_state_dict' not in cruise_blob, 'Invalid cruise-only weights')
@@ -655,6 +701,8 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
     ckpt={'kind':read(checkpoint.parent/'training.json')['policy_family'],
           'path':str(checkpoint.relative_to(ROOT)),'sha256':digest(checkpoint)}
     evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
+    if read(checkpoint.parent/'training.json').get('residual_variant')=='right_balance_rebased_dual_residual_v1':
+        evidence.append(artifact(checkpoint.parent/'right_rebase_source.py','checkpoint_right_composition_source'))
     metrics={'directions':{k:v['metrics'] for k,v in directions.items()}}
     final={'status':'passed','lineage':LINEAGE,'backend':ledger['backend'],'milestone':target['id'],
            'assembled_at':datetime.now(timezone.utc).isoformat(),'checkpoint':ckpt,'metrics':metrics,

@@ -1671,11 +1671,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-03T16:09:28.570350+00:00",
+    "updatedAt": "2026-10-04T04:12:43.760212+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 6,
     "nextMilestone": "gate_10m_four_directions_no_reset",
-    "nextWork": "Evaluate filtered_signed_v3 samecheckpoint backward; determine whether reducing steering chatter restores stability and gate progress. Six certified milestones unchanged.",
+    "nextWork": "Finishindependent filteredrightgate forright_balance15_dual. Newcheckpoint needsfreshall4directions andM1\u2013M6; previousmargin399 proofsremainhistoricalcomparisons.",
     "checkpoint": {
       "kind": "periodic_feedback_cem",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/rsl_transfer_20260922_teleop_preserve_left/model_1.pt",
@@ -2459,13 +2459,145 @@
     },
     "filteredSignedNavigation": {
       "version": "filtered_signed_v3",
-      "status": "nominal backward evaluation running",
+      "status": "failed; complete proof reviewed and rejected",
       "run": "m7_20261004_adapt399_filtered_backward",
       "filter_time_constant_s": 0.5,
       "unchanged": "3degree tolerance, forward.2, yawcap,gain, frozencheckpoint and physics",
       "cpu_replay": "Stored FKpose traces: failedsigned88\u201394s reversals8to0; legacyadapt3996to1. Sustainedrightcommand lag.28s withtau.5 versus1.14s withtau1. Commands only, notstabilityproof.",
       "promoted": false,
-      "tests": "131 relevant CPU tests passed"
+      "tests": "131 relevant CPU tests passed",
+      "dynamics_sha256": "a8883b4441770f1a36107cfa5b0e1303c7682b09a529c57db34473494edeebc0",
+      "metrics": {
+        "duration_s": 174.196,
+        "fall_count": 1,
+        "peak_support_body_weight_ratio": 3.149889039470648,
+        "direction_progress_m": 9.99508460546875,
+        "direction_cross_track_m": -0.1978345364332199
+      },
+      "failures": [
+        "done_count=1",
+        "fall_count=1",
+        "semantic +Y forward displacement did not reach 10 m",
+        "reference tilt exceeded 30 degrees",
+        "no crossing of the 10 m directional gate within 0.75 m",
+        "direction run ended before declared duration",
+        "fall",
+        "peak support exceeded 3 body weights"
+      ],
+      "diagnosis": "Bothlearnedheads zero after100.70s; inheritedrightcontroller heading/referenceerror30.37deg@100.8\u219255.01@150\u219298.44@174.18. Multipleforcebreaches161.814/167.18/173.4, notisolatedimpact.",
+      "visual_review_sha256": "18da039ed7cd51cdbe2e07845d1216792e6c5843d7370fbeb02627beb5d32c25"
+    },
+    "filteredOriginalCruiseComparison": {
+      "status": "accepted visualreview andcurrentMAINindependentvalidator passed",
+      "run": "m7_20261004_margin399_filtered_backward",
+      "checkpoint": "m7_20261003_active_margin400/model_399.pt",
+      "navigation": "filtered_signed_v3",
+      "promoted": false,
+      "dynamics_sha256": "948a874946438be94115e1bcd2276f0bbf2f680a8398bb91998a1ccd836ef867",
+      "metrics": {
+        "duration_s": 169.26,
+        "fall_count": 0,
+        "peak_support_body_weight_ratio": 2.969710434296247,
+        "gate_crossing_time_s": 169.24171875425324,
+        "gate_cross_track_m": 0.13401926923245977
+      },
+      "visual_review_sha256": "450375d9c354530190d6b50eda7ed238d65ba9f58f2263f8df338cf72df98e06"
+    },
+    "filteredMarginLeft": {
+      "status": "accepted visualreview andcurrentMAINindependentvalidator passed",
+      "run": "m7_20261004_margin399_filtered_left",
+      "dynamics_sha256": "b276bcb27675cb3bb09918d52de4d252b88c12bd6f5285ce80aebc23f9c9181c",
+      "metrics": {
+        "duration_s": 102.26,
+        "fall_count": 0,
+        "peak_support_body_weight_ratio": 2.948100424593639,
+        "gate_crossing_time_s": 102.25321807027329,
+        "gate_cross_track_m": 0.1498487646077896
+      },
+      "promoted": false,
+      "visual_review_sha256": "b33c6e262a5c93512c46cd996c0e1096adfcf18764dd6e39bc03a267d04f9de3"
+    },
+    "marginCumulativeReuse": {
+      "checkpoint_sha256": "92b887acb77f0ba112156b8d486158baf7c039af0b28fab0eba79c874844c70f",
+      "m5": "m7_20261003_active_margin399_m5",
+      "m6": "m7_20261003_active_margin399_m6",
+      "status": "Current main independentvalidator passed both; hash-bound accepted visualreviews; bothcreatedafterexactcheckpointmtime. Reusable M5/M6cumulativeevidence."
+    },
+    "filteredMarginRight": {
+      "status": "failed; reviewedandrejected",
+      "run": "m7_20261004_margin399_filtered_right",
+      "metrics": {
+        "duration_s": 47.764,
+        "fall_count": 1,
+        "peak_support_body_weight_ratio": 3.431842659086034,
+        "direction_progress_m": 4.636645317077637
+      },
+      "visual_review_sha256": "561c3f685b8de9a6b0cdefba8f99e54e2575d75b7eaedec372ee83144c4f3760",
+      "diagnosis": "Bit-identicalinitialobservationandcommands versuspassinglegacyrightthrough47.76s; nozeroexit/signreversal. Tinyphysicaldifferencesat.02s amplify; firstforce44.802s, peak44.804s, laterfall. Rightturnphysicalmarginproblem, notnavigationtransition."
+    },
+    "rightBalanceGrid": {
+      "status": "completed diagnostic; zero all-start qualifiedcandidates",
+      "run": "m7_20261004_right_balance_grid",
+      "worlds": 256,
+      "generations": 2,
+      "seconds": 120,
+      "changed_indices": [
+        12,
+        13
+      ],
+      "same_parameters": 18,
+      "training_force_target_bw": 2.9,
+      "hard_force_limit_bw": 3.0,
+      "candidate34": {
+        "gate_passes": 5,
+        "trials": 8,
+        "parameters12_13": [
+          -0.001158722909167409,
+          0.01679389551281929
+        ]
+      },
+      "note": "One-sided legacyrightbatchedcurriculum; physicalgrid repeatwithcommonstarts andduplicatecontrols. Independentfilteredcompositeproofstillrequired."
+    },
+    "rightBalanceFine": {
+      "status": "complete; zero fullyqualifiedcandidates",
+      "run": "m7_20261004_right_balance_fine",
+      "center": "m7_20261004_right_balance_center34/model_0.pt",
+      "amplitude_radius_rad": 0.0035,
+      "phase_radius_rad": 0.025,
+      "worlds": 256,
+      "generations": 2,
+      "seconds": 120,
+      "controls": "rows0/1center34;rows2/3originalcruise1CEM;same4startingstatesperrow",
+      "promoted": false,
+      "selected_candidate": 15,
+      "selection": "6/8gates withbothnominalstartspassing. Successfulpeaks<=2.949771BW; nominalpeaks2.85317/2.77606BW. Candidate30also6/8andlowerforcesbutfailedbothnominalstarts; notselected. No robustnessclaim."
+    },
+    "rightRebaseImplementation": {
+      "variant": "right_balance_rebased_dual_residual_v1",
+      "status": "reviewed; durationbindingauditgapfixedand7focusedtests passed; actualcandidatecomposed",
+      "changed_turn_indices": [
+        12,
+        13
+      ],
+      "preserved": "bothresidualactors, standingactor, gaitparameters, allotherturnparameters, residualsources/gates/bounds",
+      "deployment_equivalence": "CompareASTatfixed20parameterarity; omitonlyunreachablep.shape[1]>=21/22branches presentinnewtrainer; rejectlivechanges. Originalsavedcheckpoints remainuntouched.",
+      "tests": "139 relevant CPU tests passed, includingindependent frozenhead/leftparameter/donor/source rejection andarity projection."
+    },
+    "rightBalanceComposite": {
+      "status": "fresh filteredrightgate running",
+      "checkpoint": "m7_20261004_right_balance15_dual/model_0.pt",
+      "cem_parent": "m7_20261004_right_balance_fine15/model_0.pt",
+      "donor": "m7_20261003_active_margin400/model_399.pt",
+      "changed_indices": [
+        12,
+        13
+      ],
+      "new_parameters12_13": [
+        -0.003658723086118698,
+        0.04179389774799347
+      ],
+      "run": "m7_20261004_right_balance15_filtered_right",
+      "promoted": false
     }
   }
 }
