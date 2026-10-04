@@ -210,6 +210,23 @@ class MuJoCoBackendTests(unittest.TestCase):
             validate_physics_health({}, {}, {},clock_delta=-2.)
         validate_physics_health({'contacts':8},{'contacts':256},{'qvel':np.zeros(3)},clock_delta=.002)
 
+    def test_float32_clock_crosses_256_and_512_without_reset_waiver(self):
+        self.require('mujoco_warp')
+        from algorithms.urdf_learn_wasd_walk.mujoco_warp_runtime import validate_float32_clock
+        previous=np.float32(0.);dt=np.float32(.002)
+        for _ in range(300000):
+            current=np.float32(previous+dt)
+            validate_float32_clock(float(previous),float(current),.002)
+            previous=current
+        self.assertEqual(float(previous),602.3172607421875)
+        for previous in (0.,1.,255.99856567382812,256.,512.,600.):
+            expected=np.float32(np.float32(previous)+dt)
+            invalid=(0.,previous,float(np.float32(expected+dt)),
+                     float(np.nextafter(expected,np.float32(np.inf))),float('nan'))
+            for current in invalid:
+                with self.subTest(previous=previous,current=current), self.assertRaisesRegex(RuntimeError,'possible reset'):
+                    validate_float32_clock(previous,current,.002)
+
     def test_load_reward_supports_weight_transfer_without_rewarding_flight(self):
         self.require('torch')
         import torch

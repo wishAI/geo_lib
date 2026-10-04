@@ -707,6 +707,11 @@ def check_triangle_trajectory(folder, result, training, q, t, control_steps):
     import mujoco
     from algorithms.urdf_learn_wasd_walk import landau_triangle_navigation as tc, landau_signed_navigation as signed, landau_direction_contract as dc
     cfg,metrics=result['config'],result['metrics']
+    from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
+    runtime=result['performance']['warp_setup']
+    require(result['identity']['warp_runtime_source_sha256']==runtime['source_sha256']==digest(folder/'warp_runtime_source.py'), 'Triangle runtime snapshot mismatch')
+    require(runtime.get('health_source_sha256')==digest(folder/'warp_health_source.py')==digest(backend.__file__), 'Triangle health audit snapshot mismatch')
+    require(runtime.get('clock_check')=='exact float32(previous_raw + float32(dt)); strict increase; logical timestamps count steps', 'Triangle requires exact raw-clock audit')
     require(cfg['forward']==.2 and cfg.get('triangle_horizon_s')==600., 'Triangle prospective protocol changed')
     require(result.get('triangle_contract')==tc.contract(), 'Triangle geometry/acceptance changed')
     require(training.get('command_extension')=='yaw_v1' and training.get('memory_version')==2, 'Triangle requires joystick memory')
@@ -985,7 +990,7 @@ def certify_triangle(folder, checkpoint, triangle_folder):
     for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4','trajectory.npz',
                  'policy_trace.npz','foot_trace.json','triangle_navigation_source.py','signed_navigation_source.py','direction_protocol_source.py',
                  'controller_memory.json','turn_source.py','gait_source.py','residual_source.py','active_residual_source.py',
-                 'controller_source.py','backend_source.py','renderer_source.py','model.xml'):
+                 'controller_source.py','backend_source.py','renderer_source.py','warp_runtime_source.py','warp_health_source.py','model.xml'):
         evidence.append(artifact(triangle_folder/name,name))
     evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
     final=dict(status='passed',lineage=LINEAGE,backend=ledger['backend'],milestone=target['id'],

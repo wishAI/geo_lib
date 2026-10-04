@@ -10,10 +10,10 @@ import struct
 
 from algorithms.urdf_learn_wasd_walk.landau_signed_navigation import HystereticNavigator
 
-VERSION = 'triangle_pursuit_v1'
+VERSION = 'triangle_pursuit_v2'
 SIDE_M = 18.
 VERTICES = ((0., 0.), (0., SIDE_M), (-SIDE_M*math.sqrt(3.)/2., SIDE_M/2.), (0., 0.))
-LOOKAHEAD_M = 4.
+LOOKAHEAD_M = 5.5
 CORNER_RADIUS_M = 3.5
 CORRIDOR_M = 2.
 MIDPOINT_RADIUS_M = .75

@@ -52,7 +52,7 @@ def test_navigation_has_bounded_commands_and_continuous_reference():
 def test_start_does_not_jump_to_closing_edge():
     nav=tc.Navigator();nav.command((0.,0.),0.,0.)
     assert nav.progress==0.
-    assert tc.point_at(nav.progress+tc.LOOKAHEAD_M)==(0.,4.)
+    assert tc.point_at(nav.progress+tc.LOOKAHEAD_M)==(0.,tc.LOOKAHEAD_M)
 
 
 def test_clock_and_forward_protocol_are_fixed():

@@ -38,12 +38,21 @@ under the preserved runtime's `outputs/mujoco/`. It independently revalidated
 all four directions and all six cumulative components against the exact checkpoint.
 M8 is the first unresolved gate: closed triangle following through joystick commands.
 The prospective first trial uses an 18 m counterclockwise equilateral triangle,
-4 m path lookahead, ordered 0.75 m midpoint regions, 3.5 m corner regions,
+initially 4 m path lookahead, ordered 0.75 m midpoint regions, 3.5 m corner regions,
 a 2 m corridor, and closure within 0.75 m. The fixed ceiling is 600 s; the run
 ends at its first completed circuit. These dimensions accommodate the measured
 roughly 3 m left-turn radius while requiring all three sides. Forward command
 remains 0.2, steering uses V6 filtering/hysteresis/anti-windup, and controller
 memory remains continuous. No physical guard or checkpoint weight is changed.
+The first trial reached both intermediate corner regions with maximum corridor
+error 1.335 m, then stopped at logical 256.118 s on a float32 clock-audit false
+positive. It independently failed force at 189.96 s (3.021 BW). Its evidence is
+retained as rejected. The corrected audit checks the exact next float32 raw
+clock; it does not modify GPU time or integration. The next prospective trial
+uses 5.5 m lookahead, preserving every geometric and physical acceptance limit
+and the same checkpoint. This aims to reduce correction after corners; it is
+not yet evidence of improved stability.
+
 This is an unpassed trial contract, not a result. The lookahead design follows
 [geometric path pursuit](https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf).
 

@@ -19,6 +19,21 @@ from algorithms.urdf_learn_wasd_walk.mujoco_backend import digest, validate_phys
 from algorithms.urdf_learn_wasd_walk.mujoco_g1_benchmark import sample_resources
 
 
+def validate_float32_clock(previous, current, dt):
+    """Match pinned Warp `_next_time` exactly, including float32 rounding.
+
+    Warp3.5 forward.py adds two float32 values. A relative increment tolerance
+    falsely rejects a valid step above256s. Exact next-value equality rejects
+    resets, skipped steps and even a one-ULP change without widening tolerance.
+    This is an observation-only audit; neither clock is assigned to GPU state.
+    """
+    if not np.isfinite([previous,current,dt]).all() or dt<=0 or previous<0:
+        raise RuntimeError('Invalid GPU simulation clock; possible reset')
+    expected=float(np.float32(np.float32(previous)+np.float32(dt)))
+    if current!=expected or current<=previous:
+        raise RuntimeError(f'Unexpected GPU simulation clock {previous} -> {current}; expected {expected}; possible reset')
+
+
 class WarpEvaluation:
     def __init__(self, model, data, directory):
         try:
@@ -31,6 +46,8 @@ class WarpEvaluation:
     def _initialize(self, model, data, directory):
         self.directory=directory
         (directory/'warp_runtime_source.py').write_text(Path(__file__).read_text())
+        health_source=Path(validate_physics_health.__code__.co_filename)
+        (directory/'warp_health_source.py').write_bytes(health_source.read_bytes())
         if model.opt.noslip_iterations:
             raise ValueError('Warp cannot implement noslip; a new explicit physics configuration is required')
         versions={p:importlib.metadata.version(p) for p in ('mujoco','mujoco-warp','warp-lang')}
@@ -82,8 +99,10 @@ class WarpEvaluation:
             'model_transfer_and_device_startup_s':self.setup_s,
             'first_step_and_forward_compilation_s':self.compile_s,
             'autoreset_semantics':'Warp has no numerical autoreset; finite-state and incremental-clock checks every physics step',
+            'clock_check':'exact float32(previous_raw + float32(dt)); strict increase; logical timestamps count steps',
             'force_source':'get_data_into actual Warp constraint/actuator forces; no CPU dynamics recomputation',
             'source_sha256':digest(__file__),
+            'health_source_sha256':digest(health_source),
             'warp_io_source_sha256':digest(Path(mjwarp.__file__).parent/'_src/io.py'),
             'warp_forward_source_sha256':digest(Path(mjwarp.__file__).parent/'_src/forward.py')}
 
@@ -106,8 +125,7 @@ class WarpEvaluation:
         wp.synchronize()
         self.check_health()
         mjwarp.get_data_into(data,self.model,self.wd)
-        delta=data.time-self.raw_time
-        validate_physics_health({}, {}, {},clock_delta=delta,dt=self.model.opt.timestep)
+        validate_float32_clock(self.raw_time,float(data.time),self.model.opt.timestep)
         self.raw_time=float(data.time)
         self.step_count+=1
         exact_time=self.step_count*self.model.opt.timestep

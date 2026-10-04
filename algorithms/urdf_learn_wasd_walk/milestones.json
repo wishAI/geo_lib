@@ -4127,7 +4127,7 @@
       "review": "Independent CPU reviews found no remaining blocker in four-gain composition, plane miss shaping or feedback nominal dispatch."
     },
     "triangleTrial": {
-      "status": "first GPU trial running; diagnostic pending complete provenance",
+      "status": "first trial rejected; rawclock audit false positive and independent force excess",
       "contract": {
         "version": "triangle_pursuit_v1",
         "vertices_m": [
@@ -4162,13 +4162,247 @@
         "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt",
         "sha256": "e49ad21589fe2c004574399ea962447e99794e131489d535881dae81a3f60d47"
       },
-      "tests": "59 focused tests passed before two provenance/reproduction tests;10 triangle tests passed after adding common gait-dispatch regression.",
+      "tests": "59 focused triangle/certificate/backend tests passed after exact clock audit fix",
       "rationale": "18m sides allow measured roughly3m leftturn radius;4m polyline lookahead anticipates corners. Ordered .75m midpoint disks prevent cutting entire sides. Roundedcorners3.5m,2m corridor,closure.75m; unchanged physical guards, joystickonly, continuous memory.",
       "references": [
         "https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf"
       ],
       "run": "m8_20261004_right63_triangle_v1",
-      "review": "CPU command-path/physical-guard review found no controller changes. Fixed MAIN shared zero-yaw validator dispatch and added direct imported direction-contract snapshot for future evaluation; active runtime remains unchanged."
+      "review": "CPU command-path/physical-guard review found no controller changes. Fixed MAIN shared zero-yaw validator dispatch and added direct imported direction-contract snapshot for future evaluation; active runtime remains unchanged.",
+      "metrics": {
+        "duration_s": 256.0005798339844,
+        "reset_count": 0,
+        "done_count": 1,
+        "fall_count": 0,
+        "max_reference_tilt_rad": 0.261093578607534,
+        "root_height_drop_m": 0.003656108916931189,
+        "horizontal_drift_m": 17.670482894737706,
+        "max_abs_action": 0.9100976943969726,
+        "max_abs_command": 0.2,
+        "policy_calls": 12806,
+        "max_joint_speed_rad_s": 3.438945770263672,
+        "max_motor_torque_nm": 2.5251731872558594,
+        "peak_auxiliary_wrench_norm": 0.0,
+        "mean_support_body_weight_ratio": 1.0013650085589494,
+        "peak_support_body_weight_ratio": 3.0209529419096945,
+        "nonfoot_contacts": [],
+        "action_target_range_rad": {
+          "left_hip_pitch_joint": [
+            -0.23941661834716796,
+            0.1378183937072754
+          ],
+          "left_hip_yaw_joint": [
+            -0.06789268493652344,
+            0.05662541389465332
+          ],
+          "left_hip_roll_joint": [
+            -0.3640390777587891,
+            0.3421034240722656
+          ],
+          "left_knee_joint": [
+            0.0,
+            0.3959523010253907
+          ],
+          "left_ankle_pitch_joint": [
+            -0.2219785881042481,
+            0.14985540390014648
+          ],
+          "left_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "right_hip_pitch_joint": [
+            -0.23907764434814457,
+            0.13800015449523925
+          ],
+          "right_hip_yaw_joint": [
+            -0.05648536682128907,
+            0.060417671203613285
+          ],
+          "right_hip_roll_joint": [
+            -0.3625729370117188,
+            0.3390325927734375
+          ],
+          "right_knee_joint": [
+            0.0,
+            0.3959523010253907
+          ],
+          "right_ankle_pitch_joint": [
+            -0.22631174087524414,
+            0.1416420269012451
+          ],
+          "right_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_yaw_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_roll_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_pitch_joint": [
+            -0.06817046165466309,
+            0.00019109301269054413
+          ],
+          "left_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ],
+          "right_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ]
+        },
+        "raw_actor_output_range": {
+          "left_hip_pitch_joint": [
+            -2.9927077293395996,
+            1.7227299213409424
+          ],
+          "left_hip_yaw_joint": [
+            -0.848658561706543,
+            0.7078176736831665
+          ],
+          "left_hip_roll_joint": [
+            -4.550488471984863,
+            4.27629280090332
+          ],
+          "left_knee_joint": [
+            0.0,
+            4.949403762817383
+          ],
+          "left_ankle_pitch_joint": [
+            -2.7747323513031006,
+            1.873192548751831
+          ],
+          "left_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "right_hip_pitch_joint": [
+            -2.9884705543518066,
+            1.7250019311904907
+          ],
+          "right_hip_yaw_joint": [
+            -0.7060670852661133,
+            0.755220890045166
+          ],
+          "right_hip_roll_joint": [
+            -4.532161712646484,
+            4.237907409667969
+          ],
+          "right_knee_joint": [
+            0.0,
+            4.949403762817383
+          ],
+          "right_ankle_pitch_joint": [
+            -2.8288967609405518,
+            1.770525336265564
+          ],
+          "right_toe_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_yaw_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_roll_joint": [
+            0.0,
+            0.0
+          ],
+          "waist_pitch_joint": [
+            -0.8521307706832886,
+            0.0023886626586318016
+          ],
+          "left_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ],
+          "right_shoulder_pitch_joint": [
+            0.0,
+            0.0
+          ]
+        },
+        "semantic_forward_displacement_m": 7.834211029754639,
+        "semantic_strafe_displacement_m": -13.934253692626953,
+        "left_foot_liftoff_count": 285,
+        "right_foot_liftoff_count": 285,
+        "mean_contact_foot_slip_mps": 0.026621012069745986,
+        "simultaneous_air_fraction": 0.011549454153586656,
+        "leg_joint_excursion_rad": {
+          "left_hip_pitch_joint": 0.3625240586698055,
+          "left_hip_yaw_joint": 0.08478281646966934,
+          "left_hip_roll_joint": 0.5194317549467087,
+          "left_knee_joint": 0.3603380024433136,
+          "left_ankle_pitch_joint": 0.34930985420942307,
+          "left_toe_joint": 4.3481610191520303e-05,
+          "right_hip_pitch_joint": 0.36540986970067024,
+          "right_hip_yaw_joint": 0.0754125602543354,
+          "right_hip_roll_joint": 0.5272497236728668,
+          "right_knee_joint": 0.3617241829633713,
+          "right_ankle_pitch_joint": 0.35108316130936146,
+          "right_toe_joint": 4.229713340464514e-05,
+          "waist_yaw_joint": 0.032767267897725105,
+          "waist_roll_joint": 0.08269963413476944,
+          "waist_pitch_joint": 0.04430937813594937,
+          "left_shoulder_pitch_joint": 0.04553076857700944,
+          "right_shoulder_pitch_joint": 0.04200525302439928
+        },
+        "policy_inference_steps": 12806,
+        "control_steps": 12806,
+        "left_completed_swings": 285,
+        "right_completed_swings": 285,
+        "max_simultaneous_flight_s": 0.014,
+        "max_heading_deviation_rad": 3.1413595270710872,
+        "left_peak_clearance_m": 0.04048588583936899,
+        "right_peak_clearance_m": 0.039399605728012016,
+        "triangle_complete": false,
+        "triangle_visits": [
+          {
+            "target": "edge_1_midpoint",
+            "time_s": 63.18,
+            "distance_m": 0.7497223146052107
+          },
+          {
+            "target": "corner_1",
+            "time_s": 109.32000000000001,
+            "distance_m": 3.4987925201230334
+          },
+          {
+            "target": "edge_2_midpoint",
+            "time_s": 186.36,
+            "distance_m": 0.7489621833189661
+          },
+          {
+            "target": "corner_2",
+            "time_s": 231.70000000000002,
+            "distance_m": 3.497303624883438
+          }
+        ],
+        "triangle_max_corridor_m": 1.3347361586244562,
+        "triangle_path_length_m": 48.7067773582693,
+        "triangle_closure_distance_m": 15.98421809049866
+      },
+      "failures": [
+        "done_count=1",
+        "ordered triangle circuit incomplete",
+        "triangle closure exceeded 0.75 m",
+        "triangle duration invalid",
+        "GPU physics validation error: Unexpected GPU simulation clock increment 0.00201416015625; possible reset",
+        "peak support exceeded 3 body weights"
+      ],
+      "clockDiagnosis": "Atlogical256.118s, rawfloat32clock255.99856567382812\u2192256.0005798339844. Exactpinnedfloat32addition, notreset. MAINaudit nowcompares exactnextfloat32clock withoutGPUtimewrites;300000-step600sCPUtest plusreset/stall/skip/ULP/nonfinite rejectionpassed.",
+      "forceDiagnosis": "Single2ms sample3.0209529419BW at189.96s exceedsunchanged3BW. No retrospectivepass.",
+      "nextTrial": {
+        "name": "m8_20261004_right63_triangle_v2",
+        "status": "declared before launch",
+        "navigation_change": "5.5m lookahead instead of4m; all18mgeometry,corner/midpoint/corridor/closure thresholds,forward.2,600s ceilingandcheckpointunchanged",
+        "hypothesis": "Anticipatecorners earlier and reducepostcorner corrective steering; CPUidealgeometry sanitychecksupportsbutdoesnotprove dynamicsstability. Peakwasduringzero-yawrightmode,so noactoradaptation evidence.",
+        "instrumentation": "Exactfloat32raw-clockaudit; complete importednavigation/runtime/healthsourcesnapshot"
+      }
     }
   }
 }
