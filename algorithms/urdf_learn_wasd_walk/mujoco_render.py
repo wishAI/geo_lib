@@ -11,9 +11,12 @@ from algorithms.urdf_learn_wasd_walk.mujoco_backend import digest, write_json
 def render(directory, *, azimuth=125., distance=2.1):
     out=Path(directory)
     start=time.perf_counter()
-    states=np.load(out/'trajectory.npz')
+    # NpzFile indexing decompresses the full array on each access. Cache it
+    # once, especially before frame-count checks inside the rendering loop.
+    with np.load(out/'trajectory.npz') as states:
+        qpos=states['qpos']
     model=mujoco.MjModel.from_xml_path(str(out/'model.xml'))
-    floor_extent=max(10., float(np.max(np.abs(states['qpos'][:,:2])))+5.)
+    floor_extent=max(10., float(np.max(np.abs(qpos[:,:2])))+5.)
     plane_display_overrides=[]
     for geom_id in range(model.ngeom):
         if model.geom_type[geom_id]==mujoco.mjtGeom.mjGEOM_PLANE:
@@ -30,7 +33,7 @@ def render(directory, *, azimuth=125., distance=2.1):
     camera.lookat[:]=[0,0,.43]
     camera.distance,camera.azimuth,camera.elevation=distance,azimuth,-12
     renderer=mujoco.Renderer(model,height=480,width=640)
-    data.qpos[:]=states['qpos'][0]
+    data.qpos[:]=qpos[0]
     mujoco.mj_forward(model,data)
     renderer.update_scene(data,camera=camera)
     renderer.render()
@@ -39,7 +42,7 @@ def render(directory, *, azimuth=125., distance=2.1):
     from OpenGL import GL
     renderer_name=GL.glGetString(GL.GL_RENDERER).decode()
     with imageio.get_writer(out/'proof.mp4',fps=50,codec='libx264') as writer:
-        for i,q in enumerate(states['qpos']):
+        for i,q in enumerate(qpos):
             data.qpos[:]=q
             mujoco.mj_forward(model,data)
             camera.lookat[:2]=data.qpos[:2]
@@ -59,12 +62,12 @@ def render(directory, *, azimuth=125., distance=2.1):
             else:
                 raise RuntimeError(f'Character missing/cropped in proof frame {i}; refusing incomplete proof')
             writer.append_data(frame)
-            if i in {0,len(states['qpos'])//2,len(states['qpos'])-1}:
+            if i in {0,len(qpos)//2,len(qpos)-1}:
                 selected.append(frame.copy())
     renderer.close()
     imageio.imwrite(out/'contact_sheet.png',np.concatenate(selected,axis=1))
     result={'kind':'state_replay_of_exact_dynamics_trajectory','video_sha256':digest(out/'proof.mp4'),
-            'trajectory_sha256':digest(out/'trajectory.npz'),'frames':len(states['qpos']),'fps':50,
+            'trajectory_sha256':digest(out/'trajectory.npz'),'frames':len(qpos),'fps':50,
             'visual_overrides':{'plane_display_half_extent_m':floor_extent,'camera_headlight_ambient':[.25,.25,.25],'camera_headlight_diffuse':[.65,.65,.65],'recorded_model_xml_or_trajectory_changed':False,'infinite_plane_display_overrides':plane_display_overrides},
             'render_wall_s':time.perf_counter()-start,'renderer_source_sha256':digest(__file__),
             'separate_process_without_torch':True,'same_state_render_retries':render_retries,'camera_azimuth':azimuth,'camera_distance':distance,'gl_renderer':renderer_name,'character_visible_every_frame':True}

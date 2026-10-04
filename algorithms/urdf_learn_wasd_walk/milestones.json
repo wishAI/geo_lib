@@ -2826,11 +2826,11 @@
   ],
   "sessionStatus": {
     "state": "active",
-    "updatedAt": "2026-10-04T08:16:03.867412+00:00",
+    "updatedAt": "2026-10-04T09:49:09.252958+00:00",
     "reason": "User explicitly resumed work until all milestones pass and approved the GitHub push.",
     "certifiedMilestones": 7,
     "nextMilestone": "triangle_path_follow_no_reset",
-    "nextWork": "Implement and evaluate a closed triangle using joystick waypoint commands with the exact M7 checkpoint.",
+    "nextWork": "Complete two unchanged half-cruise triangle repeats; retain force failures. Any candidate M8 pass needs fresh exact-checkpoint M1\u2013M7 validation.",
     "checkpoint": {
       "kind": "periodic_feedback_residual_ppo",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m7_20261004_right_controller63_dual/model_0.pt",
@@ -4694,12 +4694,48 @@
       },
       "halfCruiseTrial": {
         "name": "m8_20261004_half_cruise_triangle_v2",
-        "status": "running",
+        "status": "rejected: completed circuit but one force sample3.13038BW",
         "checkpoint": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/m8_20261004_half_cruise_dual/model_0.pt",
         "checkpoint_sha256": "2872a6338be976e9adeabc9991240e28e4c741b4868177c0a330e75dfb73e59d",
         "change": "Only cruise correction fraction0.5; every donor tensor frozen. Same V2navigator,forward0.2,physical/geometric limits.",
         "canonical_milestone_pass": false,
-        "prerequisites": "Fresh exact-checkpoint M1\u2013M7 required before any M8 promotion"
+        "prerequisites": "Fresh exact-checkpoint M1\u2013M7 required before any M8 promotion",
+        "duration_s": 344.92,
+        "falls": 0,
+        "resets": 0,
+        "peak_force_bw": 3.130378681697444,
+        "force_violation_times_s": [
+          334.65
+        ],
+        "max_corridor_m": 1.3071220400015267,
+        "closure_m": 0.7479890252047637,
+        "repeats": {
+          "names": [
+            "m8_20261004_half_cruise_triangle_repeat1",
+            "m8_20261004_half_cruise_triangle_repeat2"
+          ],
+          "status": "repeat1 rejected; repeat2 running",
+          "purpose": "Assess exact nominal repeatability; preserve every result; no acceptance limits or controller changes",
+          "repeat1": {
+            "duration_s": 345.92,
+            "triangle_complete": true,
+            "falls": 0,
+            "resets": 0,
+            "peak_bw": 3.1428132721068165,
+            "force_samples_s": [
+              80.98,
+              114.028,
+              169.408,
+              169.41
+            ],
+            "diagnosis": "Active correction engaged/cruiseoff atall3landings, beforefinalendpointclamp; action/memoryreplay exact. No attenuationcausality claim.",
+            "render": "Incomplete old renderer stopped; same untouched trajectory rerendered with cached NPZ array. All17297frames/visibility passed,54.113s wall."
+          }
+        },
+        "visual_review_sha256": "8527cec92ee7d0897e9847608b8e317e842ebcfb5cddde34a6fc6f1661a7a0c8",
+        "actionReplay": "All17246raw/applied actions and finalCommandMemory bit-exact; composition only, not physical qualification",
+        "independentGeometry": "Orderedtargets,finitecorridor,firstclosure,joystickreplay independently passed; force failure remains",
+        "endpointDiagnosis": "Clamping pursuit target at finalendpoint shortens5.5m lookahead to2.136m at334.64s; savedtrajectory shadow extension removes333.22yawburst. No dynamics claim; no source change during fixedrepeats."
       }
     }
   }

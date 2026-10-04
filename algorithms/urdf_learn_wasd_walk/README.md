@@ -63,11 +63,20 @@ nominal validation and grant no milestone credit.
 
 Experimental `m8_20261004_half_cruise_dual` preserves every donor tensor and
 scales only cruise output by 0.5 before the unchanged active correction. Its
-first nominal triangle trial uses the same V2 navigator, speed, and acceptance
-limits. It must obtain fresh M1–M7 evidence before M8 promotion. The
+first nominal triangle completed in 344.92 s without falls or resets but failed
+one 3.130 BW landing sample. The first of two predeclared unchanged repeats
+also completed (345.92 s), with three excessive landings and peak 3.143 BW.
+The second repeat is running. Both failures retain full videos and exact action
+replay; all limits and speed remain fixed. Fresh M1–M7 evidence is required
+before M8 promotion. The
 `qualify-directions` finalizer records that candidate's ten prerequisite runs
 without changing the historical M7 certificate; `certify-triangle` rechecks
 them against an explicitly supplied certificate path and SHA-256.
+
+Proof rendering now caches the recorded qpos array instead of decompressing it
+twice per frame. The repeat video retained all 17,297 frames at 50 fps and every
+visibility check, completing in 54 s versus 910 s for the preceding circuit.
+Simulation, recorded trajectories, and numerical validation are unchanged.
 
 This is an unpassed trial contract, not a result. The lookahead design follows
 [geometric path pursuit](https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf).
