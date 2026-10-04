@@ -99,7 +99,13 @@ A crossed diagnostic tested cruise 0/0.25/0.5 and active 0/0.25 from three
 healthy prefixes. No pair passed all six cases. Half cruise with zero active
 passed the four earlier-start cases but failed the two latest-start cases;
 reducing cruise further did not improve this consistently. A full nominal
-`m8_20261004_zero_active_dual` backward trial is now running. The zero-active
+`m8_20261004_zero_active_dual` backward trial passed numerical checks:
+173.863 s to the gate, lateral 0.463 m, peak 2.914 BW, no falls or resets.
+Full video, independent validation, and exact replay of all 8,694 actions
+passed. Fresh M1–M4 also passed full review and independent validation. M5
+passed numerically and is under visual review. M6 completed all response and
+hold checks but failed a 3.085 BW impact at 46.46 s; two fixed unchanged
+repeats were declared before launch, with both results retained. The zero-active
 setting had also passed all 30 preceding diagnostic cases, but it receives no
 credit until complete fresh nominal evidence passes.
 

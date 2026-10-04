@@ -5221,10 +5221,59 @@
             "checkpoint": "m8_20261004_zero_active_dual/model_0.pt",
             "sha256": "e5209aa9af53e58356fcd6b65a29579cdaca09010c49ec0defe212931136985e",
             "run": "m8_20261004_zero_active_backward",
-            "status": "nominal running; experimental no inherited credit",
+            "status": "backward full video+independent validation passed; fresh cumulative suite progressing",
             "cruise_scale": 0.5,
             "active_scale": 0.0,
-            "forward": 0.2
+            "forward": 0.2,
+            "duration_s": 173.88,
+            "peak_bw": 2.9144149557206576,
+            "gate_time_s": 173.862932048867,
+            "cross_track_m": 0.46281191281218287,
+            "falls": 0,
+            "resets": 0,
+            "backward_visual_review_sha256": "2e0c0fde9556af57539dc7853d6c1f6dc518a09ed513670d6bbae5ea8d7adad2",
+            "raw_applied_actions_bit_exact": 8694,
+            "prerequisites": {
+              "m1": {
+                "status": "visual+independent accepted",
+                "run": "m8_20261004_zero_active_prerequisite_m1",
+                "drift_m": 0.0034835434777951324,
+                "review_sha256": "fe35129cf82d0f75093d18ef9b32458b565aad35dc1316ce74dfeabf13411f20"
+              },
+              "m2": {
+                "status": "visual+independent accepted",
+                "run": "m8_20261004_zero_active_prerequisite_m2_recovery",
+                "review_sha256": "f405cfaaa3a27882f0ed7ec4474c623941b359965cb28c82ada0ffe9fff1669b"
+              },
+              "interruption": "suite143 duringoriginalM2; noGPUprocessremained; incompleteoriginalretained; newrecoverydirectory used",
+              "m3": {
+                "status": "visual+independent accepted",
+                "run": "m8_20261004_zero_active_prerequisite_m3",
+                "review_sha256": "f40d8c35a5031401bd60ac0e5d28f8597b4371523d9b1a60562d675bc55142b5"
+              },
+              "m4": {
+                "status": "visual+independent accepted",
+                "run": "m8_20261004_zero_active_prerequisite_m4",
+                "review_sha256": "a5c3dbcb7fe74e5f8fb28556529a777ba315d25e77437f0bc8d2a334bcede7d2"
+              },
+              "m5": {
+                "status": "numerical pass; full review pending",
+                "peak_bw": 2.8098334497905912,
+                "hold_error_rad": 0.03923089654987488,
+                "hold_drift_m": 0.016300170304188698
+              },
+              "m6": {
+                "status": "first rejected force; two fixed unchanged repeats prospectively declared; retain both",
+                "first_run": "m8_20261004_zero_active_prerequisite_m6",
+                "peak_bw": 3.084983632,
+                "impact_time_s": 46.46,
+                "repeats": [
+                  "m8_20261004_zero_active_prerequisite_m6_repeat1",
+                  "m8_20261004_zero_active_prerequisite_m6_repeat2"
+                ],
+                "no_further_unchanged_retries": true
+              }
+            }
           }
         }
       }
