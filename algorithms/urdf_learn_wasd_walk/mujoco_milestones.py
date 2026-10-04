@@ -709,7 +709,7 @@ def check_triangle_trajectory(folder, result, training, q, t, control_steps):
     cfg,metrics=result['config'],result['metrics']
     from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
     runtime=result['performance']['warp_setup']
-    require(result['identity']['warp_runtime_source_sha256']==runtime['source_sha256']==digest(folder/'warp_runtime_source.py'), 'Triangle runtime snapshot mismatch')
+    require(result['identity']['warp_runtime_source_sha256']==runtime['source_sha256']==digest(folder/'warp_runtime_source.py')==digest(ALG/'mujoco_warp_runtime.py'), 'Triangle runtime snapshot mismatch')
     require(runtime.get('health_source_sha256')==digest(folder/'warp_health_source.py')==digest(backend.__file__), 'Triangle health audit snapshot mismatch')
     require(runtime.get('clock_check')=='exact float32(previous_raw + float32(dt)); strict increase; logical timestamps count steps', 'Triangle requires exact raw-clock audit')
     require(cfg['forward']==.2 and cfg.get('triangle_horizon_s')==600., 'Triangle prospective protocol changed')

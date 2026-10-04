@@ -4395,14 +4395,22 @@
         "peak support exceeded 3 body weights"
       ],
       "clockDiagnosis": "Atlogical256.118s, rawfloat32clock255.99856567382812\u2192256.0005798339844. Exactpinnedfloat32addition, notreset. MAINaudit nowcompares exactnextfloat32clock withoutGPUtimewrites;300000-step600sCPUtest plusreset/stall/skip/ULP/nonfinite rejectionpassed.",
-      "forceDiagnosis": "Single2ms sample3.0209529419BW at189.96s exceedsunchanged3BW. No retrospectivepass.",
+      "forceDiagnosis": "Single2ms lefttouchdown3.02095294BW@189.96s,zero yaw186.76..190.78,rightmemory,bothlearnedheads off,0.444m corridor. Isolatedimpact; no causalclaimaboutlookahead.",
       "nextTrial": {
         "name": "m8_20261004_right63_triangle_v2",
-        "status": "declared before launch",
+        "status": "running",
         "navigation_change": "5.5m lookahead instead of4m; all18mgeometry,corner/midpoint/corridor/closure thresholds,forward.2,600s ceilingandcheckpointunchanged",
         "hypothesis": "Anticipatecorners earlier and reducepostcorner corrective steering; CPUidealgeometry sanitychecksupportsbutdoesnotprove dynamicsstability. Peakwasduringzero-yawrightmode,so noactoradaptation evidence.",
         "instrumentation": "Exactfloat32raw-clockaudit; complete importednavigation/runtime/healthsourcesnapshot"
-      }
+      },
+      "firstTrialLogicalTiming": {
+        "last_video_frame_s": 256.1,
+        "last_foot_sample_s": 256.116,
+        "failed_step_logical_s": 256.118,
+        "reported_raw_failure_time_s": 256.0005798339844
+      },
+      "visual_review_sha256": "1ae1de5fa52b3b358402b6094f613cbee69d7d6e4eadd24f5a4ea93d40a81fe5",
+      "visual_review": "Rejected; fullvideo0..256.10s plusdensepeak/finalwindows. Uprightcoherentwalking, noobservablefall; forcefailureandclockexception retained."
     }
   }
 }

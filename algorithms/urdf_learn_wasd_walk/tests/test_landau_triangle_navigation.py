@@ -117,3 +117,47 @@ def test_triangle_uses_turned_memory_but_straight_gate_cannot(tmp_path):
     result['config']={}
     with pytest.raises(ValueError,match='Zero-yaw'):
         gates.check_gait_source(tmp_path,result,training)
+
+
+def test_independent_geometry_checker_replays_commands_and_rejects_tampering(tmp_path):
+    """Synthetic kinematic fixture tests geometry/bindings, never a dynamics pass."""
+    import numpy as np
+    from pathlib import Path
+    from algorithms.urdf_learn_wasd_walk import mujoco_milestones as gates, mujoco_backend as backend
+    from algorithms.urdf_learn_wasd_walk import landau_signed_navigation as signed, landau_direction_contract as dc
+    pytest.importorskip('mujoco')
+    (tmp_path/'model.xml').write_text('<mujoco><worldbody><body name="base_link"><freejoint/><geom type="sphere" size=".1" mass="1"/><body name="root_x"/></body></worldbody></mujoco>')
+    points=[];tracker=tc.Tracker()
+    for i in range(541):
+        point=tc.point_at(i*.1);points.append(point);tracker.update(point,i*.02)
+        if tracker.complete:break
+    count=len(points)-1;t=np.arange(count+1)*.02
+    q=np.zeros((count+1,7));q[:,:2]=points;q[:,3]=1.
+    nav=tc.Navigator();obs=np.zeros((count,70),dtype=np.float32)
+    for i in range(count):obs[i,63:66]=nav.command(points[i],0.,float(t[i]))
+    np.savez(tmp_path/'policy_trace.npz',observation=obs,time=t[:-1])
+    (tmp_path/'turn_source.py').write_text('saved controller fixture')
+    turn_sha=gates.digest(tmp_path/'turn_source.py')
+    gates.write(tmp_path/'controller_memory.json',dict(simulation_reset=False,memory_version=2,
+        turn_source_sha256=turn_sha,integrated_reference_rad=nav.reference))
+    (tmp_path/'warp_runtime_source.py').write_bytes((gates.ALG/'mujoco_warp_runtime.py').read_bytes())
+    (tmp_path/'warp_health_source.py').write_bytes(Path(backend.__file__).read_bytes())
+    metrics=dict(tracker.metrics(),duration_s=float(t[-1]),reset_count=0,done_count=0,fall_count=0,
+        max_reference_tilt_rad=0.,root_height_drop_m=0.,max_abs_command=.2,max_abs_action=.5,
+        left_foot_liftoff_count=10,right_foot_liftoff_count=10,mean_contact_foot_slip_mps=0.,
+        simultaneous_air_fraction=0.,policy_inference_steps=count,control_steps=count,
+        leg_joint_excursion_rad={name:.1 for name in ('left_hip_pitch_joint','right_hip_pitch_joint','left_knee_joint','right_knee_joint')})
+    runtime_sha=gates.digest(tmp_path/'warp_runtime_source.py')
+    result=dict(config=dict(forward=.2,seconds=float(t[-1]),triangle_horizon_s=600.),metrics=metrics,
+        identity=dict(warp_runtime_source_sha256=runtime_sha),
+        performance=dict(warp_setup=dict(source_sha256=runtime_sha,health_source_sha256=gates.digest(tmp_path/'warp_health_source.py'),
+            clock_check='exact float32(previous_raw + float32(dt)); strict increase; logical timestamps count steps')),
+        triangle_contract=tc.contract(),policy_trace_sha256=gates.digest(tmp_path/'policy_trace.npz'),triangle_navigation_state=nav.record())
+    for name,source in [('triangle_navigation',tc.__file__),('signed_navigation',signed.__file__),('direction_protocol',dc.__file__)]:
+        (tmp_path/(name+'_source.py')).write_bytes(Path(source).read_bytes());result[name+'_source_sha256']=gates.digest(source)
+    training=dict(command_extension='yaw_v1',memory_version=2,nominal_q=q[0].tolist(),turn_source_sha256=turn_sha)
+    gates.check_triangle_trajectory(tmp_path,result,training,q,t,count)
+    obs[200,65]+=.001
+    np.savez(tmp_path/'policy_trace.npz',observation=obs,time=t[:-1]);result['policy_trace_sha256']=gates.digest(tmp_path/'policy_trace.npz')
+    with pytest.raises(ValueError,match='commands differ'):
+        gates.check_triangle_trajectory(tmp_path,result,training,q,t,count)
