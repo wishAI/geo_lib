@@ -11,6 +11,8 @@ class HistoryTests(unittest.TestCase):
     def setUp(self):
         self.tmp=TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.store=Store(self.tmp.name)
         self.settings={'version':1,'assetHash':'a'*64,'bodyFrame':{'scale':1.1,'offset':.012},'outfit':{'Boot_L':{'bootWidth':.4},'Vest':{'vestChestWidth':-.5,'vestCollarWidth':-.2,'vestChestFrontDepth':.1,'vestChestBackDepth':-.3}},'links':{'boots':False},'garmentFit':{'version':1,'scales':{'upper':.8,'lower':1.4},'angles':{'Sleeve_L':{'elbowX':25}},'unlocked':{'Boot_L':True},'jointLinks':{'arms':True,'legs':False}}}
+        self.settings['uvRegions']={'surface:muzzleLength':{'enabled':True,'projection':'side','feather':.08,'points':[[.2,.2],[.8,.2],[.8,.8],[.2,.8]]},'Vest:vestChestWidth':{'enabled':True,'feather':.05,'points':[[.1,.1],[.7,.1],[.7,.7],[.1,.7]]}}
+        self.settings['uvRegions']['surface:jawRecess']={'enabled':True,'atlasHash':'b'*64,'edits':[{'type':'brush','sheet':'0','center':[.4,.5],'radius':.04,'value':.6,'opacity':1},{'type':'polygon','sheet':'0','points':[[.1,.1],[.2,.1],[.2,.2]],'feather':.02,'value':.3,'opacity':1}]}
     def save(self,n):return self.store.update({'action':'save','name':str(n),'settings':self.settings})
     def test_concurrent_saves_survive_reload_and_metadata_edits(self):
         with ThreadPoolExecutor(max_workers=8) as pool: records=list(pool.map(self.save,range(24)))

@@ -327,6 +327,54 @@
           "label": "Muzzle and jaw profile",
           "path": "algorithms/3d_char_details/outputs/landau_v10/mouth_refined_profile.png",
           "kind": "image"
+        },
+        {
+          "label": "workspace.js",
+          "path": "algorithms/3d_char_details/gui/workspace.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "uv-regions.js",
+          "path": "algorithms/3d_char_details/gui/uv-regions.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "uv-editor.js",
+          "path": "algorithms/3d_char_details/gui/uv-editor.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "surface-regions.js",
+          "path": "algorithms/3d_char_details/gui/surface-regions.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "inspector-layout.js",
+          "path": "algorithms/3d_char_details/gui/inspector-layout.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "influence-view.js",
+          "path": "algorithms/3d_char_details/gui/influence-view.js",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "UV editing atlas",
+          "path": "algorithms/3d_char_details/outputs/landau_v10/editor_uv_atlas.json",
+          "kind": "json",
+          "syncOnly": true
+        },
+        {
+          "label": "build_edit_atlas.py",
+          "path": "algorithms/3d_char_details/build_edit_atlas.py",
+          "kind": "file",
+          "syncOnly": true
         }
       ]
     },

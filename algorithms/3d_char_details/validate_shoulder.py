@@ -22,10 +22,11 @@ def main():
         sources += [(ROOT / ("gui/" + source + ".js"), target) for source, target in
                     [("body-placement", "placement"), ("editing-pose", "editing"),
                      ("body-transition", "transition"), ("motion-player", "motion"),
-                     ("garment-fit", "fit")]]
+                     ("garment-fit", "fit"), ("uv-regions", "uv-regions")]]
         for source, target in sources:
             text = source.read_text().replace("from 'three'", "from './three.mjs'")
             text = text.replace("from 'BufferGeometryUtils'", "from './utils.mjs'")
+            text = text.replace('/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js', './uv-regions.mjs')
             # Local deformation helpers can be shared by the editor and checker.
             (dst / (target + ".mjs")).write_text(text)
         (dst / "check.mjs").write_bytes((ROOT / "gui/shoulder-check.mjs").read_bytes())

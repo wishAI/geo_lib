@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {regionKey,nodeRegionWeight} from '/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js';
 
 export const OUTFIT_ASSEMBLIES=[
  {id:'upper',label:'Upper outfit',root:'Vest',parts:['Vest','Sleeve_L','Sleeve_R','Cuff_L','Cuff_R']},
@@ -236,10 +237,33 @@ export function garmentFit(model,parts,report){
   while(frontier.length){const next=[];for(const n of frontier)for(const q of n.edges)if(q.distance>n.distance+1){q.distance=n.distance+1;next.push(q);}frontier=next;}
   seams.push({parent:p,child:c,pairs,pinned});
  }
+ const regionCache=new Map();
  let lastSettings;
  const capture=()=>{for(const r of records){r.base=r.g.attributes.position.clone();r.morph=(r.g.morphAttributes.position||[]).map(a=>a.clone());}};
+ // Shared evaluator for both fitting and the authored displacement heatmap.
+ function controlDelta(r,i,name,frame){
+  const source=r.nodes[i].source,part=r.part.name;
+  if(name in SHOULDER_CONTROLS)return shoulderDelta(source,name).multiplyScalar(frame.scale);
+  if(name in COLLAR_CONTROLS)return collarDelta(source,name).multiplyScalar(frame.scale);
+  const split=splitDepth(name),base=split?.base||name,k=r.o.morphTargetDictionary?.[base];if(k===undefined||!r.morph[k])return new T.Vector3();
+  const delta=xyz(r.morph[k],i);if(!r.g.morphTargetsRelative)delta.sub(xyz(r.base,i));delta.applyMatrix3(new T.Matrix3().setFromMatrix4(r.world));
+  if(!split)return delta;
+  if(base==='vestChestDepth')return split.side==='Front'?delta:new T.Vector3(0,0,-.04*Math.exp(-Math.pow((source.y-.49)/.075,2))*(1-smooth(-.03,-.02,source.z))*frame.scale);
+  if(base==='bootHeelDepth')return split.side==='Back'?delta:new T.Vector3(0,0,.035*smooth(0,.025,source.z)*Math.exp(-Math.pow(source.z/.05,2))*(1-smooth(.065,.11,source.y))*frame.scale);
+  const w=depthFrontWeight(part,source);return delta.multiplyScalar(split.side==='Front'?w:1-w);
+ }
+ function influence(part,name,settings){
+  const frame=settings.bodyFrame||{scale:1};return garments.get(part).records.map(r=>{const native=new Float32Array(r.base.count),weights=new Float32Array(r.base.count),region=settings.uvRegions?.[regionKey(part,name)],cache=new WeakMap();for(let i=0;i<native.length;i++){native[i]=controlDelta(r,i,name,frame).length();const n=r.nodes[i];if(!cache.has(n))cache.set(n,nodeRegionWeight(region,n));weights[i]=cache.get(n);}return {mesh:r.o,native,weights,sheet:part};});
+ }
  function apply(settings){
   lastSettings=settings;const cfg=settings.garmentFit||fitDefaults(),frame=settings.bodyFrame||{scale:1,offset:0};
+  const activeRegions=new Map();
+  function mask(part,name,node){
+   const key=regionKey(part,name),region=settings.uvRegions?.[key];if(!region?.enabled)return 1;
+   let entry=activeRegions.get(key);
+   if(!entry){const signature=JSON.stringify(region);entry=regionCache.get(key);if(!entry||entry.signature!==signature){entry={signature,weights:new WeakMap()};regionCache.set(key,entry);}activeRegions.set(key,entry);}
+   if(!entry.weights.has(node))entry.weights.set(node,nodeRegionWeight(region,node));return entry.weights.get(node);
+  }
   const map=p=>p.clone().sub(v3([-.004865,.806,-.032925])).multiplyScalar(frame.scale).add(v3([-.004865+frame.offset,.806,-.032925]));
   const groupPivots={upper:map(v3([0,.578,0]).add(placements.Vest)),lower:map(v3([0,.365,0]).add(placements.Trousers))};
   function rotate(p,part,source){
@@ -275,21 +299,8 @@ export function garmentFit(model,parts,report){
    const collars=part.name==='Vest'?Object.keys(COLLAR_CONTROLS).map(n=>[n,outfitValue(settings,part.name,n)]).filter(([,v])=>v):[];
    for(let i=0;i<r.base.count;i++){
     const base=xyz(r.base,i).applyMatrix4(r.world).add(shift),p=base.clone();
-    for(const {name,k,value,front,back}of targets){
-     const delta=xyz(r.morph[k],i);if(!g.morphTargetsRelative)delta.sub(xyz(r.base,i));delta.applyMatrix3(matrix);
-     if(front!==undefined){
-      const source=r.nodes[i].source;
-      if(name==='vestChestDepth'){
-       p.addScaledVector(delta,front);
-       p.z-=back*.04*Math.exp(-Math.pow((source.y-.49)/.075,2))* (1-smooth(-.03,-.02,source.z))*frame.scale;
-      }else if(name==='bootHeelDepth'){
-       p.addScaledVector(delta,back);
-       p.z+=front*.035*smooth(0,.025,source.z)*Math.exp(-Math.pow(source.z/.05,2))*(1-smooth(.065,.11,source.y))*frame.scale;
-      }else{const w=depthFrontWeight(part.name,source);p.addScaledVector(delta,w*front+(1-w)*back);}
-     }else p.addScaledVector(delta,value);
-    }
-    for(const [name,value]of shoulders)p.addScaledVector(shoulderDelta(r.nodes[i].source,name),value*frame.scale);
-    for(const [name,value]of collars)p.addScaledVector(collarDelta(r.nodes[i].source,name),value*frame.scale);
+    for(const target of targets){const {name,value,front,back}=target;if(front!==undefined){const [fn,bn]=depthNames(name);p.addScaledVector(controlDelta(r,i,fn,frame),front*mask(part.name,fn,r.nodes[i]));p.addScaledVector(controlDelta(r,i,bn,frame),back*mask(part.name,bn,r.nodes[i]));}else p.addScaledVector(controlDelta(r,i,name,frame),value*mask(part.name,name,r.nodes[i]));}
+    for(const [name,value]of [...shoulders,...collars])p.addScaledVector(controlDelta(r,i,name,frame),value*mask(part.name,name,r.nodes[i]));
 
     const transform=p=>rotate(p,part,r.nodes[i].source).sub(groupPivots[part.group.id]).multiplyScalar(scale).add(groupPivots[part.group.id]).add(rootMove);
     const node=r.nodes[i];if(node.refs[0][0]===r&&node.refs[0][1]===i){node.base=transform(base);node.current=transform(p);}
@@ -329,8 +340,8 @@ export function garmentFit(model,parts,report){
   for(let j=0;j<(idx?.count??r.base.count);j+=3){const ids=[0,1,2].map(k=>idx?idx.getX(j+k):j+k);for(const [attr,dest]of [[r.original,before],[r.g.attributes.position,after]]){const [a,b,c]=ids.map(i=>xyz(attr,i)),n=b.sub(a).cross(c.sub(a));for(const i of ids)dest[i].add(n);}}
   for(let i=0;i<r.base.count;i++){const a=before[i],b=after[i],n=xyz(r.normal,i);if(a.lengthSq()>1e-16&&b.lengthSq()>1e-16)n.applyQuaternion(new T.Quaternion().setFromUnitVectors(a.normalize(),b.normalize()));r.g.attributes.normal.setXYZ(i,n.x,n.y,n.z);}r.g.attributes.normal.needsUpdate=true;
  }
- return {apply,capture,seams,garments,
+ return {apply,capture,seams,garments,influence,
   // Garment fitting is baked in exported positions; facial morphs remain live.
-  prepareExport(){const saved=records.map(r=>[r,r.g.morphAttributes,r.o.morphTargetInfluences,r.o.morphTargetDictionary]);for(const [r]of saved){r.g.morphAttributes={};r.o.morphTargetInfluences=[];r.o.morphTargetDictionary={};}model.userData.clothingSettings=JSON.parse(JSON.stringify({outfit:lastSettings?.outfit,garmentFit:lastSettings?.garmentFit}));return ()=>{for(const [r,a,i,d]of saved){r.g.morphAttributes=a;r.o.morphTargetInfluences=i;r.o.morphTargetDictionary=d;}};}
+  prepareExport(){const saved=records.map(r=>[r,r.g.morphAttributes,r.o.morphTargetInfluences,r.o.morphTargetDictionary]);for(const [r]of saved){r.g.morphAttributes={};r.o.morphTargetInfluences=[];r.o.morphTargetDictionary={};}model.userData.clothingSettings=JSON.parse(JSON.stringify({outfit:lastSettings?.outfit,garmentFit:lastSettings?.garmentFit,uvRegions:lastSettings?.uvRegions}));return ()=>{for(const [r,a,i,d]of saved){r.g.morphAttributes=a;r.o.morphTargetInfluences=i;r.o.morphTargetDictionary=d;}};}
  };
 }

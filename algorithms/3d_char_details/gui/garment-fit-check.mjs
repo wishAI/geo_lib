@@ -1,3 +1,4 @@
+import {regionWeight,polygonValid,validateRegions} from './uv-regions.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import * as T from './three.mjs';
@@ -102,6 +103,29 @@ for(const name of Object.keys(SHOULDER_CONTROLS))for(const value of [-1,1]){
 }
 assert(shoulderProtectedDrift<1e-7,'Shoulder attachment moved collar center/lower vest');
 
+// Fractional atlas edits must match scaling the same fitting control, including
+// procedural collar/shoulder and front/back fields, before seam constraints.
+for(const name of ['vestChestWidth','vestCollarWidth','vestArmholeRaise','vestChestBackDepth']){
+ settings.outfit={};settings.uvRegions={};setOutfitValue(settings,'Vest',name,.6);fit.apply(settings);const expected=geometry(),native=fit.influence('Vest',name,settings).map(e=>Array.from(e.native));
+ setOutfitValue(settings,'Vest',name,1);settings.uvRegions={['Vest:'+name]:{enabled:true,edits:[{type:'polygon',sheet:'Vest',points:[[0,0],[1,0],[1,1],[0,1]],feather:0,value:.6,opacity:1}]}};fit.apply(settings);
+ assert(maxError(expected,geometry())<1e-7,'Fractional fitting field mismatch '+name);assert.deepEqual(fit.influence('Vest',name,settings).map(e=>Array.from(e.native)),native,'Authored heatmap depends on slider or mask');seamGap();
+}
+settings.outfit={};settings.uvRegions={};
+
+// UV fields restrict real authored deltas and remain exact through reset/export.
+const region={enabled:true,feather:.06,points:[[.1,.1],[.5,.1],[.5,.5],[.1,.5]]};
+assert.equal(regionWeight(region,.3,.3),1);assert.equal(regionWeight(region,.9,.9),0);
+assert(Math.abs(regionWeight(region,.53,.3)-.5)<1e-10);
+assert(!polygonValid([[0,0],[1,1],[0,1],[1,0]]));
+assert.throws(()=>validateRegions({'Vest:vestChestWidth':{...region,feather:NaN}}));
+assert.throws(()=>validateRegions({'Vest:vestChestWidth':{...region,points:[[0,0],[0,0],[1,1]]}}));
+settings.outfit={};setOutfitValue(settings,'Vest','vestChestWidth',.6);fit.apply(settings);const fullRegionFit=geometry();
+settings.uvRegions={'Vest:vestChestWidth':region};fit.apply(settings);const limitedRegionFit=geometry();
+assert(maxError(fullRegionFit,limitedRegionFit)>1e-4,'UV polygon did not restrict actual fitting');
+fit.apply(settings);assert.equal(maxError(limitedRegionFit,geometry()),0,'UV edit accumulated');seamGap();
+settings.uvRegions=validateRegions(JSON.parse(JSON.stringify(settings.uvRegions)));fit.apply(settings);assert.equal(maxError(limitedRegionFit,geometry()),0,'UV preset reload drift');
+settings.uvRegions['Vest:vestChestWidth'].enabled=false;fit.apply(settings);assert.equal(maxError(fullRegionFit,geometry()),0,'Disabling UV region did not restore authored fit');
+settings.uvRegions={'Vest:vestChestWidth':region,'Vest:vestCollarWidth':region,'Vest:vestArmholeRaise':region,'Trousers:trouserCalfBackDepth':region};
 settings.outfit={};setOutfitValue(settings,'Vest','vestCollarWidth',-.3);setOutfitValue(settings,'Vest','vestCollarFrontDepth',.2);setOutfitValue(settings,'Vest','vestChestBackDepth',.25);setOutfitValue(settings,'Trousers','trouserCalfBackDepth',.15);
 setOutfitValue(settings,'Vest','vestArmholeRaise',.6);setOutfitValue(settings,'Vest','vestArmholeFrontDepth',-.5);setOutfitValue(settings,'Vest','vestArmholeOpeningHeight',.4);
 setOutfitValue(settings,'Trousers','trouserLength',.42);
@@ -135,7 +159,7 @@ for(const [scale,offset,shoulderHeight]of [[.78,-.01,-.03],[1.25,.05,.03],[1,0,0
  shoulderMotionChecks.push({scale,offset,shoulderHeight,animationSamples:65});
 }
 assert(shoulderHorizontalError<1e-6,'Adjusted editing arms are not horizontal');
-player.reset();settings.outfit={};settings.morphs={};settings.garmentFit=fitDefaults();fit.apply(settings);assert(maxError(neutral,geometry())<1e-7,'Reset drift');
+player.reset();settings.outfit={};settings.morphs={};settings.uvRegions={};settings.garmentFit=fitDefaults();fit.apply(settings);assert(maxError(neutral,geometry())<1e-7,'Reset drift');
 for(const [o,a]of protectedGeometry)assert(maxError(a,Array.from(o.geometry.attributes.position.array))<1e-7,'Protected skin changed');
 // Export with a raised shoulder pivot and non-default scale/offset. Recompute
 // the editing pose from this rest frame, as the interactive editor does.
@@ -157,12 +181,12 @@ const worldPositions=tree=>{const result={};tree.updateMatrixWorld(true);tree.tr
 for(const o of skinMeshes)o.morphTargetInfluences[o.morphTargetDictionary.bodyTransitionFrontDepth]=.65;
 const beforeExport=worldPositions(scene);
 globalThis.FileReader=class{readAsArrayBuffer(blob){blob.arrayBuffer().then(x=>{this.result=x;this.onloadend?.();});}readAsDataURL(blob){blob.arrayBuffer().then(x=>{this.result='data:application/octet-stream;base64,'+Buffer.from(x).toString('base64');this.onloadend?.();});}};
-const restoreExport=fit.prepareExport();for(const p of fit.garments.values())for(const r of p.records)assert.equal(Object.keys(r.g.morphAttributes).length,0);const binary=await new GLTFExporter().parseAsync(scene,{binary:true,trs:true,onlyVisible:false});
+const restoreExport=fit.prepareExport();assert.deepEqual(scene.userData.clothingSettings.uvRegions,restored.uvRegions,'Export lost UV settings');for(const p of fit.garments.values())for(const r of p.records)assert.equal(Object.keys(r.g.morphAttributes).length,0);const binary=await new GLTFExporter().parseAsync(scene,{binary:true,trs:true,onlyVisible:false});
 fs.writeFileSync(process.argv[4].replace('.json','_export.glb'),Buffer.from(binary));
 const imported=await new GLTFLoader().parseAsync(binary,''),afterExport=worldPositions(imported.scene);let exportMaxError=0;
 for(const [name,points]of Object.entries(beforeExport)){assert(afterExport[name],name);assert.equal(points.length,afterExport[name].length);for(let i=0;i<points.length;i++)exportMaxError=Math.max(exportMaxError,...points[i].map((x,k)=>Math.abs(x-afterExport[name][i][k])));}
 assert(exportMaxError<2e-6,`Export changed fitted pose: ${exportMaxError}`);
 restoreExport();player.reset();player.beforeRestEdit();body(1,0,0);fit.capture();settings.bodyFrame={scale:1,offset:0,shoulderHeight:0};fit.apply(settings);player.afterRestEdit(1);assert(maxError(neutral,geometry())<1e-7);
 assert(maxGap<2e-6,`Seam gap ${maxGap}`);
-const result={status:'passed',horizontalError,shoulderHorizontalError,shoulderMotionChecks,exportBodyFrame,exportPose:'T-pose',transitionChecks,shoulderChecks,shoulderProtectedDrift,seams:fit.seams.map(s=>({parent:s.parent.name,child:s.child.name,samples:s.pairs.length})),animationSamples:65,angleControlsTested:Object.values(ANGLES).flat().length,checkedPoses:samples,neutralChestWidth,narrowedChestWidth,depthChecks,rearDepthDrift,collarLowerDrift,maxGap,exportMaxError,neutralSourceMaxError,checks:['collar regional controls','front/back depth independence','legacy depth preservation','negative chest width','default bilateral joints','independent joints','joint-link persistence','legacy asymmetric angle preservation','original source seam correspondence','shared parent/child values','unlinked sides','shared scale','clothing-only joint angles','body rig preservation','preset round trip','repeat fit','running seam continuity','body placement','shoulder height through A/T and running','reset','nonzero shoulder export bake/restore']};
+const result={status:'passed',horizontalError,shoulderHorizontalError,shoulderMotionChecks,exportBodyFrame,exportPose:'T-pose',transitionChecks,shoulderChecks,shoulderProtectedDrift,seams:fit.seams.map(s=>({parent:s.parent.name,child:s.child.name,samples:s.pairs.length})),animationSamples:65,angleControlsTested:Object.values(ANGLES).flat().length,checkedPoses:samples,neutralChestWidth,narrowedChestWidth,depthChecks,rearDepthDrift,collarLowerDrift,maxGap,exportMaxError,neutralSourceMaxError,checks:['UV field, polygon validation, actual restriction, disable/reset, persistence and export','collar regional controls','front/back depth independence','legacy depth preservation','negative chest width','default bilateral joints','independent joints','joint-link persistence','legacy asymmetric angle preservation','original source seam correspondence','shared parent/child values','unlinked sides','shared scale','clothing-only joint angles','body rig preservation','preset round trip','repeat fit','running seam continuity','body placement','shoulder height through A/T and running','reset','nonzero shoulder export bake/restore']};
 fs.writeFileSync(process.argv[4],JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));

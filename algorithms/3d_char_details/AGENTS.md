@@ -487,3 +487,50 @@ Profile morph NORMAL targets in `export_clothing.py` use the inverse-transpose
 Jacobian of the same fields to avoid reintroducing coarse triangle shading.
 Blender reimport does not restore these normals; inspect final profile shading
 in WebGL. The original upper muzzle relief remains intact.
+
+## October 3: contextual inspector and influence regions
+
+- `gui/inspector-layout.js` organizes Face / Body × Shape adjustments / Joints &
+  motion. Part visibility and material access live beside anatomical controls;
+  Reference & model combines references, asset details and export options.
+- `gui/workspace.js` provides the floating editor with contained property scroll.
+- `gui/uv-editor.js` is the shared polygon interaction; `gui/uv-regions.js` owns
+  validation and smooth falloff. Garments use UV coordinates. Static face/body
+  shape fields use `gui/surface-regions.js` and a separate Blender-unwrapped edit
+  atlas. Front/side projections remain supported only for earlier saved masks.
+  Preserve shared weights at duplicated positions.
+  Animated expressions and joints retain their coordinated authored behavior.
+- Persist masks in `settings.uvRegions`: `part:control` for clothing and
+  `surface:control` for shapes. Clothing reset must preserve surface masks.
+  Restore clean morphs before body placement, capture after placement, then mask.
+  Replace the Three.js geometry shell after changing morph attributes so uploaded
+  morph textures refresh; preserve the neutral source and unaffected morphs.
+- Run `validate_surface_regions.py`, `validate_garment_fit.py`,
+  `validate_editor.py`, and preset unit tests for changes to this pipeline.
+
+October 4 influence editor: `build_edit_atlas.py` reads the current GLB and writes
+only `outputs/landau_v10/editor_uv_atlas.json`; run it with background Blender
+when the source model changes. The atlas records source and atlas content hashes,
+raw GLTF mesh/primitive IDs, and float32 corner UVs. Tiny fallback triangles occupy
+a reserved strip; preserve exact triangle/corner correspondence. Do not replace
+source render UVs or modify the source GLB/master to build this editing view.
+`gui/influence-view.js` rasterizes material + vertex colors (current GLB has no
+image textures) and actual normalized morph-vector magnitudes. It also renders
+a separate live 3D overlay outside the exported model. UV edits store ordered
+polygon/brush operations with fractional multipliers, plus the atlas identity;
+keep legacy masks compatible and enforce the existing preset byte limit. Default
+view shows the authored field without inventing a polygon. Fitting and its
+heatmap share `controlDelta`; clothing seam constraints still run afterward.
+
+### October 4: empty influence panel and compact window
+
+The first unedited field crashed because `JSON.stringify(undefined)` equalled
+an absent cache entry's optional signature. `weightField` must check that the
+cache entry exists before returning its weights. The surface-region validator
+now opens all 32 shape fields before any mask has populated their caches,
+checks the repeated read and verifies inspection leaves geometry unchanged.
+The UV panel also retains its title and reports initialization errors explicitly.
+
+Floating editor chrome uses a single compact header and 22 px status footer;
+long status messages remain available as tooltips. Running preview is folded by
+default. Narrow windows keep the UV panel inside the viewport, below the header.

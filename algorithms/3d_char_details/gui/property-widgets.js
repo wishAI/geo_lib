@@ -9,6 +9,8 @@ const paths={
  live:'m9 5 11 7-11 7ZM3 5v14',
  edit:'m4 16 12-12 4 4L8 20H4Zm9-9 4 4',
  link:'m9 15 6-6M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0',
+ eyeOff:'M3 3l18 18M10 5c7-1 12 7 12 7s-2 3-5 5M6 6C3 8 2 12 2 12s4 7 10 7c2 0 3-.5 4-1M10 10a3 3 0 0 0 4 4',
+ polygon:'M4 5l14-2 3 14-12 4-6-9ZM3 3h3v3H3ZM17 1h3v3h-3ZM19 16h3v3h-3ZM7 19h3v3H7Z',
  eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
  shirt:'m8 3 4 2 4-2 6 5-4 4-2-2v11H8V10l-2 2-4-4Z',
  chevron:'m8 5 7 7-7 7',
@@ -19,3 +21,5 @@ export function widget({label,attrs,min=-1,max=1,step=.01,value=0,reset,life='ed
  const semantic=`${life==='live'?'Animation / game':'Character editing'} · ${op==='morph'?'Surface deformation':op} · ${scope} space`;
  return `<div class="char-property ${life} ${op} ${axis?'axis-'+axis:''}"><span class="char-property-kind" title="${semantic}" aria-label="${semantic}">${icon(life)}${icon(op)}</span><label><span>${label}</span><input type="range" aria-label="${label}" ${attrs} min="${min}" max="${max}" step="${step}" value="${value}"><output>${Number(value).toFixed(step===1?0:step<.01?3:2)}</output></label><span class="char-scope" title="${scope} space">${icon(scope)}</span><button class="char-icon-reset" aria-label="Reset ${label}" title="Reset ${label}" ${reset}>${icon('reset')}</button></div>`;
 }
+
+export function propertyVisibility(attrs,label,checked=true){return `<label class="char-icon-toggle char-eye-toggle" title="Show / hide ${label}"><input type="checkbox" aria-label="Show ${label}" ${attrs} ${checked?'checked':''}><span class="char-eye-on">${icon('eye')}</span><span class="char-eye-off">${icon('eyeOff')}</span></label>`;}

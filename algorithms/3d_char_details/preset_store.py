@@ -32,7 +32,7 @@ def validate_settings(value):
         elif isinstance(item, float) and not math.isfinite(item):
             raise ValueError('Preset contains a non-finite value')
     visit(value)
-    for key in ('morphs', 'bones', 'parts', 'outfit', 'links', 'bodyFrame', 'garmentFit'):
+    for key in ('morphs', 'bones', 'parts', 'outfit', 'links', 'bodyFrame', 'garmentFit', 'uvRegions'):
         if key in value and not isinstance(value[key], dict):
             raise ValueError('Invalid preset field: '+key)
     height = value.get('bodyFrame', {}).get('shoulderHeight', 0)
