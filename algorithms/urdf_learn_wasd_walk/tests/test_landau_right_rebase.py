@@ -303,4 +303,112 @@ class RightControllerRebaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'standing'):check()
 
 
+class CruiseAttributionLoaderTests(unittest.TestCase):
+    def test_selected_state_and_foot_corruption_fail_before_gpu(self):
+        import numpy as np
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import load_starts
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp);cp=folder/'model_0.pt';cp.write_bytes(b'checkpoint fixture')
+            age=12.;times=np.arange(601)*.02
+            q=np.zeros((601,7));q[:,3]=1.;v=np.zeros((601,6));obs=np.zeros((601,70),dtype=np.float32)
+            obs[:,8]=-1.;obs[:,63]=.2;obs[:50,65]=.03
+            feet=[dict(time_s=(i+1)*.002,support_body_weight_ratio=1.,max_joint_speed_rad_s=0.) for i in range(6000)]
+            feet[499]['support_body_weight_ratio']=3.01
+            meta={key:'fixture' for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','backend','mujoco_version',
+                                           'turn_source_sha256','residual_source_sha256','active_residual_source_sha256')}
+            meta['frozen_dual_checkpoint_sha256']='ancestor'
+            result=dict(config=dict(triangle=True,checkpoint_sha256=gates.digest(cp),forward=.2,assistance=0.,dt=.002,
+                                    contact_timeconst=.004,gain_scale=1.,noslip_iterations=0),
+                        identity={key:meta[key] for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','backend','mujoco_version')},
+                        metrics=dict(reset_count=0),failures=['earlier force violation'])
+            result.update({key:meta[key] for key in ('turn_source_sha256','residual_source_sha256','active_residual_source_sha256')})
+            def save(qv=q,vv=v,observations=obs,foot=feet):
+                np.savez(folder/'trajectory.npz',qpos=qv,qvel=vv,time=times)
+                np.savez(folder/'policy_trace.npz',observation=observations,time=times)
+                gates.write(folder/'foot_trace.json',foot)
+                for name,key in [('trajectory.npz','trajectory_sha256'),('policy_trace.npz','policy_trace_sha256'),('foot_trace.json','foot_trace_sha256')]:
+                    result[key]=gates.digest(folder/name)
+                gates.write(folder/'dynamics.json',result)
+            save()
+            _,memory,sources=load_starts([folder],cp,meta,turn,'cruise_attribution',age,gates.digest)
+            self.assertEqual(memory.left_cruise_blend,1.)
+            self.assertEqual(len(sources[0]['prior_physical_violations']),1)
+            badq=q.copy();badq[-1,0]=np.nan
+            badv=v.copy();badv[-1,0]=np.nan
+            bado=obs.copy();bado[-1,0]=np.nan
+            badfeet=copy.deepcopy(feet);badfeet[-1]['support_body_weight_ratio']=float('nan')
+            badclock=copy.deepcopy(feet);badclock[-1]['time_s']=float('nan')
+            for kwargs in ({'qv':badq},{'vv':badv},{'observations':bado},{'foot':badfeet},{'foot':badclock}):
+                save(**kwargs)
+                with self.subTest(fields=list(kwargs)),self.assertRaisesRegex(ValueError,'Warm start|Unhealthy warm'):
+                    load_starts([folder],cp,meta,turn,'cruise_attribution',age,gates.digest)
+            # Earlier failures remain forbidden in the original qualification mode.
+            result['config']['turn']=True;save()
+            with self.assertRaisesRegex(ValueError,'Unsafe warm start prefix'):
+                load_starts([folder],cp,meta,turn,'m5',age,gates.digest)
+
+
+class HalfCruiseCompositionTests(unittest.TestCase):
+    def setUp(self):
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as half
+        self.half=half;self.fixture=RightControllerRebaseTests();self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        (gates.ALG/'landau_cruise_scale.py').write_bytes(Path(half.__file__).read_bytes())
+        self.cp=half.compose(self.fixture.cp,'half_cruise')
+        self.meta=gates.read(self.cp.parent/'training.json');self.blob=torch.load(self.cp,weights_only=False)
+        self.result={**self.fixture.result,'residual_variant':half.VARIANT,'residual_dispatch':half.DISPATCH,
+                     'cruise_output_scale':.5,'cruise_scale_source_sha256':gates.digest(half.__file__)}
+
+    def checks(self):
+        torch.save(self.blob,self.cp)
+        def loader():
+            self.half.check_contract(self.meta,self.blob,gates.digest)
+            self.half.check_sources(self.cp.parent,self.meta,gates.digest)
+        return loader,lambda:gates.check_residual_source(self.cp.parent,self.result,self.meta,self.cp)
+
+    def test_exact_frozen_composition_and_half_delta(self):
+        for check in self.checks():check()
+        for key in self.fixture.blob:
+            if key!='residual_variant':self.assertTrue(self.half.same_tree(self.blob[key],self.fixture.blob[key]))
+        baseline=torch.tensor([[1.,2.,3.]]);complete=torch.tensor([[1.2,1.8,3.]])
+        self.assertTrue(torch.equal(self.half.apply(baseline,complete),baseline+.5*(complete-baseline)))
+        self.assertTrue(torch.equal(self.half.apply(baseline,baseline),baseline))
+
+    def test_every_turn_gain_and_each_actor_remain_frozen(self):
+        original=copy.deepcopy(self.blob)
+        for index in range(20):
+            self.blob=copy.deepcopy(original);self.blob['turn_parameters'][index]+=.001
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'frozen'):check()
+        for key in ('standing_actor_state_dict','residual_actor_state_dict','active_residual_actor_state_dict'):
+            self.blob=copy.deepcopy(original);first=next(iter(self.blob[key]));self.blob[key][first]+=.01
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'frozen'):check()
+
+    def test_non_half_missing_and_unexpected_fields_rejected(self):
+        for scale in (0.,1.,True,None,float('nan')):
+            self.blob['cruise_output_scale']=self.meta['cruise_output_scale']=self.result['cruise_output_scale']=scale
+            for check in self.checks():
+                with self.assertRaisesRegex(ValueError,'scalar|scale'):check()
+        self.blob['cruise_output_scale']=self.meta['cruise_output_scale']=self.result['cruise_output_scale']=.5
+        self.blob['unknown_control']=torch.ones(1)
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'keys|schema'):check()
+
+    def test_saved_composition_source_cannot_change(self):
+        (self.cp.parent/'cruise_scale_source.py').write_text('changed')
+        for check in self.checks():
+            with self.assertRaisesRegex(ValueError,'snapshot|source'):check()
+
+    def test_unscaled_donor_rejects_scaling_claims(self):
+        cp=self.fixture.cp;meta=self.fixture.meta;result=self.fixture.result
+        for location in ('metadata','result','checkpoint'):
+            changed_meta=copy.deepcopy(meta);changed_result=copy.deepcopy(result)
+            blob=copy.deepcopy(self.fixture.blob)
+            {'metadata':changed_meta,'result':changed_result,'checkpoint':blob}[location]['cruise_output_scale']=.123
+            torch.save(blob,cp)
+            with self.subTest(location=location),self.assertRaisesRegex(ValueError,'Unexpected cruise scaling'):
+                gates.check_residual_source(cp.parent,changed_result,changed_meta,cp)
+
+
 if __name__=='__main__':unittest.main()

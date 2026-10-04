@@ -66,7 +66,7 @@ def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
         folder = Path(folder).resolve()
         result = json.loads((folder/'dynamics.json').read_text())
         cfg = result['config']
-        protocol_ok = (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='active' else cfg.get('turn' if mode=='m5' else 'teleop')
+        protocol_ok = (cfg.get('direction') in ('left','backward') and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_retention' else (bool(cfg.get('triangle')) and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='cruise_attribution' else (cfg.get('direction')=='backward' and cfg['checkpoint_sha256']==digest(checkpoint)) if mode=='active' else cfg.get('turn' if mode=='m5' else 'teleop')
         if cfg['checkpoint_sha256'] not in allowed or not protocol_ok:
             raise ValueError('Warm start checkpoint or protocol mismatch')
         if any(cfg[key] != value for key,value in dict(forward=.2, assistance=0., dt=.002,
@@ -83,15 +83,31 @@ def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
             hashes[filename] = digest(folder/filename)
             if hashes[filename] != result[key]:raise ValueError('Warm start trace changed')
         feet = json.loads((folder/'foot_trace.json').read_text())
-        if any(r['time_s'] <= age and (r['support_body_weight_ratio'] > 3. or
-               r['max_joint_speed_rad_s'] > 4.+1e-6) for r in feet):
+        foot_times=np.array([r['time_s'] for r in feet])
+        if (len(foot_times)<round(age/.002) or not np.isfinite(foot_times).all() or
+            not np.allclose(foot_times,np.arange(1,len(feet)+1)*.002,atol=1e-6,rtol=0) or
+            any(not math.isfinite(v) for r in feet if r['time_s']<=age
+                for v in r.values() if isinstance(v,(int,float)))):
+            raise ValueError('Warm start foot trace has invalid values or clock')
+        # Attribution may inspect a later viable state after an earlier isolated
+        # force failure, but requires a clean10s lead-in. This is never training
+        # qualification or milestone evidence; every prior violation is retained.
+        prior_violations=[dict(time_s=r['time_s'],support_bw=r['support_body_weight_ratio'],speed_rad_s=r['max_joint_speed_rad_s'])
+                          for r in feet if r['time_s']<=age and (r['support_body_weight_ratio']>3. or r['max_joint_speed_rad_s']>4.+1e-6)]
+        if any(r['time_s'] >= (age-10. if mode=='cruise_attribution' else 0.) for r in prior_violations):
             raise ValueError('Unsafe warm start prefix')
         if result['metrics']['reset_count'] != 0:raise ValueError('Warm start source reset')
         trace = np.load(folder/'policy_trace.npz')
         trajectory = np.load(folder/'trajectory.npz')
         if (len(trace['time']) <= index or abs(trace['time'][index]-age) > 1e-6 or
+            len(trajectory['time'])<=index or
+            not np.allclose(trace['time'][:index+1],np.arange(index+1)*.02,atol=1e-6,rtol=0) or
             not np.allclose(trace['time'][:index+1],trajectory['time'][:index+1],atol=1e-6,rtol=0)):
             raise ValueError('Warm start clocks differ')
+        if (not all(np.isfinite(trajectory[key][:index+1]).all() for key in ('qpos','qvel')) or
+            not np.isfinite(trace['observation'][:index+1]).all() or
+            np.any(-trace['observation'][:index+1,8]<math.cos(math.pi/6))):
+            raise ValueError('Unhealthy warm start state prefix')
         command_histories.append((trace['time'][:index+1],trace['observation'][:index+1,63:66]))
         memory = turn.CommandMemory()
         for t,obs in zip(trace['time'][:index],trace['observation'][:index]):
@@ -100,10 +116,13 @@ def load_starts(folders, checkpoint, meta, turn, mode, age, digest):
             memory.observe(torch.from_numpy(obs)[None],torch.zeros((1,3)),torch.eye(3)[None],float(t))
         if memory.anchor_xy is not None or memory.restart_time is not None or memory.last_yaw_sign != 1:
             raise ValueError('Warm starts must precede the first stop after left turning')
+        if mode in ('cruise_attribution','cruise_retention') and (memory.left_cruise_blend!=1. or memory.left_feedback_blend!=0.):
+            raise ValueError('Cruise attribution must start in fully settled cruise')
         histories.append(memory)
         states.append(dict(qpos=trajectory['qpos'][index],qvel=trajectory['qvel'][index],
                            previous=trace['observation'][index,43:60]))
         sources.append(dict(directory=str(folder),age_s=age,checkpoint_sha256=cfg['checkpoint_sha256'],
+                            prior_physical_violations=prior_violations,source_failures=result['failures'],
                             hashes={**hashes,'dynamics.json':digest(folder/'dynamics.json')}))
     # Scalar memory is valid only when every restored world shares exact command history.
     if any(not all(np.array_equal(a,b) for a,b in zip(item,command_histories[0]))
@@ -125,6 +144,8 @@ def run(args):
     from algorithms.urdf_learn_wasd_walk.landau_turn_control import install_physics_audit
     from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop
     nominal_mode=args.nominal_grid or args.feedback_nominal_grid
+    cruise_diagnostic=getattr(args,'cruise_scale_diagnostic',False) or getattr(args,'cruise_retention_diagnostic',False)
+    scale_diagnostic=args.active_scale_diagnostic or cruise_diagnostic
     backend,batches,_ = configure_model('balanced_hands_v1')
     checkpoint = Path(args.checkpoint).resolve()
     meta = json.loads((checkpoint.parent/'training.json').read_text())
@@ -142,7 +163,14 @@ def run(args):
     base,_ = load_gait_source(checkpoint,meta)
     residual = load_source(checkpoint.parent/'residual_source.py',meta['residual_source_sha256'],'hold_saved_cruise')
     active = load_source(checkpoint.parent/'active_residual_source.py',meta['active_residual_source_sha256'],'hold_saved_active')
-    if args.feedback_grid:
+    if getattr(args,'cruise_retention_diagnostic',False):
+        prepared=[('cruise_retention',*load_starts([source],checkpoint,meta,turn,'cruise_retention',age,backend.digest),age,end)
+                  for source,age,end in ((args.left_directory,60.,72.),(args.left_directory,84.,96.),
+                                         (args.backward_directory,96.,108.),(args.backward_directory,140.,152.))]
+    elif cruise_diagnostic:
+        prepared=[('cruise_attribution',*load_starts([args.triangle_directory],checkpoint,meta,turn,'cruise_attribution',age,backend.digest),age,204.6)
+                  for age in (198.,200.,202.)]
+    elif args.feedback_grid:
         prepared = [('active',*load_starts([args.backward_directory],checkpoint,meta,turn,'active',age,backend.digest),age,end)
                     for age,end in ((137.,145.),(138.,145.),(139.,145.),(111.,119.),(126.,134.),(4.,15.))]
     elif args.active_scale_diagnostic:
@@ -161,7 +189,7 @@ def run(args):
         raise ValueError('Calibration teleop protocol differs from saved controller')
     (folder/'teleop_source.py').write_bytes(Path(teleop.__file__).read_bytes())
     torch.set_num_threads(4);torch.manual_seed(42)
-    grid = (blob['turn_parameters'].repeat(5,1) if args.active_scale_diagnostic else
+    grid = (blob['turn_parameters'].repeat(3 if cruise_diagnostic else 5,1) if scale_diagnostic else
             (feedback_grid if args.feedback_grid or args.feedback_nominal_grid else nominal_grid if nominal_mode else parameter_grid)(blob['turn_parameters'])).to('cuda')
     prior = make_actor(63,'cuda');prior.load_state_dict(blob['standing_actor_state_dict']);prior.eval()
     cruise_actor = residual.make_actor('cuda');cruise_actor.load_state_dict(blob['residual_actor_state_dict']);cruise_actor.eval()
@@ -190,8 +218,8 @@ def run(args):
         wp.capture_launch(batch.forward_graph);wp.synchronize()
         for value in audit.values():value.zero_()
         params = grid.repeat_interleave(width,dim=0)
-        scales = torch.tensor([0.,.25,.5,.75,1.],device='cuda').repeat_interleave(width) if args.active_scale_diagnostic else None
-        replay = np.load(Path(args.backward_directory)/'policy_trace.npz') if mode=='active' else None
+        scales = torch.tensor([0.,.5,1.] if cruise_diagnostic else [0.,.25,.5,.75,1.],device='cuda').repeat_interleave(width) if scale_diagnostic else None
+        replay = np.load(Path(sources[0]['directory'])/'policy_trace.npz') if mode in ('active','cruise_attribution','cruise_retention') else None
         if replay is not None:
             stop = round(end/.02)+1
             if (len(replay['time']) < stop or not np.allclose(replay['time'][:stop],np.arange(stop)*.02,atol=1e-6,rtol=0) or
@@ -207,7 +235,7 @@ def run(args):
         first_failure = torch.full((n,),float('nan'),device='cuda')
         hold_error = torch.zeros(n,device='cuda');hold_drift = torch.zeros_like(hold_error)
         hold_speed = torch.zeros_like(hold_error);hold_yaw_speed = torch.zeros_like(hold_error)
-        holds = () if mode=='active' else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
+        holds = () if mode in ('active','cruise_attribution','cruise_retention') else ((51.,56.),) if mode == 'm5' else teleop.HOLDS
         max_heading_deviation = torch.zeros(n,device='cuda')
         body_progress = torch.zeros(n,device='cuda')
         end_heading = torch.zeros(n,device='cuda')
@@ -220,7 +248,7 @@ def run(args):
             age = round((start+step*.02)/.02)*.02
             if step%500 == 0:print(json.dumps(dict(mode=mode,age_s=age,live=int(live.sum()))),flush=True)
             if mode == 'm5':forward,yaw,_ = turn.command_profile(age);command = (forward,0.,yaw)
-            elif mode=='active':command = replay['observation'][round(age/.02),63:66]
+            elif mode in ('active','cruise_attribution','cruise_retention'):command = replay['observation'][round(age/.02),63:66]
             else:command = teleop.command_profile(age)
             rot = batch.rot[:,batch.base]
             extra = torch.zeros((n,10),device='cuda')
@@ -232,9 +260,11 @@ def run(args):
                 obs,prior_obs = memory.observe(obs,batch.pos[:,batch.pelvis],rot,age)
                 action = turn.commanded_action(base,walking,prior,obs,prior_obs,params,names,
                                                memory.reference,memory.turned,memory=memory)
+                baseline=action
                 action = residual.apply(cruise_actor,action,obs,walking,memory,names)
+                if cruise_diagnostic:action=scale_active(baseline,action,scales)
                 complete = active.apply(active_actor,action,obs,walking,memory,names,residual)
-                action = (scale_active(action,complete,scales) if scales is not None else complete).clamp(-limits,limits)
+                action = (scale_active(action,complete,scales) if args.active_scale_diagnostic else complete).clamp(-limits,limits)
             heading = torch.atan2(rot[:,1,0],rot[:,0,0])
             before_heading = heading.clone()
             for a,b in holds:
@@ -251,7 +281,7 @@ def run(args):
             batch.previous[:] = action
             xy = batch.pos[:,batch.pelvis,:2]
             heading = torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
-            if mode=='active':
+            if mode in ('active','cruise_attribution','cruise_retention'):
                 teacher = replay['observation'][round((age+.02)/.02)]
                 target = math.atan2(float(teacher[68]),float(teacher[69]+1.))
                 error = torch.atan2((heading-target).sin(),(heading-target).cos()).abs()
@@ -291,10 +321,11 @@ def run(args):
         if set(hold_origins) != {a for a,b in holds}:raise ValueError('Incomplete calibration hold windows')
         air_fraction = audit['flight_total'].float()*.002/(end-start)
         eligible = (air_fraction<=.05)&(bits==0)&(hold_error<=math.pi/36)&(hold_drift<=.03)&(hold_speed<=.05)&(hold_yaw_speed<=.1)
-        result_key = 'active_'+str(start) if mode=='active' else mode
+        result_key = mode+'_'+str(start) if mode in ('active','cruise_attribution','cruise_retention') else mode
         results[result_key] = dict(sources=sources,start_s=start,end_s=end,
             candidate_records=[dict(index=i,gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),
-                active_scale=float(scales[i*width]) if scales is not None else 1.,
+                active_scale=float(scales[i*width]) if args.active_scale_diagnostic else 1.,
+                cruise_scale=float(scales[i*width]) if cruise_diagnostic else 1.,
                 first_failure_control_time_s=[v if math.isfinite(v) else None for v in first_failure[i*width:(i+1)*width].tolist()],
                 per_foot_peak_bw=foot_peak[i*width:(i+1)*width].tolist(),
                 max_heading_deviation_rad=max_heading_deviation[i*width:(i+1)*width].tolist(),
@@ -306,17 +337,17 @@ def run(args):
                 hold_speed_mps=hold_speed[i*width:(i+1)*width].tolist(),hold_yaw_speed_rad_s=hold_yaw_speed[i*width:(i+1)*width].tolist(),duration_s=durations[i*width:(i+1)*width].tolist())
                 for i in range(len(grid))])
         del batch,audit
-    backend.write_json(folder/'screen.json',dict(kind='nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
+    backend.write_json(folder/'screen.json',dict(kind='recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
         checkpoint=str(checkpoint),checkpoint_sha256=backend.digest(checkpoint),training_sha256=backend.digest(checkpoint.parent/'training.json'),
         source_sha256=backend.digest(__file__),turn_source_sha256=meta['turn_source_sha256'],
         residual_source_sha256=meta['residual_source_sha256'],active_residual_source_sha256=meta['active_residual_source_sha256'],
         audit_source_sha256=backend.digest(Path(install_physics_audit.__code__.co_filename)),
         teleop_source_sha256=backend.digest(folder/'teleop_source.py'),
         common_start_source_sha256=backend.digest(folder/'direction_training_source.py') if nominal_mode else None,
-        candidate_parameters=grid.cpu().tolist(),changed_indices=[18,19] if args.feedback_grid or args.feedback_nominal_grid else [] if args.active_scale_diagnostic else [3,17] if nominal_mode else [3],results=results,
-        screen_criteria=('Physical survival and force margin across late, healthy renewed-turn and early-turn windows; independent nominal proofs required.' if args.feedback_grid else 'Physical survival/forces only; active-scale attribution is not training or qualification.' if args.active_scale_diagnostic else
+        candidate_parameters=grid.cpu().tolist(),changed_indices=[18,19] if args.feedback_grid or args.feedback_nominal_grid else [] if scale_diagnostic else [3,17] if nominal_mode else [3],results=results,
+        screen_criteria=('Physical survival and force margin across late, healthy renewed-turn and early-turn windows; independent nominal proofs required.' if args.feedback_grid else 'Physical survival/forces only; residual-scale attribution is not training or qualification.' if scale_diagnostic else
             'Physical survival, force, joint speed, contacts, flight and hold metrics only; M6 block response/qualified swings still require nominal validation.'),
-        limitations=('Recorded pre-action states and full command memory; cleared solver warmstart; recorded joystick replay, not nominal navigation or acceptance. ' if args.active_scale_diagnostic or args.feedback_grid else 'Common nominal/perturbed starts with simultaneous batched duplicate controls; no independent serial proof. ' if nominal_mode else 'Cleared solver warmstart; correlated states and batched copies, not exact continuation or nominal acceptance. M6 prefix before18s is not simulated. ')+'Hold metrics sampled20ms; physical force/speed/contact guards sampled2ms.'))
+        limitations=('Diagnostic-only restored states after earlier source force failure; clean10s lead-in; source violations retained; NO export/qualification. ' if args.cruise_scale_diagnostic else '')+('Recorded pre-action states and full command memory; cleared solver warmstart; recorded joystick replay, not nominal navigation or acceptance. ' if scale_diagnostic or args.feedback_grid else 'Common nominal/perturbed starts with simultaneous batched duplicate controls; no independent serial proof. ' if nominal_mode else 'Cleared solver warmstart; correlated states and batched copies, not exact continuation or nominal acceptance. M6 prefix before18s is not simulated. ')+'Hold metrics sampled20ms; physical force/speed/contact guards sampled2ms.'))
     print(json.dumps({mode:[sum(r['eligible']) for r in result['candidate_records']] for mode,result in results.items()}),flush=True)
 
 
@@ -325,15 +356,25 @@ def main():
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--nominal-grid',action='store_true')
     parser.add_argument('--active-scale-diagnostic',action='store_true')
+    parser.add_argument('--cruise-scale-diagnostic',action='store_true')
+    parser.add_argument('--cruise-retention-diagnostic',action='store_true')
+    parser.add_argument('--left-directory')
+    parser.add_argument('--triangle-directory')
     parser.add_argument('--feedback-grid',action='store_true')
     parser.add_argument('--feedback-nominal-grid',action='store_true')
     parser.add_argument('--backward-directory')
     parser.add_argument('--m5-directory',action='append',default=[])
     parser.add_argument('--m6-directory',action='append',default=[])
     args = parser.parse_args()
-    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid))>1:
+    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic))>1:
         raise ValueError('Choose exactly one calibration mode')
-    if args.active_scale_diagnostic or args.feedback_grid:
+    if args.cruise_retention_diagnostic:
+        if not args.left_directory or not args.backward_directory or args.triangle_directory or args.m5_directory or args.m6_directory:raise ValueError('Cruise retention requires left and backward source directories only')
+    elif args.left_directory:raise ValueError('Left directory requires cruise retention')
+    elif args.cruise_scale_diagnostic:
+        if not args.triangle_directory or args.backward_directory or args.m5_directory or args.m6_directory:raise ValueError('Cruise attribution requires only a triangle source directory')
+    elif args.triangle_directory:raise ValueError('Triangle directory requires cruise attribution')
+    elif args.active_scale_diagnostic or args.feedback_grid:
         if (args.active_scale_diagnostic and args.feedback_grid) or args.nominal_grid or not args.backward_directory or args.m5_directory or args.m6_directory:
             raise ValueError('Recorded-state modes require exactly one mode and one backward directory')
     elif args.backward_directory:raise ValueError('Backward directory requires a recorded-state mode')

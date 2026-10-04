@@ -421,16 +421,22 @@ def evaluate(args):
         actor.load_state_dict(blob['actor_state_dict'],strict=True)
         actor.eval()
     residual=None;active_residual=None
+    half_cruise=meta.get('residual_variant')=='half_cruise_frozen_dual_v1'
+    if not half_cruise and any(k.startswith(('cruise_scale_','cruise_output_scale')) for k in (*meta,*blob)):raise ValueError('Unexpected cruise scaling metadata')
     right_calibrated=meta.get('residual_variant')=='right_controller_calibrated_dual_residual_v1'
-    if not right_calibrated and any(k.startswith('right_controller_') for k in meta):
+    if not (right_calibrated or half_cruise) and any(k.startswith('right_controller_') for k in meta):
         raise ValueError('Unexpected right controller calibration metadata')
     calibrated=meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1'
-    if not (calibrated or right_calibrated) and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
+    if not (calibrated or right_calibrated or half_cruise) and any(k.startswith(('calibration_donor_','yaw_hold_calibration')) for k in meta):
         raise ValueError('Unexpected yaw/hold calibration metadata')
-    if meta.get('residual_variant') not in ('right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
+    if meta.get('residual_variant') not in ('half_cruise_frozen_dual_v1','right_balance_rebased_dual_residual_v1','yaw_hold_calibrated_dual_residual_v1','right_controller_calibrated_dual_residual_v1') and any(k.startswith('frozen_dual_') for k in meta):
         raise ValueError('Unexpected right rebase metadata')
     from algorithms.urdf_learn_wasd_walk.landau_active_residual import check_contract as check_active_contract
-    if meta.get('residual_variant')=='adapted_cruise_frozen_active_v1':
+    if half_cruise:
+        from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as cruise_scale
+        check_active_contract=cruise_scale.check_contract
+        cruise_scale.check_sources(checkpoint.parent,meta,backend.digest)
+    elif meta.get('residual_variant')=='adapted_cruise_frozen_active_v1':
         from algorithms.urdf_learn_wasd_walk.landau_cruise_adaptation import check_contract as check_active_contract
     elif right_calibrated:
         from algorithms.urdf_learn_wasd_walk.landau_right_controller_rebase import check_contract as check_active_contract
@@ -458,7 +464,10 @@ def evaluate(args):
         frozen=torch.load(frozen_parent,map_location='cpu',weights_only=False)
         if tuple(frozen['turn_parameters'].shape)!=(20,):raise ValueError('Frozen parent requires20turnparameters')
         fixed=[i for i in range(20) if i not in (3,17)] if calibrated else list(range(20))
-        if right_calibrated:
+        if half_cruise:
+            frozen=torch.load(meta['cruise_scale_donor_checkpoint'],map_location='cpu',weights_only=False)
+            fixed=list(range(20))
+        elif right_calibrated:
             # Its strict recursive edge contract has already bound this immediate donor.
             frozen=torch.load(meta['right_controller_donor_checkpoint'],map_location='cpu',weights_only=False)
             fixed=[i for i in range(20) if i not in (7,8,12,13)]
@@ -533,7 +542,9 @@ def evaluate(args):
                     command_memory.turned if command_memory else turn_memory['turned'],
                     **({'memory':command_memory} if command_memory else {}))
                 if residual is not None:
+                    before_cruise=baseline
                     baseline=residual.apply(residual_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'])
+                    if half_cruise:baseline=cruise_scale.apply(before_cruise,baseline)
                     if active_residual is not None:
                         baseline=active_residual.apply(active_actor,baseline,obs[None],actor.parameters,command_memory,meta['action_joints'],residual)
                 return baseline[0]
@@ -578,6 +589,9 @@ def evaluate(args):
                 (backend.OUTPUT/args.name/'active_residual_source.py').write_bytes(active_source.read_bytes())
                 result.update(active_residual_source_sha256=backend.digest(active_source),
                     residual_variant=meta['residual_variant'],residual_dispatch='deterministic_cruise_plus_active_left_hip_roll_v1')
+        if half_cruise:
+            (backend.OUTPUT/args.name/'cruise_scale_source.py').write_bytes((checkpoint.parent/'cruise_scale_source.py').read_bytes())
+            result.update(cruise_output_scale=meta['cruise_output_scale'],cruise_scale_source_sha256=meta['cruise_scale_source_sha256'],residual_dispatch=cruise_scale.DISPATCH)
         backend.write_json(result_path,result)
     backend.write_json(backend.OUTPUT/args.name/'transfer.json',{
         'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),

@@ -48,10 +48,26 @@ The first trial reached both intermediate corner regions with maximum corridor
 error 1.335 m, then stopped at logical 256.118 s on a float32 clock-audit false
 positive. It independently failed force at 189.96 s (3.021 BW). Its evidence is
 retained as rejected. The corrected audit checks the exact next float32 raw
-clock; it does not modify GPU time or integration. The next prospective trial
-uses 5.5 m lookahead, preserving every geometric and physical acceptance limit
-and the same checkpoint. This aims to reduce correction after corners; it is
-not yet evidence of improved stability.
+clock; it does not modify GPU time or integration. The second trial used
+5.5 m lookahead with the same limits and checkpoint. It fell at 204.98 s,
+peaked at 3.368 BW, and reached the second side midpoint. The final instability
+occurred during zero-yaw left cruise with the active correction off. Both failed
+trials retain full videos, traces, and rejected visual reviews.
+
+Two paired diagnostic screens compared cruise correction fractions 0, 0.5, and
+1 from recorded pre-fall states. Half correction passed 12/12 cases (worst
+2.903 BW), while full correction passed 6/12. A separate screen on previously
+successful left/backward traces, including steering transitions, passed 8/8 at
+half correction (worst 2.827 BW). These restored-state diagnostics are not
+nominal validation and grant no milestone credit.
+
+Experimental `m8_20261004_half_cruise_dual` preserves every donor tensor and
+scales only cruise output by 0.5 before the unchanged active correction. Its
+first nominal triangle trial uses the same V2 navigator, speed, and acceptance
+limits. It must obtain fresh M1–M7 evidence before M8 promotion. The
+`qualify-directions` finalizer records that candidate's ten prerequisite runs
+without changing the historical M7 certificate; `certify-triangle` rechecks
+them against an explicitly supplied certificate path and SHA-256.
 
 This is an unpassed trial contract, not a result. The lookahead design follows
 [geometric path pursuit](https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf).

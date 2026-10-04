@@ -161,3 +161,58 @@ def test_independent_geometry_checker_replays_commands_and_rejects_tampering(tmp
     np.savez(tmp_path/'policy_trace.npz',observation=obs,time=t[:-1]);result['policy_trace_sha256']=gates.digest(tmp_path/'policy_trace.npz')
     with pytest.raises(ValueError,match='commands differ'):
         gates.check_triangle_trajectory(tmp_path,result,training,q,t,count)
+
+
+def test_candidate_prerequisites_preserve_history_and_are_rechecked(tmp_path,monkeypatch):
+    """Certificate orchestration fixture; physical validators are tested separately."""
+    import copy
+    from algorithms.urdf_learn_wasd_walk import mujoco_milestones as gates
+    out=tmp_path/'outputs';out.mkdir();checkpoint=out/'model_0.pt';checkpoint.write_bytes(b'new candidate')
+    gates.write(out/'training.json',dict(policy_family='fixture'))
+    milestones=[dict(id='m'+str(i),status='passed') for i in range(12)]
+    milestones[6].update(id='gate_10m_four_directions_no_reset',checkpoint={'sha256':'historical'},evidence=[dict(kind='validation',path='unused',sha256='historical')])
+    milestones[7].update(id=tc.MILESTONE,status='in_progress');milestones[8]['status']='not_started'
+    ledger=tmp_path/'milestones.json'
+    original=dict(lineage=gates.LINEAGE,backend='mujoco_warp_cuda',milestones=milestones,sessionStatus={})
+    gates.write(ledger,original)
+    for key,value in [('ROOT',tmp_path),('ALG',tmp_path),('LEDGER',ledger)]:monkeypatch.setattr(gates,key,value)
+    calls=[]
+    def checked(folder,*args,**kwargs):
+        calls.append((folder.name,kwargs))
+        return dict(created_at='2099-01-01T00:00:00+00:00',config=dict(direction_navigation='hysteretic_v6')),{'fixture':True}
+    monkeypatch.setattr(gates,'check_standing',checked);monkeypatch.setattr(gates,'check_walking',checked)
+    monkeypatch.setattr(gates,'reproduction_job',lambda *a:{'fixture':True})
+    gui=[];monkeypatch.setattr(gates,'sync_gui',lambda *a:gui.append(a))
+    names=('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4','trajectory.npz',
+        'policy_trace.npz','foot_trace.json','direction_protocol_source.py','controller_memory.json',
+        'turn_source.py','gait_source.py','controller_source.py','backend_source.py','model.xml',
+        'signed_navigation_source.py','triangle_navigation_source.py','residual_source.py',
+        'active_residual_source.py','renderer_source.py','warp_runtime_source.py','warp_health_source.py')
+    directions=[];cumulative=[]
+    for name in ('forward','left','right','backward',*[f'm{i}' for i in range(1,7)],'triangle'):
+        folder=out/name;folder.mkdir()
+        for filename in names:(folder/filename).write_text('fixture '+filename)
+        gates.write(folder/'dynamics.json',dict(config={'direction':name}))
+        if name in ('forward','left','right','backward'):directions.append(folder)
+        elif name!='triangle':cumulative.append(folder)
+    certificate=out/'prerequisites'
+    final=gates.certify_directions(certificate,checkpoint,directions,cumulative,promote=False)
+    assert final['canonical_milestone_pass'] is False and len(calls)==10
+    assert gates.read(ledger)==original and gui==[]
+    path=certificate/'milestone_validation.json';sha=gates.digest(path)
+    with pytest.raises(ValueError,match='SHA256 required'):
+        gates.certify_triangle(out/'m8cert',checkpoint,out/'triangle',prerequisite_certificate=path)
+    wrong=copy.deepcopy(final);wrong['checkpoint']['sha256']='0'*64;gates.write(path,wrong)
+    with pytest.raises(ValueError,match='another checkpoint'):
+        gates.certify_triangle(out/'m8cert',checkpoint,out/'triangle',prerequisite_certificate=path,prerequisite_sha256=gates.digest(path))
+    gates.write(path,final)
+    assert gates.digest(path)==sha
+    evidence=directions[0]/'foot_trace.json';saved=evidence.read_bytes();evidence.write_text('tampered')
+    with pytest.raises(ValueError,match='M7 artifact changed'):
+        gates.certify_triangle(out/'m8cert',checkpoint,out/'triangle',prerequisite_certificate=path,prerequisite_sha256=sha)
+    evidence.write_bytes(saved);calls.clear()
+    gates.certify_triangle(out/'m8cert',checkpoint,out/'triangle',prerequisite_certificate=path,prerequisite_sha256=sha)
+    assert len(calls)==11
+    updated=gates.read(ledger)
+    assert updated['milestones'][:7]==original['milestones'][:7]
+    assert updated['milestones'][7]['status']=='passed' and updated['milestones'][8]['status']=='in_progress'

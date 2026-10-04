@@ -333,9 +333,57 @@ def check_right_controller_calibration(folder,result,training,checkpoint):
     check_residual_source(donor.parent,donor_result,old,donor)
 
 
+def check_half_cruise(folder,result,training,checkpoint):
+    """Independently verify a scalar-only experimental edge, then its donor."""
+    import torch
+    folder=Path(folder);checkpoint=Path(checkpoint)
+    donor=Path(training['cruise_scale_donor_checkpoint']);old=read(donor.parent/'training.json')
+    require(old.get('residual_variant')=='right_controller_calibrated_dual_residual_v1' and
+            digest(donor)==training['cruise_scale_donor_checkpoint_sha256'] and
+            digest(donor.parent/'training.json')==training['cruise_scale_donor_training_sha256'] and
+            old['checkpoints'][donor.name]==digest(donor) and not str(old.get('status','')).startswith('invalidated_'), 'Half-cruise donor changed')
+    candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    original=torch.load(donor,map_location='cpu',weights_only=False)
+    require(candidate.get('residual_variant')==training['residual_variant']==result.get('residual_variant')=='half_cruise_frozen_dual_v1', 'Half-cruise variant mismatch')
+    for record in (training,candidate,result):
+        require(type(record.get('cruise_output_scale')) is float and record['cruise_output_scale']==.5, 'Half-cruise scale must equal0.5')
+    require(result.get('residual_dispatch')=='deterministic_half_cruise_plus_active_left_hip_roll_v1', 'Half-cruise dispatch mismatch')
+    require(candidate.keys()==original.keys()|{'cruise_output_scale'}, 'Half-cruise checkpoint schema changed')
+    def identical(a,b):
+        if torch.is_tensor(a):return torch.is_tensor(b) and a.dtype==b.dtype and torch.equal(a,b)
+        if isinstance(a,dict):return isinstance(b,dict) and a.keys()==b.keys() and all(identical(a[k],b[k]) for k in a)
+        if isinstance(a,(tuple,list)):return type(a) is type(b) and len(a)==len(b) and all(identical(x,y) for x,y in zip(a,b))
+        return type(a) is type(b) and a==b
+    for key,value in original.items():
+        if key!='residual_variant':require(identical(value,candidate[key]), 'Half-cruise frozen tensor/state changed: '+key)
+    added={'cruise_output_scale','cruise_scale_donor_checkpoint','cruise_scale_donor_checkpoint_sha256',
+           'cruise_scale_donor_training_sha256','cruise_scale_source_sha256'}
+    require(training.keys()==old.keys()|added, 'Half-cruise metadata schema changed')
+    mutable={'residual_variant','arguments','checkpoints','created_at','status','canonical_milestone_pass','policy_composition'}
+    for key,value in old.items():
+        if key not in mutable:require(training[key]==value, 'Half-cruise donor metadata changed: '+key)
+    require({k:v for k,v in training['arguments'].items() if k!='name'}=={k:v for k,v in old['arguments'].items() if k!='name'}, 'Half-cruise arguments changed')
+    for filename in ('control_source.py','turn_source.py','teleop_contract.py','model.xml','residual_source.py',
+                     'active_residual_source.py','right_rebase_source.py','yaw_hold_rebase_source.py','right_controller_rebase_source.py'):
+        require(digest(checkpoint.parent/filename)==digest(donor.parent/filename), 'Half-cruise inherited source changed')
+    require(training['cruise_scale_source_sha256']==digest(checkpoint.parent/'cruise_scale_source.py')==
+            digest(folder/'cruise_scale_source.py')==result.get('cruise_scale_source_sha256')==digest(ALG/'landau_cruise_scale.py'), 'Half-cruise composition source mismatch')
+    for source in ('residual_source','active_residual_source'):
+        require(training[source+'_sha256']==digest(checkpoint.parent/(source+'.py'))==
+                digest(folder/(source+'.py'))==result.get(source+'_sha256'), 'Half-cruise actor source mismatch')
+    donor_result={'residual_variant':old['residual_variant'],'residual_dispatch':'deterministic_cruise_plus_active_left_hip_roll_v1',
+                  **{key:old[key] for key in ('residual_source_sha256','active_residual_source_sha256')}}
+    check_residual_source(donor.parent,donor_result,old,donor)
+
+
 def check_residual_source(folder,result,training,checkpoint):
     """Independently bind the hybrid controller and its unchanged frozen parent."""
     import torch
+    if training.get('residual_variant')=='half_cruise_frozen_dual_v1':
+        check_half_cruise(folder,result,training,checkpoint)
+        return
+    candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    require(not any(k.startswith(('cruise_scale_','cruise_output_scale')) for record in (training,result,candidate) for k in record), 'Unexpected cruise scaling metadata')
     if training.get('residual_variant')=='right_controller_calibrated_dual_residual_v1':
         check_right_controller_calibration(folder,result,training,checkpoint)
         return
@@ -882,7 +930,7 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
     return final
 
 
-def certify_directions(folder, checkpoint, direction_folders, cumulative_folders):
+def certify_directions(folder, checkpoint, direction_folders, cumulative_folders, *, promote=True):
     """Promote M7 only with four independent world gates and exact M1–M6 rechecks."""
     from algorithms.urdf_learn_wasd_walk.landau_direction_contract import DIRECTIONS
     ledger=read(LEDGER);checkpoint=Path(checkpoint).resolve();folder=Path(folder).resolve()
@@ -890,7 +938,11 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
     require(ledger['lineage']==LINEAGE, 'Wrong direction lineage')
     require(all(m['status']=='passed' for m in ledger['milestones'][:6]), 'Prior milestone unresolved')
     target=ledger['milestones'][6]
-    require(target['id']=='gate_10m_four_directions_no_reset' and target['status']=='in_progress', 'Only unresolved M7 can be certified')
+    require(target['id']=='gate_10m_four_directions_no_reset', 'Wrong M7 identity')
+    if promote:
+        require(target['status']=='in_progress', 'Only unresolved M7 can be certified')
+    else:
+        require(target['status']=='passed' and ledger['milestones'][7]['status']=='in_progress', 'Candidate prerequisites require unresolved M8')
     require(len(direction_folders)==4 and len({Path(p).resolve() for p in direction_folders})==4, 'Four independent direction folders required')
     require(len(cumulative_folders)==6 and all(p is not None for p in cumulative_folders), 'Exact M1–M6 components required')
     require(not folder.exists(), 'Certificate folder already exists')
@@ -931,15 +983,19 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
         evidence.append(artifact(checkpoint.parent/'right_controller_rebase_source.py','checkpoint_right_controller_composition_source'))
     if read(checkpoint.parent/'training.json').get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
         evidence.append(artifact(checkpoint.parent/'yaw_hold_rebase_source.py','checkpoint_yaw_hold_composition_source'))
+    if read(checkpoint.parent/'training.json').get('residual_variant')=='half_cruise_frozen_dual_v1':
+        evidence.append(artifact(checkpoint.parent/'cruise_scale_source.py','checkpoint_cruise_scale_source'))
     metrics={'directions':{k:v['metrics'] for k,v in directions.items()}}
     final={'status':'passed','lineage':LINEAGE,'backend':ledger['backend'],'milestone':target['id'],
            'assembled_at':datetime.now(timezone.utc).isoformat(),'checkpoint':ckpt,'metrics':metrics,
            'evidence':evidence,'cumulative_components':components,'directions':directions,
            'scope':'Turn and walk through four world gates; unchanged nominal start; no body-relative strafe claim',
-           'finalizer_source_sha256':digest(__file__)}
+           'finalizer_source_sha256':digest(__file__), 'canonical_milestone_pass':promote,
+           'purpose':'canonical_m7' if promote else 'candidate_m8_prerequisites'}
     folder.mkdir()
     (folder/'milestone_finalizer_source.py').write_text(Path(__file__).read_text())
     write(folder/'milestone_validation.json',final)
+    if not promote:return final
     target.update(status='passed',passedAt=final['assembled_at'],checkpoint=ckpt,metrics=metrics,
                   evidence=[artifact(folder/'milestone_validation.json','validation'),*evidence])
     ledger['milestones'][7]['status']='in_progress'
@@ -948,7 +1004,7 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
     return final
 
 
-def certify_triangle(folder, checkpoint, triangle_folder):
+def certify_triangle(folder, checkpoint, triangle_folder, *, prerequisite_certificate=None, prerequisite_sha256=None):
     """M8 reuses only revalidated M7 components of the identical checkpoint."""
     ledger=read(LEDGER);checkpoint=Path(checkpoint).resolve();folder=Path(folder).resolve()
     triangle_folder=Path(triangle_folder).resolve();folder.relative_to((ALG/'outputs').resolve())
@@ -959,12 +1015,24 @@ def certify_triangle(folder, checkpoint, triangle_folder):
     previous=ledger['milestones'][6]
     certificates=[a for a in previous['evidence'] if a['kind']=='validation']
     require(len(certificates)==1, 'M7 certificate identity missing')
-    prior_artifact=certificates[0];prior_path=(ROOT/prior_artifact['path']).resolve()
+    prior_artifact=certificates[0]
+    if prerequisite_certificate is not None:
+        require(isinstance(prerequisite_sha256,str) and len(prerequisite_sha256)==64, 'Explicit candidate certificate SHA256 required')
+        prior_path=Path(prerequisite_certificate).resolve()
+        prior_artifact={'path':str(prior_path.relative_to(ROOT)), 'sha256':prerequisite_sha256}
+    else:
+        require(prerequisite_sha256 is None, 'Candidate SHA256 needs certificate path')
+        prior_path=(ROOT/prior_artifact['path']).resolve()
     prior_path.relative_to((ALG/'outputs').resolve())
     require(digest(prior_path)==prior_artifact['sha256'], 'M7 certificate changed')
     prior=read(prior_path)
     require(prior['status']=='passed' and prior['milestone']==previous['id'] and prior['lineage']==LINEAGE and prior['backend']==ledger['backend'], 'Invalid M7 certificate')
-    require(prior['checkpoint']==previous['checkpoint'] and prior['checkpoint']['sha256']==digest(checkpoint) and (ROOT/prior['checkpoint']['path']).resolve()==checkpoint, 'M7 used another checkpoint')
+    if prerequisite_certificate is None:
+        require(prior['checkpoint']==previous['checkpoint'], 'Canonical M7 checkpoint changed')
+    else:
+        require(prior.get('canonical_milestone_pass') is False and prior.get('purpose')=='candidate_m8_prerequisites', 'Invalid candidate prerequisite purpose')
+        require(digest(prior_path.parent/'milestone_finalizer_source.py')==prior.get('finalizer_source_sha256'), 'Candidate prerequisite finalizer changed')
+    require(prior['checkpoint']['sha256']==digest(checkpoint) and (ROOT/prior['checkpoint']['path']).resolve()==checkpoint, 'M7 used another checkpoint')
     artifacts={}
     for item in prior['evidence']+prior['cumulative_components']:
         path=(ROOT/item['path']).resolve();path.relative_to((ALG/'outputs').resolve())
@@ -993,6 +1061,8 @@ def certify_triangle(folder, checkpoint, triangle_folder):
                  'controller_source.py','backend_source.py','renderer_source.py','warp_runtime_source.py','warp_health_source.py','model.xml'):
         evidence.append(artifact(triangle_folder/name,name))
     evidence.append(artifact(checkpoint.parent/'training.json','checkpoint_training_metadata'))
+    if read(checkpoint.parent/'training.json').get('residual_variant')=='half_cruise_frozen_dual_v1':
+        evidence.append(artifact(triangle_folder/'cruise_scale_source.py','cruise_scale_source.py'))
     final=dict(status='passed',lineage=LINEAGE,backend=ledger['backend'],milestone=target['id'],
                assembled_at=datetime.now(timezone.utc).isoformat(),checkpoint=prior['checkpoint'],metrics=metrics,
                evidence=evidence,prior_components_revalidated=True,reproduction_job=reproduction_job(result,checkpoint),
@@ -1010,7 +1080,7 @@ def certify_triangle(folder, checkpoint, triangle_folder):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('mode', choices=('init', 'certify', 'certify-directions', 'certify-triangle'))
+    p.add_argument('mode', choices=('init', 'certify', 'certify-directions', 'qualify-directions', 'certify-triangle'))
     p.add_argument('--directory', required=True, type=Path)
     p.add_argument('--checkpoint', type=Path)
     p.add_argument('--passive-directory', type=Path)
@@ -1020,15 +1090,19 @@ def main():
     p.add_argument('--turn-directory',type=Path)
     p.add_argument('--teleop-directory',type=Path)
     p.add_argument('--triangle-directory',type=Path)
+    p.add_argument('--prerequisite-certificate',type=Path)
+    p.add_argument('--prerequisite-sha256')
     p.add_argument('--direction-directory',type=Path,action='append',default=[])
     args = p.parse_args()
     if args.mode=='certify-triangle':
         if args.checkpoint is None or args.triangle_directory is None:p.error('Triangle certification requires checkpoint and triangle directory')
-        result=certify_triangle(args.directory,args.checkpoint,args.triangle_directory)
-    elif args.mode=='certify-directions':
+        result=certify_triangle(args.directory,args.checkpoint,args.triangle_directory,
+            prerequisite_certificate=args.prerequisite_certificate,prerequisite_sha256=args.prerequisite_sha256)
+    elif args.mode in ('certify-directions','qualify-directions'):
         if args.checkpoint is None:p.error('Direction certification requires --checkpoint')
         result=certify_directions(args.directory,args.checkpoint,args.direction_directory,
-            [args.passive_directory,args.standing_directory,args.five_metre_directory,args.ten_metre_directory,args.turn_directory,args.teleop_directory])
+            [args.passive_directory,args.standing_directory,args.five_metre_directory,args.ten_metre_directory,args.turn_directory,args.teleop_directory],
+            promote=args.mode=='certify-directions')
     else:
         result = initialize(args.directory) if args.mode == 'init' else certify(args.directory, args.checkpoint, args.passive_directory, args.standing_directory, args.five_metre_directory,args.ten_metre_directory,args.turn_directory)
     print(json.dumps({'lineage': result['lineage'], 'status': result.get('status', result.get('implementationStatus'))}))
