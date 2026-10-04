@@ -103,9 +103,16 @@ reducing cruise further did not improve this consistently. A full nominal
 173.863 s to the gate, lateral 0.463 m, peak 2.914 BW, no falls or resets.
 Full video, independent validation, and exact replay of all 8,694 actions
 passed. Fresh M1–M4 also passed full review and independent validation. M5
-passed numerically and is under visual review. M6 completed all response and
-hold checks but failed a 3.085 BW impact at 46.46 s; two fixed unchanged
-repeats were declared before launch, with both results retained. The zero-active
+passed full visual review and independent validation. M6 completed all response
+and hold checks but failed a 3.085 BW impact at 46.46 s. Of two prospectively
+fixed repeats, repeat 1 passed full review and independent validation (peak
+2.941 BW); repeat 2 failed the same limit (3.061 BW). All three are retained;
+the selected proof supports nominal acceptance, not broad repeatability. Fresh
+forward, left, and right direction proofs passed full review and independent
+validation. The exact candidate now has accepted M1–M7 components; the
+noncanonical cumulative certificate has passed (SHA-256
+`f75f941ccf6e9182876d7bf1803f593fbf7373a0f90957da3c079349e70134d2`).
+Its full triangle trial is running. The zero-active
 setting had also passed all 30 preceding diagnostic cases, but it receives no
 credit until complete fresh nominal evidence passes.
 

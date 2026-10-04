@@ -5221,7 +5221,7 @@
             "checkpoint": "m8_20261004_zero_active_dual/model_0.pt",
             "sha256": "e5209aa9af53e58356fcd6b65a29579cdaca09010c49ec0defe212931136985e",
             "run": "m8_20261004_zero_active_backward",
-            "status": "backward full video+independent validation passed; fresh cumulative suite progressing",
+            "status": "fresh M1-M7 cumulative candidate certificate passed; canonical M8 pending full triangle",
             "cruise_scale": 0.5,
             "active_scale": 0.0,
             "forward": 0.2,
@@ -5257,13 +5257,14 @@
                 "review_sha256": "a5c3dbcb7fe74e5f8fb28556529a777ba315d25e77437f0bc8d2a334bcede7d2"
               },
               "m5": {
-                "status": "numerical pass; full review pending",
+                "status": "visual+independent accepted",
                 "peak_bw": 2.8098334497905912,
                 "hold_error_rad": 0.03923089654987488,
-                "hold_drift_m": 0.016300170304188698
+                "hold_drift_m": 0.016300170304188698,
+                "review_sha256": "56f9dc5d19fc853cc33725142c5017dcfa91fa47b56d8a66b61a9fb742586f21"
               },
               "m6": {
-                "status": "first rejected force; two fixed unchanged repeats prospectively declared; retain both",
+                "status": "both fixed repeats complete; repeat1 accepted,repeat2 rejected; no further unchanged repeats",
                 "first_run": "m8_20261004_zero_active_prerequisite_m6",
                 "peak_bw": 3.084983632,
                 "impact_time_s": 46.46,
@@ -5271,9 +5272,40 @@
                   "m8_20261004_zero_active_prerequisite_m6_repeat1",
                   "m8_20261004_zero_active_prerequisite_m6_repeat2"
                 ],
-                "no_further_unchanged_retries": true
+                "no_further_unchanged_retries": true,
+                "first_review_sha256": "0fdfe0c466c39700eba019d26f4a4f74b312ebb9922f73e64bf1c06323e51ee9",
+                "repeat1": {
+                  "peak_bw": 2.941208115,
+                  "review_sha256": "ce19cbb06957c8938c4fb7afd351222276eab3c1a11b74d16a2ab2bb1c87bc6b"
+                },
+                "selected": "m8_20261004_zero_active_prerequisite_m6_repeat1",
+                "repeat2": {
+                  "peak_bw": 3.0609770014409663,
+                  "review_sha256": "37af3ca02d6308f328700fac201cc5a50b855dc49f69ec0f07df7e850855f124"
+                }
+              },
+              "forward": {
+                "status": "visual+independent accepted",
+                "peak_bw": 2.9863691933354684,
+                "gate_time_s": 76.28941893023891,
+                "review_sha256": "6febbd1796ba7a573f2b31423f065aabf8fca8c84dbd327ab17c6d2991376961"
+              },
+              "left": {
+                "status": "visual+independent accepted",
+                "peak_bw": 2.884190803770689,
+                "gate_time_s": 103.17846548773532,
+                "review_sha256": "81065662b5045ce9de5ed313d5a9166be55905c61a31c38e0b8f17ae5155902a"
+              },
+              "right": {
+                "status": "visual+independent accepted",
+                "peak_bw": 2.800851130946818,
+                "gate_time_s": 96.65720012726693,
+                "review_sha256": "b3f88397e6e5842387528d830d211f3a175e70d2c926072b8dad231efe5bf844"
               }
-            }
+            },
+            "triangle_run": "m8_20261004_zero_active_triangle",
+            "prerequisite_certificate": "m8_20261004_zero_active_prerequisites_certificate/milestone_validation.json",
+            "prerequisite_certificate_sha256": "f75f941ccf6e9182876d7bf1803f593fbf7373a0f90957da3c079349e70134d2"
           }
         }
       }
