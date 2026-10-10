@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from webgui import server
+from webgui import server, storage
+from types import SimpleNamespace
 
 
 class NestingWorkspaceTests(unittest.TestCase):
@@ -38,6 +39,13 @@ class NestingWorkspaceTests(unittest.TestCase):
         self.assertIn('algorithms/widget_nesting_2d/inputs/constrained_single_board.json', second['command'])
         with self.assertRaisesRegex(ValueError, 'already running'):
             manager.start_example('widget_nesting_2d', 'complex_board', 'local', {})
+
+    def test_source_only_refresh_does_not_hydrate_unrelated_assets(self):
+        with patch.object(storage.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='', stderr='')) as run:
+            result = storage.sync_source_tk2(hydrate_assets=False)
+        self.assertTrue(result['ok'])
+        self.assertEqual(run.call_count, 2)
+        self.assertFalse(any('hydrate' in str(call.args) for call in run.call_args_list))
 
     def test_unknown_case_and_out_of_range_budget_are_rejected(self):
         manager = server.JobManager()

@@ -736,7 +736,7 @@ class JobManager:
         if job.target == "tk2":
             self._append(job, f"$ sync Mac source → {REMOTE_HOST}:{REMOTE_ROOT}\n")
             try:
-                synced = storage.sync_source_tk2(remote=REMOTE_HOST)
+                synced = storage.sync_source_tk2(remote=REMOTE_HOST, hydrate_assets=job.sandbox != "widget_nesting_2d")
             except Exception as error:  # noqa: BLE001
                 self._append(job, f"Source sync failed: {error}\n")
                 with self.lock:

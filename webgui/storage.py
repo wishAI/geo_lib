@@ -179,7 +179,7 @@ def sync_tk2(direction: str, *, remote: str = "tk2") -> dict:
     raise ValueError("direction must be push or pull")
 
 
-def sync_source_tk2(*, remote: str = "tk2") -> dict:
+def sync_source_tk2(*, remote: str = "tk2", hydrate_assets: bool = True) -> dict:
     """Refresh the GUI-owned TK2 workspace without touching a developer checkout."""
     subprocess.run(
         ["ssh", *SSH_ARGS, remote, "mkdir", "-p", DEFAULT_REMOTE_WORKSPACE],
@@ -197,7 +197,7 @@ def sync_source_tk2(*, remote: str = "tk2") -> dict:
         command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=180, check=False,
     )
     output = synced.stdout + synced.stderr
-    if synced.returncode == 0:
+    if synced.returncode == 0 and hydrate_assets:
         hydrate_command = f"cd {DEFAULT_REMOTE_WORKSPACE} && python3 -m webgui.storage hydrate"
         hydrated = subprocess.run(
             ["ssh", *SSH_ARGS, remote, hydrate_command],
