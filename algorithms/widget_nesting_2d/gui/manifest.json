@@ -133,7 +133,30 @@
         }
       ],
       "uniqueOutput": true,
-      "resource": "nesting"
+      "resource": "nesting",
+      "commands": {
+        "tk2": [
+          "/home/wishai/.cache/geo-nesting-bench/venv/bin/python",
+          "-m",
+          "algorithms.widget_nesting_2d.gui.run",
+          "--input",
+          "algorithms/widget_nesting_2d/inputs/{case}.json",
+          "--output",
+          "algorithms/widget_nesting_2d/outputs/gui_example",
+          "--generations",
+          "{generations}",
+          "--rotation-step-degrees",
+          "{rotation_step}",
+          "--seed",
+          "{seed}",
+          "--beam-width",
+          "{beam_width}",
+          "--population-size",
+          "{population}",
+          "--time-limit-seconds",
+          "{budget}"
+        ]
+      }
     }
   ],
   "artifacts": [

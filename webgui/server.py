@@ -729,6 +729,28 @@ class JobManager:
         with self.lock:
             job.log = (job.log + text)[-MAX_LOG_CHARS:]
 
+    def _persist_nesting_job(self, job: Job) -> None:
+        if job.sandbox != "widget_nesting_2d":
+            return
+        relative = f"algorithms/widget_nesting_2d/outputs/gui_runs/{job.id}/run.json"
+        record = {}
+        resolved = resolve_artifact(relative)
+        if resolved:
+            try:
+                record = json.loads(resolved[1].read_text())
+            except (OSError, ValueError):
+                pass
+        command = job.command
+        record.update(id=job.id, status=job.status, executionTarget=job.target,
+                      startedAt=job.startedAt, finishedAt=job.finishedAt, command=command)
+        record.setdefault("caseId", Path(command[command.index("--input") + 1]).stem)
+        record.setdefault("parameters", {"seed": int(command[command.index("--seed") + 1])})
+        if job.status in {"failed", "cancelled"}:
+            record["error"] = job.log[-8000:]
+        path = _safe_under(REPO_ROOT, relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, indent=2) + "\n")
+
     def _run(self, job: Job) -> None:
         with self.lock:
             job.status = "running"
@@ -743,6 +765,7 @@ class JobManager:
                     job.status = "failed"
                     job.returncode = -1
                     job.finishedAt = utc_now()
+                self._persist_nesting_job(job)
                 return
             self._append(job, synced.get("output", ""))
             if not synced.get("ok"):
@@ -751,6 +774,7 @@ class JobManager:
                     job.status = "failed"
                     job.returncode = int(synced.get("returncode", -1))
                     job.finishedAt = utc_now()
+                self._persist_nesting_job(job)
                 return
             remote = f"cd {shlex.quote(REMOTE_ROOT)} && {shlex.join(job.command)}"
             command = ["ssh", *SSH_ARGS, REMOTE_HOST, remote]
@@ -796,6 +820,7 @@ class JobManager:
             with self.lock:
                 job.finishedAt = utc_now()
                 job.process = None
+            self._persist_nesting_job(job)
 
 
 JOBS = JobManager()

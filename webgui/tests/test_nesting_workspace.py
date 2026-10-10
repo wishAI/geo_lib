@@ -1,4 +1,5 @@
 import tempfile
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -39,6 +40,22 @@ class NestingWorkspaceTests(unittest.TestCase):
         self.assertIn('algorithms/widget_nesting_2d/inputs/constrained_single_board.json', second['command'])
         with self.assertRaisesRegex(ValueError, 'already running'):
             manager.start_example('widget_nesting_2d', 'complex_board', 'local', {})
+
+    def test_failed_launch_remains_in_persistent_history(self):
+        manager = server.JobManager()
+        with patch.object(server.threading.Thread, 'start'):
+            public = manager.start_example('widget_nesting_2d', 'complex_board', 'tk2', {'seed': 42})
+        job = manager.jobs[public['id']]
+        job.status = 'failed'
+        job.log = 'Python executable unavailable'
+        with tempfile.TemporaryDirectory() as directory, patch.object(server, 'REPO_ROOT', Path(directory)), patch.object(server, 'resolve_artifact', return_value=None):
+            manager._persist_nesting_job(job)
+            path = Path(directory) / 'algorithms/widget_nesting_2d/outputs/gui_runs' / job.id / 'run.json'
+            record = json.loads(path.read_text())
+        self.assertEqual(record['status'], 'failed')
+        self.assertEqual(record['parameters']['seed'], 42)
+        self.assertEqual(record['caseId'], 'complex_dual_board')
+        self.assertIn('unavailable', record['error'])
 
     def test_source_only_refresh_does_not_hydrate_unrelated_assets(self):
         with patch.object(storage.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='', stderr='')) as run:
