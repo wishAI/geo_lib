@@ -213,6 +213,16 @@
   }
 
   function sandboxView(sandbox) {
+    if (sandbox.workspace?.type === 'nesting') {
+      if (state.nestingRoot?.isConnected) { state.nestingWorkspace?.refresh?.(); return; }
+      app.innerHTML = '<div id="nesting-workspace"></div>';
+      state.nestingRoot = app.querySelector('#nesting-workspace');
+      const root = state.nestingRoot;
+      void import('/api/artifact?path=' + encodeURIComponent(sandbox.workspace.module)).then(module => {
+        if (root.isConnected) state.nestingWorkspace = module.mount(root, { sandbox, api, onStart: ensureJobPolling });
+      }).catch(error => { if (root.isConnected) root.textContent = 'Nesting workspace unavailable: ' + error.message; });
+      return;
+    }
     state.shipDesigner?.destroy?.();
     state.rimworldPrepare?.destroy?.();
     state.charDetails?.destroy?.();
@@ -588,6 +598,9 @@
   }
 
   function renderRoute() {
+    state.nestingWorkspace?.destroy?.();
+    state.nestingWorkspace = null;
+    state.nestingRoot = null;
     const sandbox = currentSandbox();
     state.robotViewer?.destroy?.();
     state.meshViewers.forEach(viewer => viewer.destroy?.());

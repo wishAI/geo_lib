@@ -161,8 +161,37 @@ def resolve_artifact(relative: str) -> tuple[str, Path] | None:
     return max(available, key=lambda item: item[1].stat().st_mtime)
 
 
+def nesting_workspace_files() -> dict[str, dict]:
+    """Only manifest-owned output roots and known inspection artifact filenames."""
+    manifest = manifest_map().get("widget_nesting_2d", {})
+    files = {}
+    for relative_root in manifest.get("workspace", {}).get("outputRoots", []):
+        if not relative_root.startswith("algorithms/widget_nesting_2d/outputs/"):
+            continue
+        for source, root in artifact_candidates(relative_root):
+            if not root.is_dir():
+                continue
+            for pattern in ("problem.json", "solution.json", "run.json", "index.json", "analysis.json", "*.png",
+                            "*/problem.json", "*/*.solution.json", "*/solution.json", "*/run.json", "*/*.png"):
+                for path in root.glob(pattern):
+                    if not path.is_file() or path.is_symlink():
+                        continue
+                    try:
+                        path.resolve().relative_to(root.resolve())
+                    except ValueError:
+                        continue
+                    relative = str(Path(relative_root) / path.relative_to(root))
+                    stat = path.stat()
+                    item = {"path": relative, "source": source, "size": stat.st_size,
+                            "modifiedAt": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                            "kind": "image" if path.suffix == ".png" else "json"}
+                    if relative not in files or item["modifiedAt"] > files[relative]["modifiedAt"]:
+                        files[relative] = item
+    return files
+
+
 def declared_artifact_paths() -> set[str]:
-    paths: set[str] = set()
+    paths: set[str] = set(nesting_workspace_files())
     for manifest in discover_manifests():
         for artifact in manifest.get("artifacts", []):
             paths.add(artifact["path"])
@@ -641,14 +670,21 @@ class JobManager:
         if chosen_target not in allowed or chosen_target not in {"local", "tk2"}:
             raise ValueError("Execution target is not allowed for this example")
         command = build_example_command(manifest, example, parameters, chosen_target)
+        job_id = uuid.uuid4().hex[:12]
+        artifacts = list(example.get("artifacts", []))
+        if example.get("uniqueOutput") and manifest.get("workspace", {}).get("type") == "nesting":
+            baseline = f"algorithms/{sandbox}/outputs/gui_example"
+            destination = f"algorithms/{sandbox}/outputs/gui_runs/{job_id}"
+            command = [token.replace(baseline, destination) for token in command]
+            artifacts = [{**item, "path": item["path"].replace(baseline, destination)} for item in artifacts]
         resource = example.get("resource")
         with self.lock:
             if resource and any(job.status in {"queued", "running"} and job.resource == resource for job in self.jobs.values()):
                 raise ValueError(f"A {resource} job is already running")
             job = Job(
-                id=uuid.uuid4().hex[:12], sandbox=sandbox, example=example_id,
+                id=job_id, sandbox=sandbox, example=example_id,
                 target=chosen_target, command=command, resource=resource,
-                artifacts=list(example.get("artifacts", [])),
+                artifacts=artifacts,
             )
             self.jobs[job.id] = job
         threading.Thread(target=self._run, args=(job,), daemon=True).start()
@@ -735,7 +771,7 @@ class JobManager:
             with self.lock:
                 job.returncode = returncode
                 final_status = "succeeded" if returncode == 0 else ("cancelled" if job.status == "cancelling" else "failed")
-            if returncode == 0 and job.target == "tk2" and job.artifacts:
+            if (returncode == 0 or job.sandbox == "widget_nesting_2d") and job.target == "tk2" and job.artifacts:
                 paths = [
                     item["path"].rstrip("/") + "/" if item.get("kind") == "directory" else item["path"]
                     for item in job.artifacts
@@ -1080,6 +1116,9 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/status":
                 cloud = storage.status()
                 self._json({"mac": {"online": True}, "tk2": remote_status(), "nextcloud": cloud, "checkedAt": utc_now()})
+                return
+            if parsed.path == "/api/nesting/history":
+                self._json({"files": list(nesting_workspace_files().values())})
                 return
             if parsed.path == "/api/jobs":
                 self._json({"jobs": JOBS.list()})

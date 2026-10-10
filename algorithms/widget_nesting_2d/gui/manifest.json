@@ -29,9 +29,9 @@
         "./geo",
         "pt",
         "-m",
-        "algorithms.widget_nesting_2d.solver",
+        "algorithms.widget_nesting_2d.gui.run",
         "--input",
-        "algorithms/widget_nesting_2d/inputs/complex_dual_board.json",
+        "algorithms/widget_nesting_2d/inputs/{case}.json",
         "--output",
         "algorithms/widget_nesting_2d/outputs/gui_example",
         "--generations",
@@ -39,9 +39,25 @@
         "--rotation-step-degrees",
         "{rotation_step}",
         "--seed",
-        "{seed}"
+        "{seed}",
+        "--beam-width",
+        "{beam_width}",
+        "--population-size",
+        "{population}",
+        "--time-limit-seconds",
+        "{budget}"
       ],
       "parameters": [
+        {
+          "id": "case",
+          "label": "Input case",
+          "type": "select",
+          "default": "complex_dual_board",
+          "choices": [
+            "complex_dual_board",
+            "constrained_single_board"
+          ]
+        },
         {
           "id": "generations",
           "label": "Generations",
@@ -68,6 +84,30 @@
           "min": 0,
           "max": 99999,
           "step": 1
+        },
+        {
+          "id": "beam_width",
+          "label": "Beam width",
+          "type": "integer",
+          "default": 4,
+          "min": 1,
+          "max": 12
+        },
+        {
+          "id": "population",
+          "label": "Population",
+          "type": "integer",
+          "default": 8,
+          "min": 2,
+          "max": 32
+        },
+        {
+          "id": "budget",
+          "label": "Search budget (seconds)",
+          "type": "number",
+          "default": 10,
+          "min": 0.1,
+          "max": 120
         }
       ],
       "artifacts": [
@@ -80,8 +120,20 @@
           "label": "Solution",
           "path": "algorithms/widget_nesting_2d/outputs/gui_example/solution.json",
           "kind": "json"
+        },
+        {
+          "label": "Input snapshot",
+          "path": "algorithms/widget_nesting_2d/outputs/gui_example/problem.json",
+          "kind": "json"
+        },
+        {
+          "label": "Run provenance",
+          "path": "algorithms/widget_nesting_2d/outputs/gui_example/run.json",
+          "kind": "json"
         }
-      ]
+      ],
+      "uniqueOutput": true,
+      "resource": "nesting"
     }
   ],
   "artifacts": [
@@ -254,6 +306,36 @@
       "label": "Benchmark data \u00b7 validated layouts and timeouts",
       "path": "algorithms/widget_nesting_2d/outputs/benchmark_20260920/analysis.json",
       "kind": "json"
+    },
+    {
+      "label": "Nesting workspace module",
+      "path": "algorithms/widget_nesting_2d/gui/workspace.js",
+      "kind": "javascript",
+      "syncOnly": true
+    },
+    {
+      "label": "Nesting workspace style",
+      "path": "algorithms/widget_nesting_2d/gui/workspace.css",
+      "kind": "css",
+      "syncOnly": true
     }
-  ]
+  ],
+  "workspace": {
+    "type": "nesting",
+    "module": "algorithms/widget_nesting_2d/gui/workspace.js",
+    "outputRoots": [
+      "algorithms/widget_nesting_2d/outputs/benchmark_20260920",
+      "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s",
+      "algorithms/widget_nesting_2d/outputs/diverse_simple_10s",
+      "algorithms/widget_nesting_2d/outputs/hybrid_large_10s",
+      "algorithms/widget_nesting_2d/outputs/large_scene_10s",
+      "algorithms/widget_nesting_2d/outputs/large_scene_nfp_60s",
+      "algorithms/widget_nesting_2d/outputs/large_scene_witness",
+      "algorithms/widget_nesting_2d/outputs/open_source_10s",
+      "algorithms/widget_nesting_2d/outputs/open_source_2s",
+      "algorithms/widget_nesting_2d/outputs/unique_1000_10s",
+      "algorithms/widget_nesting_2d/outputs/gui_example",
+      "algorithms/widget_nesting_2d/outputs/gui_runs"
+    ]
+  }
 }
