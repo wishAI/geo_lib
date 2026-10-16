@@ -1,28 +1,34 @@
 import * as T from 'three';
-import {regionWeight,editedWeight} from '/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js';
+import {regionWeight,editedWeight,mirrorCorrespondence,volumeWeight,displacementField} from '/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js';
+
+import {placeBodyPoint} from '/api/artifact?path=algorithms/3d_char_details/gui/body-placement.js';
 
 // One immutable rest-space map per authored shape, shared across material
-// splits and attached facial components. This is a projection, not a UV unwrap.
-export function surfaceRegions(model,names){
+// splits and attached facial components. Legacy masks remain readable; new
+// volume areas replace their support using a smooth canonical displacement field.
+export function surfaceRegions(model,names,{faceNames=new Set(),faceCenter=0}={}){
  let atlasHash;const records=[],fields=new Map(),maps=new Map(),weightCache=new Map();model.updateMatrixWorld(true);
  model.traverse(mesh=>{
   if(!mesh.isMesh)return;let owner=mesh;while(owner&&!owner.userData.part_type)owner=owner.parent;
   if(owner?.userData.part_type==='clothing')return;
   const g=mesh.geometry,world=mesh.matrixWorld.clone(),rest=[];
   for(let i=0;i<g.attributes.position.count;i++)rest.push(new T.Vector3().fromBufferAttribute(g.attributes.position,i).applyMatrix4(world));
-  const record={mesh,rest,keys:rest.map(p=>p.toArray().map(v=>Math.round(v*1e6)).join(',')),original:new Map(),masked:new Set()};
+  const record={mesh,rest,group:owner?.name.replace(/_[LR]$/,'')||mesh.name,keys:rest.map(p=>p.toArray().map(v=>Math.round(v*1e6)).join(',')),original:new Map(),canonical:new Map(),world,masked:new Set()};
   for(const [name,index]of Object.entries(mesh.morphTargetDictionary||{})){
    if(!names.has(name)||!g.morphAttributes.position?.[index])continue;
-   const delta=g.morphAttributes.position[index];let active=false;
-   for(let i=0;i<delta.count;i++)if(Math.abs(delta.getX(i))+Math.abs(delta.getY(i))+Math.abs(delta.getZ(i))>1e-9){active=true;break;}
-   if(!active)continue;
+   const delta=g.morphAttributes.position[index];
+
    if(!fields.has(name))fields.set(name,{box:new T.Box3(),records:[]});const field=fields.get(name);field.records.push([record,index]);
    for(let i=0;i<delta.count;i++)if(Math.abs(delta.getX(i))+Math.abs(delta.getY(i))+Math.abs(delta.getZ(i))>1e-9)field.box.expandByPoint(rest[i]);
-   record.original.set(index,{position:delta.clone(),normal:g.morphAttributes.normal?.[index]?.clone()});
+   record.original.set(index,{position:delta.clone(),normal:g.morphAttributes.normal?.[index]?.clone()});record.canonical.set(index,delta.clone());
   }if(record.original.size)records.push(record);
  });
  for(const field of fields.values()){
   const size=field.box.getSize(new T.Vector3());field.box.expandByVector(size.multiplyScalar(.12).max(new T.Vector3(.003,.003,.003)));
+ }
+ function extended(field){
+  if(field.extended)return field.extended;const samples=[],seen=new Set();for(const [r,index]of field.records){const d=r.canonical.get(index),matrix=new T.Matrix3().setFromMatrix4(r.world);for(let i=0;i<r.rest.length;i++){if(seen.has(r.keys[i]))continue;const v=new T.Vector3().fromBufferAttribute(d,i);if(!r.mesh.geometry.morphTargetsRelative)v.sub(new T.Vector3().fromBufferAttribute(r.mesh.geometry.attributes.position,i));v.applyMatrix3(matrix);if(v.length()>1e-9){seen.add(r.keys[i]);samples.push({p:r.rest[i].toArray(),d:v.toArray()});}}}
+  const evaluate=displacementField(samples),out=new Map();for(const [r]of field.records)for(let i=0;i<r.rest.length;i++)if(!out.has(r.keys[i]))out.set(r.keys[i],new T.Vector3(...evaluate(r.rest[i].toArray())));field.extended=out;return out;
  }
  function coordinates(name,p,projection='front'){
   const b=fields.get(name).box,axis=projection==='side'?'z':'x';return [(p[axis]-b.min[axis])/(b.max[axis]-b.min[axis]),(p.y-b.min.y)/(b.max.y-b.min.y)];
@@ -32,36 +38,38 @@ export function surfaceRegions(model,names){
  function refresh(record){const old=record.mesh.geometry,g=new T.BufferGeometry();g.name=old.name;g.index=old.index;g.attributes={...old.attributes};g.morphAttributes=Object.fromEntries(Object.entries(old.morphAttributes).map(([k,v])=>[k,[...v]]));g.morphTargetsRelative=old.morphTargetsRelative;g.groups=old.groups.map(v=>({...v}));g.drawRange={...old.drawRange};g.userData={...old.userData};g.boundingBox=old.boundingBox?.clone()||null;g.boundingSphere=old.boundingSphere?.clone()||null;record.mesh.geometry=g;old.dispose();}
  function restore(){for(const r of records){const g=r.mesh.geometry;for(const i of r.masked){const original=r.original.get(i);g.morphAttributes.position[i]=original.position.clone();if(original.normal)g.morphAttributes.normal[i]=original.normal.clone();}if(r.masked.size)refresh(r);r.masked.clear();}}
  function capture(){for(const r of records)for(const [i]of r.original){const g=r.mesh.geometry;r.original.set(i,{position:g.morphAttributes.position[i].clone(),normal:g.morphAttributes.normal?.[i]?.clone()});}}
- function checkRegion(region){if(region?.edits?.length&&region.atlasHash!==atlasHash)throw new Error("Influence edits use a different UV atlas. Restore a matching atlas or clear those edits.");}
+ function checkRegion(region){if(region?.edits?.some(e=>!e.sheet.startsWith('uv:'))&&region.atlasHash!==atlasHash)throw new Error("Influence edits use a different UV atlas. Restore a matching atlas or clear those edits.");}
  function weightField(name,region){
   checkRegion(region);
   const field=fields.get(name),signature=JSON.stringify(region),old=weightCache.get(name);if(old&&old.signature===signature)return old.weights;
-  if(!field.nodes){field.nodes=new Map();for(const [r]of field.records)for(let i=0;i<r.rest.length;i++){const key=r.keys[i];let n=field.nodes.get(key);if(!n){n={p:r.rest[i],samples:[]};field.nodes.set(key,n);}if(r.samples)n.samples.push(...r.samples[i]);}}
-  const weights=new Map();for(const [key,n]of field.nodes){const [u,v]=coordinates(name,n.p,region?.projection);weights.set(key,editedWeight(region,n.samples,regionWeight(region,u,v)));}weightCache.set(name,{signature,weights});return weights;
+  if(!field.nodes){field.nodes=new Map();for(const [r]of field.records)for(let i=0;i<r.rest.length;i++){const key=r.keys[i];let n=field.nodes.get(key);if(!n){n={p:r.rest[i],samples:[],group:r.group};field.nodes.set(key,n);}if(r.samples)n.samples.push(...r.samples[i]);}}
+  if(region?.edits?.some(e=>e.symmetry)&&!field.mirrored){mirrorCorrespondence(field.nodes.values(),faceNames.has(name)?faceCenter:0);field.mirrored=true;}
+  const weights=new Map();for(const [key,n]of field.nodes){const [u,v]=coordinates(name,n.p,region?.projection);weights.set(key,region?.enabled&&region.volume?volumeWeight(region.volume,n.p):editedWeight(region,n.samples,regionWeight(region,u,v),n.mirror?.samples));}weightCache.set(name,{signature,weights});return weights;
  }
  function setAtlas(descriptors){
   atlasHash=descriptors.values().next().value?.atlasHash;
-  for(const r of records){r.atlas=descriptors.get(r.mesh);r.samples=Array.from({length:r.rest.length},()=>[]);if(!r.atlas)continue;const idx=r.mesh.geometry.index;for(let c=0;c<r.atlas.uv.length/2;c++){const i=idx?idx.getX(c):c;r.samples[i].push({sheet:r.atlas.sheet,u:r.atlas.uv[c*2],v:r.atlas.uv[c*2+1]});}}
-  weightCache.clear();for(const field of fields.values())field.nodes=null;
+  for(const r of records){const legacy=descriptors.get(r.mesh);r.atlas=legacy?.original;r.samples=Array.from({length:r.rest.length},()=>[]);const idx=r.mesh.geometry.index;for(const a of [legacy,r.atlas]){if(!a?.uv)continue;for(let c=0;c<a.uv.length/2;c++){if(a.valid&&!a.valid[Math.floor(c/3)])continue;const i=idx?idx.getX(c):c;r.samples[i].push({sheet:a.sheet,u:a.uv[c*2],v:a.uv[c*2+1]});}}}
+  weightCache.clear();for(const field of fields.values()){field.nodes=null;field.mirrored=false;}
  }
  function influence(name,regions={}){
   const field=fields.get(name);if(!field)return [];const weights=weightField(name,regions['surface:'+name]);
-  return field.records.map(([r,index])=>{const d=r.original.get(index).position,native=new Float32Array(d.count),mask=new Float32Array(d.count);for(let i=0;i<d.count;i++){native[i]=Math.hypot(d.getX(i),d.getY(i),d.getZ(i));mask[i]=weights.get(r.keys[i]);}return {mesh:r.mesh,atlas:r.atlas,native,weights:mask};});
+  return field.records.map(([r,index])=>{const d=r.original.get(index).position,native=new Float32Array(d.count),mask=new Float32Array(d.count);for(let i=0;i<d.count;i++){native[i]=Math.hypot(d.getX(i),d.getY(i),d.getZ(i));mask[i]=weights.get(r.keys[i]);}return {mesh:r.mesh,atlas:r.atlas,native,weights:mask,regionPoints:r.rest,centerX:faceNames.has(name)?faceCenter:0};});
  }
  function apply(regions={}){
   restore();
   for(const [name,field]of fields){const region=regions['surface:'+name];if(!region?.enabled)continue;
-   const shared=weightField(name,region);
+   const shared=weightField(name,region),expanded=region.volume?.version===2?extended(field):null,frame=model.userData.bodyFrame||{scale:1,offset:0};
    for(const [r,index]of field.records){const g=r.mesh.geometry,base=g.attributes.position,original=r.original.get(index),target=original.position.clone(),weights=new Float32Array(base.count);let changed=false;
     for(let i=0;i<base.count;i++){
      const w=shared.get(r.keys[i]);weights[i]=w;
-     const x=original.position.getX(i),y=original.position.getY(i),z=original.position.getZ(i);
+     let x=original.position.getX(i),y=original.position.getY(i),z=original.position.getZ(i);
+     if(expanded){const p=r.rest[i],d=placeBodyPoint(p.clone().add(expanded.get(r.keys[i])),frame.scale,frame.offset).sub(placeBodyPoint(p,frame.scale,frame.offset)).applyMatrix3(new T.Matrix3().setFromMatrix4(r.world).invert());[x,y,z]=d.toArray();if(!g.morphTargetsRelative){x+=base.getX(i);y+=base.getY(i);z+=base.getZ(i);}changed=true;}
      if(g.morphTargetsRelative){target.setXYZ(i,x*w,y*w,z*w);if(w!==1&&(x||y||z))changed=true;}
      else{target.setXYZ(i,base.getX(i)+(x-base.getX(i))*w,base.getY(i)+(y-base.getY(i))*w,base.getZ(i)+(z-base.getZ(i))*w);if(w!==1)changed=true;}
     }
     if(!changed)continue;
     g.morphAttributes.position[index]=target;
-    if(original.normal&&g.attributes.normal)g.morphAttributes.normal[index]=maskedNormals(g,original.position,target,original.normal,weights);
+    if(g.attributes.normal&&(original.normal||expanded)){const normals=original.normal||new T.BufferAttribute(new Float32Array(base.count*3),3);g.morphAttributes.normal??=[];g.morphAttributes.normal[index]=maskedNormals(g,original.position,target,normals,weights);}
     r.masked.add(index);
    }
   }

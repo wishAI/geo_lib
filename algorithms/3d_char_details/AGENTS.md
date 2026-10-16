@@ -534,3 +534,46 @@ The UV panel also retains its title and reports initialization errors explicitly
 Floating editor chrome uses a single compact header and 22 px status footer;
 long status messages remain available as tooltips. Running preview is folded by
 default. Narrow windows keep the UV panel inside the viewport, below the header.
+
+## October 16: geometry overlap replaces UV area editing
+
+The user replaced UV editing with sphere, box, or editable polygon extrusion
+volumes. `gui/volume-editor.js` is now the shared area UI. Show the transparent
+amber solid and outline directly in 3D, with move/rotate/scale handles and a green overlap fading into clay. Symmetry
+uses one centered solid and a mirrored polygon, not a second solid. The polygon editor supports point
+dragging, edge insertion, add/remove, and keyboard movement. Numeric transforms
+are folded; feather width is a percentage of the volume's local dimensions.
+Feather position (`featherBias`, 0 inside / .5 centered / 1 outside) places the
+transition without resizing the volume. New areas default to centered; missing
+values preserve the older inward-only behavior.
+
+Area editing always uses a static neutral clay reference, independent of pose,
+body placement and the property being edited. Closing restores camera and shading;
+animation pauses on entry. Volume masks sample fixed neutral world points
+(`regionPoints` / `node.regionPoint`), including vertices with no usable UVs.
+Clothing uses source vertices plus the common garment root placement. Symmetry
+reflects around anatomical X, including the head's rigid lateral translation.
+The preview and deformation use the same `volumeWeight` implementation in
+`uv-regions.js`. New volume records use `version:2`: their area replaces the old
+footprint. `displacementField` extends strong authored samples using an affine
+trend plus a smooth residual field with bounded magnitude. Include all-zero
+morph components; do not gate the preview or movement by old native magnitudes.
+Canonical vectors are transported through the exact body-placement endpoint
+map, including its nonlinear neck band. Clothing uses the same continuation and
+retains seam constraints. Outside-support movement is inferred from authored
+vectors; preserve exact legacy behavior when no version-2 volume is applied.
+
+Keep the legacy `settings.uvRegions` storage key and legacy mask readers for
+existing presets. New records are `{enabled, volume}` with shape, position,
+Euler XYZ radians, full size, polygon points in [0,1], feather, symmetry and
+centerX. Version-2 symmetry locks X to centerX and rotations Y/Z to zero; polygon
+points mirror around local U=.5. Feather uses a smooth quintic falloff with configurable band placement.
+Helpers are scene siblings and never part of GLB export. Area changes remain a
+local draft: Save area commits, and closing discards unsaved edits. Save preset
+and GLB export use the committed area. Keep Save area visible in the panel. The local vendored
+TransformControls is Three r180 with a documented r168 connect adapter.
+
+Checks cover analytic volume/falloff/mirroring, actual no-UV muzzle vertices,
+clothing continuity, repeated/reset deformation, GLB export/reimport and preset
+round trips. Browser checks cover visible volumes, direct gizmo manipulation,
+polygon editing, and working-draft reload. Source GLB/master remain unchanged.

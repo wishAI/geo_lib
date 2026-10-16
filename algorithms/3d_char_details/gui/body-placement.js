@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 
+export function placeBodyPoint(p,scale=1,offset=0){const t=THREE.MathUtils.clamp((p.y-.748)/(.808-.748),0,1),w=1-t*t*(3-2*t);return p.clone().addScaledVector(p.clone().sub(new THREE.Vector3(-.004865,.806,-.032925)),w*(scale-1)).add(new THREE.Vector3(w*offset,0,0));}
+
 // Edit the rest geometry and rest joints together. Recompute inverse bind
 // matrices in rest pose, then restore the user's pose. No runtime scale is
 // left on the root bone, which would also resize the head.
@@ -8,7 +10,7 @@ export function bodyPlacement(model,bones){
  const pivot=new THREE.Vector3(-.004865,.806,-.032925);
  const low=.748,high=.808;
  const weight=y=>{const t=THREE.MathUtils.clamp((y-low)/(high-low),0,1);return 1-t*t*(3-2*t);};
- const map=(p,scale,offset)=>{const w=weight(p.y);return p.clone().addScaledVector(p.clone().sub(pivot),w*(scale-1)).add(new THREE.Vector3(w*offset,0,0));};
+ const map=placeBodyPoint;
  const meshes=[],joints=[],skeletons=new Set();
  model.traverse(o=>{
   if(o.isBone)joints.push({bone:o,world:o.matrixWorld.clone(),position:o.position.clone(),quaternion:o.quaternion.clone(),scale:o.scale.clone()});

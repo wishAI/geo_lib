@@ -13,6 +13,7 @@ with tempfile.TemporaryDirectory(prefix='landau-surface-regions-') as temp:
     sources += [(ROOT/'gui/vendor/GLTFExporter.js','exporter'),(ROOT/'gui/vendor/TextureUtils.js','texture')]
     for source,name in sources:
         text=source.read_text().replace("from 'three'","from './three.mjs'").replace("from 'BufferGeometryUtils'","from './utils.mjs'")
+        text=text.replace('/api/artifact?path=algorithms/3d_char_details/gui/body-placement.js','./body-placement.mjs')
         text=text.replace('/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js','./uv-regions.mjs').replace('/api/artifact?path=algorithms/3d_char_details/gui/vendor/TextureUtils.js','./texture.mjs')
         (dst/(name+'.mjs')).write_text(text)
     (dst/'check.mjs').write_bytes((ROOT/'gui/surface-regions-check.mjs').read_bytes())

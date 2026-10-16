@@ -341,8 +341,8 @@
           "syncOnly": true
         },
         {
-          "label": "uv-editor.js",
-          "path": "algorithms/3d_char_details/gui/uv-editor.js",
+          "label": "volume-editor.js",
+          "path": "algorithms/3d_char_details/gui/volume-editor.js",
           "kind": "file",
           "syncOnly": true
         },
@@ -373,6 +373,12 @@
         {
           "label": "build_edit_atlas.py",
           "path": "algorithms/3d_char_details/build_edit_atlas.py",
+          "kind": "file",
+          "syncOnly": true
+        },
+        {
+          "label": "TransformControls.js",
+          "path": "algorithms/3d_char_details/gui/vendor/TransformControls.js",
           "kind": "file",
           "syncOnly": true
         }

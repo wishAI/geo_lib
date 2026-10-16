@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {regionKey,nodeRegionWeight} from '/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js';
+import {regionKey,nodeRegionWeight,displacementField} from '/api/artifact?path=algorithms/3d_char_details/gui/uv-regions.js';
 
 export const OUTFIT_ASSEMBLIES=[
  {id:'upper',label:'Upper outfit',root:'Vest',parts:['Vest','Sleeve_L','Sleeve_R','Cuff_L','Cuff_R']},
@@ -218,7 +218,7 @@ export function garmentFit(model,parts,report){
    for(let i=0;i<r.original.count;i++){
     const p=xyz(r.original,i).applyMatrix4(r.world),source=p.clone().sub(placements[name]),key=hash(source);
     let node=part.lookup.get(key);
-    if(!node){node={source,refs:[],edges:new Set(),index:part.nodes.length};part.lookup.set(key,node);part.nodes.push(node);}
+    if(!node){node={source,regionPoint:source.clone().add(placements[group.root]),refs:[],edges:new Set(),index:part.nodes.length};part.lookup.set(key,node);part.nodes.push(node);}
     node.refs.push([r,i]);r.nodes.push(node);
    }
    const idx=g.index;
@@ -237,9 +237,9 @@ export function garmentFit(model,parts,report){
   while(frontier.length){const next=[];for(const n of frontier)for(const q of n.edges)if(q.distance>n.distance+1){q.distance=n.distance+1;next.push(q);}frontier=next;}
   seams.push({parent:p,child:c,pairs,pinned});
  }
- const regionCache=new Map();
+ const regionCache=new Map(),extendedCache=new Map();
  let lastSettings;
- const capture=()=>{for(const r of records){r.base=r.g.attributes.position.clone();r.morph=(r.g.morphAttributes.position||[]).map(a=>a.clone());}};
+ const capture=()=>{extendedCache.clear();for(const r of records){r.base=r.g.attributes.position.clone();r.morph=(r.g.morphAttributes.position||[]).map(a=>a.clone());}};
  // Shared evaluator for both fitting and the authored displacement heatmap.
  function controlDelta(r,i,name,frame){
   const source=r.nodes[i].source,part=r.part.name;
@@ -252,12 +252,17 @@ export function garmentFit(model,parts,report){
   if(base==='bootHeelDepth')return split.side==='Back'?delta:new T.Vector3(0,0,.035*smooth(0,.025,source.z)*Math.exp(-Math.pow(source.z/.05,2))*(1-smooth(.065,.11,source.y))*frame.scale);
   const w=depthFrontWeight(part,source);return delta.multiplyScalar(split.side==='Front'?w:1-w);
  }
+ function extendedDelta(r,i,name,frame){
+  const key=r.part.name+':'+name;let values=extendedCache.get(key);if(!values){const samples=[],nodes=new Set();for(const rec of garments.get(r.part.name).records)for(let j=0;j<rec.nodes.length;j++){const n=rec.nodes[j];if(nodes.has(n))continue;nodes.add(n);samples.push({p:n.regionPoint.toArray(),d:controlDelta(rec,j,name,frame).toArray()});}const evaluate=displacementField(samples);values=new WeakMap();for(const n of nodes)values.set(n,new T.Vector3(...evaluate(n.regionPoint.toArray())));extendedCache.set(key,values);}return values.get(r.nodes[i]);
+ }
  function influence(part,name,settings){
-  const frame=settings.bodyFrame||{scale:1};return garments.get(part).records.map(r=>{const native=new Float32Array(r.base.count),weights=new Float32Array(r.base.count),region=settings.uvRegions?.[regionKey(part,name)],cache=new WeakMap();for(let i=0;i<native.length;i++){native[i]=controlDelta(r,i,name,frame).length();const n=r.nodes[i];if(!cache.has(n))cache.set(n,nodeRegionWeight(region,n));weights[i]=cache.get(n);}return {mesh:r.o,native,weights,sheet:part};});
+  const frame=settings.bodyFrame||{scale:1};return garments.get(part).records.map(r=>{const native=new Float32Array(r.base.count),weights=new Float32Array(r.base.count),region=settings.uvRegions?.[regionKey(part,name)],cache=new WeakMap();for(let i=0;i<native.length;i++){native[i]=controlDelta(r,i,name,frame).length();const n=r.nodes[i];if(!cache.has(n))cache.set(n,nodeRegionWeight(region,n));weights[i]=cache.get(n);}return {mesh:r.o,native,weights,sheet:part,regionPoints:r.nodes.map(n=>n.regionPoint),centerX:placements[r.part.group.root].x};});
  }
  function apply(settings){
   lastSettings=settings;const cfg=settings.garmentFit||fitDefaults(),frame=settings.bodyFrame||{scale:1,offset:0};
   const activeRegions=new Map();
+  function delta(r,i,name){return settings.uvRegions?.[regionKey(r.part.name,name)]?.enabled&&settings.uvRegions[regionKey(r.part.name,name)].volume?.version===2?extendedDelta(r,i,name,frame):controlDelta(r,i,name,frame);}
+
   function mask(part,name,node){
    const key=regionKey(part,name),region=settings.uvRegions?.[key];if(!region?.enabled)return 1;
    let entry=activeRegions.get(key);
@@ -299,8 +304,8 @@ export function garmentFit(model,parts,report){
    const collars=part.name==='Vest'?Object.keys(COLLAR_CONTROLS).map(n=>[n,outfitValue(settings,part.name,n)]).filter(([,v])=>v):[];
    for(let i=0;i<r.base.count;i++){
     const base=xyz(r.base,i).applyMatrix4(r.world).add(shift),p=base.clone();
-    for(const target of targets){const {name,value,front,back}=target;if(front!==undefined){const [fn,bn]=depthNames(name);p.addScaledVector(controlDelta(r,i,fn,frame),front*mask(part.name,fn,r.nodes[i]));p.addScaledVector(controlDelta(r,i,bn,frame),back*mask(part.name,bn,r.nodes[i]));}else p.addScaledVector(controlDelta(r,i,name,frame),value*mask(part.name,name,r.nodes[i]));}
-    for(const [name,value]of [...shoulders,...collars])p.addScaledVector(controlDelta(r,i,name,frame),value*mask(part.name,name,r.nodes[i]));
+    for(const target of targets){const {name,value,front,back}=target;if(front!==undefined){const [fn,bn]=depthNames(name);p.addScaledVector(delta(r,i,fn),front*mask(part.name,fn,r.nodes[i]));p.addScaledVector(delta(r,i,bn),back*mask(part.name,bn,r.nodes[i]));}else p.addScaledVector(delta(r,i,name),value*mask(part.name,name,r.nodes[i]));}
+    for(const [name,value]of [...shoulders,...collars])p.addScaledVector(delta(r,i,name),value*mask(part.name,name,r.nodes[i]));
 
     const transform=p=>rotate(p,part,r.nodes[i].source).sub(groupPivots[part.group.id]).multiplyScalar(scale).add(groupPivots[part.group.id]).add(rootMove);
     const node=r.nodes[i];if(node.refs[0][0]===r&&node.refs[0][1]===i){node.base=transform(base);node.current=transform(p);}
