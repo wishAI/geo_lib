@@ -259,7 +259,11 @@ class Compiler:
             nonlocal sequence_index
             key='eqn_name_sequence_'+str(sequence_index)
             sequence_index+=1
-            self.localized(key,match[1])
+            # Stellaris 4.4's name formatter accepts the current localisation
+            # variables, not the legacy %O% / %R% placeholders carried by the
+            # recovered Pony template.  The old values make the name-list
+            # database reject EQN's army names during startup.
+            self.localized(key,match[1].replace('%O%','$ORD$').replace('%R%','$CARD$'))
             return 'sequential_name = '+quote(key)
         names=re.sub(r'sequential_name\s*=\s*"([^"]+)"',sequential,names)
         self.write('common/name_lists/eqn_pony.txt',names)

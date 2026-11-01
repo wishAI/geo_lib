@@ -10,6 +10,7 @@ if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
 from compare_urdf_pose_offline import load_records_from_json
+from asset_paths import default_usd_path, resolve_asset_paths
 from pose_diagnostics import animation_clip_balance_report, arm_pose_symmetry_report, mirror_matrix_from_records, root_relative_world_map
 from skeleton_common import build_pose_preset
 
@@ -32,7 +33,7 @@ class PoseDiagnosticsTests(unittest.TestCase):
         report = arm_pose_symmetry_report(
             self.records,
             'open_arms',
-            urdf_path=self.outputs_dir / 'landau_v10_parallel_mesh.urdf',
+            urdf_path=resolve_asset_paths(default_usd_path(), self.outputs_dir).mesh_package_urdf,
         )
 
         for metric in report['usd_vs_urdf_pair_metrics']:

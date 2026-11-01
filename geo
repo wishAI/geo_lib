@@ -87,6 +87,7 @@ def _resolve_usd_asset_paths(extra_args: list[str]) -> dict[str, Path]:
         "output_dir": output_dir,
         "primitive_urdf": output_dir / f"{primitive_name}.urdf",
         "mesh_urdf": output_dir / f"{mesh_name}.urdf",
+        "mesh_package_urdf": output_dir / "urdf_packages" / tag / f"{mesh_name}.urdf",
         "primitive_validation_dir": output_dir / f"validation_{tag}",
         "mesh_validation_dir": output_dir / f"validation_mesh_{tag}",
     }
@@ -252,7 +253,9 @@ def _build_parser() -> argparse.ArgumentParser:
     walk_subparsers = walk_parser.add_subparsers(dest="walk_cmd", required=True)
     walk_subparsers.add_parser("milestones", help="Print the clean machine-readable milestone ladder.")
     walk_subparsers.add_parser("evolution", help="Rebuild the real checkpoint and experiment evolution tree.")
+    walk_subparsers.add_parser("mujoco-milestone", help="Initialize or certify the explicit MuJoCo model milestone lineage.")
     walk_subparsers.add_parser("inspect", help="Audit the retained URDF and print the robot control contract.")
+    walk_subparsers.add_parser("compare-model", help="Run an isolated official G1/Landau M2 diagnostic.")
     walk_subparsers.add_parser(
         "validate-passive", help="Run camera-free dynamics, viewport proof, and final assembly sequentially."
     )
@@ -687,7 +690,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 argv.extend(
                     [
                         "--urdf-path",
-                        _repo_arg(asset_paths["mesh_urdf"]),
+                        _repo_arg(asset_paths["mesh_package_urdf"]),
                         "--output-dir",
                         _repo_arg(asset_paths["mesh_validation_dir"]),
                     ]
@@ -699,7 +702,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             argv = [
                 "algorithms/usd_parallel_urdf/play_parallel_animation.py",
                 "--urdf-path",
-                _repo_arg(asset_paths["mesh_urdf"]),
+                _repo_arg(asset_paths["mesh_package_urdf"]),
                 "--animation-clip",
                 "walk_cycle",
                 "--camera-view",
@@ -725,7 +728,7 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 _repo_arg(default_output),
             ]
             if args.mesh:
-                argv.extend(["--urdf-path", _repo_arg(asset_paths["mesh_urdf"])])
+                argv.extend(["--urdf-path", _repo_arg(asset_paths["mesh_package_urdf"])])
             if args.headless:
                 argv.append("--headless")
             argv.extend(extra_args)
@@ -748,6 +751,8 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
                 "direct",
                 [sys.executable, "-m", "json.tool", "algorithms/urdf_learn_wasd_walk/milestones.json"],
             )
+        if args.walk_cmd == "mujoco-milestone":
+            return LaunchSpec("direct", [sys.executable, "-m", "algorithms.urdf_learn_wasd_walk.mujoco_milestones", *extra_args])
         if args.walk_cmd == "evolution":
             return LaunchSpec(
                 "direct",
@@ -758,6 +763,22 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             return LaunchSpec(
                 "direct",
                 [sys.executable, "algorithms/urdf_learn_wasd_walk/model_spec.py", *extra_args],
+            )
+        if args.walk_cmd == "compare-model":
+            model = _extract_option_value(extra_args, "--model")
+            experiment = _extract_option_value(extra_args, "--experiment") or "official_smoke_20260906"
+            mode = _extract_option_value(extra_args, "--mode")
+            if model not in {"unitree_g1", "landau_current"} or mode not in {"train", "evaluate"}:
+                raise SystemExit("compare-model requires an allowlisted --model and --mode")
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", experiment):
+                raise SystemExit("unsafe comparison experiment name")
+            output_dir = REPO_ROOT / "algorithms/urdf_learn_wasd_walk/outputs/model_comparison" / model / experiment
+            return LaunchSpec(
+                "isaac", ["algorithms/urdf_learn_wasd_walk/model_comparison.py", *extra_args],
+                env={"TERM": "xterm"},
+                success_artifact=output_dir / ("training.json" if mode == "train" else "evaluation.json"),
+                failure_artifact=output_dir / f"{mode}_failure.json",
+                console_log=output_dir / f"{mode}_console.log",
             )
         if args.walk_cmd in {
             "validate-passive", "validate-passive-dynamics", "render-passive-proof", "finalize-passive"

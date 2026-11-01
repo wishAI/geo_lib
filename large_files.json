@@ -203,6 +203,48 @@
       "sha256": "dc53929b23575a823a02d9247da80affd4f529ce50eaa538a5be361d51ffe782"
     },
     {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_warm1000/logs/rsl_rl/g1_velocity/2026-09-22_09-07-10_g1_fresh_20260922_warm1000/model_0.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_warm1000/model_0.pt",
+      "size": 5322175,
+      "sha256": "148eb842934d6e64ea2e622e825b20cdde2c9da4d79b9110027296b233187850"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_warm1000/logs/rsl_rl/g1_velocity/2026-09-22_09-07-10_g1_fresh_20260922_warm1000/model_250.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_warm1000/model_250.pt",
+      "size": 5322595,
+      "sha256": "fb5dc1afba1f12856d44ae9c2fbb776ec218221d1cf7d95021eb47de7890879a"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_warm1000/logs/rsl_rl/g1_velocity/2026-09-22_09-07-10_g1_fresh_20260922_warm1000/model_500.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_warm1000/model_500.pt",
+      "size": 5322595,
+      "sha256": "9177bfb7c2ce1bfe6a25e371e48872fa63840f82528f0a669b9d15014c2b5b36"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_warm1000/logs/rsl_rl/g1_velocity/2026-09-22_09-07-10_g1_fresh_20260922_warm1000/model_750.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_warm1000/model_750.pt",
+      "size": 5322595,
+      "sha256": "f9ac847a2afb405d55ec0798a55a77b67075573872c4090c0b259c9152a056de"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_warm1000/logs/rsl_rl/g1_velocity/2026-09-22_09-07-10_g1_fresh_20260922_warm1000/model_999.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_warm1000/model_999.pt",
+      "size": 5322595,
+      "sha256": "afdcae2dd9fcb4df684960b8570d0197b1f7cacc99edd6fd86f1f138a5de521e"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_scale4096_500/logs/rsl_rl/g1_velocity/2026-09-22_09-47-34_g1_fresh_20260922_scale4096_500/model_3497.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_scale4096_500/model_3497.pt",
+      "size": 5322677,
+      "sha256": "3bacf6b0b1a811e6a2f646cac80f485213d2295a98db9ff83ca1d50e513ec5d6"
+    },
+    {
+      "repoPath": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/backend/g1_fresh_20260922_preciseyaw500/logs/rsl_rl/g1_velocity/2026-09-22_10-01-31_g1_fresh_20260922_preciseyaw500/model_3996.pt",
+      "cloudPath": "checkpoints/urdf_learn_wasd_walk/g1_fresh_20260922_preciseyaw500/model_3996.pt",
+      "size": 5322677,
+      "sha256": "7dd8f135230b002804156b45288b2ad2a20e2aef3103fc8dc85f8dc5be21d63b"
+    },
+    {
       "repoPath": "algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
       "cloudPath": "remote_outputs/algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
       "size": 1133185036,

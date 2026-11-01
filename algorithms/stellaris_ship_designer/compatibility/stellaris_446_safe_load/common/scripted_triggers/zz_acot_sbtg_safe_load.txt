@@ -1,0 +1,25 @@
+# Load this mod after ACOT, SBTG, Override, and EQN-GO.
+#
+# SBTG 4.1's is_sbtg_origin_starbase uses has_starbase_size but ACOT invokes
+# it while evaluating ships.  Stellaris 4.4.6 logs a wrong-scope error for
+# every such evaluation; disabling only that cross-mod bridge is safer than
+# allowing a ship-scope trigger to access starbase data.
+is_sbtg_origin_starbase = {
+    always = no
+}
+
+is_sbtg_advanced_starbase = {
+    always = no
+}
+
+# ACOT's legacy capital tests are called by the Cosmic Storms script value on
+# a scope where their owner switch is invalid in this mod combination.  The
+# consequence is limited to the affected ACOT storm-resistance bonus; normal
+# ACOT buildings and the base-game storm system remain enabled.
+has_enigmatic_capital = {
+    always = no
+}
+
+has_ascended_capital = {
+    always = no
+}
