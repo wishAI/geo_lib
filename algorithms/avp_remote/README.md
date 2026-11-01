@@ -1,6 +1,136 @@
 # AVP Remote Tracking Demo
 
+## Motion studio and LAN access
+
+The redesigned studio includes a bottom timeline, play/pause, seek, 0.25–2×
+speed, looping, JSON import/export and automatic IndexedDB storage of every
+take on the same browser/origin. The take selector restores previous recordings.
+Stopping leaves live tracking active; **录制新一段** also resumes tracking from
+playback and begins once a fresh head sample arrives. In Vision Pro Safari, enter immersive mode,
+allow hand tracking, and pinch **开始录制** / **结束** in the scene. Each take is
+limited to 60 seconds / 1,800 samples, at a target 30 Hz. Tracking samples, missing
+tracking, unaligned Z-up input, alignment and the displayed robot pose are saved;
+playback requires no headset or pose solver. Displayed IK is currently solved
+locally in every XR frame with bounded, warm-started CCD and short pose smoothing; recorded robot joints are estimates, not measured
+body motion. Session end or loss of visibility stops recording and saves the take.
+Export JSON for a durable backup; browser storage is not shared between URLs.
+
+AVP is part of the main Geo Library service, on its normal port 8767:
+
+```sh
+./geo gui --host 0.0.0.0 --port 8767 --no-browser
+```
+
+Open the Geo Library homepage and select **AVP Remote**, or use
+`/#/sandbox/avp_remote`. Localhost remains the default when `--host` is omitted.
+On this TK2 the LAN homepage is `http://192.168.2.31:8767/`.
+For Vision Pro capture without Tailscale, first open
+`http://192.168.2.31:8767/setup/vision-pro` in the headset's Safari. Install the
+certificate-only profile and enable full trust for **Geo Library LAN Root** under
+Settings → General → About → Certificate Trust Settings. Then open
+`https://192.168.2.31:8443/#/sandbox/avp_remote`, enter immersive mode, allow hand
+tracking, and pinch **开始录制** / **结束**. HTTP permits preview/playback only;
+Safari requires a trusted secure context for WebXR even on private Wi-Fi.
+
+Both LAN listeners run in the same Geo GUI process and bind only to
+`192.168.2.31`. No public tunnel or headset VPN is needed. The user service
+`geo-web-gui.service` keeps the GUI running independently of a terminal session.
+Host TLS identity files live outside the repository in
+`~/.local/state/geo-lib/tls/`; private keys are never served. To provision another
+LAN address, run `python3 -m webgui.lan_https --host <LAN-IP>` and pass the generated
+`--tls-cert`, `--tls-key`, `--tls-profile`, `--https-port 8443`, and `--https-url`
+to `./geo gui`. Changing the host IP requires updating the service's host and URL;
+the provisioner renews the server certificate while preserving the installed CA.
+
+The server compresses and revalidates browser assets, and serves AVP's declared
+local package without scanning cloud copies or other sandboxes. The base URDF and
+capture controls become usable before USD and Unitree finish downloading; model
+loads run concurrently with visible progress and a 45-second network timeout.
+Browser-only PBR textures are capped at 512 px; original USD and textures are unchanged.
+Both GLBs use Draco geometry compression (16-bit positions). The matching Three.js
+r168 WASM decoder is served locally, gzip-compressed and cached with ETags; no
+external CDN is needed. GLBs are also stored in the browser by SHA-256; changed
+versions replace old entries, corrupted entries are downloaded again, and blocked
+storage falls back to the network. The original skin, joint hierarchy and approved head mesh
+remain intact. See [Three.js DRACOLoader](https://threejs.org/docs/pages/DRACOLoader.html).
+A Chrome measurement on 2026-11-01 with a simulated 2 Mbps / 60 ms connection
+reduced cold full-model loading from 16.57 s to 10.00 s; a second visit took
+3.19 s. The two GLBs shrank from 6.07 MB to 1.39 MB (gzip transfer: 3.07 MB
+to 1.29 MB). These are controlled browser measurements, not headset Wi-Fi timings.
+Background resource/job refreshes preserve the mounted recording session. Live head, arm and finger retargeting runs in the browser and does not call
+`/api/avp/pose`; that endpoint remains available for imported single frames.
+Mapping rules are exported from `landau_mapping_config.py`, and all URDF limits
+remain enforced. The immersive HUD reports the actual update Hz. A desktop Chrome
+simulation with the pose endpoint blocked measured 58 updates in 2 seconds and
+0.2 ms median / 0.3 ms p95 solve time (software rendering, not a headset FPS claim).
+
+The old producer package still contains a 540-face alpha-shape `head_x.stl`.
+`inputs/landau_v10/mesh_overrides.json` pins the corrected 1,200-face rabbit-ear
+head, handed off as a file from the retained walking input. Asset preparation
+copies this verified mesh into AVP's own inputs after synchronizing the package.
+It preserves a valid local copy when the producer is unavailable and fails if a
+replacement has a different hash; it never silently falls back to the old head.
+Browser asset checks include the override manifest, copied head hash and builder
+code. Changing the approved version requires explicitly updating the manifest.
+
+### Browser versus Tracking Streamer
+
+The existing native bridge uses
+[Improbable-AI/VisionProTeleop](https://github.com/Improbable-AI/VisionProTeleop).
+Its native ARKit code includes 27 joints per hand (two additional forearm joints)
+and configurable predicted hand poses. WebXR provides 25 hand joints and a viewer
+pose after permission in an immersive session. Gaze/pinch interactions do not
+expose a continuous eye-tracking stream. Native RealityKit mixed-reality rendering,
+UVC recording, marker tracking and simulation streaming are not reproduced by this
+Three.js `immersive-vr` viewer. Headset calibration, performance and actual hand
+orientation still require device validation; browser QA uses explicitly synthetic
+XR inputs and does not establish native/web tracking equivalence.
+
 ## Browser and Vision Pro
+
+The immersive renderer uses a 0.65 framebuffer scale, maximum available fixed
+foveation, and no MSAA or preserved drawing buffer. Each native hand joint is
+read once per XR frame and shared by the first-person hands and retargeter.
+Unavailable or invalid transforms are omitted. Update exceptions cannot stop
+frame submission; repeated update failures pause capture, while repeated render
+failures end the session with an error. Settings → 沉浸运行状态 retains bounded
+local diagnostics (frame counters, CPU time, draw calls and errors, no tracking
+poses); 导出运行诊断 exports the report after a failure or browser reload.
+
+`tests/browser_xr_runtime.py` exercises the actual Three.js XR manager and stereo
+render path with a simulated device/framebuffer, including injected joint and
+solver errors, pinch recording twice, playback hands, visibility and reentry.
+It requires Playwright and the running Geo GUI (`AVP_GUI_URL` overrides the LAN
+URL). This test cannot certify Safari/visionOS GPU performance or headset stability.
+
+AVP fills the available browser viewport, with capture controls above the scene
+and the transport fixed below it. **设置** opens an internal settings sidebar;
+**← Geo Library** returns to the normal homepage. The document itself does not
+scroll, including narrow and short windows.
+
+Inside immersive mode, first-person hands show measured joints and bone lines
+at their unscaled WebXR reference-space positions (left cyan, right pink). They
+keep updating while robot capture is paused or a take is playing, and clear when
+tracking, session visibility or the session is lost. Missing joints are omitted;
+no missing bone connections are invented. **沉浸模式：显示自己的手** toggles them
+independently of the comparison-model markers.
+
+The top capture guide explicitly separates preview, immersive connection, live
+head/left/right-hand tracking, and recording. Press **开始头手追踪**, allow both
+system permissions, hold hands in front of the chest, then use **开始录制** in the
+scene. Colored status indicators use fresh WebXR samples only, never snapshot or
+playback data. Permission failures and HTTP-only access show actionable guidance.
+The scene controls sit 35 cm above the initial eye height, 1.55 m forward,
+scaled to 68%, above the models. They include a Chinese tracking-status panel. Head data is required to start a take; Stop remains
+available if tracking is lost. Recording and playback remain separate actions.
+
+Immersive buttons use a visible head-directed reticle, animated hover borders and
+press/click feedback. visionOS does not expose continuous eye gaze: the actual
+eye-directed transient ray is supplied at pinch start. The button target is
+latched on `selectstart` and activated once on `select`, even if the release ray
+has moved or disappeared. A cancelled gesture does not activate anything.
+See [WebKit natural input](https://webkit.org/blog/15162/introducing-natural-input-for-webxr-in-apple-vision-pro/).
+
 
 Open **AVP Remote** in `./geo gui`. The default Snapshot scene needs neither
 Isaac Sim nor a headset. Drag to orbit, scroll to zoom, choose USD/URDF/both,
@@ -32,25 +162,22 @@ The current parallel URDF package is copied from
 `usd_parallel_urdf/outputs/urdf_packages/landau_v10/`. **Asset provenance →
 Refresh latest assets** updates that handoff and exports the original USD as a
 skinned GLB using Blender. All 68 bones, three PBR textures, and materials are
-retained; browser textures are resized to at most 1024 px. Source USD files are
+retained; browser textures are resized to at most 512 px. Source USD files are
 unchanged. Asset hashes detect changed URDF, meshes, USD, textures and mapping
 code. Generated files stay in `outputs/web_scene/`.
 
-For Vision Pro, open the same GUI through a **trusted HTTPS** endpoint and press
-**Open in Vision Pro**. The GUI itself still binds only to loopback; provision a
-private HTTPS reverse proxy separately. Enable **Follow my head & hands**, allow
-hand tracking, and use Recenter while holding a comfortable reference pose.
-Inside the immersive scene, gaze/pinch the Live/pause, Snapshot, Recenter, and
-Exit buttons. Snapshot remains usable if hand tracking is declined. This uses
-[`immersive-vr`, supported by Safari on visionOS](https://webkit.org/blog/15865/webkit-features-in-safari-18-0/),
-with [natural gaze/pinch input](https://webkit.org/blog/15162/introducing-natural-input-for-webxr-in-apple-vision-pro/).
-Real headset presentation still needs device validation.
+For Vision Pro, open the same GUI through the trusted LAN HTTPS endpoint and
+press **开始头手追踪**, then allow hand tracking. Use **重新校准** while holding
+a comfortable reference pose. Inside the immersive scene, use the head reticle
+or the eye-directed pinch-start ray to select Record, Play, Live/pause, Recenter,
+and Exit. This uses
+[`immersive-vr`, supported by Safari on visionOS](https://webkit.org/blog/15865/webkit-features-in-safari-18-0/).
+Real headset presentation and input still need device validation.
 
-Live/imported tracking uses the existing head/finger mapping and joint-limited
-CCD in an isolated NumPy worker, without Isaac or TRAC-IK. Rendering continues
-at the browser's frame rate; pose requests are bounded to one in flight and
-interpolated between updates. Set `AVP_WEB_PYTHON` to a Python with NumPy if
-needed; the Mac host can also use Blender's bundled Python. WebXR's 25 hand
+Live tracking uses the browser-local head/finger mapper and warm-started CCD on
+each XR frame. Imported single-frame tracking can still use the isolated NumPy
+worker, without Isaac or TRAC-IK; set `AVP_WEB_PYTHON` to a Python with NumPy for
+that endpoint. WebXR's 25 hand
 joints map to the first 25 native joints; no forearm tracking is fabricated.
 Missing hands return to the default pose. This is a pose viewer, not physics or
 walking control.
@@ -237,3 +364,19 @@ python3 -m unittest discover -s algorithms/avp_remote/tests -p 'test_*.py'
 - The Landau asset's zero-angle URDF/skeleton pose is not a straight neutral stance, because several leg joints already carry non-identity `origin rpy` / bind transforms in the source asset.
 - If you want to flip a joint direction or reduce a joint response, edit `landau_mapping_config.py` and change that pose key's `scale`. A negative `scale` flips the sign.
 - Unit tests are lightweight and can run without Isaac Sim.
+
+### Comparison view
+
+The four views, left to right, show Unitree **H1-2**, Landau USD, corrected
+Landau URDF, and head/hand input. Unitree faces the same display direction as Landau. Unitree uses the repository's existing heuristic Landau→H1-2
+mapping (not direct full-body tracking or a command to hardware), including joint
+limits and URDF finger mimic joints. Its display scale is 0.52×; coordinates and
+recorded data remain in meters. H1-2 assets come from
+`helper_repos/xr_teleoperate_shallow/assets/h1_2`; the browser build exports reduced
+visual meshes and records hashes of the URDF, meshes and mapping implementation.
+
+The input view uses colored measured head/hand markers and finger links. Gray
+dashed head/neck/shoulder/torso/wrist connections are **schematic**, not measured
+body joints. Missing head data removes the schematic; missing hands remove their
+connections. These lines are never saved as tracking observations. All four views
+follow the same live or playback frame. Select an individual view for inspection.

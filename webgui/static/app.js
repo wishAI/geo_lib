@@ -243,6 +243,14 @@
     state.rimworldPrepare = null;
     state.charDetails = null;
     state.minecraftMap = null;
+    if (sandbox.designer?.type === 'avpRemote') {
+      app.innerHTML = `<div id="avp-remote"><p role="status">正在载入动作工作台…</p></div>`;
+      const root = document.querySelector('#avp-remote');
+      void import('/api/artifact?path=algorithms/avp_remote/gui/viewer.js').then(module => {
+        if (root?.isConnected) state.avpRemote = module.mount(root);
+      }).catch(error => { if (root?.isConnected) root.textContent = 'AVP viewer unavailable: ' + error.message; });
+      return;
+    }
     if (sandbox.id === 'motion_anim_generate') {
       app.innerHTML = '<div id="motion-animation-viewer"></div>';
       const root = app.querySelector('#motion-animation-viewer');
@@ -288,12 +296,6 @@
       void import('/api/artifact?path=algorithms/3d_char_details/gui/editor.js').then(module => {
         if (root?.isConnected) state.charDetails = module.mount(root);
       }).catch(error => { if (root?.isConnected) root.textContent = 'Character editor unavailable: ' + error.message; });
-    }
-    if (sandbox.designer?.type === 'avpRemote') {
-      const root = document.querySelector('#avp-remote');
-      void import('/api/artifact?path=algorithms/avp_remote/gui/viewer.js').then(module => {
-        if (root?.isConnected) state.avpRemote = module.mount(root);
-      }).catch(error => { if (root?.isConnected) root.textContent = 'AVP viewer unavailable: ' + error.message; });
     }
     document.querySelectorAll('[data-open-minecraft]').forEach(button=>button.onclick=()=>openMinecraftWindow(sandbox,button.dataset.openMinecraft));
     void loadEvolutionPreview(sandbox);
@@ -600,7 +602,7 @@
     try {
       const payload = await api(`/api/artifacts/${encodeURIComponent(sandbox.id)}`);
       state.artifacts[sandbox.id] = payload.artifacts;
-      if (currentSandbox()?.id === sandbox.id) sandboxView(sandbox);
+      if (currentSandbox()?.id === sandbox.id && sandbox.designer?.type !== 'avpRemote') sandboxView(sandbox);
       if (announce) toast('Results refreshed');
     } catch (error) { toast(error.message, true); }
   }
@@ -843,6 +845,7 @@
     state.nestingWorkspace = null;
     state.nestingRoot = null;
     const sandbox = currentSandbox();
+    document.body.classList.toggle('avp-workspace',sandbox?.designer?.type==='avpRemote');
     state.robotViewer?.destroy?.();
     state.meshViewers.forEach(viewer => viewer.destroy?.());
     state.shipDesigner?.destroy?.();
@@ -860,7 +863,7 @@
     if (evolutionDialog.open && evolutionDialog.dataset.sandbox !== sandbox?.id) evolutionDialog.close();
     if (sandbox) {
       sandboxView(sandbox);
-      if (sandbox.workspace?.type !== 'nesting' && !state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
+      if (sandbox.workspace?.type !== 'nesting' && sandbox.designer?.type !== 'avpRemote' && !state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
     } else {
       homeView();
     }
@@ -875,7 +878,7 @@
     if (sandbox) {
       const before = previous.find(job => job.sandbox === sandbox.id);
       const after = state.jobs.find(job => job.sandbox === sandbox.id);
-      if (JSON.stringify(before) !== JSON.stringify(after)) {
+      if (sandbox.designer?.type !== 'avpRemote' && JSON.stringify(before) !== JSON.stringify(after)) {
         sandboxView(sandbox);
         if (after && ['succeeded', 'failed', 'cancelled'].includes(after.status)) {
           if (sandbox.workspace?.type !== 'nesting') void loadArtifacts(sandbox);
@@ -909,7 +912,7 @@
       const catalog = await api('/api/catalog');
       state.catalog = catalog.sandboxes;
       renderStatus();
-      renderRoute();
+      if (currentSandbox()?.designer?.type !== 'avpRemote' || !state.avpRemote) renderRoute();
       if (announce) {
         await Promise.all([status, jobs]);
         toast('Mac, TK2, storage, jobs, and results refreshed');

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "overrides": {
+    "landau_v10/head_x.stl": {
+      "source": "algorithms/urdf_learn_wasd_walk/inputs/landau_v10/mesh_collision_stl/landau_v10/head_x.stl",
+      "sha256": "afc898c0e79b82313768a0e08bd096619b64c54f8505734f0ef2b59ee0315370",
+      "triangles": 1200,
+      "reason": "Corrected rabbit-ear head retained in the current Landau input. Do not regress to the legacy 540-face alpha-shape package. File-based handoff only."
+    }
+  }
+}

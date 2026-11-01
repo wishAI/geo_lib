@@ -38,7 +38,7 @@ export function trackingRecords(payload, transform) {
 
 export class TrackingMarkers extends THREE.Group {
   constructor(){
-    super();this.name='AVP tracked input';this.records=[];
+    super();this.name='AVP tracked input';this.records=[];this.colors=COLORS;
     this.points=new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshBasicMaterial({depthTest:false,transparent:true,opacity:.95}),55);
     this.points.count=0;this.points.frustumCulled=false;this.points.renderOrder=12;this.points.userData.trackingMarkers=this;this.add(this.points);
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(52*6),3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(52*6),3));geometry.setDrawRange(0,0);
@@ -47,19 +47,47 @@ export class TrackingMarkers extends THREE.Group {
     for(const name of ['head','left.wrist','right.wrist']){const axes=new THREE.AxesHelper(name==='head'?.08:.05);axes.material.depthTest=false;axes.renderOrder=13;axes.visible=false;this.axes.set(name,axes);this.add(axes);}
   }
   update(payload,transform){
-    const {records,connections}=trackingRecords(payload,transform);this.records=records;
+    this.updateRecords(trackingRecords(payload,transform));
+  }
+  updateRecords({records,connections}){
+    this.records=records;this.connections=connections;
     this.points.count=records.length;this.points.boundingSphere=null;
+    const matrix=new THREE.Matrix4(),color=new THREE.Color();
     for(const [i,item] of records.entries()){
       const radius=item.name==='head'?.014:item.name.endsWith('.wrist')?.009:.0045;
-      this.points.setMatrixAt(i,new THREE.Matrix4().makeScale(radius,radius,radius).setPosition(item.position));
-      this.points.setColorAt(i,new THREE.Color(COLORS[item.side]));
+      this.points.setMatrixAt(i,matrix.makeScale(radius,radius,radius).setPosition(item.position));
+      this.points.setColorAt(i,color.set(this.colors[item.side]));
     }
     this.points.instanceMatrix.needsUpdate=true;if(this.points.instanceColor)this.points.instanceColor.needsUpdate=true;
     const positions=this.lines.geometry.attributes.position,colors=this.lines.geometry.attributes.color;
     let vertex=0;
-    for(const edge of connections)for(const index of edge){const item=records[index],color=new THREE.Color(COLORS[item.side]);positions.setXYZ(vertex,...item.position.toArray());colors.setXYZ(vertex,color.r,color.g,color.b);vertex++;}
+    for(const edge of connections)for(const index of edge){const item=records[index];color.set(this.colors[item.side]);positions.setXYZ(vertex,item.position.x,item.position.y,item.position.z);colors.setXYZ(vertex,color.r,color.g,color.b);vertex++;}
     positions.needsUpdate=colors.needsUpdate=true;this.lines.geometry.setDrawRange(0,vertex);
     for(const [name,axes] of this.axes){const item=records.find(r=>r.name===name);axes.visible=Boolean(item)&&this.showAxes!==false;if(item){axes.position.copy(item.position);axes.quaternion.setFromRotationMatrix(new THREE.Matrix4().extractRotation(item.mapped));}}
   }
   setOptions({visible,lines,axes}){this.visible=visible;this.lines.visible=lines;this.showAxes=axes;for(const [name,object]of this.axes)object.visible=axes&&this.records.some(r=>r.name===name);}
+}
+
+// First-person hands live directly in the renderer's WebXR reference space.
+// They never use the robot's alignment, scale, or comparison-view offsets.
+export class XRHandMarkers extends TrackingMarkers {
+  constructor(){
+    super();this.name='My tracked hands';this.referenceTransform=new THREE.Matrix4();
+    this.colors={...COLORS,left:0x56d9e1,right:0xf490c2};
+    this.setOptions({visible:false,lines:true,axes:false});
+  }
+  updateXR(frame,inputSources,referenceSpace,jointNames){
+    const payload={};
+    if(frame&&referenceSpace)for(const source of inputSources||[]){
+      if(!source.hand||!['left','right'].includes(source.handedness))continue;
+      payload[source.handedness+'_arm']=jointNames.map(name=>{
+        const joint=source.hand.get(name),pose=joint&&frame.getJointPose(joint,referenceSpace);
+        if(!pose)return null;
+        const e=pose.transform.matrix;
+        return [0,1,2,3].map(r=>[0,1,2,3].map(c=>e[c*4+r]));
+      });
+    }
+    this.update(payload,this.referenceTransform);
+    this.visible=this.records.length>0;
+  }
 }

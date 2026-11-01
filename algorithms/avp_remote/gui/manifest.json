@@ -3,7 +3,7 @@
   "icon": "headset",
   "name": "AVP Remote",
   "eyebrow": "SPATIAL INPUT RETARGETING",
-  "summary": "Inspect saved poses, control Landau in the browser, and enter the same skinned USD + URDF scene on Vision Pro.",
+  "summary": "Record and replay Vision Pro head and hands; compare Landau USD, URDF, Unitree H1-2 and measured input.",
   "accent": "#4f7192",
   "runtime": "local",
   "runtimeLabel": "Browser \u00b7 WebXR \u00b7 no Isaac Sim",
@@ -13,7 +13,11 @@
     "URDF",
     "Vision Pro",
     "WebXR",
-    "Tracking markers"
+    "Tracking markers",
+    "Motion recording",
+    "Timeline playback",
+    "Unitree H1-2 comparison",
+    "Input body schematic"
   ],
   "examples": [
     {
@@ -40,6 +44,16 @@
         {
           "label": "USD-derived skinned model",
           "path": "algorithms/avp_remote/outputs/web_scene/character.glb",
+          "kind": "model"
+        },
+        {
+          "label": "Unitree H1-2 unitree.json",
+          "path": "algorithms/avp_remote/outputs/web_scene/unitree.json",
+          "kind": "json"
+        },
+        {
+          "label": "Unitree H1-2 unitree.glb",
+          "path": "algorithms/avp_remote/outputs/web_scene/unitree.glb",
           "kind": "model"
         }
       ],
@@ -101,6 +115,30 @@
     {
       "label": "tracking-markers.js",
       "path": "algorithms/avp_remote/gui/tracking-markers.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "motion-clip.js",
+      "path": "algorithms/avp_remote/gui/motion-clip.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "comparison.js",
+      "path": "algorithms/avp_remote/gui/comparison.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "live-retarget.js",
+      "path": "algorithms/avp_remote/gui/live-retarget.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "xr-buttons.js",
+      "path": "algorithms/avp_remote/gui/xr-buttons.js",
       "kind": "file",
       "syncOnly": true
     }

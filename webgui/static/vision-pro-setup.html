@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vision Pro 局域网设置 · Geo Library</title>
+<style>body{margin:0;background:#102a24;color:#e9f0eb;font:16px/1.8 system-ui,sans-serif}main{max-width:740px;margin:8vh auto;padding:32px}a{color:#a7ead2}h1{font-size:32px;line-height:1.3}li{margin:22px 0}small{color:#b0c5bb}.button{display:inline-block;background:#a7ead2;color:#102a24;padding:12px 22px;border-radius:10px;text-decoration:none;margin:8px 12px 0 0}code{overflow-wrap:anywhere}#status{padding:16px;background:#ffffff0b;border-radius:10px}a[hidden]{display:none}</style></head>
+<body><main><a href="/">← Geo Library 主页</a><p><small>VISION PRO / LOCAL WI-FI</small></p><h1>无需 Tailscale，直接用 Safari 录制</h1><p>Vision Pro 和这台电脑连接同一 Wi-Fi。只需首次安装并信任本站证书；不需要 Teleop App、VPN 或账户。</p><p id="status" role="status">正在检查局域网 HTTPS…</p>
+<ol><li><strong>下载证书描述文件</strong><br>用 Vision Pro 的 Safari 打开本页，点下面的下载按钮并允许下载。<br><a id="profile" class="button" hidden>下载本站证书</a></li>
+<li><strong>在设置里安装</strong><br>打开「设置」中的「已下载描述文件」，或「通用 → VPN 与设备管理」，安装 <b>Geo Library 局域网 HTTPS</b>。这个文件只包含本站根证书，不配置 VPN 或设备管理。</li>
+<li><strong>开启证书信任</strong><br>「设置 → 通用 → 关于本机 → 证书信任设置」，为 <b>Geo Library LAN Root</b> 开启完全信任。</li>
+<li><strong>回到 Safari 开始录制</strong><br>打开下面的 HTTPS 入口，点击「进入 Vision Pro」，允许沉浸体验和手部追踪，再使用场景内的 Record / Stop。<br><a id="open" class="button" hidden>打开 AVP 动作工作台</a><br><small id="address"></small></li></ol>
+<p><small>HTTP 页面只能预览和回放。Safari 要求受信任的 HTTPS 才能采集头部和双手；跳过证书警告不能替代信任设置。安装后不需要重复操作。</small></p>
+<p><a href="https://support.apple.com/102390">Apple：在 visionOS 中信任手动安装的证书</a></p>
+<script>
+fetch('/api/connection').then(r=>r.json()).then(info=>{
+ const status=document.getElementById('status');
+ if(!info.httpsUrl||!info.profileUrl){status.textContent='此服务尚未配置局域网证书，请先在主机配置 HTTPS。';return;}
+ const url=new URL(info.httpsUrl);if(url.protocol!=='https:')throw new Error('无效 HTTPS 地址');
+ const profile=document.getElementById('profile');profile.href=info.profileUrl;profile.hidden=false;
+ const open=document.getElementById('open');open.href=url.origin+'/#/sandbox/avp_remote';open.hidden=false;
+ document.getElementById('address').textContent=open.href;
+ status.textContent=window.isSecureContext?'HTTPS 已连接。若仍不能录制，请确认使用 Vision Pro Safari 并允许手部追踪。':'局域网 HTTPS 已就绪。请按下方步骤完成一次性证书信任。';
+}).catch(e=>{document.getElementById('status').textContent='无法读取连接信息：'+e.message;});
+</script></main></body></html>

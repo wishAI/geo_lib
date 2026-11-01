@@ -1,4 +1,7 @@
 import sys
+import hashlib
+import tempfile
+from unittest.mock import patch
 import unittest
 from filecmp import cmp
 from pathlib import Path
@@ -17,7 +20,7 @@ from asset_paths import (
     landau_urdf_path,
     landau_usd_path,
 )
-from asset_setup import prepare_landau_inputs
+from asset_setup import prepare_landau_inputs, apply_mesh_overrides, mesh_overrides, sync_landau_meshes, _sync_tree
 from landau_pose import load_urdf_visual_mesh_records
 
 
@@ -40,6 +43,49 @@ class TestAssetSetup(unittest.TestCase):
         self.assertEqual(copied_stls, source_stls)
         for rel_path in source_stls[:5]:
             self.assertTrue(cmp(default_landau_source_mesh_root() / rel_path, landau_mesh_root() / rel_path, shallow=False))
+
+    def test_head_handoff_survives_repeated_refresh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, destination = root / 'old_package', root / 'consumer'
+            source.mkdir()
+            (source / 'head.stl').write_bytes(b'legacy head')
+            (root / 'approved.stl').write_bytes(b'corrected ears')
+            spec = {'head.stl': {'source': 'approved.stl', 'sha256': hashlib.sha256(b'corrected ears').hexdigest()}}
+            with patch('asset_setup.repo_root', return_value=root), patch('asset_setup.landau_mesh_root', return_value=destination), patch('asset_setup.mesh_overrides', return_value=spec):
+                for refresh in (False, True, False):
+                    sync_landau_meshes(source, refresh=refresh)
+                    self.assertEqual((destination / 'head.stl').read_bytes(), b'corrected ears')
+                (root / 'approved.stl').unlink()
+                sync_landau_meshes(source, refresh=True)
+                self.assertEqual((destination / 'head.stl').read_bytes(), b'corrected ears')
+
+    def test_cloud_copy_failure_preserves_previous_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            destination = root / 'consumer'
+            destination.mkdir()
+            (destination / 'texture.png').write_bytes(b'last good texture')
+            with patch('asset_setup.shutil.copytree', side_effect=OSError('cloud unavailable')):
+                with self.assertRaises(OSError):
+                    _sync_tree(root / 'source', destination, refresh=True)
+            self.assertEqual((destination / 'texture.png').read_bytes(), b'last good texture')
+
+    def test_override_rejects_changed_source_and_keeps_verified_local_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'producer.stl'
+            source.write_bytes(b'approved geometry')
+            spec = {'head.stl': {'source': 'producer.stl', 'sha256': hashlib.sha256(source.read_bytes()).hexdigest()}}
+            destination = root / 'consumer'
+            with patch('asset_setup.repo_root', return_value=root), patch('asset_setup.landau_mesh_root', return_value=destination), patch('asset_setup.mesh_overrides', return_value=spec):
+                apply_mesh_overrides()
+                source.write_bytes(b'regressed geometry')
+                apply_mesh_overrides()
+                self.assertEqual((destination / 'head.stl').read_bytes(), b'approved geometry')
+                (destination / 'head.stl').unlink()
+                with self.assertRaises(ValueError):
+                    apply_mesh_overrides()
 
     def test_mesh_urdf_loader_keeps_multi_visual_links(self):
         mesh_records = load_urdf_visual_mesh_records(landau_urdf_path())

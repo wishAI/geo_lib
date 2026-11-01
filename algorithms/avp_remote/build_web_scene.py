@@ -14,6 +14,15 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def browser_retarget_config():
+    from dataclasses import asdict
+    from landau_mapping_config import ARM_BASE_LINK, FINGER_LAYOUT, JOINT_OUTPUT_RULES
+    from avp_config import AVP_HAND_RADIUS_CAP_SCALE
+    return {'base': ARM_BASE_LINK, 'fingers': FINGER_LAYOUT,
+            'rules': {name: asdict(rule) for name, rule in JOINT_OUTPUT_RULES.items()},
+            'radiusCapScale': AVP_HAND_RADIUS_CAP_SCALE}
+
+
 def check_assets():
     from asset_paths import default_landau_source_urdf, default_landau_source_usd
     path = ROOT / 'outputs/web_scene/scene.json'
@@ -23,7 +32,22 @@ def check_assets():
     urdf = default_landau_source_urdf()
     checks = [(urdf, source['urdfSha256']), (default_landau_source_usd(), source['usdSha256']),
               (ROOT / 'outputs/web_scene/character.glb', source['glbSha256'])]
-    checks.extend((urdf.parent / name, sha) for name, sha in source['meshHashes'].items())
+    unitree_path = ROOT / 'outputs/web_scene/unitree.json'
+    if not unitree_path.is_file():
+        return {'ready': False, 'reason': 'Unitree browser model missing'}
+    unitree = json.loads(unitree_path.read_text())
+    checks.append((ROOT / 'outputs/web_scene/unitree.glb', unitree['glbSha256']))
+    checks.extend((ROOT.parents[1] / name, sha) for name, sha in unitree['sourceHashes'].items())
+    from asset_setup import mesh_overrides
+    overrides = mesh_overrides()
+    for name, sha in source['meshHashes'].items():
+        key = name.removeprefix('mesh_collision_stl/')
+        if key in overrides:
+            if sha != overrides[key]['sha256']:
+                return {'ready': False, 'reason': f'Outdated approved mesh: {key}'}
+            checks.append((ROOT / 'inputs/landau_v10' / name, sha))
+        else:
+            checks.append((urdf.parent / name, sha))
     checks.extend((ROOT.parents[1] / name, sha) for name, sha in source.get('dependencyHashes', {}).items())
     changed = [str(p) for p, sha in checks if not p.is_file() or digest(p) != sha]
     return {'ready': not changed, 'changed': changed, 'urdfSha256': source['urdfSha256']}
@@ -31,7 +55,7 @@ def check_assets():
 
 def build():
     import bpy
-    from asset_setup import prepare_landau_inputs
+    from asset_setup import prepare_landau_inputs, mesh_overrides
     from asset_paths import default_landau_source_urdf
     from landau_pose import load_stl_mesh_arrays
     from landau_retarget import LandauUpperBodyRetargeter, AVP_TO_SCENE_OPTIONS
@@ -56,9 +80,11 @@ def build():
         raise RuntimeError('USD import lost skinned geometry')
     # EXR is not a browser texture format. Convert in memory before glTF export.
     for image in bpy.data.images:
+        if image.source == 'FILE' and not image.size[0]:
+            raise RuntimeError(f'Missing USD texture: {image.filepath}. Hydrate declared textures first.')
         if image.source == 'FILE' and image.size[0]:
-            if max(image.size) > 1024:
-                ratio = 1024 / max(image.size)
+            if max(image.size) > 512:
+                ratio = 512 / max(image.size)
                 image.scale(max(1, round(image.size[0] * ratio)), max(1, round(image.size[1] * ratio)))
             image.file_format = 'PNG'
             image.pack()
@@ -67,6 +93,9 @@ def build():
         o.select_set(True)
     bpy.ops.export_scene.gltf(filepath=str(out / 'character.glb'), export_format='GLB',
         use_selection=True, export_yup=False, export_animations=False, export_skins=True,
+        export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=6,
+        export_draco_position_quantization=16, export_draco_normal_quantization=10,
+        export_draco_texcoord_quantization=12,
         export_image_format='AUTO', export_extras=True)
 
     xml = ET.parse(prepared.urdf_path).getroot()
@@ -104,18 +133,24 @@ def build():
     from asset_paths import default_landau_source_skeleton_json, default_landau_source_texture_dir
     dependencies = [default_landau_source_skeleton_json(), ROOT / 'avp_snapshot.json',
         ROOT / 'landau_retarget.py', ROOT / 'landau_mapping_config.py', ROOT / 'avp_config.py',
+        ROOT / 'build_web_scene.py', ROOT / 'asset_setup.py', ROOT / 'inputs/landau_v10/mesh_overrides.json',
         *[p for p in default_landau_source_texture_dir().rglob('*') if p.is_file()]]
     payload = {'version': 1, 'links': links, 'joints': joints, 'meshes': mesh_data,
+        'retargetConfig': browser_retarget_config(),
         'snapshot': snapshot, 'snapshotPose': pose,
         'trackingTransform': AVP_TO_SCENE_OPTIONS.pretransform.tolist(),
         'source': {'urdf': str(default_landau_source_urdf().relative_to(ROOT.parents[1])),
             'urdfSha256': digest(prepared.urdf_path), 'usdSha256': digest(prepared.usd_path),
-            'meshHashes': hashes, 'glbSha256': digest(out / 'character.glb'),
+            'meshHashes': hashes, 'meshOverrides': mesh_overrides(), 'glbSha256': digest(out / 'character.glb'),
             'dependencyHashes': {str(p.relative_to(ROOT.parents[1])): digest(p) for p in dependencies},
             'bones': len(rig.data.bones), 'usdMeshes': len(meshes),
             'triangles': sum(len(v)//9 for v in mesh_data.values()),
-            'textureMaxSize': 1024,
+            'textureMaxSize': 512,
+            'geometryCompression': 'KHR_draco_mesh_compression',
             'conversion': 'Blender USD import → glTF 2.0 skin + embedded PNG materials; no physics'}}
+    from build_unitree_scene import build as build_unitree
+    unitree = build_unitree(out, joints)
+    payload['source']['unitreeGlbSha256'] = unitree['glbSha256']
     (out / 'scene.json').write_text(json.dumps(payload, separators=(',', ':'), allow_nan=False))
     print(json.dumps(payload['source'], indent=2))
 

@@ -183,10 +183,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="group", required=True)
 
-    gui_parser = subparsers.add_parser("gui", help="Open the local-only Geo Web GUI.")
+    gui_parser = subparsers.add_parser("gui", help="Open the Geo Web GUI (localhost by default; --host 0.0.0.0 for LAN).")
     gui_parser.add_argument("--host", default="127.0.0.1")
     gui_parser.add_argument("--port", type=int, default=8767)
     gui_parser.add_argument("--no-browser", action="store_true")
+    gui_parser.add_argument('--https-port', type=int, default=8443)
+    for option in ('tls-cert', 'tls-key', 'tls-profile', 'https-url'):
+        gui_parser.add_argument('--' + option)
+
 
     storage_parser = subparsers.add_parser("storage", help="Manage Nextcloud-backed large files and TK2 sync.")
     storage_subparsers = storage_parser.add_subparsers(dest="storage_cmd", required=True)
@@ -614,7 +618,11 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
     if args.group == "gui":
         if extra_args:
             raise SystemExit(f"Unexpected GUI arguments: {shlex.join(extra_args)}")
-        argv = [sys.executable, "-m", "webgui.server", "--host", args.host, "--port", str(args.port)]
+        argv = [sys.executable, "-m", "webgui.server", "--host", args.host, "--port", str(args.port), '--https-port', str(args.https_port)]
+        for option in ('tls-cert', 'tls-key', 'tls-profile', 'https-url'):
+            value = getattr(args, option.replace('-', '_'))
+            if value:
+                argv.extend(['--' + option, value])
         if args.no_browser:
             argv.append("--no-browser")
         return LaunchSpec("direct", argv)

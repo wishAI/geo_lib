@@ -4,6 +4,9 @@ import argparse
 import importlib
 import base64
 import hashlib
+import gzip
+import ipaddress
+from functools import lru_cache
 import sys
 import tempfile
 import io
@@ -14,6 +17,7 @@ import os
 import re
 import shlex
 import signal
+import ssl
 import select
 import atexit
 import subprocess
@@ -103,6 +107,34 @@ def avp_pose(payload: dict) -> dict:
         except (OSError, ValueError):
             _stop_avp_pose()
             raise
+
+
+def avp_artifact_paths() -> set[str]:
+    manifest = json.loads((REPO_ROOT / 'algorithms/avp_remote/gui/manifest.json').read_text())
+    return {item['path'] for group in [manifest, *manifest.get('examples', [])]
+            for item in group.get('artifacts', [])}
+
+
+def resolve_avp_artifact(relative: str) -> tuple[str, Path] | None:
+    local = _safe_under(REPO_ROOT, relative)
+    if local.is_file():
+        return ('repo', local)
+    return resolve_artifact(relative)
+
+
+@lru_cache(maxsize=24)
+def compressed_file(path: str, modified: int, size: int) -> bytes:
+    return gzip.compress(Path(path).read_bytes(), compresslevel=5, mtime=0)
+
+
+def gui_bind_host(value: str) -> str:
+    if value == 'localhost':
+        return '127.0.0.1'
+    address = ipaddress.ip_address(value)
+    if address.version == 4 and (address.is_loopback or address.is_unspecified or any(
+            address in ipaddress.ip_network(network) for network in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10'))):
+        return value
+    raise ValueError('Bind to localhost, 0.0.0.0, or a LAN/Tailscale IPv4 address')
 
 
 def utc_now() -> str:
@@ -1266,6 +1298,9 @@ def _is_relative_to(path: Path, root: Path) -> bool:
 
 class GeoGuiServer(ThreadingHTTPServer):
     allow_reuse_address = True
+    daemon_threads = True
+    lan_https_url = None
+    tls_profile = None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1297,8 +1332,22 @@ class Handler(BaseHTTPRequestHandler):
         if not path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        content = path.read_bytes()
+        stat = path.stat()
+        etag = f'W/"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+        if self.headers.get('If-None-Match') == etag:
+            self.send_response(HTTPStatus.NOT_MODIFIED)
+            self.send_header('ETag', etag)
+            self.send_header('Cache-Control', cache)
+            self.send_header('Vary', 'Accept-Encoding')
+            self.end_headers()
+            return
+        accepts_gzip = any(re.fullmatch(r'gzip(?:\s*;\s*q=(?!0(?:\.0*)?$)[0-9.]+)?', item.strip())
+                           for item in self.headers.get('Accept-Encoding', '').split(','))
+        compress = accepts_gzip and 1024 < stat.st_size < 16_000_000 and path.suffix.lower() in {'.js', '.css', '.html', '.json', '.glb', '.wasm'}
+        content = compressed_file(str(path), stat.st_mtime_ns, stat.st_size) if compress else path.read_bytes()
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        if path.suffix.lower() == ".mobileconfig":
+            content_type = "application/x-apple-aspen-config"
         if path.suffix.lower() == ".pgm":
             try:
                 from PIL import Image
@@ -1314,6 +1363,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
         self.send_header("Cache-Control", cache)
+        self.send_header('ETag', etag)
+        self.send_header('Vary', 'Accept-Encoding')
+        self.send_header('Permissions-Policy', 'xr-spatial-tracking=(self)')
+        if compress:
+            self.send_header('Content-Encoding', 'gzip')
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(content)
@@ -1322,14 +1376,28 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         try:
+            if parsed.path == '/api/connection':
+                self._json({'httpsUrl': self.server.lan_https_url,
+                            'profileUrl': '/setup/vision-pro.mobileconfig' if self.server.tls_profile else None})
+                return
+            if parsed.path == '/setup/vision-pro':
+                self._file(STATIC_ROOT / 'vision-pro-setup.html')
+                return
+            if parsed.path == '/setup/vision-pro.mobileconfig':
+                if not self.server.tls_profile:
+                    self._error('LAN certificate profile is not configured', HTTPStatus.NOT_FOUND)
+                    return
+                self._file(self.server.tls_profile, cache='no-store')
+                return
             if parsed.path == "/api/character/presets":
                 self._json(importlib.import_module("algorithms.3d_char_details.preset_store").handle("GET", query=query))
                 return
             if parsed.path == "/api/avp/assets":
-                result = subprocess.run([sys.executable, str(REPO_ROOT / "algorithms/avp_remote/build_web_scene.py"), "--check"], capture_output=True, text=True, timeout=15)
-                if result.returncode:
-                    raise ValueError("Cannot verify AVP source assets")
-                self._json(json.loads(result.stdout))
+                try:
+                    result = subprocess.run([sys.executable, str(REPO_ROOT / "algorithms/avp_remote/build_web_scene.py"), "--check"], capture_output=True, text=True, timeout=15)
+                    self._json(json.loads(result.stdout) if result.returncode == 0 else {'ready': None, 'reason': 'Source check unavailable'})
+                except subprocess.TimeoutExpired:
+                    self._json({'ready': None, 'reason': 'Source check timed out; loaded models remain usable'})
                 return
             if parsed.path == "/api/health":
                 self._json({"status": "ok", "service": "geo-web-gui", "sandboxes": len(discover_manifests())})
@@ -1355,10 +1423,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/artifact":
                 relative = query.get("path", [""])[0]
-                if relative not in declared_artifact_paths(include_nesting=False) and relative not in nesting_workspace_files():
+                is_avp = relative.startswith('algorithms/avp_remote/')
+                allowed = relative in avp_artifact_paths() if is_avp else (
+                    relative in declared_artifact_paths(include_nesting=False) or relative in nesting_workspace_files())
+                if not allowed:
                     self._error("Artifact is not declared", HTTPStatus.FORBIDDEN)
                     return
-                resolved = resolve_artifact(relative)
+                resolved = resolve_avp_artifact(relative) if is_avp else resolve_artifact(relative)
                 if not resolved:
                     self._error("Artifact is not available", HTTPStatus.NOT_FOUND)
                     return
@@ -1449,6 +1520,8 @@ class Handler(BaseHTTPRequestHandler):
             relative = parsed.path.lstrip("/")
             static = _safe_under(STATIC_ROOT, relative)
             self._file(static, cache="public, max-age=60")
+        except (BrokenPipeError, ConnectionResetError):
+            return
         except KeyError:
             self._error("Not found", HTTPStatus.NOT_FOUND)
         except (ValueError, OSError, ET.ParseError) as error:
@@ -1457,6 +1530,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         try:
+            origin = self.headers.get('Origin')
+            if origin and urlparse(origin).netloc != self.headers.get('Host', ''):
+                raise ValueError('Same-origin requests required')
             body = self._body()
             if parsed.path == "/api/avp/pose":
                 if self.headers.get_content_type() != "application/json":
@@ -1470,7 +1546,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.headers.get_content_type() != "application/json":
                     raise ValueError("Preset requests require application/json")
                 origin = self.headers.get("Origin")
-                if origin and origin != "http://" + self.headers.get("Host", ""):
+                if origin and urlparse(origin).netloc != self.headers.get("Host", ""):
                     raise ValueError("Preset writes require the local editor origin")
                 self._json(importlib.import_module("algorithms.3d_char_details.preset_store").handle("POST", body=body))
                 return
@@ -1493,7 +1569,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.headers.get_content_type() != "application/json":
                     raise ValueError("Minecraft region requests require application/json")
                 origin = self.headers.get("Origin")
-                if origin and origin != "http://" + self.headers.get("Host", ""):
+                if origin and urlparse(origin).netloc != self.headers.get("Host", ""):
                     raise ValueError("Minecraft region writes require the local map origin")
                 if parsed.path.endswith("/delete"):
                     self._json(delete_minecraft_region(str(body.get("id", ""))))
@@ -1518,6 +1594,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(import_rimworld_skin(str(body.get("sandbox", "")), str(body.get("name", "")), str(body.get("data", ""))))
                 return
             self._error("Not found", HTTPStatus.NOT_FOUND)
+        except (BrokenPipeError, ConnectionResetError):
+            return
         except KeyError:
             self._error("Not found", HTTPStatus.NOT_FOUND)
         except (ValueError, json.JSONDecodeError, OSError) as error:
@@ -1525,15 +1603,47 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the local-only Geo Library web GUI")
+    parser = argparse.ArgumentParser(description="Run the Geo Library web GUI (localhost by default)")
     parser.add_argument("--host", default=HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument('--https-port', type=int, default=8443)
+    parser.add_argument('--tls-cert', type=Path)
+    parser.add_argument('--tls-key', type=Path)
+    parser.add_argument('--tls-profile', type=Path)
+    parser.add_argument('--https-url')
     args = parser.parse_args(argv)
-    if args.host not in {"127.0.0.1", "localhost"}:
-        raise SystemExit("Geo Web GUI must bind to 127.0.0.1/localhost")
-    server = GeoGuiServer((HOST, args.port), Handler)
-    url = f"http://{HOST}:{args.port}/"
+    try:
+        host = gui_bind_host(args.host)
+    except ValueError as error:
+        parser.error(str(error))
+    if bool(args.tls_cert) != bool(args.tls_key):
+        parser.error('--tls-cert and --tls-key must be supplied together')
+    if args.tls_profile and not args.tls_cert:
+        parser.error('--tls-profile requires --tls-cert and --tls-key')
+    context = None
+    if args.tls_cert:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(args.tls_cert, args.tls_key)
+    server = GeoGuiServer((host, args.port), Handler)
+    https_server = None
+    if context:
+        try:
+            https_server = GeoGuiServer((host, args.https_port), Handler)
+            https_server.socket = context.wrap_socket(https_server.socket, server_side=True)
+            secure_url = args.https_url or f'https://{host}:{args.https_port}'
+            for listener in (server, https_server):
+                listener.lan_https_url = secure_url.rstrip('/')
+                listener.tls_profile = args.tls_profile
+            threading.Thread(target=https_server.serve_forever, daemon=True).start()
+            print(f'Geo LAN HTTPS: {secure_url}', flush=True)
+        except Exception:
+            if https_server:
+                https_server.server_close()
+            server.server_close()
+            raise
+    url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{args.port}/"
     print(f"Geo Web GUI: {url}", flush=True)
     if not args.no_browser:
         threading.Timer(0.35, lambda: webbrowser.open(url)).start()
@@ -1543,6 +1653,9 @@ def main(argv: list[str] | None = None) -> int:
         pass
     finally:
         server.server_close()
+        if https_server:
+            https_server.shutdown()
+            https_server.server_close()
     return 0
 
 

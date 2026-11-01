@@ -5,8 +5,8 @@ export function originMatrix({xyz, rpy}) {
     new THREE.Quaternion().setFromEuler(new THREE.Euler(...rpy, 'ZYX')), new THREE.Vector3(1,1,1));
 }
 
-export function worldTransforms(joints, pose = {}) {
-  const worlds = {base_link: new THREE.Matrix4()};
+export function worldTransforms(joints, pose = {}, root = 'base_link') {
+  const worlds = {[root]: new THREE.Matrix4()};
   const remaining = [...joints];
   while (remaining.length) {
     let progressed = false;
@@ -38,4 +38,29 @@ export function fromRows(value) { return new THREE.Matrix4().set(...value.flat()
 const XR_TO_NATIVE = new THREE.Matrix4().makeRotationX(Math.PI / 2);
 export function nativeMatrix(xrMatrix) {
   return XR_TO_NATIVE.clone().multiply(new THREE.Matrix4().fromArray(xrMatrix)).multiply(XR_TO_NATIVE.clone().invert());
+}
+
+// Cache native reads for one active XR frame. A temporarily unavailable joint
+// must not escape the callback and prevent Three.js from requesting another frame.
+export function sampleXRFrame(frame, referenceSpace, onError = () => {}) {
+  const joints = new Map();
+  const read = (kind, fn) => {
+    if (!frame || !referenceSpace) return null;
+    try {
+      const pose = fn();
+      if (!pose) return null;
+      const m = pose.transform?.matrix;
+      if (!m || m.length !== 16 || !Array.from(m).every(Number.isFinite)) throw new Error('Invalid XR transform');
+      return pose;
+    } catch (error) { onError(kind, error); return null; }
+  };
+  const viewer = read('viewer', () => frame.getViewerPose(referenceSpace));
+  return {
+    getViewerPose: () => viewer,
+    getJointPose(joint) {
+      if (!joints.has(joint)) joints.set(joint, read('joint', () => frame.getJointPose(joint, referenceSpace)));
+      return joints.get(joint);
+    },
+    getPose: (space) => read('pointer', () => frame.getPose(space, referenceSpace)),
+  };
 }
