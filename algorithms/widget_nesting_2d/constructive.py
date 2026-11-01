@@ -35,11 +35,20 @@ def envelope_layouts(boards, items, deadline, tolerance):
     Only actual permitted rotations are considered. No fixture metadata or
     known-feasible witness is available to this constructor.
     """
-    from shapely.geometry import box
-    valid_boards = [i for i, b in enumerate(boards) if b.polygon.equals(box(*b.bounds))]
+    from shapely.geometry import Polygon, box
+    valid_boards = [i for i, b in enumerate(boards)
+                    if Polygon(b.polygon.exterior).equals(box(*b.bounds))]
     if not valid_boards:
         return
     eps = min(tolerance / 100, 1e-10)
+    initial_free = {}
+    for i in valid_boards:
+        free = [boards[i].bounds]
+        # Reserving hole envelopes is conservative for arbitrary hole shapes.
+        # Rectangular cutouts retain exact free strips around the obstacle.
+        for hole in boards[i].polygon.interiors:
+            free = _subtract(free, Polygon(hole).bounds, eps)
+        initial_free[i] = free
     variants = {}
     for key, item in items.items():
         seen = set()
@@ -60,7 +69,7 @@ def envelope_layouts(boards, items, deadline, tolerance):
             orders.append(order)
     for mode in ('short_side', 'area', 'bottom_left'):
         for order in orders:
-            free = {i: [boards[i].bounds] for i in valid_boards}
+            free = {i: list(initial_free[i]) for i in valid_boards}
             placed = []
             for key in order:
                 if deadline is not None and time.perf_counter() >= deadline:
@@ -87,5 +96,5 @@ def envelope_layouts(boards, items, deadline, tolerance):
                 placed.append((key, bi, v, x-v.bounds[0], y-v.bounds[1]))
                 free[bi] = _subtract(free[bi], (x,y,x+w,y+h), eps)
             yield placed
-            if len(placed) == len(items):
+            if len(placed) == len(items) and len(items) > 32:
                 return

@@ -5,7 +5,7 @@
     "packageId": "wishai.dragonyuran",
     "author": "Hao Wang",
     "dragonBone": {
-      "giantScale": 5.0
+      "giantScale": 5
     },
     "selectedApparel": [
       "YR_AP_MiKo",
@@ -39,23 +39,75 @@
       ],
       "traits": [
         {
-          "def": "Industrious",
-          "degree": 0
+          "def": "Industriousness",
+          "degree": 2
         }
       ],
       "skills": {
-        "Animals": {"level": 6, "passion": "Minor"},
-        "Artistic": {"level": 4, "passion": "None"},
-        "Construction": {"level": 5, "passion": "None"},
-        "Cooking": {"level": 8, "passion": "Major"},
-        "Crafting": {"level": 7, "passion": "Minor"},
-        "Intellectual": {"level": 5, "passion": "None"},
-        "Medical": {"level": 6, "passion": "Minor"},
-        "Melee": {"level": 4, "passion": "None"},
-        "Mining": {"level": 2, "passion": "None"},
-        "Plants": {"level": 7, "passion": "Minor"},
-        "Shooting": {"level": 6, "passion": "None"},
-        "Social": {"level": 9, "passion": "Major"}
+        "Animals": {
+          "level": 6,
+          "passion": "Minor"
+        },
+        "Artistic": {
+          "level": 4,
+          "passion": "None"
+        },
+        "Construction": {
+          "level": 5,
+          "passion": "None"
+        },
+        "Cooking": {
+          "level": 8,
+          "passion": "Major"
+        },
+        "Crafting": {
+          "level": 7,
+          "passion": "Minor"
+        },
+        "Intellectual": {
+          "level": 5,
+          "passion": "None"
+        },
+        "Medical": {
+          "level": 6,
+          "passion": "Minor"
+        },
+        "Melee": {
+          "level": 4,
+          "passion": "None"
+        },
+        "Mining": {
+          "level": 2,
+          "passion": "None"
+        },
+        "Plants": {
+          "level": 7,
+          "passion": "Minor"
+        },
+        "Shooting": {
+          "level": 6,
+          "passion": "None"
+        },
+        "Social": {
+          "level": 9,
+          "passion": "Major"
+        }
+      },
+      "hairDef": "DragonYuran_Hair_0",
+      "childhood": "",
+      "adulthood": "",
+      "beard": "",
+      "faceTattoo": "",
+      "bodyTattoo": "",
+      "favoriteColor": "",
+      "favoriteColorDef": "",
+      "apparelDetails": {},
+      "genes": {
+        "enabled": false,
+        "xenotypeDef": "Baseliner",
+        "customXenotypeName": "",
+        "endogenes": [],
+        "xenogenes": []
       }
     }
   ]

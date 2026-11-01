@@ -48,12 +48,15 @@ IMG2IMG_SIZE = (
     IMG2IMG_TOP + IMG2IMG_CELL + 32,
 )
 SKILLS = ("Animals", "Artistic", "Construction", "Cooking", "Crafting", "Intellectual", "Medical", "Melee", "Mining", "Plants", "Shooting", "Social")
-TRAITS = {
-    "Abrasive", "Ascetic", "Bloodlust", "Brawler", "Cannibal", "CarefulShooter", "FastLearner",
-    "GreatMemory", "Greedy", "HardWorker", "Industrious", "IronWilled", "Jogger", "Kind",
-    "Masochist", "Nimble", "Optimist", "PsychicallyDeaf", "PsychicallyHypersensitive", "Psychopath",
-    "Sanguine", "TooSmart", "Tough", "TriggerHappy", "Undergrounder", "Wimp",
+# Legacy UI used labels as def names; migrate before validation/export.
+TRAIT_ALIASES = {
+    "Industrious": ("Industriousness", 2), "HardWorker": ("Industriousness", 1),
+    "Jogger": ("SpeedOffset", 2), "Sanguine": ("NaturalMood", 2), "Optimist": ("NaturalMood", 1),
+    "IronWilled": ("Nerves", 2), "PsychicallyDeaf": ("PsychicSensitivity", -2),
+    "PsychicallyHypersensitive": ("PsychicSensitivity", 2),
+    "CarefulShooter": ("ShootingAccuracy", 1), "TriggerHappy": ("ShootingAccuracy", -1),
 }
+QUALITIES = ("Awful", "Poor", "Normal", "Good", "Excellent", "Masterwork", "Legendary")
 SAFE_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,79}$")
 SAFE_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -93,8 +96,46 @@ def sync_source() -> dict:
         "rsync", "-a", "--partial", "-e", "ssh -o BatchMode=yes -o ConnectTimeout=10",
         f"tk2:{REMOTE_SOURCE}", str(SOURCE) + "/",
     ], timeout=360)
+    sync_character_options()
     catalog = build_catalog()
     return {"status": "success", "source": REMOTE_SOURCE, "fileCount": sum(1 for path in SOURCE.rglob("*") if path.is_file()), "catalog": catalog}
+
+
+def sync_character_options() -> None:
+    result = subprocess.run(
+        ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "tk2", "python3 -"],
+        input=(ROOT / "character_options.py").read_text(), text=True, capture_output=True,
+        timeout=120, check=True,
+    )
+    options = json.loads(result.stdout)
+    options["observedAt"] = now()
+    (OUTPUTS / "character_options.json").write_text(json.dumps(options, ensure_ascii=False) + "\n")
+
+
+def character_options() -> dict:
+    path = OUTPUTS / "character_options.json"
+    options = json.loads(path.read_text()) if path.is_file() else {}
+    options["hairStyles"] = [{"defName": "Shaved", "label": "Shaved", "asset": None}] + [
+        {"defName": f"DragonYuran_Hair_{index}", "label": f"Yuran hair {index + 1}",
+         "asset": "AddonHair/YR_hair" + (str(index) if index else "")}
+        for index in range(10)
+    ]
+    return options
+
+
+def normalize_character(character: dict) -> None:
+    character.setdefault("hairDef", f"DragonYuran_Hair_{character.get('hairVariant', 0)}")
+    for key in ("childhood", "adulthood", "beard", "faceTattoo", "bodyTattoo", "favoriteColor", "favoriteColorDef"):
+        character.setdefault(key, "")
+    character.setdefault("apparelDetails", {})
+    character.setdefault("genes", {"enabled": False, "xenotypeDef": "Baseliner", "customXenotypeName": "",
+                                   "endogenes": [], "xenogenes": []})
+    if isinstance(character["genes"], dict):
+        for key, value in (("xenotypeDef", "Baseliner"), ("customXenotypeName", ""), ("endogenes", []), ("xenogenes", [])):
+            character["genes"].setdefault(key, value)
+    for trait in character.get("traits", []):
+        if isinstance(trait, dict) and trait.get("def") in TRAIT_ALIASES:
+            trait["def"], trait["degree"] = TRAIT_ALIASES[trait["def"]]
 
 
 def _category(relative: Path) -> str:
@@ -371,6 +412,7 @@ def build_catalog() -> dict:
             "fact": "Prepare Carefully calls RimWorld PortraitsCache.Get with pawn, direction, portrait size, apparel and hat flags.",
             "limitation": "The WebGUI is a texture-layer preview, not a captured Unity PortraitsCache frame. Launching RimWorld was intentionally not used for validation."
         },
+        "characterOptions": character_options(),
         "assets": _asset_catalog(),
         "apparel": _apparel_catalog(),
         "sheets": sheets,
@@ -414,10 +456,12 @@ def validate_config(payload: object, *, catalog: dict | None = None) -> dict:
         or not 1.25 <= giant_scale <= 10.0
     ):
         raise ValueError("mod.dragonBone.giantScale must be a finite number from 1.25 to 10.0")
+    options = (catalog or {}).get("characterOptions") or character_options()
     ids: set[str] = set()
     for index, character in enumerate(characters):
         if not isinstance(character, dict):
             raise ValueError(f"characters[{index}] must be an object")
+        normalize_character(character)
         identifier = str(character.get("id", ""))
         if not SAFE_ID.fullmatch(identifier) or identifier in ids:
             raise ValueError(f"characters[{index}].id is invalid or duplicated")
@@ -434,6 +478,10 @@ def validate_config(payload: object, *, catalog: dict | None = None) -> dict:
             age = character.get(age_key)
             if not isinstance(age, int) or isinstance(age, bool) or not 13 <= age <= 1000:
                 raise ValueError(f"characters[{index}].{age_key} must be 13-1000")
+        if character["chronologicalAge"] < character["biologicalAge"]:
+            raise ValueError("Chronological age cannot be younger than biological age")
+        if character.get("bodyType", "Thin") != "Thin" or character.get("headType", "DragonYuran_Female_AverageNormal") != "DragonYuran_Female_AverageNormal":
+            raise ValueError("Dragon Yuran artwork supports the Thin body and Yuran head only")
         if character.get("direction", "south") not in DIRECTIONS:
             raise ValueError(f"characters[{index}].direction is invalid")
         for color_key in ("skinColor", "hairColor"):
@@ -448,9 +496,54 @@ def validate_config(payload: object, *, catalog: dict | None = None) -> dict:
         traits = character.get("traits", [])
         if not isinstance(traits, list) or len(traits) > 8:
             raise ValueError(f"characters[{index}].traits is invalid")
+        trait_defs = {item["defName"]: item for item in options.get("traits", [])}
+        seen_traits = set()
         for trait in traits:
-            if not isinstance(trait, dict) or trait.get("def") not in TRAITS or not isinstance(trait.get("degree", 0), int):
-                raise ValueError(f"characters[{index}] contains an unsupported trait")
+            if not isinstance(trait, dict) or not SAFE_ID.fullmatch(str(trait.get("def", ""))) or type(trait.get("degree", 0)) is not int:
+                raise ValueError(f"characters[{index}] contains an invalid trait")
+            if trait["def"] in seen_traits:
+                raise ValueError("A trait can only have one degree")
+            seen_traits.add(trait["def"])
+            if trait_defs and (trait["def"] not in trait_defs or trait.get("degree", 0) not in {d["degree"] for d in trait_defs[trait["def"]]["degrees"]}):
+                raise ValueError(f"Unknown trait or degree: {trait['def']}")
+        for field, category in (("hairDef", "hairStyles"), ("childhood", "backstories"), ("adulthood", "backstories"),
+                                ("beard", "beards"), ("faceTattoo", "tattoos"), ("bodyTattoo", "tattoos"), ("favoriteColorDef", "favoriteColors")):
+            value = character[field]
+            if field == "hairDef" and not value:
+                raise ValueError("Choose a hairstyle or Shaved")
+            choices = {item["defName"]: item for item in options.get(category, [])}
+            if not isinstance(value, str) or (value and (not SAFE_ID.fullmatch(value) or value not in choices)):
+                raise ValueError(f"Unknown {field}: {value}; refresh definitions from TK2")
+            if value and field in ("childhood", "adulthood") and choices[value]["slot"].lower() != field:
+                raise ValueError(f"Wrong backstory slot for {field}")
+            if value and field in ("faceTattoo", "bodyTattoo") and choices[value]["tattooType"].lower() != field.removesuffix("Tattoo"):
+                raise ValueError(f"Wrong tattoo type for {field}")
+        if character["favoriteColor"] and not SAFE_COLOR.fullmatch(str(character["favoriteColor"])):
+            raise ValueError("favoriteColor must be a hex color")
+        details = character["apparelDetails"]
+        if not isinstance(details, dict) or not set(details).issubset(set(selected)):
+            raise ValueError("apparelDetails must use included apparel")
+        for detail in details.values():
+            if not isinstance(detail, dict) or detail.get("quality", "Normal") not in QUALITIES or not SAFE_COLOR.fullmatch(str(detail.get("color", "#ffffff"))):
+                raise ValueError("Invalid apparel quality or color")
+            condition = detail.get("condition", 100)
+            if type(condition) not in (int, float) or not math.isfinite(condition) or not 1 <= condition <= 100:
+                raise ValueError("Apparel condition must be 1-100 percent")
+        genes = character["genes"]
+        if not isinstance(genes, dict) or type(genes.get("enabled")) is not bool:
+            raise ValueError("genes.enabled must be true or false")
+        gene_defs = {item["defName"] for item in options.get("genes", [])}
+        for kind in ("endogenes", "xenogenes"):
+            entries = genes.get(kind, [])
+            if not isinstance(entries, list) or len(entries) > 256 or any(not isinstance(item, str) or item not in gene_defs for item in entries):
+                raise ValueError(f"Unknown {kind}; refresh definitions from TK2")
+            if len(entries) != len(set(entries)):
+                raise ValueError(f"Duplicate {kind}")
+        if set(genes.get("endogenes", [])) & set(genes.get("xenogenes", [])):
+            raise ValueError("A gene cannot be both an endogene and xenogene")
+        _validate_name(genes.get("customXenotypeName", ""), "Custom xenotype name", allow_empty=True)
+        if genes["enabled"] and ("Biotech" not in options.get("installedExpansions", []) or genes.get("xenotypeDef") not in {item["defName"] for item in options.get("xenotypes", [])}):
+            raise ValueError("Gene editing requires Biotech and a known xenotype")
         skills = character.get("skills", {})
         if not isinstance(skills, dict) or set(skills) != set(SKILLS):
             raise ValueError(f"characters[{index}] must define the 12 RimWorld skills")
@@ -512,6 +605,14 @@ def _write_race_defs() -> None:
     ET.SubElement(head, "defName").text = "DragonYuran_Female_AverageNormal"
     ET.SubElement(head, "graphicPath").text = "DragonYuran/Heads/Female_YR_head"
 
+    for style in character_options()["hairStyles"]:
+        if not style["asset"]:
+            continue
+        hair = ET.SubElement(defs, "HairDef")
+        for key, value in {"defName": style["defName"], "label": style["label"], "texPath": "DragonYuran/" + style["asset"], "styleGender": "Female"}.items():
+            ET.SubElement(hair, key).text = value
+        ET.SubElement(ET.SubElement(hair, "styleTags"), "li").text = "DragonYuranHair"
+
     race = ET.SubElement(defs, "AlienRace.ThingDef_AlienRace", {"ParentName": "BasePawn"})
     ET.SubElement(race, "defName").text = "DragonYuran_Race"
     ET.SubElement(race, "label").text = "dragon yuran"
@@ -533,6 +634,13 @@ def _write_race_defs() -> None:
         ET.SubElement(item, "def").text = stage
         ET.SubElement(item, "minAge").text = age
     alien = ET.SubElement(race, "alienRace")
+    styles = ET.SubElement(alien, "styleSettings")
+    hair_style = ET.SubElement(styles, "li")
+    ET.SubElement(hair_style, "key").text = "HairDef"
+    style_value = ET.SubElement(hair_style, "value")
+    ET.SubElement(style_value, "hasStyle").text = "true"
+    ET.SubElement(style_value, "shader").text = "Cutout"
+    ET.SubElement(ET.SubElement(style_value, "styleTagsOverride"), "li").text = "DragonYuranHair"
     general = ET.SubElement(alien, "generalSettings")
     ET.SubElement(general, "maleGenderProbability").text = "0.0000001"
     ET.SubElement(general, "minAgeForAdulthood").text = "13"
@@ -560,10 +668,6 @@ def _write_race_defs() -> None:
         ET.SubElement(second, "color").text = color
     addons = ET.SubElement(generator, "bodyAddons")
     addon_specs = [
-        ("DragonYuran/AddonHair/YR_hair", True, True, {
-            "south": ("(0,0)", "-0.274"), "north": ("(0,0)", "-0.326"),
-            "east": ("(0,0)", "-0.274"), "west": ("(0,0)", "-0.274"),
-        }),
         ("DragonYuran/Ear/L/YR_earL", True, True, {
             "south": ("(-0.42,0.29)", "-0.27"), "north": ("(0,0.62)", "-0.33"),
             "east": ("(-0.34,0.27)", "-0.3"), "west": ("(-0.34,0.27)", "-0.269"),
@@ -582,7 +686,7 @@ def _write_race_defs() -> None:
         ET.SubElement(item, "path").text = path
         ET.SubElement(item, "inFrontOfBody").text = str(front).lower()
         ET.SubElement(item, "alignWithHead").text = str(head_aligned).lower()
-        ET.SubElement(item, "colorChannel").text = "base"
+        ET.SubElement(item, "colorChannel").text = "hair"
         ET.SubElement(item, "drawSize").text = "1"
         ET.SubElement(item, "shaderType").text = "Transparent"
         offsets = ET.SubElement(item, "offsets")
@@ -871,6 +975,9 @@ def _copy_textures(config: dict, catalog: dict) -> list[str]:
     copied = []
     for base in ("Bodies/Naked_Thin", "Heads/Female_YR_head", "AddonHair/YR_hair", "Ear/L/YR_earL", "Ear/R/YR_earR", "tail/YR_tail"):
         copied.extend(_copy_direction_set(TEXTURES / base, target / base))
+    for style in character_options()["hairStyles"]:
+        if style["asset"]:
+            copied.extend(_copy_direction_set(TEXTURES / style["asset"], target / style["asset"]))
     by_def = {item["defName"]: item for item in catalog["apparel"]}
     for def_name in config["mod"]["selectedApparel"]:
         source = by_def[def_name]
@@ -905,6 +1012,7 @@ def _color_tuple(value: str) -> str:
 
 
 def _write_pcc(character: dict, apparel_map: dict[str, str]) -> Path:
+    normalize_character(character)
     root = ET.Element("character")
     ET.SubElement(root, "version").text = "5"
     ET.SubElement(root, "mods").text = "Harmony, Big and Small - Framework, Humanoid Alien Races, Dragon Yuran, EdB Prepare Carefully"
@@ -913,7 +1021,7 @@ def _write_pcc(character: dict, apparel_map: dict[str, str]) -> Path:
         "id": str(uuid.uuid5(uuid.NAMESPACE_URL, "dragon-yuran:" + character["id"])),
         "type": "Colony", "pawnKindDef": "DragonYuran_Colonist", "originalFactionDef": "PlayerColony",
         "thingDef": "DragonYuran_Race", "gender": "Female", "skinColor": _color_tuple(character["skinColor"]),
-        "hairColor": _color_tuple(character["hairColor"]), "hairDef": "Shaved", "bodyType": "Thin",
+        "hairColor": _color_tuple(character["hairColor"]), "hairDef": character["hairDef"], "bodyType": "Thin",
         "headType": "DragonYuran_Female_AverageNormal", "nameType": "Triple",
         "firstName": character["name"]["first"], "nickName": character["name"]["nick"], "lastName": character["name"]["last"],
         "biologicalAgeInTicks": str(character["biologicalAge"] * 3600000),
@@ -922,6 +1030,26 @@ def _write_pcc(character: dict, apparel_map: dict[str, str]) -> Path:
     }
     for key, value in values.items():
         ET.SubElement(pawn, key).text = value
+    for key in ("childhood", "adulthood"):
+        if character[key]:
+            ET.SubElement(pawn, key).text = character[key]
+    # V5's face-tattoo loader checks bodyTattoo first, so emit both even if empty.
+    for key, default in (("beard", "NoBeard"), ("faceTattoo", "NoTattoo_Face"), ("bodyTattoo", "NoTattoo_Body")):
+        ET.SubElement(pawn, key).text = character[key] or default
+    if character["favoriteColorDef"]:
+        ET.SubElement(pawn, "favoriteColorDef").text = character["favoriteColorDef"]
+    elif character["favoriteColor"]:
+        ET.SubElement(pawn, "favoriteColor").text = _color_tuple(character["favoriteColor"])
+    gene_config = character["genes"]
+    if gene_config["enabled"]:
+        genes = ET.SubElement(pawn, "genes")
+        ET.SubElement(genes, "xenotypeDef").text = gene_config["xenotypeDef"]
+        ET.SubElement(genes, "customXenotypeName").text = gene_config.get("customXenotypeName", "")
+        ET.SubElement(genes, "uniqueXenotype").text = str(bool(gene_config.get("customXenotypeName"))).lower()
+        for source, target in (("endogenes", "endogeneRecords"), ("xenogenes", "xenogeneRecords")):
+            records = ET.SubElement(genes, target)
+            for name in gene_config[source]:
+                ET.SubElement(ET.SubElement(records, "li"), "def").text = name
     traits = ET.SubElement(pawn, "traits")
     for trait in character["traits"]:
         item = ET.SubElement(traits, "li")
@@ -938,9 +1066,10 @@ def _write_pcc(character: dict, apparel_map: dict[str, str]) -> Path:
         item = ET.SubElement(apparel, "li")
         ET.SubElement(item, "apparel").text = apparel_map[source_def]
         ET.SubElement(item, "stuff").text = "Cloth"
-        ET.SubElement(item, "quality").text = "Normal"
-        ET.SubElement(item, "hitPoints").text = "100"
-        ET.SubElement(item, "color").text = "(1, 1, 1, 1)"
+        detail = character["apparelDetails"].get(source_def, {})
+        ET.SubElement(item, "quality").text = detail.get("quality", "Normal")
+        ET.SubElement(item, "hitPoints").text = str(detail.get("condition", 100) / 100)
+        ET.SubElement(item, "color").text = _color_tuple(detail.get("color", "#ffffff"))
     implant_specs = []
     if character.get("dragonSkinInstalled"):
         implant_specs.append(("InstallDragonYuranDragonSkin", "DragonYuran_DragonSkin", "Torso"))
@@ -1139,6 +1268,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("sync")
     sub.add_parser("inventory")
+    sub.add_parser("sync-character-options")
     sub.add_parser("build")
     sub.add_parser("deploy")
     validate = sub.add_parser("validate-config")
@@ -1148,6 +1278,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "sync":
         _print(sync_source())
+    elif args.command == "sync-character-options":
+        sync_character_options()
+        _print(build_catalog())
     elif args.command == "inventory":
         _print(build_catalog())
     elif args.command == "build":

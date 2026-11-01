@@ -33,6 +33,14 @@ class StripExceedsBoard(ValueError):
         super().__init__("Validated all-items strip exceeds the requested sheet width; fixed-sheet feasibility is inconclusive")
 
 
+def _minimum_width(polygon):
+    # A convex polygon's minimum support width occurs normal to a hull edge.
+    points = list(polygon.convex_hull.exterior.coords)
+    return min((max((x-a)*(d-b)-(y-b)*(c-a) for x, y in points)
+                - min((x-a)*(d-b)-(y-b)*(c-a) for x, y in points)) / math.hypot(c-a, d-b)
+               for (a, b), (c, d) in zip(points, points[1:]) if (a, b) != (c, d))
+
+
 def spyrrow_solution(problem, config, seconds):
     import spyrrow
     if len(problem.boards) != 1:
@@ -44,10 +52,16 @@ def spyrrow_solution(problem, config, seconds):
         raise Unsupported("Spyrrow accepts integer second budgets")
     _, items = _build_runtime(problem, config)
     x0, y0, x1, y1 = board.bounds
-    if any(all(v.bounds[3]-v.bounds[1] > y1-y0 for v in item.rotation_variants) for item in items.values()):
-        raise Unsupported("No permitted orientation fits the strip height for at least one item")
+    checked = set()
+    for item in items.values():
+        if item.widget_id in checked:
+            continue
+        checked.add(item.widget_id)
+        if all(v.bounds[3]-v.bounds[1] > y1-y0+config.placement_tolerance for v in item.rotation_variants):
+            if not item.free_rotation or _minimum_width(item.polygon_local) > y1-y0+config.placement_tolerance:
+                raise Unsupported("No permitted orientation fits the strip height for at least one item")
     parts = [spyrrow.Item(i.instance_id, list(i.polygon_local.exterior.coords[:-1]), 1,
-                         [v.angle_degrees for v in i.rotation_variants]) for i in items.values()]
+                         None if i.free_rotation else [v.angle_degrees for v in i.rotation_variants]) for i in items.values()]
     result = spyrrow.StripPackingInstance("geo_lib", y1-y0, parts).solve(
         spyrrow.StripPackingConfig(total_computation_time=int(seconds), num_workers=1,
                                   seed=config.seed, early_termination=False))
@@ -75,6 +89,7 @@ def spyrrow_solution(problem, config, seconds):
         raise StripExceedsBoard(metrics)
     solution = _result_from_placements(problem, config, placements, 'spyrrow', seconds)
     solution.search_stats.update(metrics)
+    solution.search_stats["rotation_policy"] = "continuous for free widgets; explicit restrictions preserved"
     return solution
 
 
@@ -110,14 +125,14 @@ def sdk_solution(problem, config, engine, seconds):
         parts, sheets = nest_geo(), nest_sheets()
         for item in item_list:
             angles = sorted(v.angle_degrees for v in item.rotation_variants)
-            n = len(angles)
-            if any(abs(a-i*360/n) > 1e-5 for i, a in enumerate(angles)):
+            n = 72 if item.free_rotation else len(angles)
+            if not item.free_rotation and any(abs(a-i*360/n) > 1e-5 for i, a in enumerate(angles)):
                 raise Unsupported('OpenNest accepts uniform rotation counts, not this angle list')
             p = item.polygon_local
             parts.add_part(line(p.exterior.coords), holes=[line(r.coords) for r in p.interiors], rotations=n)
         for b in boards:
             sheets.add_sheet(line(b.polygon.exterior.coords), holes=[line(r.coords) for r in b.polygon.interiors])
-        result = opennest(generations=100000, rotations=4, spacing=0, seed=config.seed,
+        result = opennest(generations=100000, rotations=72 if config.rotation_mode == "free" else 4, spacing=0, seed=config.seed,
                           num_seeds=1, use_parallel=False, exact_nfp=True, use_holes=True,
                           time_budget_secs=seconds, verbose=False).solve(parts, sheets)
         for raw in result.placements:
@@ -134,7 +149,9 @@ def sdk_solution(problem, config, engine, seconds):
                                         board_index, angle, polygon, polygon.centroid.x, polygon.centroid.y))
     else:
         raise Unsupported(engine)
-    return _result_from_placements(problem, config, placements, engine, seconds)
+    solution = _result_from_placements(problem, config, placements, engine, seconds)
+    solution.search_stats['rotation_policy'] = '5 degree approximation for free widgets; uniform explicit restrictions preserved'
+    return solution
 
 
 def run_worker(args):
@@ -142,11 +159,17 @@ def run_worker(args):
     problem = ProblemSpec.from_json(raw)
     config = SolverConfig.from_problem(problem, {'seed': args.seed, 'placement_tolerance': 1e-5,
                                                  'candidate_mode': 'contact' if args.engine == 'contact' else 'nfp'})
-    if args.matched_seconds is not None and args.engine in ('nfp', 'contact'):
+    if args.matched_seconds is not None and args.engine in ('nfp', 'contact') and not getattr(args, 'preserve_search_config', False):
         from dataclasses import replace
         config = replace(config, population_size=12, generations=100000)
     started = time.perf_counter()
-    row = {'engine': args.engine, 'seed': args.seed}
+    row = {'engine': args.engine, 'seed': args.seed, 'rotation_mode': config.rotation_mode,
+           'free_rotation_instances': sum(w.quantity for w in problem.widgets if config.rotation_mode == 'free' and not w.allowed_angles_degrees and w.rotation_step_degrees is None),
+           'rotation_policy': {'nfp': 'geometry seeds + local angular refinement',
+                               'contact': 'geometry seeds + local angular refinement',
+                               'spyrrow': 'native continuous',
+                               'opennest': '5 degree approximation (72 orientations)'} .get(args.engine, 'legacy')
+           if config.rotation_mode == 'free' else 'discrete input angles'}
     try:
         if args.engine == 'legacy':
             spec = importlib.util.spec_from_file_location('algorithms.widget_nesting_2d.legacy', args.legacy_solver)
@@ -186,15 +209,35 @@ def run_worker(args):
     save_solution(args.result, row)
 
 
+def benchmark_problem(raw, rotation_mode):
+    """Create an explicitly labelled rotation-relaxed comparison variant.
+
+    The original case library keeps its manufacturing/orientation constraints.
+    Every engine receives the same transformed input in a free-rotation run.
+    """
+    import copy
+    raw = copy.deepcopy(raw)
+    raw.setdefault('config', {})['rotation_mode'] = rotation_mode
+    if rotation_mode == 'free':
+        for widget in raw['widgets']:
+            widget.pop('allowed_angles_degrees', None)
+            widget.pop('rotation_step_degrees', None)
+        raw.setdefault('source', {})['rotation_variant'] = 'All widgets permit continuous rotation; original angle restrictions relaxed.'
+    return raw
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-root', default='algorithms/widget_nesting_2d/outputs/benchmark')
     parser.add_argument('--case', action='append', default=[])
+    parser.add_argument('--problem-case', action='append', default=[], metavar='NAME=PATH',
+                        help='Add a saved problem/configuration to the comparison catalogue')
     parser.add_argument('--large', action='store_true', help='Include opt-in scenes with 100–1000 widgets')
     parser.add_argument('--diverse', action='store_true', help='Include mixed scenes with 66–256 distinct outlines')
     parser.add_argument('--engines', nargs='+', default=['contact', 'nfp', 'opennest'])
     parser.add_argument('--seeds', nargs='+', type=int, default=[7, 42])
     parser.add_argument('--timeout', type=float, default=30)
+    parser.add_argument('--rotation-mode', choices=['free', 'discrete'], default='free')
     parser.add_argument('--matched-seconds', type=float, default=None, help='Soft search budget for local and SDK engines')
     parser.add_argument('--sdk-seconds', type=float, default=2)
     parser.add_argument('--legacy-solver')
@@ -202,6 +245,7 @@ def main():
     parser.add_argument('--jobs', type=int, default=1)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--worker', action='store_true')
+    parser.add_argument('--preserve-search-config', action='store_true', help='Worker: retain captured population and generation settings with a time budget')
     parser.add_argument('--problem')
     parser.add_argument('--result')
     parser.add_argument('--engine')
@@ -215,6 +259,16 @@ def main():
         run_worker(args)
         return
     library = build_case_library(include_large=args.large, include_diverse=args.diverse)
+    from .case_library import CaseDefinition
+    for entry in args.problem_case:
+        name, separator, path = entry.partition('=')
+        if not separator or not name or not all(c.isalnum() or c in '_-' for c in name):
+            parser.error('--problem-case requires a safe case NAME=PATH')
+        if name in library:
+            parser.error(f'Duplicate case name: {name}')
+        raw = json.loads(Path(path).read_text())
+        ProblemSpec.from_json(raw)
+        library[name] = CaseDefinition(name, f'Saved problem from {path}', raw)
     root = Path(args.output_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     versions = {}
@@ -233,6 +287,8 @@ def main():
                            'tolerance': 1e-5, 'seeds': args.seeds, 'cold_cache': True,
                            'hard_timeout_seconds': args.timeout, 'sdk_budget_seconds': args.sdk_seconds,
                            'matched_seconds': args.matched_seconds,
+                           'rotation_mode': args.rotation_mode,
+                           'rotation_note': 'Free benchmark variants relax all widget angle restrictions for every engine: local adaptive angles, Sparrow continuous, OpenNest 5 degree approximation. Discrete preserves original restrictions.',
                            'spyrrow_contract': 'Separate all-items strip feasibility probe; exceeding width is inconclusive, never a partial-area comparison.',
                            'budget_note': ('Shared soft search budget; inspect actual solve time and outer timeouts. Local population 12, generation cap 100000.' if args.matched_seconds is not None else 'Local engines use fixed search counts; SDK uses wall-time. Not equal-time quality claims.'),
                            'legacy_solver': args.legacy_solver}, 'results': []}
@@ -249,12 +305,13 @@ def main():
         case = library[case_id]
         directory = root / case_id
         directory.mkdir(exist_ok=True)
+        case_raw = benchmark_problem(case.problem, args.rotation_mode)
         problem_path = directory / 'problem.json'
         if args.resume and problem_path.exists():
             from .problem import _round_value
-            if json.loads(problem_path.read_text()) != _round_value(case.problem):
+            if json.loads(problem_path.read_text()) != _round_value(case_raw):
                 raise ValueError(f'Resume problem changed: {case_id}')
-        save_solution(problem_path, case.problem)
+        save_solution(problem_path, case_raw)
         if case.witness:
             save_solution(directory/'feasibility_witness.json', case.witness)
         for seed in args.seeds:

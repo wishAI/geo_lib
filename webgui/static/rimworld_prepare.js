@@ -2,7 +2,8 @@
   'use strict';
 
   const SKILLS = ['Animals', 'Artistic', 'Construction', 'Cooking', 'Crafting', 'Intellectual', 'Medical', 'Melee', 'Mining', 'Plants', 'Shooting', 'Social'];
-  const TRAITS = ['Industrious', 'FastLearner', 'Kind', 'Sanguine', 'Tough', 'Jogger', 'GreatMemory', 'Nimble', 'IronWilled'];
+  const TRAIT_ALIASES = { Industrious: ['Industriousness', 2], HardWorker: ['Industriousness', 1], Jogger: ['SpeedOffset', 2], Sanguine: ['NaturalMood', 2], Optimist: ['NaturalMood', 1], IronWilled: ['Nerves', 2], PsychicallyDeaf: ['PsychicSensitivity', -2], PsychicallyHypersensitive: ['PsychicSensitivity', 2], CarefulShooter: ['ShootingAccuracy', 1], TriggerHappy: ['ShootingAccuracy', -1] };
+  const QUALITIES = ['Awful', 'Poor', 'Normal', 'Good', 'Excellent', 'Masterwork', 'Legendary'];
   const DIRECTIONS = ['south', 'east', 'north', 'west'];
   const HEAD = { south: [0, -45], east: [15, -45], north: [0, -45], west: [-15, -45] };
   const EARS = {
@@ -23,10 +24,11 @@
   function mount(root, options) {
     const sandbox = options.sandbox;
     const designer = options.designer || {};
-    const state = { workspace: null, catalog: null, skinImport: null, selected: '', tab: sessionStorage.getItem('rimworld-prepare-tab') || 'character', assetFilter: 'all', search: '', job: null, uploading: false, destroyed: false, images: new Map() };
+    const state = { workspace: null, catalog: null, skinImport: null, selected: '', tab: sessionStorage.getItem('rimworld-prepare-tab') || 'character', assetFilter: 'all', search: '', geneSearch: '', geneCategory: '', previewVersion: 0, job: null, uploading: false, destroyed: false, images: new Map() };
     root.innerHTML = '<div class="rw-loading"><span></span><b>Reading the installed Yuran 1.6 assets…</b></div>';
 
     const assetUrl = (path, token = '') => `/api/rimworld/asset?sandbox=${encodeURIComponent(sandbox)}&path=${encodeURIComponent(path)}${token ? `&v=${encodeURIComponent(token)}` : ''}`;
+    const characterOptions = () => state.catalog.characterOptions || {};
     const byId = id => state.catalog.assets.find(item => item.id === id);
     const current = () => state.workspace.characters.find(item => item.id === state.selected) || state.workspace.characters[0];
     const fileFor = (asset, direction) => {
@@ -41,11 +43,17 @@
       }));
       return state.images.get(path);
     };
-    async function drawAsset(ctx, asset, direction, offset = [0, 0]) {
+    async function drawAsset(ctx, asset, direction, offset = [0, 0], color = null) {
       const file = fileFor(asset, direction);
       if (!file) return;
       try {
-        const image = await loadImage(file.path);
+        let image = await loadImage(file.path);
+        if (color && color !== '#ffffff') {
+          const tinted = document.createElement('canvas'); tinted.width = image.width; tinted.height = image.height;
+          const paint = tinted.getContext('2d'); paint.drawImage(image, 0, 0);
+          paint.globalCompositeOperation = 'multiply'; paint.fillStyle = color; paint.fillRect(0, 0, tinted.width, tinted.height);
+          paint.globalCompositeOperation = 'destination-in'; paint.drawImage(image, 0, 0); image = tinted;
+        }
         ctx.save();
         if (file.mirror) { ctx.translate(256 + offset[0], offset[1]); ctx.scale(-1, 1); ctx.drawImage(image, 0, 0, 256, 256); }
         else ctx.drawImage(image, offset[0], offset[1], 256, 256);
@@ -57,12 +65,18 @@
       const body = item.layers.includes('Overhead') ? prefix : `${prefix}_Thin`;
       return byId(body) || byId(prefix);
     }
-    async function drawImportedPart(ctx, kind, direction, offset = [0, 0]) {
+    async function drawImportedPart(ctx, kind, direction, offset = [0, 0], color = null) {
       const chosen = direction === 'west' ? 'east' : direction;
       const base = kind === 'face' ? 'Heads/Female_YR_head' : 'Bodies/Naked_Thin';
       const path = `outputs/imports/DragonSkin/${base}_${chosen}.png`;
       try {
-        const image = await loadImage(path);
+        let image = await loadImage(path);
+        if (color && color !== '#ffffff') {
+          const tinted = document.createElement('canvas'); tinted.width = image.width; tinted.height = image.height;
+          const paint = tinted.getContext('2d'); paint.drawImage(image, 0, 0);
+          paint.globalCompositeOperation = 'multiply'; paint.fillStyle = color; paint.fillRect(0, 0, tinted.width, tinted.height);
+          paint.globalCompositeOperation = 'destination-in'; paint.drawImage(image, 0, 0); image = tinted;
+        }
         ctx.save();
         if (direction === 'west') { ctx.translate(256 + offset[0], offset[1]); ctx.scale(-1, 1); ctx.drawImage(image, 0, 0, 256, 256); }
         else ctx.drawImage(image, offset[0], offset[1], 256, 256);
@@ -75,33 +89,72 @@
       if (!canvas || !state.catalog) return;
       const person = current();
       const direction = person.direction || 'south';
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, 256, 256);
-      await drawAsset(ctx, byId('tail/YR_tail'), direction, TAIL[direction]);
-      if (!(person.dragonSkinInstalled && await drawImportedPart(ctx, 'body', direction))) await drawAsset(ctx, byId('Bodies/Naked_Thin'), direction);
+      const version = ++state.previewVersion;
+      const buffer = document.createElement('canvas'); buffer.width = 256; buffer.height = 256;
+      const ctx = buffer.getContext('2d');
+      await drawAsset(ctx, byId('tail/YR_tail'), direction, TAIL[direction], person.hairColor);
+      if (!(person.dragonSkinInstalled && await drawImportedPart(ctx, 'body', direction, [0, 0], person.skinColor))) await drawAsset(ctx, byId('Bodies/Naked_Thin'), direction, [0, 0], person.skinColor);
       const worn = person.apparel.map(def => state.catalog.apparel.find(item => item.defName === def)).filter(Boolean);
-      for (const item of worn.filter(item => !item.layers.includes('Overhead'))) await drawAsset(ctx, apparelAsset(item), direction);
-      if (!(person.dragonSkinInstalled && await drawImportedPart(ctx, 'face', direction, HEAD[direction]))) await drawAsset(ctx, byId('Heads/Female_YR_head'), direction, HEAD[direction]);
-      await drawAsset(ctx, byId('Ear/L/YR_earL'), direction, EARS[direction][0]);
-      await drawAsset(ctx, byId('Ear/R/YR_earR'), direction, EARS[direction][1]);
-      await drawAsset(ctx, byId('AddonHair/YR_hair'), direction, HEAD[direction]);
-      for (const item of worn.filter(item => item.layers.includes('Overhead'))) await drawAsset(ctx, apparelAsset(item), direction, HEAD[direction]);
+      for (const item of worn.filter(item => !item.layers.includes('Overhead'))) await drawAsset(ctx, apparelAsset(item), direction, [0, 0], person.apparelDetails[item.defName]?.color);
+      if (!(person.dragonSkinInstalled && await drawImportedPart(ctx, 'face', direction, HEAD[direction], person.skinColor))) await drawAsset(ctx, byId('Heads/Female_YR_head'), direction, HEAD[direction], person.skinColor);
+      await drawAsset(ctx, byId('Ear/L/YR_earL'), direction, EARS[direction][0], person.hairColor);
+      await drawAsset(ctx, byId('Ear/R/YR_earR'), direction, EARS[direction][1], person.hairColor);
+      const hair = characterOptions().hairStyles?.find(item => item.defName === person.hairDef);
+      if (hair?.asset) await drawAsset(ctx, byId(hair.asset), direction, HEAD[direction], person.hairColor);
+      for (const item of worn.filter(item => item.layers.includes('Overhead'))) await drawAsset(ctx, apparelAsset(item), direction, HEAD[direction], person.apparelDetails[item.defName]?.color);
+      if (!state.destroyed && version === state.previewVersion && canvas.isConnected) { const target = canvas.getContext('2d'); target.clearRect(0, 0, 256, 256); target.drawImage(buffer, 0, 0); }
     }
 
     function characterList() {
       return `<aside class="rw-roster"><header><b>Colonists</b><button type="button" data-add-character title="Duplicate selected colonist">＋</button></header>${state.workspace.characters.map(person => `<button type="button" class="rw-roster-item ${person.id === state.selected ? 'active' : ''}" data-character="${esc(person.id)}"><span>${esc(person.name.nick || person.name.first)}</span><small>${esc(person.biologicalAge)} · Dragon Yuran</small></button>`).join('')}</aside>`;
     }
+    function selectField(label, path, value, entries, blank = 'None') {
+      return `<label>${esc(label)}<select data-path="${esc(path)}">${['hairDef', 'genes.xenotypeDef'].includes(path) ? '' : `<option value="">${esc(blank)}</option>`}${entries.map(item => `<option value="${esc(item.defName)}" ${item.defName === value ? 'selected' : ''}>${esc(item.label)}${item.source && item.source !== 'Core' ? ` · ${esc(item.source)}` : ''}</option>`).join('')}</select></label>`;
+    }
+    function backstoryField(person, slot) {
+      return `<label>${slot === 'childhood' ? 'Childhood' : 'Adulthood'}<input data-path="${slot}" list="rw-${slot}" value="${esc(person[slot])}" placeholder="Search title or definition"><datalist id="rw-${slot}">${(characterOptions().backstories || []).filter(item => item.slot.toLowerCase() === slot).map(item => `<option value="${esc(item.defName)}">${esc(item.label)}</option>`).join('')}</datalist></label>`;
+    }
+    function genesPane(person) {
+      const genes = person.genes, options = characterOptions(), defs = options.genes || [];
+      const picked = [...genes.endogenes, ...genes.xenogenes].map(name => defs.find(item => item.defName === name)).filter(Boolean);
+      const totals = ['complexity', 'metabolism', 'archites'].map(key => `${key}: ${picked.reduce((sum, item) => sum + item[key], 0)}`).join(' · ');
+      const conflicts = [];
+      for (let i = 0; i < picked.length; i++) {
+        const item = picked[i];
+        if (item.prerequisite && !picked.some(other => other.defName === item.prerequisite)) conflicts.push(`${item.label} needs ${item.prerequisite}`);
+        for (const other of picked.slice(i + 1)) if (item.exclusionTags.some(tag => other.exclusionTags.includes(tag))) conflicts.push(`${item.label} / ${other.label}`);
+      }
+      const selected = kind => `<div class="rw-gene-selected"><b>${kind === 'endogenes' ? 'Inherited genes' : 'Implanted genes'}</b>${genes[kind].map(name => `<button type="button" data-remove-gene="${esc(name)}" data-kind="${kind}" title="Remove gene">${esc(defs.find(item => item.defName === name)?.label || name)} ×</button>`).join('') || '<small>None</small>'}</div>`;
+      return `<h3>Genes · Biotech</h3><label class="rw-check-label"><input type="checkbox" data-genes-enabled ${genes.enabled ? 'checked' : ''} ${!options.installedExpansions?.includes('Biotech') ? 'disabled' : ''}>Export gene configuration</label>
+      <p class="rw-help">Requires Biotech enabled in RimWorld. Endogenes are inherited; xenogenes are implanted. Gene effects and tattoos appear in the game, not in this texture preview.</p>
+      ${genes.enabled ? `<div class="rw-name-grid">${selectField('Xenotype preset', 'genes.xenotypeDef', genes.xenotypeDef, options.xenotypes || [])}<label>Custom xenotype name<input data-path="genes.customXenotypeName" maxlength="40" value="${esc(genes.customXenotypeName)}"></label><button type="button" data-apply-xenotype>Replace genes with preset</button></div>
+      <p class="rw-help">Choosing a name preserves your current genes; “Replace genes with preset” replaces both lists. Editing a preset's genes creates a custom xenotype.</p>
+      ${selected('endogenes')}${selected('xenogenes')}<p class="rw-gene-totals">Selected totals (before overrides) · ${esc(totals)}</p>
+      ${conflicts.length ? `<p class="rw-warning">Possible overrides / prerequisites: ${esc(conflicts.join('; '))}</p>` : ''}
+      <div class="rw-gene-filter"><input type="search" data-gene-search placeholder="Search genes" value="${esc(state.geneSearch)}"><select data-gene-category><option value="">All categories</option>${[...new Set(defs.map(item => item.category))].sort().map(category => `<option ${category === state.geneCategory ? 'selected' : ''}>${esc(category)}</option>`).join('')}</select></div>
+      <div class="rw-gene-list">${defs.map(item => `<article data-gene-row data-search="${esc(`${item.label} ${item.defName} ${item.description}`.toLowerCase())}" data-category="${esc(item.category)}"><span title="${esc(item.description)}"><b>${esc(item.label)}</b><small>${esc(item.category)} · C ${item.complexity} / M ${item.metabolism} / A ${item.archites}</small></span><button type="button" data-add-gene="${esc(item.defName)}" data-kind="endogenes" ${picked.some(p => p.defName === item.defName) ? 'disabled' : ''}>Inherited +</button><button type="button" data-add-gene="${esc(item.defName)}" data-kind="xenogenes" ${picked.some(p => p.defName === item.defName) ? 'disabled' : ''}>Implanted +</button></article>`).join('')}</div>` : ''}
+      <p class="rw-help">${esc(options.scope || 'Refresh source from TK2 to load character definitions.')}</p>`;
+    }
     function identityPane(person) {
+      const options = characterOptions();
+      const traits = (options.traits || []).flatMap(item => item.degrees.map(degree => ({ ...degree, defName: item.defName })));
       return `<section class="rw-fields"><h3>Identity</h3><div class="rw-name-grid">
         <label>First<input data-path="name.first" value="${esc(person.name.first)}"></label><label>Nickname<input data-path="name.nick" value="${esc(person.name.nick)}"></label><label>Last<input data-path="name.last" value="${esc(person.name.last)}"></label>
-      </div><div class="rw-name-grid"><label>Biological age<input type="number" min="13" max="200" data-path="biologicalAge" value="${esc(person.biologicalAge)}"></label><label>Chronological age<input type="number" min="13" max="10000" data-path="chronologicalAge" value="${esc(person.chronologicalAge)}"></label><label>Race<input value="Dragon Yuran" disabled></label></div>
+      </div><div class="rw-name-grid"><label>Biological age<input type="number" min="13" max="1000" data-path="biologicalAge" value="${esc(person.biologicalAge)}"></label><label>Chronological age<input type="number" min="13" max="1000" data-path="chronologicalAge" value="${esc(person.chronologicalAge)}"></label><label>Race<input value="Dragon Yuran" disabled></label></div>
+      <h3>Appearance</h3><div class="rw-name-grid">${selectField('Hairstyle', 'hairDef', person.hairDef, options.hairStyles || [])}<label>Hair / ears / tail color<input type="color" data-path="hairColor" value="${esc(person.hairColor)}"></label><label>Skin color<input type="color" data-path="skinColor" value="${esc(person.skinColor)}"></label></div>
+      <p class="rw-help">Race artwork: female · Thin body · Yuran head. These silhouettes are fixed by the race's available artwork.</p>
+      <div class="rw-name-grid">${selectField('Beard', 'beard', person.beard, options.beards || [])}${selectField('Face tattoo · Ideology', 'faceTattoo', person.faceTattoo, (options.tattoos || []).filter(item => item.tattooType === 'Face'))}${selectField('Body tattoo · Ideology', 'bodyTattoo', person.bodyTattoo, (options.tattoos || []).filter(item => item.tattooType === 'Body'))}</div>
+      <div class="rw-name-grid">${selectField('Favorite color', 'favoriteColorDef', person.favoriteColorDef, options.favoriteColors || [], 'Generated default')}</div>
+      <h3>Backstories</h3><div class="rw-name-grid rw-two-columns">${backstoryField(person, 'childhood')}${backstoryField(person, 'adulthood')}</div><p class="rw-help">Backstories can disable work types and alter effective skills in game. Clear a field to leave its generated backstory.</p>
       <h3>Skills</h3><div class="rw-skill-grid">${SKILLS.map(name => `<label><span>${esc(name)}</span><input type="number" min="0" max="20" data-skill="${name}" value="${person.skills[name].level}"><select data-passion="${name}">${['None', 'Minor', 'Major'].map(value => `<option ${person.skills[name].passion === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label>`).join('')}</div>
-      <h3>Traits</h3><div class="rw-check-grid">${TRAITS.map(name => `<label><input type="checkbox" data-trait="${name}" ${person.traits.some(item => item.def === name) ? 'checked' : ''}><span>${esc(name.replace(/([A-Z])/g, ' $1').trim())}</span></label>`).join('')}</div>
-      <h3>Health and worn apparel</h3><div class="rw-check-grid"><label class="rw-dragon-check"><input type="checkbox" data-dragon-skin ${person.dragonSkinInstalled ? 'checked' : ''}><span>Dragon Skin installed</span></label><label class="rw-dragon-check"><input type="checkbox" data-dragon-bone ${person.dragonBoneInstalled ? 'checked' : ''}><span>Dragon Bone installed · spine</span></label>${state.workspace.mod.selectedApparel.map(def => { const item = state.catalog.apparel.find(value => value.defName === def); return `<label><input type="checkbox" data-worn="${esc(def)}" ${person.apparel.includes(def) ? 'checked' : ''}><span>${esc(item?.label || def)}</span></label>`; }).join('')}</div></section>`;
+      <h3>Traits</h3><div class="rw-selected-traits">${person.traits.map((trait, index) => `<button type="button" data-remove-trait="${index}">${esc(traits.find(item => item.defName === trait.def && item.degree === trait.degree)?.label || `${trait.def} (${trait.degree})`)} ×</button>`).join('')}</div><div class="rw-gene-filter"><select aria-label="Trait to add" data-trait-choice>${traits.map(item => `<option value="${esc(item.defName)}:${item.degree}">${esc(item.label)} · ${esc(item.defName)} (${item.degree})</option>`).join('')}</select><button type="button" data-add-trait>Add trait</button></div>
+      ${genesPane(person)}
+      <h3>Health and worn apparel</h3><div class="rw-check-grid"><label class="rw-dragon-check"><input type="checkbox" data-dragon-skin ${person.dragonSkinInstalled ? 'checked' : ''}><span>Dragon Skin installed</span></label><label class="rw-dragon-check"><input type="checkbox" data-dragon-bone ${person.dragonBoneInstalled ? 'checked' : ''}><span>Dragon Bone installed · spine</span></label>${state.workspace.mod.selectedApparel.map(def => { const item = state.catalog.apparel.find(value => value.defName === def); return `<label><input type="checkbox" data-worn="${esc(def)}" ${person.apparel.includes(def) ? 'checked' : ''}><span>${esc(item?.label || def)}</span></label>`; }).join('')}</div>
+      ${person.apparel.map(def => { const detail = person.apparelDetails[def] || {}; return `<div class="rw-apparel-detail"><b>${esc(state.catalog.apparel.find(item => item.defName === def)?.label || def)}</b><label>Quality<select data-apparel-def="${esc(def)}" data-apparel-field="quality">${QUALITIES.map(q => `<option ${q === (detail.quality || 'Normal') ? 'selected' : ''}>${q}</option>`).join('')}</select></label><label>Condition %<input type="number" min="1" max="100" data-apparel-def="${esc(def)}" data-apparel-field="condition" value="${detail.condition ?? 100}"></label><label>Color<input type="color" data-apparel-def="${esc(def)}" data-apparel-field="color" value="${esc(detail.color || '#ffffff')}"></label></div>`; }).join('')}</section>`;
     }
     function characterTab() {
       const person = current();
-      return `<div class="rw-character-layout">${characterList()}<section class="rw-preview"><div class="rw-canvas-shell"><canvas id="rw-pawn-canvas" width="256" height="256" aria-label="Layered Yuran pawn preview"></canvas></div><div class="rw-directions" role="group" aria-label="View direction">${DIRECTIONS.map(value => `<button type="button" data-direction="${value}" class="${person.direction === value ? 'active' : ''}">${value}</button>`).join('')}</div><p>Uses RimWorld 1.6 Thin head offset plus the Yuran 1.6 HAR addon offsets. This is a deterministic texture composite, not a Unity screenshot.</p></section>${identityPane(person)}</div>`;
+      return `<div class="rw-character-layout">${characterList()}<section class="rw-preview"><div class="rw-canvas-shell"><canvas id="rw-pawn-canvas" width="256" height="256" aria-label="Layered Yuran pawn preview"></canvas></div><div class="rw-directions" role="group" aria-label="View direction">${DIRECTIONS.map(value => `<button type="button" data-direction="${value}" class="${person.direction === value ? 'active' : ''}">${value}</button>`).join('')}</div><p>Uses RimWorld 1.6 Thin head offset plus the Yuran 1.6 HAR addon offsets. Hair, skin and clothing colors update here. Beards, tattoos and gene effects require an in-game check.</p></section>${identityPane(person)}</div>`;
     }
     function apparelTab() {
       const selected = new Set(state.workspace.mod.selectedApparel);
@@ -143,10 +196,13 @@
       return characterTab();
     }
     function render() {
+      const scrollTop = root.querySelector('.rw-fields')?.scrollTop || 0;
       if (state.destroyed) return;
       const source = state.catalog.source;
       root.innerHTML = `<div class="rw-shell"><div class="rw-pipeline"><span class="complete"><i>1</i><b>Installed source</b><small>${state.catalog.assets.length} race assets</small></span><span class="complete"><i>2</i><b>Race core</b><small>Yuran → Dragon Yuran</small></span><span class="complete"><i>3</i><b>Characters</b><small>${state.workspace.characters.length} Prepare Carefully</small></span><span class="${state.job?.status === 'succeeded' && state.job?.example === designer.deployExample ? 'complete' : ''}"><i>4</i><b>TK2</b><small>${state.job?.status || 'ready to deploy'}</small></span></div><nav class="rw-tabs" aria-label="RimWorld Prepare sections">${[['character', 'Character'], ['apparel', 'Clothing'], ['assets', 'Assets'], ['dragon', 'Dragon skin'], ['bone', 'Dragon bone'], ['deploy', 'Build & deploy']].map(([id, label]) => `<button type="button" data-tab="${id}" class="${state.tab === id ? 'active' : ''}">${label}</button>`).join('')}<span></span><button class="rw-save" type="button" data-action="save">Save workspace</button><button class="rw-sync" type="button" data-action="sync">Refresh from TK2</button></nav><main class="rw-body">${tabBody()}</main><footer class="rw-status"><span class="${state.job?.status || 'ready'}"><i></i>${esc(state.job ? `${state.job.status}: ${state.job.example}` : 'Workspace ready')}</span><small>Workshop ${esc(source.workshopId)} · RimWorld ${esc(designer.gameVersion || source.version)} · game not launched</small></footer></div>`;
       bind();
+      if (root.querySelector('.rw-fields')) root.querySelector('.rw-fields').scrollTop = scrollTop;
+      filterGenes();
       if (state.tab === 'character') void renderPawn();
     }
     function setPath(person, path, value) {
@@ -174,6 +230,7 @@
         const indicator = root.querySelector('.rw-status span');
         if (indicator) { indicator.className = state.job.status; indicator.innerHTML = `<i></i>${esc(`${state.job.status}: ${state.job.example}`)}`; }
       }
+      if (!state.destroyed && state.job.status === 'succeeded' && example === designer.syncExample) { const updated = await api(`/api/rimworld/workspace?sandbox=${encodeURIComponent(sandbox)}`); state.catalog = updated.catalog; state.images.clear(); }
       if (!state.destroyed) { setStatus(state.job.status === 'succeeded' ? 'Completed without launching RimWorld.' : (state.job.log || `${state.job.status}`), state.job.status !== 'succeeded'); render(); }
     }
     async function importSkin(file) {
@@ -188,17 +245,50 @@
         state.uploading = false; render(); throw error;
       }
     }
+    function filterGenes() {
+      root.querySelectorAll('[data-gene-row]').forEach(row => { row.hidden = !row.dataset.search.includes(state.geneSearch.toLowerCase()) || Boolean(state.geneCategory && row.dataset.category !== state.geneCategory); });
+    }
+    function normalizeWorkspace() {
+      state.workspace.characters.forEach(person => {
+        person.hairDef ??= `DragonYuran_Hair_${person.hairVariant || 0}`;
+        for (const key of ['childhood', 'adulthood', 'beard', 'faceTattoo', 'bodyTattoo', 'favoriteColor', 'favoriteColorDef']) person[key] ??= '';
+        person.apparelDetails ||= {};
+        person.genes ||= { enabled: false, xenotypeDef: 'Baseliner', customXenotypeName: '', endogenes: [], xenogenes: [] };
+        person.traits.forEach(trait => { const alias = TRAIT_ALIASES[trait.def]; if (alias) [trait.def, trait.degree] = alias; });
+      });
+    }
     function bind() {
       root.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => { state.tab = button.dataset.tab; sessionStorage.setItem('rimworld-prepare-tab', state.tab); render(); }));
       root.querySelectorAll('[data-character]').forEach(button => button.addEventListener('click', () => { state.selected = button.dataset.character; state.workspace.selectedCharacterId = state.selected; render(); }));
       root.querySelector('[data-add-character]')?.addEventListener('click', () => {
+        if (state.workspace.characters.length >= 24) { setStatus('Maximum 24 characters.', true); return; }
         const person = clone(current()); person.id = `dragon-yuran-${Date.now()}`; person.name.nick = `${person.name.nick} II`; state.workspace.characters.push(person); state.selected = person.id; state.workspace.selectedCharacterId = person.id; render();
       });
       root.querySelectorAll('[data-direction]').forEach(button => button.addEventListener('click', () => { current().direction = button.dataset.direction; render(); }));
-      root.querySelectorAll('[data-path]').forEach(input => input.addEventListener('input', () => { setPath(current(), input.dataset.path, input.type === 'number' ? Number(input.value) : input.value); }));
+      root.querySelectorAll('[data-path]').forEach(input => input.addEventListener('input', () => { setPath(current(), input.dataset.path, input.type === 'number' ? Number(input.value) : input.value); if (['hairDef', 'hairColor', 'skinColor'].includes(input.dataset.path)) void renderPawn(); }));
       root.querySelectorAll('[data-skill]').forEach(input => input.addEventListener('input', () => { current().skills[input.dataset.skill].level = Number(input.value); }));
       root.querySelectorAll('[data-passion]').forEach(input => input.addEventListener('change', () => { current().skills[input.dataset.passion].passion = input.value; }));
-      root.querySelectorAll('[data-trait]').forEach(input => input.addEventListener('change', () => { const traits = current().traits; const index = traits.findIndex(item => item.def === input.dataset.trait); if (input.checked && index < 0) traits.push({ def: input.dataset.trait, degree: 0 }); if (!input.checked && index >= 0) traits.splice(index, 1); }));
+      root.querySelector('[data-add-trait]')?.addEventListener('click', () => {
+        const value = root.querySelector('[data-trait-choice]').value; if (!value) return;
+        const [def, degree] = value.split(':'); const existing = current().traits.find(item => item.def === def);
+        if (existing) existing.degree = Number(degree); else if (current().traits.length < 8) current().traits.push({ def, degree: Number(degree) });
+        else { setStatus('Maximum 8 traits per character.', true); return; } render();
+      });
+      root.querySelectorAll('[data-remove-trait]').forEach(button => button.addEventListener('click', () => { current().traits.splice(Number(button.dataset.removeTrait), 1); render(); }));
+      root.querySelector('[data-genes-enabled]')?.addEventListener('change', event => { current().genes.enabled = event.target.checked; render(); });
+      root.querySelector('[data-apply-xenotype]')?.addEventListener('click', () => {
+        const preset = characterOptions().xenotypes.find(item => item.defName === current().genes.xenotypeDef);
+        if (!preset) { setStatus('Choose a xenotype preset first.', true); return; }
+        const known = new Set(characterOptions().genes.map(item => item.defName));
+        if (preset.genes.some(name => !known.has(name))) { setStatus('This preset contains unavailable genes; refresh TK2 definitions.', true); return; }
+        Object.assign(current().genes, { customXenotypeName: '', endogenes: preset.inheritable ? [...preset.genes] : [], xenogenes: preset.inheritable ? [] : [...preset.genes] }); render();
+      });
+      const markCustomGenes = () => { current().genes.xenotypeDef = 'Baseliner'; current().genes.customXenotypeName ||= 'Custom Yuran'; };
+      root.querySelectorAll('[data-add-gene]').forEach(button => button.addEventListener('click', () => { current().genes[button.dataset.kind].push(button.dataset.addGene); markCustomGenes(); render(); }));
+      root.querySelectorAll('[data-remove-gene]').forEach(button => button.addEventListener('click', () => { current().genes[button.dataset.kind] = current().genes[button.dataset.kind].filter(name => name !== button.dataset.removeGene); markCustomGenes(); render(); }));
+      root.querySelector('[data-gene-search]')?.addEventListener('input', event => { state.geneSearch = event.target.value; filterGenes(); });
+      root.querySelector('[data-gene-category]')?.addEventListener('change', event => { state.geneCategory = event.target.value; filterGenes(); });
+      root.querySelectorAll('[data-apparel-field]').forEach(input => input.addEventListener('input', () => { current().apparelDetails[input.dataset.apparelDef] ||= {}; current().apparelDetails[input.dataset.apparelDef][input.dataset.apparelField] = input.type === 'number' ? Number(input.value) : input.value; if (input.dataset.apparelField === 'color') void renderPawn(); }));
       root.querySelector('[data-dragon-skin]')?.addEventListener('change', event => { current().dragonSkinInstalled = event.target.checked; void renderPawn(); });
       root.querySelector('[data-dragon-bone]')?.addEventListener('change', event => { current().dragonBoneInstalled = event.target.checked; });
       root.querySelectorAll('[data-giant-scale]').forEach(input => input.addEventListener('input', event => {
@@ -210,8 +300,8 @@
         const giant = root.querySelector('.rw-size-pawn.giant'); if (giant) giant.style.setProperty('--rw-pawn-height', `${Math.min(250, Math.round(78 * scale))}px`);
         const caption = root.querySelector('[data-giant-caption]'); if (caption) caption.textContent = `Giant · ${scale.toFixed(2)}×`;
       }));
-      root.querySelectorAll('[data-worn]').forEach(input => input.addEventListener('change', () => { const items = current().apparel; const def = input.dataset.worn; if (input.checked && !items.includes(def)) items.push(def); if (!input.checked) current().apparel = items.filter(item => item !== def); void renderPawn(); }));
-      root.querySelectorAll('[data-include-apparel]').forEach(input => input.addEventListener('change', () => { const selected = state.workspace.mod.selectedApparel; const def = input.dataset.includeApparel; if (input.checked && !selected.includes(def)) selected.push(def); if (!input.checked) { state.workspace.mod.selectedApparel = selected.filter(item => item !== def); state.workspace.characters.forEach(person => { person.apparel = person.apparel.filter(item => item !== def); }); } render(); }));
+      root.querySelectorAll('[data-worn]').forEach(input => input.addEventListener('change', () => { const items = current().apparel; const def = input.dataset.worn; if (input.checked && !items.includes(def)) items.push(def); if (!input.checked) current().apparel = items.filter(item => item !== def); render(); }));
+      root.querySelectorAll('[data-include-apparel]').forEach(input => input.addEventListener('change', () => { const selected = state.workspace.mod.selectedApparel; const def = input.dataset.includeApparel; if (input.checked && !selected.includes(def)) selected.push(def); if (!input.checked) { state.workspace.mod.selectedApparel = selected.filter(item => item !== def); state.workspace.characters.forEach(person => { person.apparel = person.apparel.filter(item => item !== def); delete person.apparelDetails[def]; }); } render(); }));
       root.querySelectorAll('[data-asset-filter]').forEach(button => button.addEventListener('click', () => { state.assetFilter = button.dataset.assetFilter; render(); }));
       root.querySelector('[data-asset-search]')?.addEventListener('change', event => { state.search = event.target.value; render(); });
       root.querySelector('[data-import-skin]')?.addEventListener('change', event => void importSkin(event.target.files[0]).catch(error => setStatus(error.message, true)));
@@ -225,7 +315,7 @@
         button.disabled = true;
         const action = button.dataset.action;
         const promise = action === 'save' ? save() : run(action === 'sync' ? designer.syncExample : action === 'deploy' ? designer.deployExample : designer.buildExample);
-        void promise.catch(error => { setStatus(error.message, true); button.disabled = false; });
+        void promise.catch(error => { setStatus(error.message, true); }).finally(() => { button.disabled = false; });
       }));
     }
 
@@ -234,6 +324,7 @@
       state.workspace = payload.workspace; state.catalog = payload.catalog; state.skinImport = payload.skinImport || null;
       state.workspace.mod.dragonBone ||= { giantScale: 5 };
       state.workspace.characters.forEach(person => { if (typeof person.dragonBoneInstalled !== 'boolean') person.dragonBoneInstalled = false; });
+      normalizeWorkspace();
       state.selected = state.workspace.selectedCharacterId || state.workspace.characters[0].id; render();
     }).catch(error => { root.innerHTML = `<div class="rw-error"><b>RimWorld Prepare could not load</b><p>${esc(error.message)}</p></div>`; });
     return { destroy() { state.destroyed = true; state.images.clear(); } };

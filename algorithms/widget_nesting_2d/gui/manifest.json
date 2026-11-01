@@ -3,11 +3,13 @@
   "icon": "nest",
   "name": "2D Widget Nesting",
   "eyebrow": "IRREGULAR STOCK LAYOUT",
-  "summary": "Pack varied polygons with fast envelope and raster construction, NFP repair, and genetic search; compare validated layouts and usable stock.",
+  "summary": "Pack polygons with joint order and free-angle search, adaptive raster construction and bounded NFP repair; compare validated layouts and reusable stock.",
   "accent": "#a17b24",
   "runtime": "local-or-tk2",
   "runtimeLabel": "TK2 default \u00b7 Mac optional",
   "capabilities": [
+    "Free rotation",
+    "Angle and order search",
     "Hybrid construction",
     "NFP repair",
     "genetic search",
@@ -19,7 +21,7 @@
     {
       "id": "complex_board",
       "name": "Nest the complex dual-board case",
-      "description": "Run cached polygonal NFP placement with genetic ordering and a beam of alternate layouts.",
+      "description": "Free rotation with fast construction and adaptive polygon search, bounded by a short search budget.",
       "target": "tk2",
       "targets": [
         "tk2",
@@ -45,7 +47,11 @@
         "--population-size",
         "{population}",
         "--time-limit-seconds",
-        "{budget}"
+        "{budget}",
+        "--rotation-mode",
+        "{rotation_mode}",
+        "--algorithms",
+        "{algorithms}"
       ],
       "parameters": [
         {
@@ -59,6 +65,34 @@
           ]
         },
         {
+          "id": "algorithms",
+          "label": "Algorithms",
+          "type": "select",
+          "default": "all",
+          "choices": [
+            "all",
+            "nfp"
+          ],
+          "choiceLabels": {
+            "all": "Our solver + OpenNest + Sparrow",
+            "nfp": "Our solver only"
+          }
+        },
+        {
+          "id": "rotation_mode",
+          "label": "Rotation",
+          "type": "select",
+          "choices": [
+            "free",
+            "discrete"
+          ],
+          "default": "free",
+          "choiceLabels": {
+            "free": "Free rotation",
+            "discrete": "Fixed angle steps"
+          }
+        },
+        {
           "id": "generations",
           "label": "Generations",
           "type": "integer",
@@ -69,7 +103,7 @@
         },
         {
           "id": "rotation_step",
-          "label": "Rotation step (\u00b0)",
+          "label": "Discrete angle step (\u00b0)",
           "type": "number",
           "default": 15,
           "min": 5,
@@ -105,31 +139,16 @@
           "id": "budget",
           "label": "Search budget (seconds)",
           "type": "number",
-          "default": 10,
+          "default": 2,
           "min": 0.1,
           "max": 120
         }
       ],
       "artifacts": [
         {
-          "label": "Nesting layout",
-          "path": "algorithms/widget_nesting_2d/outputs/gui_example/nesting_layout.png",
-          "kind": "image"
-        },
-        {
-          "label": "Solution",
-          "path": "algorithms/widget_nesting_2d/outputs/gui_example/solution.json",
-          "kind": "json"
-        },
-        {
-          "label": "Input snapshot",
-          "path": "algorithms/widget_nesting_2d/outputs/gui_example/problem.json",
-          "kind": "json"
-        },
-        {
-          "label": "Run provenance",
-          "path": "algorithms/widget_nesting_2d/outputs/gui_example/run.json",
-          "kind": "json"
+          "label": "Captured input, all algorithm results & provenance",
+          "path": "algorithms/widget_nesting_2d/outputs/gui_example/",
+          "kind": "directory"
         }
       ],
       "uniqueOutput": true,
@@ -154,12 +173,131 @@
           "--population-size",
           "{population}",
           "--time-limit-seconds",
-          "{budget}"
+          "{budget}",
+          "--rotation-mode",
+          "{rotation_mode}",
+          "--algorithms",
+          "{algorithms}"
         ]
       }
     }
   ],
   "artifacts": [
+    {
+      "label": "All 45 inputs \u00b7 fresh free-rotation comparison gallery",
+      "path": "algorithms/widget_nesting_2d/outputs/joint_rotation_final_comparison/gallery.html",
+      "kind": "html"
+    },
+    {
+      "label": "Tight shirts \u00b7 before and after \u00b7 8/8 fit",
+      "path": "algorithms/widget_nesting_2d/outputs/joint_rotation_final_comparison/before_after/shirts_combo_tight_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Tight swim \u00b7 before and after \u00b7 4/4 fit",
+      "path": "algorithms/widget_nesting_2d/outputs/joint_rotation_final_comparison/before_after/swim_curved_mix_tight_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Fresh library comparison \u00b7 225 trials \u00b7 scores and timings",
+      "path": "algorithms/widget_nesting_2d/outputs/joint_rotation_final_comparison/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "Original constraints \u00b7 50 current regression trials",
+      "path": "algorithms/widget_nesting_2d/outputs/joint_rotation_final_history/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "All 42 cases \u00b7 image gallery \u00b7 active free rotation",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery.html",
+      "kind": "html"
+    },
+    {
+      "label": "Active free rotation \u00b7 measured angles on swim shapes",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/swim_curved_mix_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Active free rotation \u00b7 measured angles on shirts",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/shirts_combo_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "All 42 cases \u00b7 210-trial comparison and source provenance",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "Recovered history \u00b7 44 inputs \u00b7 50 fresh validation trials",
+      "path": "algorithms/widget_nesting_2d/outputs/history_coverage_recheck_20261010/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "Geometry and holes \u00b7 all-case gallery 1",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery_geometry_and_holes_1.png",
+      "kind": "image"
+    },
+    {
+      "label": "Geometry and holes \u00b7 all-case gallery 2",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery_geometry_and_holes_2.png",
+      "kind": "image"
+    },
+    {
+      "label": "Clothing and letters \u00b7 all-case gallery 1",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery_clothing_and_letters_1.png",
+      "kind": "image"
+    },
+    {
+      "label": "Clothing and letters \u00b7 all-case gallery 2",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery_clothing_and_letters_2.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large and mixed \u00b7 all-case gallery 1",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery_large_and_mixed_1.png",
+      "kind": "image"
+    },
+    {
+      "label": "Large and mixed \u00b7 all-case gallery 2",
+      "path": "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison/gallery_large_and_mixed_2.png",
+      "kind": "image"
+    },
+    {
+      "label": "Final free-rotation solver verification \u00b7 12 trials",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_final_check/report.html",
+      "kind": "html"
+    },
+    {
+      "label": "Free rotation \u00b7 tight oblique fit",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_2s/free_oblique_bar_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Free rotation \u00b7 shirts \u00b7 three engines",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_2s/shirts_combo_tight_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Free rotation \u00b7 256 dense shapes",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_2s/diverse_256_dense_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Free rotation \u00b7 1,000 distinct shapes",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_2s/unique_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Free rotation \u00b7 1,000 tiles",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_2s/large_tiles_1000_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "Free rotation \u00b7 2-second benchmark report",
+      "path": "algorithms/widget_nesting_2d/outputs/free_rotation_2s/report.html",
+      "kind": "html"
+    },
     {
       "label": "New input catalog \u00b7 256 distinct outlines",
       "path": "algorithms/widget_nesting_2d/outputs/diverse_comparison_10s/catalog_256.png",
@@ -358,7 +496,28 @@
       "algorithms/widget_nesting_2d/outputs/open_source_2s",
       "algorithms/widget_nesting_2d/outputs/unique_1000_10s",
       "algorithms/widget_nesting_2d/outputs/gui_example",
-      "algorithms/widget_nesting_2d/outputs/gui_runs"
+      "algorithms/widget_nesting_2d/outputs/gui_runs",
+      "algorithms/widget_nesting_2d/outputs/hybrid_final_verification",
+      "algorithms/widget_nesting_2d/outputs/local_recheck",
+      "algorithms/widget_nesting_2d/outputs/timed_smoke",
+      "algorithms/widget_nesting_2d/outputs/open_source_recheck",
+      "algorithms/widget_nesting_2d/outputs/spyrrow_smoke",
+      "algorithms/widget_nesting_2d/outputs/free_rotation_2s",
+      "algorithms/widget_nesting_2d/outputs/free_rotation_all_cases_2s",
+      "algorithms/widget_nesting_2d/outputs/free_rotation_final_check",
+      "algorithms/widget_nesting_2d/outputs/active_free_rotation_all_cases_2s",
+      "algorithms/widget_nesting_2d/outputs/active_free_rotation_all_cases_v2_2s",
+      "algorithms/widget_nesting_2d/outputs/active_free_rotation_comparison",
+      "algorithms/widget_nesting_2d/outputs/history_coverage_recheck_20261010",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_diagnostic_2s",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_final_2s",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_final_comparison",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_final_history",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_final_local_2s",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_v2_comparison",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_v2_history",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_v2_local_2s",
+      "algorithms/widget_nesting_2d/outputs/joint_rotation_v2_sdk_2s"
     ]
   }
 }

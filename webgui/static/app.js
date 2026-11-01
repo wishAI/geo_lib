@@ -13,7 +13,7 @@
   const meshDialogContent = document.querySelector('#mesh-dialog-content');
   const evolutionDialog = document.querySelector('#evolution-dialog');
   const evolutionDialogContent = document.querySelector('#evolution-dialog-content');
-  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', shipDesigner: null, rimworldPrepare: null, charDetails: null, pollTimer: null };
+  const state = { catalog: [], status: null, jobs: [], artifacts: {}, evolution: {}, route: '', robotViewer: null, robotPath: '', meshViewers: [], meshPart: '', shipDesigner: null, rimworldPrepare: null, charDetails: null, minecraftMap: null, pollTimer: null };
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatBytes = value => value == null ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) + 'B';
@@ -68,7 +68,10 @@
       ['TK2', 'tk2', Boolean(status?.tk2?.online)],
       ['Cloud', 'cloud', Boolean(cloud?.available)],
     ];
-    statusRack.innerHTML = chips.map(([label, iconName, online]) => `<span class="status-chip ${statusWord(online)}" title="${escapeHtml(label)} ${statusWord(online)}">${icon(iconName)}<i></i><span>${label}</span></span>`).join('');
+    statusRack.innerHTML = chips.map(([label, iconName, online]) => {
+      const health = label === 'Mac' || status ? statusWord(online) : 'checking';
+      return `<span class="status-chip ${health}" title="${escapeHtml(label)} ${health}">${icon(iconName)}<i${health === 'checking' ? ' style="background:#92a39a"' : ''}></i><span>${label}</span></span>`;
+    }).join('');
   }
 
   function homeView() {
@@ -152,7 +155,15 @@
     return `<section class="panel run-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('terminal')}</span><h3>Live run</h3></div>${job && ['queued', 'running', 'cancelling'].includes(job.status) ? `<button class="button button-danger button-with-icon" type="button" data-cancel-job>${icon('stop')}<span>Stop</span></button>` : ''}</header>${job ? `<div class="job-strip"><span class="job-status ${escapeHtml(job.status)}"><i></i>${escapeHtml(job.status)}</span><span class="job-target">${icon(targetIcon(job.target))}${escapeHtml(job.target)}</span></div><pre class="job-console" id="job-console">${escapeHtml(job.log || 'Starting…')}</pre>` : `<div class="empty-console visual-empty">${icon('terminal')}<b>Ready</b><span>Run an example to stream output here.</span></div>`}</section>`;
   }
 
+  function minecraftMapPanel(sandbox) {
+      const maps = sandbox.viewer.maps || [];
+      return `<section class="panel minecraft-map-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('map')}</span><div><p class="eyebrow">OVERWORLD SATELLITE</p><h2>2D block map</h2></div></div><span class="runtime-badge">${icon('cloud')}Nextcloud index</span></header><div class="minecraft-map-toolbar"><label>${icon('layers')}<select data-minecraft-map aria-label="Minecraft map">${maps.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`).join('')}</select></label><div class="minecraft-map-actions"><button class="button button-map-region button-with-icon" type="button" data-map-region-mode aria-pressed="false">${icon('focus')}<span>Define region</span></button><button class="button button-light button-icon-only" type="button" data-map-zoom-out aria-label="Zoom out">−</button><output data-map-zoom>100%</output><button class="button button-light button-icon-only" type="button" data-map-zoom-in aria-label="Zoom in">+</button><button class="button button-light button-with-icon" type="button" data-map-reset>${icon('focus')}<span>Fit</span></button></div></div><form class="minecraft-region-form" data-region-form hidden><label><span>Name this region</span><input data-region-name maxlength="80" autocomplete="off" placeholder="Town, district, castle…" required></label><div><button class="button button-primary" type="submit">Save region</button><button class="button button-light" type="button" data-region-cancel>Cancel</button></div></form><div class="minecraft-map-stage" data-map-stage><div class="minecraft-map-canvas" data-map-canvas><img data-map-image alt=""><div class="minecraft-map-regions" data-map-regions aria-hidden="true"></div></div><div class="minecraft-map-loading" data-map-loading>${icon('map')}<span>Loading compact map index…</span></div></div><footer class="minecraft-map-readout"><span data-map-detail></span><span data-map-interaction>Drag to pan · wheel to zoom · world save read-only</span></footer><aside class="minecraft-region-index"><header><div><b>Named regions</b><small>Small coordinate records saved in Nextcloud</small></div><span data-region-count>0</span></header><div data-region-list><p>No regions on this map yet.</p></div></aside></section>`;
+  }
+
   function visualToolsPanel(sandbox) {
+    if (sandbox.viewer?.type === 'minecraftMap') {
+      return `<section class="panel visual-tools-panel"><header class="panel-head"><h2>Minecraft · floating windows</h2></header><div class="panel-body visual-tool-grid"><button class="visual-tool" data-open-minecraft="map"><span class="visual-tool-icon">${icon('map')}</span><span><b>2D block map</b><small>Explore the overworld and edit named town regions.</small></span></button><button class="visual-tool" data-open-minecraft="buildings"><span class="visual-tool-icon">${icon('cube')}</span><span><b>Luna Town · building viewer</b><small>Largest first · rotate one building · adjust all six bounds.</small></span></button></div></section>`;
+    }
     if (sandbox.viewer?.type !== 'urdf' && !sandbox.meshWorkbench) return '';
     return `<section class="panel visual-tools-panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('cube')}</span><div><p class="eyebrow">FLOATING WINDOWS</p><h2>3D visual tools</h2></div></div></header><div class="panel-body visual-tool-grid">
       ${sandbox.viewer?.type === 'urdf' ? `<button class="visual-tool" type="button" data-open-workbench="urdf"><span class="visual-tool-icon">${icon('robot')}</span><span><b>URDF workbench</b><small>Orbit the produced robot and tune grouped joints.</small></span>${icon('arrow')}</button>` : ''}
@@ -231,6 +242,7 @@
     state.shipDesigner = null;
     state.rimworldPrepare = null;
     state.charDetails = null;
+    state.minecraftMap = null;
     if (sandbox.id === 'motion_anim_generate') {
       app.innerHTML = '<div id="motion-animation-viewer"></div>';
       const root = app.querySelector('#motion-animation-viewer');
@@ -283,9 +295,234 @@
         if (root?.isConnected) state.avpRemote = module.mount(root);
       }).catch(error => { if (root?.isConnected) root.textContent = 'AVP viewer unavailable: ' + error.message; });
     }
+    document.querySelectorAll('[data-open-minecraft]').forEach(button=>button.onclick=()=>openMinecraftWindow(sandbox,button.dataset.openMinecraft));
     void loadEvolutionPreview(sandbox);
     const consoleElement = document.querySelector('#job-console');
     if (consoleElement) consoleElement.scrollTop = consoleElement.scrollHeight;
+  }
+
+  let minecraftWindowZ=110;
+  function openMinecraftWindow(sandbox,kind) {
+    const id='minecraft-window-'+kind;
+    let panel=document.getElementById(id);
+    if(panel){panel.hidden=false;panel.style.zIndex=++minecraftWindowZ;state.minecraftMap?.fit?.();return;}
+    panel=document.createElement('section');panel.id=id;panel.className='minecraft-floating-window';panel.setAttribute('role','dialog');panel.setAttribute('aria-label',kind==='map'?'2D block map window':'Luna Town building viewer window');
+    panel.innerHTML=`<header class="minecraft-window-title"><b>${kind==='map'?'2D block map':'Luna Town · building viewer'}</b><span><button type="button" data-window-max aria-label="Maximize window">□</button><button type="button" data-window-close aria-label="Close window">×</button></span></header><div class="minecraft-window-content">${kind==='map'?minecraftMapPanel(sandbox):`<iframe title="Luna Town building viewer" src="${escapeHtml(sandbox.viewer.townViewer.url)}?embedded=1" allow="fullscreen"></iframe>`}</div>`;
+    app.appendChild(panel);panel.style.zIndex=++minecraftWindowZ;
+    panel.addEventListener('pointerdown',()=>panel.style.zIndex=++minecraftWindowZ);
+    panel.querySelector('[data-window-close]').onclick=()=>{panel.hidden=true;};
+    panel.querySelector('[data-window-max]').onclick=()=>{panel.classList.toggle('maximized');requestAnimationFrame(()=>state.minecraftMap?.fit?.());};
+    const header=panel.querySelector('.minecraft-window-title');let drag;
+    header.addEventListener('pointerdown',e=>{if(e.target.closest('button')||panel.classList.contains('maximized'))return;const r=panel.getBoundingClientRect();drag={x:e.clientX,y:e.clientY,left:r.left,top:r.top};header.setPointerCapture(e.pointerId);});
+    header.addEventListener('pointermove',e=>{if(!drag)return;panel.style.left=Math.max(0,Math.min(innerWidth-120,drag.left+e.clientX-drag.x))+'px';panel.style.top=Math.max(0,Math.min(innerHeight-45,drag.top+e.clientY-drag.y))+'px';});
+    header.addEventListener('pointerup',()=>drag=null);header.addEventListener('pointercancel',()=>drag=null);
+    if(kind==='map')setupMinecraftMap(sandbox);
+  }
+
+  function setupMinecraftMap(sandbox) {
+    const stage = document.querySelector('[data-map-stage]');
+    const canvas = document.querySelector('[data-map-canvas]');
+    const image = document.querySelector('[data-map-image]');
+    const loading = document.querySelector('[data-map-loading]');
+    const select = document.querySelector('[data-minecraft-map]');
+    const zoomOutput = document.querySelector('[data-map-zoom]');
+    const detail = document.querySelector('[data-map-detail]');
+    const interaction = document.querySelector('[data-map-interaction]');
+    const regionModeButton = document.querySelector('[data-map-region-mode]');
+    const regionForm = document.querySelector('[data-region-form]');
+    const regionName = document.querySelector('[data-region-name]');
+    const regionsLayer = document.querySelector('[data-map-regions]');
+    const regionList = document.querySelector('[data-region-list]');
+    const regionCount = document.querySelector('[data-region-count]');
+    if (!stage || !canvas || !image || !select) return;
+    const maps = sandbox.viewer.maps || [];
+    let transform = { scale: 1, x: 0, y: 0 };
+    let pointer = null;
+    let currentMap = null;
+    let regionMode = false;
+    let pendingRegion = null;
+    let regions = [];
+    const unavailable = new Set();
+    const render = () => {
+      canvas.style.transform = `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`;
+      regionsLayer?.style.setProperty('--inverse-map-scale', String(1 / transform.scale));
+      zoomOutput.textContent = `${Math.round(transform.scale * 100)}%`;
+    };
+    const regionMarkup = (region, pending = false) => {
+      const bounds = region.normalized;
+      const left = bounds.x0 * 100;
+      const top = bounds.y0 * 100;
+      const width = (bounds.x1 - bounds.x0) * 100;
+      const height = (bounds.y1 - bounds.y0) * 100;
+      return `<span class="minecraft-map-region${pending ? ' pending' : ''}" style="left:${left}%;top:${top}%;width:${width}%;height:${height}%">${pending ? '' : `<b>${escapeHtml(region.name)}</b>`}</span>`;
+    };
+    const renderRegions = () => {
+      if (!regionsLayer || !currentMap) return;
+      const visible = regions.filter(region => region.mapId === currentMap.id);
+      regionsLayer.innerHTML = visible.map(region => regionMarkup(region)).join('') + (pendingRegion ? regionMarkup(pendingRegion, true) : '');
+      if (regionCount) regionCount.textContent = String(visible.length);
+      if (!regionList) return;
+      regionList.innerHTML = visible.length ? visible.map(region => {
+        const bounds = region.world
+          ? `X ${Math.round(region.world.x0)}…${Math.round(region.world.x1)} · Z ${Math.round(region.world.z0)}…${Math.round(region.world.z1)}`
+          : `Pixels ${Math.round(region.pixels.x0)},${Math.round(region.pixels.y0)} → ${Math.round(region.pixels.x1)},${Math.round(region.pixels.y1)}`;
+        return `<article><span><b>${escapeHtml(region.name)}</b><small>${escapeHtml(bounds)}</small></span><button type="button" data-region-delete="${escapeHtml(region.id)}" aria-label="Remove ${escapeHtml(region.name)}">Remove</button></article>`;
+      }).join('') : '<p>No regions on this map yet.</p>';
+      regionList.querySelectorAll('[data-region-delete]').forEach(button => button.addEventListener('click', async () => {
+        const selected = regions.find(region => region.id === button.dataset.regionDelete);
+        if (!selected || !window.confirm(`Remove the region “${selected.name}”?`)) return;
+        try {
+          await api('/api/minecraft/regions/delete', { method: 'POST', body: JSON.stringify({ id: selected.id }) });
+          regions = regions.filter(region => region.id !== selected.id);
+          renderRegions();
+          toast(`Removed region: ${selected.name}`);
+        } catch (error) { toast(error.message, true); }
+      }));
+    };
+    const setRegionMode = enabled => {
+      regionMode = enabled;
+      stage.classList.toggle('region-mode', enabled);
+      regionModeButton?.classList.toggle('active', enabled);
+      regionModeButton?.setAttribute('aria-pressed', String(enabled));
+      if (interaction) interaction.textContent = enabled ? 'Drag a rectangle on the map · Esc to cancel · world save read-only' : 'Drag to pan · wheel to zoom · world save read-only';
+    };
+    const cancelPending = () => {
+      pendingRegion = null;
+      if (regionForm) regionForm.hidden = true;
+      if (regionName) regionName.value = '';
+      renderRegions();
+    };
+    const imagePoint = event => {
+      const bounds = stage.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(image.naturalWidth, (event.clientX - bounds.left - transform.x) / transform.scale)),
+        y: Math.max(0, Math.min(image.naturalHeight, (event.clientY - bounds.top - transform.y) / transform.scale)),
+      };
+    };
+    const rectangle = (start, end) => ({
+      x0: Math.min(start.x, end.x) / image.naturalWidth,
+      y0: Math.min(start.y, end.y) / image.naturalHeight,
+      x1: Math.max(start.x, end.x) / image.naturalWidth,
+      y1: Math.max(start.y, end.y) / image.naturalHeight,
+    });
+    const fit = () => {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      const bounds = stage.getBoundingClientRect();
+      transform.scale = Math.min((bounds.width - 24) / image.naturalWidth, (bounds.height - 24) / image.naturalHeight, 1);
+      transform.x = (bounds.width - image.naturalWidth * transform.scale) / 2;
+      transform.y = (bounds.height - image.naturalHeight * transform.scale) / 2;
+      render();
+    };
+    const zoom = (factor, clientX = null, clientY = null) => {
+      const previous = transform.scale;
+      const next = Math.max(0.08, Math.min(12, previous * factor));
+      const bounds = stage.getBoundingClientRect();
+      const anchorX = clientX == null ? bounds.width / 2 : clientX - bounds.left;
+      const anchorY = clientY == null ? bounds.height / 2 : clientY - bounds.top;
+      transform.x = anchorX - (anchorX - transform.x) * next / previous;
+      transform.y = anchorY - (anchorY - transform.y) * next / previous;
+      transform.scale = next;
+      render();
+    };
+    const load = id => {
+      const selected = maps.find(item => item.id === id) || maps[0];
+      if (!selected) return;
+      currentMap = selected;
+      cancelPending();
+      setRegionMode(false);
+      loading.hidden = false;
+      detail.textContent = selected.detail || selected.label;
+      image.alt = `${selected.label} top-down Minecraft block map`;
+      image.onload = () => { loading.hidden = true; fit(); renderRegions(); };
+      image.onerror = () => {
+        unavailable.add(selected.id);
+        const option = select.querySelector(`option[value="${CSS.escape(selected.id)}"]`);
+        if (option) { option.disabled = true; option.textContent = `${selected.label} · preparing`; }
+        const fallback = maps.find(item => !unavailable.has(item.id));
+        if (fallback) {
+          select.value = fallback.id;
+          load(fallback.id);
+          return;
+        }
+        loading.innerHTML = `${icon('warning')}<span>No compact map asset is available in Nextcloud.</span>`;
+        loading.hidden = false;
+      };
+      image.src = `/api/artifact?path=${encodeURIComponent(selected.path)}&v=${Date.now()}`;
+    };
+    select.addEventListener('change', () => load(select.value));
+    document.querySelector('[data-map-zoom-in]')?.addEventListener('click', () => zoom(1.35));
+    document.querySelector('[data-map-zoom-out]')?.addEventListener('click', () => zoom(1 / 1.35));
+    document.querySelector('[data-map-reset]')?.addEventListener('click', fit);
+    regionModeButton?.addEventListener('click', () => { cancelPending(); setRegionMode(!regionMode); });
+    document.querySelector('[data-region-cancel]')?.addEventListener('click', () => { cancelPending(); setRegionMode(false); });
+    regionForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!pendingRegion || !currentMap || !regionName?.value.trim()) return;
+      try {
+        const saved = await api('/api/minecraft/regions', { method: 'POST', body: JSON.stringify({
+          name: regionName.value.trim(), mapId: currentMap.id, normalized: pendingRegion.normalized,
+          imageSize: { width: image.naturalWidth, height: image.naturalHeight },
+        }) });
+        regions.push(saved);
+        const savedName = saved.name;
+        cancelPending();
+        setRegionMode(false);
+        renderRegions();
+        toast(`Saved region: ${savedName}`);
+      } catch (error) { toast(error.message, true); }
+    });
+    stage.addEventListener('pointerdown', event => {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      if (regionMode) {
+        const start = imagePoint(event);
+        pointer = { id: event.pointerId, mode: 'region', start, end: start };
+        pendingRegion = { normalized: rectangle(start, start) };
+        renderRegions();
+      } else {
+        pointer = { id: event.pointerId, mode: 'pan', x: event.clientX, y: event.clientY };
+      }
+      stage.setPointerCapture(event.pointerId);
+    });
+    stage.addEventListener('pointermove', event => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      if (pointer.mode === 'region') {
+        pointer.end = imagePoint(event);
+        pendingRegion = { normalized: rectangle(pointer.start, pointer.end) };
+        renderRegions();
+      } else {
+        transform.x += event.clientX - pointer.x;
+        transform.y += event.clientY - pointer.y;
+        pointer.x = event.clientX; pointer.y = event.clientY;
+        render();
+      }
+    });
+    stage.addEventListener('pointerup', event => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      if (pointer.mode === 'region') {
+        pointer.end = imagePoint(event);
+        const normalized = rectangle(pointer.start, pointer.end);
+        const wideEnough = (normalized.x1 - normalized.x0) * image.naturalWidth >= 4;
+        const tallEnough = (normalized.y1 - normalized.y0) * image.naturalHeight >= 4;
+        if (wideEnough && tallEnough) {
+          pendingRegion = { normalized };
+          if (regionForm) regionForm.hidden = false;
+          regionName?.focus();
+        } else cancelPending();
+        renderRegions();
+      }
+      pointer = null;
+    });
+    stage.addEventListener('pointercancel', () => { pointer = null; cancelPending(); });
+    stage.addEventListener('wheel', event => { event.preventDefault(); zoom(event.deltaY < 0 ? 1.18 : 1 / 1.18, event.clientX, event.clientY); }, { passive: false });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && (regionMode || pendingRegion)) { cancelPending(); setRegionMode(false); } });
+    void api('/api/minecraft/regions').then(payload => {
+      if (!stage.isConnected) return;
+      regions = Array.isArray(payload.regions) ? payload.regions : [];
+      renderRegions();
+    }).catch(error => toast(`Named regions unavailable: ${error.message}`, true));
+    state.minecraftMap = { fit, load };
+    select.value=maps.find(item=>item.id==='bilicraft-overworld')?.id||maps[0]?.id;
+    load(select.value);
   }
 
   function bindSandbox(sandbox) {
@@ -619,7 +856,7 @@
     if (evolutionDialog.open && evolutionDialog.dataset.sandbox !== sandbox?.id) evolutionDialog.close();
     if (sandbox) {
       sandboxView(sandbox);
-      if (!state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
+      if (sandbox.workspace?.type !== 'nesting' && !state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
     } else {
       homeView();
     }
@@ -637,7 +874,7 @@
       if (JSON.stringify(before) !== JSON.stringify(after)) {
         sandboxView(sandbox);
         if (after && ['succeeded', 'failed', 'cancelled'].includes(after.status)) {
-          void loadArtifacts(sandbox);
+          if (sandbox.workspace?.type !== 'nesting') void loadArtifacts(sandbox);
           if (meshDialog.open && after.example === sandbox.meshWorkbench?.applyExample) {
             if (after.status === 'succeeded') void setupMeshWorkbench(sandbox, state.meshPart);
             else document.querySelector('#mesh-apply-status')?.append(` Build ${after.status}.`);
@@ -655,15 +892,24 @@
   }
 
   async function refreshAll(announce = false) {
+    // Health checks can involve SSH; the local workspace needs only its catalog.
+    const status = api('/api/status').then(payload => {
+      state.status = payload;
+      renderStatus();
+    }).catch(error => { if (announce) toast(error.message, true); });
+    const jobs = api('/api/jobs').then(payload => {
+      state.jobs = payload.jobs;
+      ensureJobPolling();
+    }).catch(error => { if (announce) toast(error.message, true); });
     try {
-      const [catalog, status, jobs] = await Promise.all([api('/api/catalog'), api('/api/status'), api('/api/jobs')]);
+      const catalog = await api('/api/catalog');
       state.catalog = catalog.sandboxes;
-      state.status = status;
-      state.jobs = jobs.jobs;
       renderStatus();
       renderRoute();
-      ensureJobPolling();
-      if (announce) toast('Mac, TK2, storage, jobs, and results refreshed');
+      if (announce) {
+        await Promise.all([status, jobs]);
+        toast('Mac, TK2, storage, jobs, and results refreshed');
+      }
     } catch (error) {
       app.innerHTML = `<section class="loading-view"><p class="eyebrow">CONNECTION ERROR</p><h1>Geo Lab is not ready.</h1><p>${escapeHtml(error.message)}</p></section>`;
       toast(error.message, true);

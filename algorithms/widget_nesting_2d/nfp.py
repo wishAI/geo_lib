@@ -17,7 +17,33 @@ def _convex_parts(wkb):
     if polygon.equals(polygon.convex_hull):
         return (tuple(polygon.exterior.coords[:-1]),)
     triangles = constrained_delaunay_triangles(polygon)
-    return tuple(tuple(t.exterior.coords[:-1]) for t in triangles.geoms)
+    # Adjacent triangles often form much larger convex pieces. Merging them
+    # cuts the Cartesian product in Minkowski construction substantially.
+    parts = list(triangles.geoms)
+    if len(parts) > 96:
+        return tuple(tuple(t.exterior.coords[:-1]) for t in parts)
+    comparisons = 0
+    changed = True
+    while changed:
+        changed = False
+        for i, a in enumerate(parts):
+            for j in range(i+1, len(parts)):
+                if comparisons >= 2048:
+                    return tuple(tuple(t.exterior.coords[:-1]) for t in parts)
+                comparisons += 1
+                b = parts[j]
+                if not a.intersects(b):
+                    continue
+                hull = a.union(b).convex_hull
+                if hull.area > a.area + b.area + 1e-12 * max(a.area+b.area, 1.):
+                    continue
+                parts[i] = hull
+                del parts[j]
+                changed = True
+                break
+            if changed:
+                break
+    return tuple(tuple(t.exterior.coords[:-1]) for t in parts)
 
 
 @lru_cache(maxsize=2048)

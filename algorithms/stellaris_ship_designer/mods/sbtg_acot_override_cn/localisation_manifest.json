@@ -1,0 +1,38 @@
+{
+  "coverage": {
+    "override": {
+      "leakedMarkers": 0,
+      "markupErrors": 0,
+      "sourceKeys": 450,
+      "translatedKeys": 450
+    },
+    "sbtg": {
+      "leakedMarkers": 0,
+      "markupErrors": 0,
+      "sourceKeys": 1652,
+      "translatedKeys": 1652
+    }
+  },
+  "machineTranslatedKeys": 1696,
+  "manualTranslationKeys": 37,
+  "reusedExistingChineseKeys": 368,
+  "sources": {
+    "existingAcotChineseWorkshopId": "3540390184",
+    "files": {
+      "namelist_sbtg_design_names_l_english.yml": "d2f5f952bee15286cdfc8e6402a818b9200a6d152a732a4a874a39256ff104e5",
+      "override/replace/acot_marauder_l_english.yml": "f481e4ab612ba6d3aeb31e536a9ca7ced4894d2d06340bf46a0f926c20b13fc0",
+      "override/replace/acot_override_l_english.yml": "1c6f4a0a18ed09ce77ec83efc61812325b53b33a22a15095ad7425cbd016cf5e",
+      "override/replace/name_lists/name_list_marauder_drunk_design_names_l_english.yml": "53bae5b35d7d2e058aecd456003cd165d49747df2ac05b47a59d6f7a6025b3a3",
+      "override/replace/name_lists/namelist_acot_crisis_design_names_l_english.yml": "d073a6005b2ddc0c2b2c0a62b387fad5b023b72aaa3c88dd6b57a0e879b478d0",
+      "sbtg_crisis_event_l_english.yml": "6825f80d6aa0ae494ff0787678b8081f906771a3bc7bc2cdefc5a1abbad8c24a",
+      "sbtg_flowing_technology_l_english.yml": "cb47cc03d73b764823d208d6d98db9eab1b7a02fa42dd6cdc37d47af7abcea8c",
+      "sbtg_gate_event_l_english.yml": "8fbd04480ac4823806136f4a83ece0e272a44da0951f741565916fe35b9bdd35",
+      "sbtg_menu_l_english.yml": "b05fd019d555abb70769c87fc4e5e99aead77c1e8cc063dcde490522af1922ba",
+      "sbtg_original_phrases_l_english.yml": "ca99743b53531f83ce08362025eee1710d3b92f51afed622d0bc4fc520f594d6"
+    },
+    "overrideWorkshopId": "1504307690",
+    "sbtgWorkshopId": "1481972266"
+  },
+  "translation": "Google machine translation with protected Stellaris markup and ACOT Chinese glossary",
+  "version": 1
+}

@@ -59,7 +59,7 @@ def render_solution_image(problem: ProblemSpec, solution: SolutionResult, output
             ax.text(
                 placement.centroid_x,
                 placement.centroid_y,
-                placement.item_instance_id,
+                f"{placement.item_instance_id}\n{placement.rotation_degrees % 360:.2f}°",
                 fontsize=7,
                 ha="center",
                 va="center",

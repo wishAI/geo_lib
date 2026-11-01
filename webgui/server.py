@@ -45,6 +45,8 @@ SSH_ARGS = [
 MAX_LOG_CHARS = 180_000
 PARAMETER_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 DESIGN_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,79}$")
+MINECRAFT_REGIONS_RELATIVE = "assets/minecraft_maps/regions.json"
+MINECRAFT_REGION_LOCK = threading.RLock()
 
 
 # Algorithm code runs in an isolated JSON-lines process, never imported by the host.
@@ -161,6 +163,28 @@ def resolve_artifact(relative: str) -> tuple[str, Path] | None:
     return max(available, key=lambda item: item[1].stat().st_mtime)
 
 
+def _nesting_artifact_entries(root: Path):
+    """Scan each directory once, without following file or directory symlinks."""
+    root_names = {"problem.json", "solution.json", "run.json", "index.json", "analysis.json"}
+    child_names = {"problem.json", "solution.json", "run.json"}
+    def entries(directory, prefix=""):
+        try:
+            with os.scandir(directory) as scan:
+                for entry in scan:
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir(follow_symlinks=False) and not prefix:
+                        yield from entries(entry.path, entry.name + "/")
+                    elif entry.is_file(follow_symlinks=False):
+                        names = child_names if prefix else root_names
+                        if entry.name in names or entry.name.endswith(".png") or (prefix and entry.name.endswith(".solution.json")):
+                            yield prefix + entry.name, entry.stat(follow_symlinks=False)
+        except FileNotFoundError:
+            # A new run may be moving into the output root while it is scanned.
+            return
+    yield from entries(root)
+
+
 def nesting_workspace_files() -> dict[str, dict]:
     """Only manifest-owned output roots and known inspection artifact filenames."""
     manifest = manifest_map().get("widget_nesting_2d", {})
@@ -171,27 +195,54 @@ def nesting_workspace_files() -> dict[str, dict]:
         for source, root in artifact_candidates(relative_root):
             if not root.is_dir():
                 continue
-            for pattern in ("problem.json", "solution.json", "run.json", "index.json", "analysis.json", "*.png",
-                            "*/problem.json", "*/*.solution.json", "*/solution.json", "*/run.json", "*/*.png"):
-                for path in root.glob(pattern):
-                    if not path.is_file() or path.is_symlink():
-                        continue
-                    try:
-                        path.resolve().relative_to(root.resolve())
-                    except ValueError:
-                        continue
-                    relative = str(Path(relative_root) / path.relative_to(root))
-                    stat = path.stat()
-                    item = {"path": relative, "source": source, "size": stat.st_size,
-                            "modifiedAt": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-                            "kind": "image" if path.suffix == ".png" else "json"}
-                    if relative not in files or item["modifiedAt"] > files[relative]["modifiedAt"]:
-                        files[relative] = item
+            for name, stat in _nesting_artifact_entries(root):
+                relative = relative_root.rstrip("/") + "/" + name
+                item = {"path": relative, "source": source, "size": stat.st_size,
+                        "modifiedAt": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                        "kind": "image" if name.endswith(".png") else "json"}
+                if relative not in files or item["modifiedAt"] > files[relative]["modifiedAt"]:
+                    files[relative] = item
     return files
 
 
-def declared_artifact_paths() -> set[str]:
-    paths: set[str] = set(nesting_workspace_files())
+def nesting_history(*, include_reports: bool = False) -> dict:
+    """Bundle captured reports and legacy metrics in one inventory pass."""
+    files = nesting_workspace_files()
+    payload = {"files": list(files.values())}
+    if not include_reports:
+        return payload
+    documents, errors = {}, []
+    def read(relative):
+        if relative not in files:
+            return None
+        try:
+            resolved = resolve_artifact(relative)
+            if resolved is None:
+                raise FileNotFoundError("Artifact disappeared during refresh")
+            document = json.loads(resolved[1].read_text())
+            if not isinstance(document, dict):
+                raise ValueError("Expected a JSON object")
+            documents[relative] = document
+            return document
+        except (OSError, ValueError) as error:
+            errors.append({"path": relative, "error": str(error)})
+            return None
+    for relative in files:
+        if relative.endswith(("/analysis.json", "/index.json")):
+            if relative.endswith("/index.json") and relative[:-10] + "analysis.json" in files:
+                continue
+            read(relative)
+        elif relative.endswith("/run.json"):
+            run = read(relative)
+            if run is not None and not run.get("results"):
+                # Legacy single-engine runs kept their metrics in solution.json.
+                read(relative[:-8] + "solution.json")
+    payload.update(documents=documents, errors=errors)
+    return payload
+
+
+def declared_artifact_paths(*, include_nesting: bool = True) -> set[str]:
+    paths: set[str] = set(nesting_workspace_files()) if include_nesting else set()
     for manifest in discover_manifests():
         for artifact in manifest.get("artifacts", []):
             paths.add(artifact["path"])
@@ -204,6 +255,110 @@ def declared_artifact_paths() -> set[str]:
         if inspector.get("path"):
             paths.add(inspector["path"])
     return paths
+
+
+def _minecraft_map_config(map_id: str) -> dict:
+    manifest = manifest_map().get("minecraft_building_mapper", {})
+    maps = manifest.get("viewer", {}).get("maps", [])
+    selected = next((item for item in maps if item.get("id") == map_id), None)
+    if selected is None:
+        raise ValueError("Unknown Minecraft map")
+    return selected
+
+
+def _minecraft_regions_path() -> Path:
+    return _safe_under(storage.cloud_root(), MINECRAFT_REGIONS_RELATIVE)
+
+
+def load_minecraft_regions() -> dict:
+    path = _minecraft_regions_path()
+    with MINECRAFT_REGION_LOCK:
+        if not path.is_file():
+            return {"schema": "geo.minecraft-map-regions/v1", "regions": []}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schema") != "geo.minecraft-map-regions/v1" or not isinstance(payload.get("regions"), list):
+        raise ValueError("Minecraft region index has an unsupported format")
+    return payload
+
+
+def _write_minecraft_regions(payload: dict) -> None:
+    path = _minecraft_regions_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def save_minecraft_region(region: object) -> dict:
+    if not isinstance(region, dict):
+        raise ValueError("Region must be a JSON object")
+    name = str(region.get("name", "")).strip()
+    if not name or len(name) > 80 or any(ord(character) < 32 for character in name):
+        raise ValueError("Region name must contain 1 to 80 printable characters")
+    map_id = str(region.get("mapId", ""))
+    selected = _minecraft_map_config(map_id)
+    normalized = region.get("normalized")
+    if not isinstance(normalized, dict):
+        raise ValueError("Region requires normalized image coordinates")
+    coordinates = {
+        key: _require_finite(normalized.get(key), f"normalized.{key}")
+        for key in ("x0", "y0", "x1", "y1")
+    }
+    if any(value < 0 or value > 1 for value in coordinates.values()):
+        raise ValueError("Normalized region coordinates must stay between 0 and 1")
+    if coordinates["x1"] <= coordinates["x0"] or coordinates["y1"] <= coordinates["y0"]:
+        raise ValueError("Region must have positive width and height")
+    image_size = region.get("imageSize")
+    if not isinstance(image_size, dict):
+        raise ValueError("Region requires the source image size")
+    image_width = int(_require_finite(image_size.get("width"), "imageSize.width"))
+    image_height = int(_require_finite(image_size.get("height"), "imageSize.height"))
+    if not 1 <= image_width <= 100_000 or not 1 <= image_height <= 100_000:
+        raise ValueError("Source image dimensions are outside the supported range")
+    record = {
+        "id": f"region-{uuid.uuid4().hex[:12]}",
+        "name": name,
+        "mapId": map_id,
+        "mapLabel": str(selected.get("label", map_id)),
+        "mapPath": str(selected.get("path", "")),
+        "normalized": coordinates,
+        "image": {"width": image_width, "height": image_height},
+        "pixels": {
+            key: round(coordinates[key] * (image_width if key.startswith("x") else image_height), 2)
+            for key in coordinates
+        },
+        "createdAt": utc_now(),
+    }
+    world_bounds = selected.get("worldBounds")
+    if isinstance(world_bounds, dict):
+        min_x = _require_finite(world_bounds.get("minX"), "worldBounds.minX")
+        max_x = _require_finite(world_bounds.get("maxXExclusive"), "worldBounds.maxXExclusive")
+        min_z = _require_finite(world_bounds.get("minZ"), "worldBounds.minZ")
+        max_z = _require_finite(world_bounds.get("maxZExclusive"), "worldBounds.maxZExclusive")
+        record["world"] = {
+            "x0": round(min_x + coordinates["x0"] * (max_x - min_x), 2),
+            "z0": round(min_z + coordinates["y0"] * (max_z - min_z), 2),
+            "x1": round(min_x + coordinates["x1"] * (max_x - min_x), 2),
+            "z1": round(min_z + coordinates["y1"] * (max_z - min_z), 2),
+        }
+    with MINECRAFT_REGION_LOCK:
+        payload = load_minecraft_regions()
+        payload["regions"].append(record)
+        _write_minecraft_regions(payload)
+    return record
+
+
+def delete_minecraft_region(region_id: str) -> dict:
+    if not region_id.startswith("region-") or len(region_id) > 80:
+        raise ValueError("Invalid Minecraft region id")
+    with MINECRAFT_REGION_LOCK:
+        payload = load_minecraft_regions()
+        remaining = [item for item in payload["regions"] if item.get("id") != region_id]
+        if len(remaining) == len(payload["regions"]):
+            raise KeyError(region_id)
+        payload["regions"] = remaining
+        _write_minecraft_regions(payload)
+    return {"ok": True, "id": region_id}
 
 
 def _designer_config(sandbox: str, design_id: str = "") -> tuple[dict, Path]:
@@ -1143,7 +1298,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"mac": {"online": True}, "tk2": remote_status(), "nextcloud": cloud, "checkedAt": utc_now()})
                 return
             if parsed.path == "/api/nesting/history":
-                self._json({"files": list(nesting_workspace_files().values())})
+                self._json(nesting_history(include_reports=query.get("include") == ["reports"]))
                 return
             if parsed.path == "/api/jobs":
                 self._json({"jobs": JOBS.list()})
@@ -1156,7 +1311,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/artifact":
                 relative = query.get("path", [""])[0]
-                if relative not in declared_artifact_paths():
+                if relative not in declared_artifact_paths(include_nesting=False) and relative not in nesting_workspace_files():
                     self._error("Artifact is not declared", HTTPStatus.FORBIDDEN)
                     return
                 resolved = resolve_artifact(relative)
@@ -1167,6 +1322,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/storage":
                 self._json({"storage": storage.status(), "audit": storage.audit_tracked_files()})
+                return
+            if parsed.path == "/api/minecraft/regions":
+                self._json(load_minecraft_regions())
                 return
             if parsed.path == "/api/designer/asset":
                 self._file(designer_asset(query.get("sandbox", [""])[0], query.get("path", [""])[0]))
@@ -1286,6 +1444,17 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path.startswith("/api/storage/"):
                 action = parsed.path.rsplit("/", 1)[-1]
                 self._json(JOBS.start_storage(action), HTTPStatus.ACCEPTED)
+                return
+            if parsed.path in {"/api/minecraft/regions", "/api/minecraft/regions/delete"}:
+                if self.headers.get_content_type() != "application/json":
+                    raise ValueError("Minecraft region requests require application/json")
+                origin = self.headers.get("Origin")
+                if origin and origin != "http://" + self.headers.get("Host", ""):
+                    raise ValueError("Minecraft region writes require the local map origin")
+                if parsed.path.endswith("/delete"):
+                    self._json(delete_minecraft_region(str(body.get("id", ""))))
+                else:
+                    self._json(save_minecraft_region(body), HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/designer/import-portrait":
                 self._json(import_designer_portrait(str(body.get("sandbox", "")), str(body.get("name", "")), str(body.get("data", ""))))

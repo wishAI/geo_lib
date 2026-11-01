@@ -70,6 +70,96 @@ class NestingWorkspaceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 manager.start_example('widget_nesting_2d', 'complex_board', 'local', values)
 
+    def test_inventory_preserves_one_level_allowlist_and_skips_symlink_directories(self):
+        relative = 'algorithms/widget_nesting_2d/outputs/captured'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            child = root / 'case'
+            child.mkdir()
+            deep = child / 'deep'
+            deep.mkdir()
+            for path in (root/'index.json', root/'analysis.json', root/'overview.png',
+                         child/'problem.json', child/'nfp_42.solution.json', child/'result.png',
+                         child/'run.json', child/'private.log', child/'index.json', deep/'problem.json'):
+                path.write_text('{}')
+            outside = root / 'outside'
+            outside.mkdir()
+            (outside / 'secret.solution.json').write_text('{}')
+            # Keep the outside directory outside the root being scanned.
+            actual = root / 'actual'
+            actual.mkdir()
+            (actual/'linked').symlink_to(outside, target_is_directory=True)
+            (actual/'problem.json').symlink_to(child/'problem.json')
+            self.assertEqual(list(server._nesting_artifact_entries(actual)), [])
+            names = {name for name, _ in server._nesting_artifact_entries(root)}
+            self.assertIn('case/nfp_42.solution.json', names)
+            self.assertIn('overview.png', names)
+            self.assertNotIn('case/index.json', names)
+            self.assertNotIn('case/private.log', names)
+            self.assertNotIn('case/deep/problem.json', names)
+
+    def test_history_bundle_prefers_analysis_and_includes_legacy_run_metrics(self):
+        relative = 'algorithms/widget_nesting_2d/outputs/captured'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            case = root / 'gui'
+            case.mkdir()
+            (root/'index.json').write_text('{"results": [{"engine": "old"}]}')
+            (root/'analysis.json').write_text('{"results": [{"engine": "nfp"}]}')
+            (case/'run.json').write_text('{"caseId": "legacy"}')
+            (case/'solution.json').write_text('{"placements": [], "score": {"placed_area": 0}}')
+            (case/'nfp_42.solution.json').write_text('{"placements": ["large geometry"]}')
+            manifest = {'workspace': {'outputRoots': [relative]}}
+            def candidates(path):
+                return [('repo', root / path.removeprefix(relative).lstrip('/'))]
+            with patch.object(server, 'manifest_map', return_value={'widget_nesting_2d': manifest}), patch.object(server, 'artifact_candidates', side_effect=candidates):
+                bundle = server.nesting_history(include_reports=True)
+            documents = bundle['documents']
+            self.assertIn(relative+'/analysis.json', documents)
+            self.assertNotIn(relative+'/index.json', documents)
+            self.assertEqual(documents[relative+'/gui/solution.json']['score']['placed_area'], 0)
+            self.assertNotIn(relative+'/gui/nfp_42.solution.json', documents)
+            self.assertFalse(bundle['errors'])
+
+    def test_history_bundle_keeps_other_reports_when_one_capture_is_corrupt(self):
+        relative = 'algorithms/widget_nesting_2d/outputs/captured'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'index.json').write_text('{"results": []}')
+            (root/'run.json').write_text('incomplete JSON')
+            manifest = {'workspace': {'outputRoots': [relative]}}
+            def candidates(path):
+                return [('repo', root / path.removeprefix(relative).lstrip('/'))]
+            with patch.object(server, 'manifest_map', return_value={'widget_nesting_2d': manifest}), patch.object(server, 'artifact_candidates', side_effect=candidates):
+                bundle = server.nesting_history(include_reports=True)
+            self.assertEqual(bundle['documents'][relative+'/index.json'], {'results': []})
+            self.assertEqual(bundle['errors'][0]['path'], relative+'/run.json')
+
+    def test_declared_source_artifacts_need_no_history_scan(self):
+        artifact = 'algorithms/widget_nesting_2d/gui/workspace.js'
+        manifest = {'artifacts': [{'path': artifact}]}
+        with patch.object(server, 'discover_manifests', return_value=[manifest]), patch.object(server, 'nesting_workspace_files', side_effect=AssertionError('unnecessary history scan')):
+            self.assertEqual(server.declared_artifact_paths(include_nesting=False), {artifact})
+
+    def test_history_refresh_picks_up_new_results_and_newer_copies(self):
+        import os
+        relative = 'algorithms/widget_nesting_2d/outputs/captured'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, cloud = root/'repo', root/'cloud'
+            repo.mkdir(); cloud.mkdir()
+            (repo/'index.json').write_text('{}')
+            (cloud/'index.json').write_text('{"newer": true}')
+            os.utime(repo/'index.json', (1,1)); os.utime(cloud/'index.json', (2,2))
+            manifest = {'workspace': {'outputRoots': [relative]}}
+            with patch.object(server, 'manifest_map', return_value={'widget_nesting_2d': manifest}), patch.object(server, 'artifact_candidates', return_value=[('repo',repo),('nextcloud',cloud)]):
+                first = server.nesting_workspace_files()
+                (repo/'run.json').write_text('{}')
+                second = server.nesting_workspace_files()
+            self.assertEqual(first[relative+'/index.json']['source'], 'nextcloud')
+            self.assertNotIn(relative+'/run.json', first)
+            self.assertIn(relative+'/run.json', second)
+
 
 if __name__ == '__main__':
     unittest.main()

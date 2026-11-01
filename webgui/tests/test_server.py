@@ -15,7 +15,7 @@ from webgui import server, storage
 class ManifestTests(unittest.TestCase):
     def test_every_algorithm_has_a_unique_gui_manifest(self) -> None:
         manifests = server.discover_manifests()
-        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship", "sliders", "pawn", "cube"}
+        icon_names = {"headset", "point-cloud", "arm", "route", "map", "vector", "walk", "robot", "nest", "ship", "sliders", "pawn", "layers", "cube"}
         algorithm_names = {
             path.name
             for path in (server.REPO_ROOT / "algorithms").iterdir()
@@ -45,6 +45,20 @@ class ManifestTests(unittest.TestCase):
                     for token in command:
                         self.assertNotIn(";", token)
                         self.assertNotIn("&&", token)
+
+    def test_minecraft_map_is_an_overworld_only_nextcloud_viewer(self) -> None:
+        manifest = server.manifest_map()["minecraft_building_mapper"]
+        self.assertEqual(manifest["viewer"]["type"], "minecraftMap")
+        self.assertTrue(manifest["viewer"]["extensions"]["regionSelection"])
+        self.assertTrue(manifest["viewer"]["extensions"]["buildingRecognition"])
+        self.assertEqual(len(manifest["viewer"]["maps"]), 6)
+        paths = {item["path"] for item in manifest["artifacts"]}
+        self.assertTrue(paths.issubset(server.declared_artifact_paths()))
+        self.assertTrue(all(path.startswith("assets/minecraft_maps/") for path in paths))
+        self.assertFalse(any("resource" in path.lower() for path in paths))
+        source = (server.STATIC_ROOT / "app.js").read_text(encoding="utf-8")
+        for token in ("setupMinecraftMap", "data-map-stage", "Define region", "Save region", "api('/api/minecraft/regions')", "preparing", "const fallback"):
+            self.assertIn(token, source)
 
     def test_numeric_parameters_are_validated_before_command_build(self) -> None:
         manifest = server.manifest_map()["svg_scene_builder"]
@@ -317,6 +331,29 @@ class ManifestTests(unittest.TestCase):
 
 
 class StorageAndRobotTests(unittest.TestCase):
+    def test_minecraft_regions_are_validated_and_saved_as_small_nextcloud_records(self) -> None:
+        with tempfile.TemporaryDirectory() as folder, patch.object(storage, "cloud_root", return_value=Path(folder)):
+            saved = server.save_minecraft_region({
+                "name": "Harbor district",
+                "mapId": "bilicraft-overworld",
+                "normalized": {"x0": 0.25, "y0": 0.25, "x1": 0.5, "y1": 0.75},
+                "imageSize": {"width": 2284, "height": 2324},
+            })
+            self.assertEqual(saved["pixels"], {"x0": 571.0, "y0": 581.0, "x1": 1142.0, "y1": 1743.0})
+            self.assertEqual(saved["world"], {"x0": -8728.0, "z0": -2040.0, "x1": -4160.0, "z1": 7256.0})
+            self.assertEqual(server.load_minecraft_regions()["regions"], [saved])
+            index = Path(folder) / server.MINECRAFT_REGIONS_RELATIVE
+            self.assertLess(index.stat().st_size, 4096)
+            self.assertTrue(server.delete_minecraft_region(saved["id"])["ok"])
+            self.assertEqual(server.load_minecraft_regions()["regions"], [])
+            with self.assertRaisesRegex(ValueError, "positive width"):
+                server.save_minecraft_region({
+                    "name": "Bad",
+                    "mapId": "bilicraft-overworld",
+                    "normalized": {"x0": 0.5, "y0": 0.2, "x1": 0.4, "y1": 0.3},
+                    "imageSize": {"width": 100, "height": 100},
+                })
+
     def test_large_file_manifest_is_deduplicated_and_complete(self) -> None:
         manifest = storage.load_manifest()
         self.assertEqual(manifest["thresholdBytes"], 5 * 1024 * 1024)
