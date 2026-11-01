@@ -78,13 +78,22 @@ def render_case_comparisons(root, report, problems, solutions):
                 ax.set_aspect('equal')
                 ax.axis('off')
                 title = names.get(engine, engine)
+                if report['contract'].get('rotation_mode') == 'free':
+                    title += '\n' + {'nfp': 'Free angles · adaptive', 'opennest': '5° approximation',
+                                      'spyrrow': 'Free angles · continuous'}.get(engine, engine)
                 if row['status'] == 'valid':
                     score = row['score']
                     title += (f"\n{row['placed_count']}/{row['requested_count']} parts · "
                               f"{score['placed_ratio_vs_requested']:.1%} requested area"
                               f"\nLargest scored remainder: {score['max_rest_rectangle_area']:.1f}"
                               f"\nSolve + adapter: {row.get('solve_seconds', row['solve_validate_seconds']):.2f}s")
-                ax.set_title(title, fontsize=11, pad=18)
+                if payload:
+                    tilted = sum(abs((p['rotation_degrees']+45)%90-45) > 1e-4 for p in payload['placements'])
+                    title += f'\nNon-cardinal rotations: {tilted}'
+                # Repeat only the board label below the first row: multiline
+                # trial statistics otherwise overlap the preceding board.
+                ax.set_title(title if board_index == 0 else spec.board_id,
+                             fontsize=10, pad=18)
                 if not payload:
                     message = row['status'].replace('_', ' ').capitalize()
                     if row['status'] == 'strip_exceeds_board':
@@ -107,6 +116,11 @@ def render_case_comparisons(root, report, problems, solutions):
                     polygons.append(poly)
                     ax.add_patch(patch_from_polygon(poly, facecolor=colors[p['item_instance_id']],
                                                     edgecolor='#253647', linewidth=.5))
+                    if len(placed) <= 16:
+                        point = poly.representative_point()
+                        ax.text(point.x, point.y, f"{p['rotation_degrees'] % 360:.2f}°",
+                                ha='center', va='center', fontsize=7, color='#172c39',
+                                bbox=dict(boxstyle='round,pad=.15', facecolor='white', alpha=.85, linewidth=0))
                 rects = _board_rest_rectangles(board, unary_union(polygons))
                 if rects:
                     rect = max(rects, key=lambda r: r['area'])
@@ -120,10 +134,12 @@ def render_case_comparisons(root, report, problems, solutions):
         budget = report['contract'].get('matched_seconds')
         fig.suptitle(f"{case.replace('_', ' ').title()} · seed {seed}"
                      + (f" · {budget:g}s soft search budget" if budget else ''), fontsize=16, y=.97)
-        fig.text(.5, .025, 'Same input shapes, sheet, rotations and seed. Colors identify the same part; holes remain transparent.\n'
+        fig.text(.5, .025, 'Same shapes, sheet and seed; rotation search differs as labelled. Colors identify parts; holes remain transparent.\n'
                  'Green dashed overlay: scored remaining rectangle. This single seed does not show run-to-run reliability.',
                  ha='center', fontsize=9, color='#526577')
         fig.tight_layout(rect=(0, .10, 1, .80))
+        if len(problem.boards) > 1:
+            fig.subplots_adjust(hspace=.7)
         fig.savefig(root / f'{case}_comparison.png', facecolor=fig.get_facecolor())
         plt.close(fig)
 
@@ -240,6 +256,8 @@ def main():
     if args.nfp_budget_run:
         render_nfp_budget_comparison(args.root, args.nfp_budget_run)
     contract = report['contract']
+    rotation_note = contract.get('rotation_note', 'Original allowed rotations preserved.')
+    provenance_note = contract.get('provenance_note', '')
     budget_text = (f"Each engine receives a {contract['matched_seconds']:g}-second soft search budget. Inspect actual solve times: geometry operations and SDK calls can overshoot."
                    if contract.get('matched_seconds') is not None else
                    f"Local solvers use the case search counts; OpenNest gets a {contract['sdk_budget_seconds']:g}-second native budget. This is not an equal-time ranking.")
@@ -247,7 +265,8 @@ def main():
           '<style>body{font:15px system-ui;color:#243746;background:#f8fafb;margin:32px auto;max-width:1400px;padding:0 20px}h1{font-size:30px}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:10px;border-bottom:1px solid #dde3e8}th{background:#e8eef1}small{color:#526577}details{margin:16px 0;padding:12px;background:white;border:1px solid #dde3e8;border-radius:8px}summary{cursor:pointer;font-weight:650}.layouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}svg{display:block;width:100%;height:190px;margin:12px 0}.note{max-width:1000px;line-height:1.6}a{color:#236b91}pre{white-space:pre-wrap}</style>',
           '<h1>2D nesting: geometry, search, and SDK comparison</h1>',
           f'<p>{len(cases)} cases · {len(rows)} trials · seeds {html.escape(str(report["contract"]["seeds"]))} · TK2 Linux</p>',
-          f'<p class="note">Fixed sheets, unchanged shapes and allowed rotations, zero requested clearance. Primary score: placed area. Secondary score: largest proven edge rectangle. {budget_text} The outer process timeout is {contract["hard_timeout_seconds"]:g} seconds, including startup. Concurrent trials: {contract.get("concurrent_jobs",1)}. Unsupported constraints and timeouts have no quality score.</p>',
+          f'<p class="note">Fixed sheets, unchanged shapes, zero requested clearance. {html.escape(rotation_note)} Primary score: placed area. Secondary score: largest proven edge rectangle. {budget_text} The outer process timeout is {contract["hard_timeout_seconds"]:g} seconds, including startup. Concurrent trials: {contract.get("concurrent_jobs",1)}. Unsupported constraints and timeouts have no quality score.</p>',
+          f'<p class="note">{html.escape(provenance_note)}</p>',
           '<table><tr><th>Engine</th><th>Valid</th><th>Timeout</th><th>Unsupported</th><th>Strip exceeds board</th><th>Error</th></tr>']
     for engine in engines:
         counts=Counter(r['status'] for r in rows if r['engine']==engine)

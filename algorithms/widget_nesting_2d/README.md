@@ -7,7 +7,7 @@ Supported behavior:
 - multiple boards
 - multiple widget types with quantities
 - polygon widgets with optional holes
-- free rotation via angle sampling
+- free rotation using geometry-derived real-valued angles and bounded local angular refinement
 - no-overlap placement
 - placing smaller widgets inside holes of larger widgets
 - lexicographic objective:
@@ -16,17 +16,104 @@ Supported behavior:
 
 ## Approach
 
-For batches of 32 or more instances, default `nfp` mode first builds a feasible full-scene incumbent with two inexpensive constructors. A [MaxRects-style](https://github.com/juj/RectangleBinPack) pass packs conservative bounding envelopes using only permitted rotations. A polygon-aware bitset raster pass handles concavities and holes when envelopes waste too much space. Raster cells are collision reservations only: returned placements retain the original vector outlines, and the independent validator checks those exact polygons. No external nesting SDK is called by our solver.
+For free-rotation scenes and batches of 32 or more instances, default `nfp` mode first builds a feasible full-scene incumbent with two inexpensive constructors. A [MaxRects-style](https://github.com/juj/RectangleBinPack) pass packs conservative bounding envelopes using only permitted rotations. A polygon-aware bitset raster pass handles concavities and holes when envelopes waste too much space. Raster cells are collision reservations only: returned placements retain the original vector outlines, and the independent validator checks those exact polygons. No external nesting SDK is called by our solver.
 
-The large-batch path returns the first full constructive layout. If construction is partial, NFP repair and the existing evolutionary search retain the best feasible incumbent. This prioritizes fitting every widget; it does **not** spend the remaining budget optimizing reusable stock after a full fit. Set `config.constructive_start` to `false` for the polygon-search ablation. Smaller scenes keep the original NFP/beam behavior.
+Free-angle envelope restarts continue after the first cardinal full fit, and the best layout survives. Small free-rotation scenes (up to 32 instances) also try narrower working sheets and a bounded joint search over part order and angular variants. Shared conservative strip masks make these mutations inexpensive. Full layouts can improve reusable stock; partial layouts prioritize placed area. Scenes missing just one of many parts preserve time for insertion repair. Boundary reinsertion then uses up to 0.5 seconds of the remaining budget for angular refinement, including the incumbent angle and useful interior moves. Failed or expired replacements retain the incumbent. Large scenes retain the bounded construction path. Set `config.constructive_start` to `false` for the polygon-search ablation. Smaller fully restricted scenes keep the original NFP/beam behavior.
 
-The default `nfp` mode builds cached configuration-space obstacles from convex Minkowski sums. Shapely 2.1 constrained triangulation retains concave boundaries and holes. Inner-fit candidates come from subtracting obstacles from translation space; sampled contacts remain a fallback for degenerate fits. Every placement is independently checked against the original shapes.
+The default `nfp` mode builds cached configuration-space obstacles from convex Minkowski sums. Shapely 2.1 constrained triangulation retains concave boundaries and holes. Inner-fit candidates come from subtracting obstacles from translation space; sampled contacts remain a fallback for degenerate fits. Adjacent triangles are merged into convex pieces under a fixed comparison cap, reducing Minkowski products without unbounded preprocessing. Rectangular-sheet candidates are ranked from bounds before expensive translation and collision checks. Every placement is independently checked against the original shapes.
 
 An evolutionary search optimizes item order, while a beam retains alternative placements and sampled rotations. Repeated copies share canonical order chromosomes. Population construction is bounded, and elites leave room for offspring even with small populations. `--candidate-mode contact` keeps the repaired original contact heuristic available for ablation.
 
-This is floating-point polygonal NFP geometry, not an exact-arithmetic or globally optimal solver. Zero-width fit regions can disappear during polygon unions; contact fallbacks and dedicated exact-fit tests reduce that risk but do not establish completeness. Rotation remains discrete. Triangle-pair Minkowski construction can be expensive for detailed outlines. There is currently no kerf/clearance model or continuous-rotation optimization.
+This is floating-point polygonal NFP geometry, not an exact-arithmetic or globally optimal solver. Zero-width fit regions can disappear during polygon unions; contact fallbacks and dedicated exact-fit tests reduce that risk but do not establish completeness. Free rotation is a bounded heuristic, not a complete search over all angles: coarse seeds include 30-degree samples and arbitrary edge-alignment angles, tight empty-sheet fits receive continuous bounding-box refinement, then local search halves angular steps from 7.5 to 0.46875 degrees while re-solving translations. Triangle-pair Minkowski construction can be expensive for detailed outlines. There is currently no kerf/clearance model.
 
 The largest-rest-rectangle metric considers proven strips outside occupied bounds, not every possible empty rectangle. `sum_rest_rectangle_area` sums overlapping candidates and is only a ranking heuristic, not remaining material area.
+
+## Free rotation and short runtime
+
+`rotation_mode` now defaults to `free`. Unrestricted widgets can use arbitrary angles; an explicit widget `allowed_angles_degrees` list or widget `rotation_step_degrees` still restricts that widget. Use `--rotation-mode discrete --rotation-step-degrees 90` for the previous four-direction search. The global angle step applies only in discrete mode.
+
+The CLI and GUI default to a **2-second soft search budget**, adjustable with `--time-limit-seconds`. The API still accepts an explicit `time_limit_seconds`. Geometry operations, initialization and validation can exceed a soft deadline; benchmark workers enforce a separate hard timeout. Search shares variants across repeated instances, computes anchors only when needed, and compares cardinal construction with compact-angle and full-angle restarts. Small-scene angular repair improves the existing layout instead of restarting on an empty board. The validator uses a spatial index to avoid testing every pair of distant parts, while checking the original vector polygons and actual returned angles.
+
+```bash
+python -m algorithms.widget_nesting_2d.solver \
+  --input algorithms/widget_nesting_2d/inputs/complex_dual_board.json \
+  --output algorithms/widget_nesting_2d/outputs/gui_example \
+  --rotation-mode free --time-limit-seconds 2
+python -m algorithms.widget_nesting_2d.benchmark --diverse --large \
+  --case free_oblique_bar --case shirts_combo_tight --case alphabet_efgh \
+  --case diverse_256_dense --case unique_1000 --case large_tiles_1000 \
+  --engines nfp opennest spyrrow --seeds 7 42 --rotation-mode free \
+  --matched-seconds 2 --timeout 15 --jobs 1 \
+  --output-root algorithms/widget_nesting_2d/outputs/free_rotation_2s
+```
+
+Benchmark `--rotation-mode free` creates explicitly labelled copies with **all** original widget angle restrictions relaxed for **every** engine. Source cases stay unchanged. This is a different problem from the original restricted benchmarks below. Use benchmark `--rotation-mode discrete` to retain their original constraints.
+
+[Sparrow's API](https://spyrrow.readthedocs.io/en/latest/api.html) receives `allowed_orientations=None` for continuous rotation. [OpenNest's API](https://petrasvestartas.github.io/compas_nest/api/compas_nest.nfp/) supports rotation counts, so free widgets receive **72 orientations (5-degree approximation)**. Reports label this limitation; it is not equivalent to continuous search. Sparrow remains a strip-feasibility probe and does not support holes. A minimum-width precheck rejects impossible strip heights before native calls; native failures on otherwise feasible tight shapes are retained as errors.
+
+The new `free_oblique_bar` case requires an angle outside both quarter turns and the 5-degree grid. Tests also cover exact 17.321-degree alignment, arbitrary-angle validation, preservation of explicit restrictions, local angular refinement, free SDK configuration and impossible strip heights.
+
+The active search now continues beyond a cardinal full fit: it compares compact-angle and full-angle construction, then removes and reinserts boundary pieces under a shared 0.5-second cap. Incomplete layouts retain their full placement-search deadline; rotation polishing cannot consume the time needed to fill an exact hole. A replacement is accepted only when the complete layout score improves. Arbitrary angles are shown on small comparison images, and every panel reports the non-cardinal placement count.
+
+## Current joint order/rotation verification
+
+The final suite covers **45 inputs**: all 44 distinct recovered historical inputs/configurations plus the arbitrary-angle regression. **37 tests pass.** It contains 135 fresh local trials (seeds 7, 42, 123), 90 fresh SDK trials (seed 42), and 50 separate current-solver historical replays preserving original angle restrictions and recorded budgets/seeds. All 185 local/replay layouts validated, along with three saved grid witnesses. The 135 free trials produced **120 full fits and 15 partial fits**; median solve time was **0.934s**, maximum **2.007s**. Fifteen paired trials increased placed area against the previous free solver, with no placed-area regressions across the original 42 cases and three seeds.
+
+| Case | Previous free result | Current result across three seeds | Current solve time |
+|---|---|---|---|
+| Tight shirts | 7/8 | 8/8 | 1.65–1.66s |
+| Tight swim | 3/4 | 4/4 | 1.47–1.48s |
+| Board cutout | 7/8 | 8/8 | 0.51s |
+| Roomy swim | 4/4; reusable stock 12,448.58 | 4/4; reusable stock 29,344.21 | 1.45s |
+| 1,000 distinct outlines | 1,000/1,000 | 1,000/1,000 | 1.13–1.14s |
+| 1,000 rectangles | 1,000/1,000 | 1,000/1,000 | 0.31–0.33s |
+
+Paired seed-42 quality comparisons rank placed area first, then largest reusable stock **only when both engines fully fit**. Against OpenNest: **20 wins, 5 ties, 12 losses** over 37 valid comparisons. Against Sparrow: **4 wins, 11 losses** over 15 valid comparisons; our solver fully fits all 15, with losses in leftover stock. Our solver does not dominate either reference on every case. The remaining local partial cases are trousers shortage, tight trousers, concave interlock, knapsack, and dense source mix 66. Some are over capacity; a partial layout alone is not an infeasibility proof.
+
+OpenNest also had eight hard timeouts. Sparrow had 23 unsupported inputs, five over-wide strips, one native error and one timeout. These are excluded from quality wins. Both libraries receive the same free-angle input copies: Sparrow continuous rotation, OpenNest its 5° approximation. Native runs can exceed the requested 2s soft budget; the report retains actual timings and the 15s worker cutoff. For example, 1,000 rectangles took our solver 0.314s at seed 42, OpenNest 12.341s (914/1,000 parts), and Sparrow 14.014s (all parts, smaller reusable stock).
+
+The final local optimization uses vectorized cell masks for footprints of at most 1,024 cells, and conservative horizontal-strip intersections for larger footprints. This retains throughput on thousands of tiny outlines while speeding searches with a few large parts. NFP convex merging is capped at 2,048 pair checks and bypassed above 96 triangles. All actual output polygons, holes, and permitted rotations are independently validated.
+
+Current artifacts, also linked first in the GUI Results panel:
+
+- `outputs/joint_rotation_final_comparison/gallery.html`: all 45 three-engine images, seven overview sheets, and five before/after comparisons.
+- `outputs/joint_rotation_final_comparison/report.html`: every fresh comparison score, timing, unsupported result, error and timeout.
+- `outputs/joint_rotation_final_comparison/summary.json`: pairwise wins/ties/losses and all paired area changes.
+- `outputs/joint_rotation_final_history/report.html`: 50 current restricted/original-budget replays and all 44 historical input/configuration images. No restricted catalogue replay lost placed area against its selected saved historical baseline. All three recovered GUI configurations fully fit under their original 0.2s budget when deliberately switched to free rotation; exact restricted runs remain separately labelled.
+- `outputs/joint_rotation_final_comparison/run_suite.py` and `build_report.py`: suite orchestration and report assembly. SDK runs were freshly measured in this task immediately before the final tiny-footprint mask optimization; only `raster_start.py` differs in source hashes, and neither SDK adapter calls it. Per-row source hashes and identical inputs are verified and retained.
+
+The repository storage audit still reports three pre-existing oversized AVP texture files outside this algorithm; no nesting source file exceeds its limit.
+
+## Previous free-rotation verification
+
+The preceding revision’s verification covered **all 42 catalogue cases**, including the earlier 24 small cases, the oblique-angle regression, six large batches and eleven mixed suites. **34 tests pass.** On the final solver, **126 serial trials** (seeds 7, 42 and 123) all validated: **102 full fits and 24 partial fits**, with no local errors or hard timeouts. Median solve time was **0.525s**, maximum **2.012s** with a 2-second soft budget. At seed 42, none of the cases lost placed area versus the preceding full sweep. Eight cases remained partial: trousers shortage, concave interlock, board cutout, knapsack, tight shirts, tight trousers, tight swim and dense source mix 66. Some are over-capacity instances; partial placement is not proof of infeasibility.
+
+The shirt subset now preserves stock **227.65** versus the previous **180**, with one part at **285.945°**, while retaining all eight parts. The swim subset fits four parts at **192.67°, 12.67°, 194.31° and 328.30°**. Both solve in about **0.52s**. The 300-shirt scene fits all pieces in about **0.23s**, with **82 non-cardinal orientations** in seed 42. Rectangles can still select cardinal angles when those pack better; rotations are not forced for appearance.
+
+Images and evidence:
+
+- `outputs/active_free_rotation_comparison/gallery.html`: all 42 cases in six overview sheets and 42 three-engine comparison images, including partial results.
+- `outputs/active_free_rotation_comparison/report.html`: **210 measured trials**, comprising the final 126 local trials plus 84 SDK trials from the preceding full sweep. The SDK adapters and inputs are unchanged; each row retains its original source run and complete source hashes. SDKs use seed 42; our solver uses three seeds. This composite is deliberately labelled and is not a resumed single-source run.
+- `outputs/active_free_rotation_all_cases_v2_2s`: exact final-solver inputs, hashes, timing, independently validated layouts, and per-case angle counts.
+- `outputs/free_rotation_all_cases_2s`: the complete preceding 126-trial three-engine sweep, retained as the comparison baseline.
+
+Across the 84 SDK trials, OpenNest returned 34 valid layouts and eight timeouts; Sparrow returned 15 validated fixed-sheet fits, five over-wide strips, 20 unsupported cases, one native error and one timeout. OpenNest remains a 5-degree approximation; Sparrow uses continuous angles but its strip objective and hole restrictions remain different. These outcomes are visible in the gallery and are not treated as packing scores.
+
+The recovered history was checked separately in `outputs/history_coverage_recheck_20261010/report.html`: 109 saved problem files reduce to 44 distinct inputs/configurations, comprising the 41 original catalogue inputs and three additional GUI configurations. All 1,003 distinct handoff files passed SHA-256 checks. **50 fresh current-solver trials validated**, plus the three saved 100/500/1,000-tile grid witnesses. The 41 catalogue replays preserve explicit angle restrictions and holes, use recorded seed 42 and 2s/10s budgets, and have no placed-area losses against the selected historical baselines. The remaining nine trials compare each saved GUI configuration with its original restrictions, a deliberate free-angle override at its original 0.2s budget, and that override at 2s. The dual-board variants fit 12/12 in about 0.20s with free rotation; the constrained variant fits 9/10 at 0.20s and 10/10 at 0.76s. The report includes all 44 layout images, original/current source provenance, and separate solve/validation/wall timings. This covers every distinct recovered input with representative recorded contracts, not every historical trial or budget/seed combination; historical timing differences are not controlled speedup measurements.
+
+Earlier six-case validation: **31 tests passed**. The 36 comparison trials are in `outputs/free_rotation_2s`; after adding the narrow-interval angle fallback, all 12 local trials were repeated with the final solver in `outputs/free_rotation_final_check`. All local layouts validated: ten full fits and two 7/8 tight-shirt fits, with no local errors or timeouts. Final timings across seeds 7 and 42:
+
+| Scene | Placed | Solve time | Independent validation |
+|---|---:|---:|---:|
+| Tight oblique bar | 1/1 | 0.25s | <0.001s |
+| EFGH | 4/4 | 0.25–0.26s | 0.002s |
+| Dense mixed outlines | 256/256 | 1.20s | 0.10s |
+| Distinct mixed outlines | 1,000/1,000 | 1.12–1.14s | 0.40–0.41s |
+| Rectangles | 1,000/1,000 | 0.10–0.12s | 0.09s |
+| Tight shirts | 7/8 | 2.00s | 0.002s |
+
+The 1,000-distinct-outline worker took 1.89–1.91s including startup and adapter/report preparation. Construction still prioritizes full fit over maximum reusable stock. Sparrow fitted all eight shirts in both seeds; our solver and OpenNest fitted seven. OpenNest's 5-degree approximation could not fit the tight oblique bar; Sparrow 0.9.0 panicked during native initialization on that feasible tight case, retained as two errors. OpenNest hit the 15-second hard cutoff on both dense-256 and unique-1,000 trials; Sparrow does not support their holes. The native 1,000-rectangle calls exceeded the requested soft budget (roughly 11.5–13.9s), so the report records actual time rather than claiming equal elapsed time. These failures and limits are not scored as packing wins.
+
 
 ## Hybrid scalability and genuinely mixed cases
 
@@ -94,6 +181,7 @@ python -m algorithms.widget_nesting_2d.benchmark_report \
     }
   ],
   "config": {
+    "rotation_mode": "free",
     "rotation_step_degrees": 15,
     "beam_width": 6,
     "population_size": 12,
@@ -137,7 +225,7 @@ Outputs:
 
 Generated outputs are ignored by git on purpose.
 
-The suite has 24 cases: original widgets, full-fill and shortage cases, exact hole fits, multiple holes, slanted contacts, board cutouts, impossible orientations, all A–Z DejaVu Sans outlines in seven groups, three public clothing subsets, and their tight-board variants. Public subsets and generated stress variants are explicitly labeled; they are not the full original published instances.
+The original small suite had 24 cases (the current library adds the oblique-angle regression and opt-in large/mixed cases): original widgets, full-fill and shortage cases, exact hole fits, multiple holes, slanted contacts, board cutouts, impossible orientations, all A–Z DejaVu Sans outlines in seven groups, three public clothing subsets, and their tight-board variants. Public subsets and generated stress variants are explicitly labeled; they are not the full original published instances.
 
 Native SDK comparison (optional dependencies in an isolated environment):
 
@@ -326,3 +414,7 @@ OpenNest and Sparrow are useful open-source reference engines, not evidence of p
 - [Sparrow paper](https://arxiv.org/html/2509.13329v3): shrinking and overlap-resolution local search offer a useful direction beyond constructive ordering. NFP + genetic search is a sound architecture, but its quality also depends on placement scoring, diversity, caching and refinement.
 
 Next measured priorities are orientation-aware genetic chromosomes, geometric beam diversity, a compaction phase that can rearrange groups of pieces, and faster convex decomposition/NFP construction. These are recommendations, not claims that those features already exist.
+
+### Mac ↔ TK2 sync
+
+Run `python3 algorithms/widget_nesting_2d/sync.py` from the Mac to merge nesting source changes in both directions through Git and transfer all saved outputs in both directions. The command uses private `refs/geo-sync/widget_nesting_2d/` snapshots, preserves both checkout branches and unrelated staging, and stops on source conflicts. Result files are never deleted; differing result versions are archived under `outputs/.sync/conflicts/` before a winner is copied, with the last synchronized hash used to detect which side changed. Every resulting output file is checked by SHA256. This is an explicit sync command, not a background process. The GUI-owned TK2 runtime remains separate and is refreshed from the merged Mac source before a run.

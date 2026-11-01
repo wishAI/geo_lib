@@ -15,6 +15,15 @@ builder=importlib.util.module_from_spec(spec);spec.loader.exec_module(builder)
 
 class ModCompilerTests(unittest.TestCase):
     def setUp(self):self.d=json.loads(builder.CONFIG.read_text())
+    def test_name_list_uses_4_4_formatter_tokens(self):
+        with tempfile.TemporaryDirectory() as folder:
+            compiler=builder.Compiler(builder.validate_config(self.d),Path(folder))
+            compiler.species()
+            generated=(Path(folder)/'common/name_lists/eqn_pony.txt').read_text(encoding='utf-8-sig')
+            self.assertNotIn('%O%',generated)
+            self.assertNotIn('%R%',generated)
+            self.assertEqual(compiler.loc['eqn_name_sequence_2'],'$ORD$ Stampede')
+            self.assertEqual(compiler.loc['eqn_name_sequence_4'],'Mirror Clones $CARD$')
     def test_rejects_cycles_nonfinite_and_asset_escape(self):
         for mutate in (
             lambda d:d['mod']['technologies'][0].update(prerequisite=d['mod']['technologies'][-1]['id']),

@@ -303,6 +303,11 @@ def _extended_cases(base_cases):
     cases.append(case("knapsack", [widget("large", rect(10,7), angles=[0,90]),
                                   widget("medium", rect(5,4), 4, angles=[0,90])], 10,10,
                       "Omitting one large item permits greater total placed area."))
+    from shapely.affinity import rotate
+    tilted = rotate(Polygon(rect(10, 2)), 17.321, origin=(0, 0))
+    cases.append(case("free_oblique_bar", [{"id": "oblique", "quantity": 1,
+                      "polygon": {"shell": [list(p) for p in tilted.exterior.coords[:-1]]}}],
+                      10.1, 2.1, "A pre-rotated bar needs a non-cardinal angle; 5-degree steps cannot fit."))
     # Matplotlib ships DejaVu Sans. Flatten its real vector outlines; symmetric
     # difference applies the even-odd fill rule and retains letter counters.
     font = FontProperties(family="DejaVu Sans")

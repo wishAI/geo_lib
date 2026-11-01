@@ -5,7 +5,9 @@ import json
 import math
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from functools import cached_property
+from itertools import chain
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -26,6 +28,7 @@ DEFAULT_CORNERS = ("lower_left",)
 
 @dataclass(frozen=True)
 class SolverConfig:
+    rotation_mode: str = "free"
     rotation_step_degrees: float = 15.0
     beam_width: int = 6
     population_size: int = 12
@@ -47,6 +50,8 @@ class SolverConfig:
                     "max_candidates_per_item", "max_item_anchor_points", "max_free_space_anchor_points"):
             if getattr(self, key) < 1:
                 raise ValueError(f"{key} must be positive")
+        if self.rotation_mode not in ("free", "discrete"):
+            raise ValueError("rotation_mode must be free or discrete")
         if not math.isfinite(self.rotation_step_degrees) or self.rotation_step_degrees <= 0:
             raise ValueError("rotation_step_degrees must be finite and positive")
         if not math.isfinite(self.placement_tolerance) or self.placement_tolerance <= 0:
@@ -65,6 +70,7 @@ class SolverConfig:
             merged.update({key: value for key, value in overrides.items() if value is not None})
         preferred_corners = tuple(merged.get("preferred_corners", DEFAULT_CORNERS))
         return cls(
+            rotation_mode=str(merged.get("rotation_mode", "free")),
             constructive_start=bool(merged.get("constructive_start", True)),
             candidate_mode=str(merged.get("candidate_mode", "nfp")),
             rotation_step_degrees=float(merged.get("rotation_step_degrees", 15.0)),
@@ -101,6 +107,7 @@ class ItemRuntime:
     hole_area: float
     bbox_area: float
     rotation_variants: tuple["RotationVariant", ...]
+    free_rotation: bool = False
 
 
 @dataclass(frozen=True)
@@ -108,7 +115,12 @@ class RotationVariant:
     angle_degrees: float
     polygon: Polygon
     bounds: tuple[float, float, float, float]
-    anchor_points: tuple[tuple[float, float], ...]
+    anchor_limit: int = 12
+
+    @cached_property
+    def anchor_points(self) -> tuple[tuple[float, float], ...]:
+        # Constructors only use bounds; defer boundary sampling until NFP needs it.
+        return tuple(_item_anchor_points(self.polygon, limit=self.anchor_limit))
 
 
 @dataclass(frozen=True)
@@ -292,6 +304,82 @@ def _allowed_angles(widget: WidgetSpec, config: SolverConfig) -> tuple[float, ..
     return tuple(deduped)
 
 
+def _free_rotation(widget: WidgetSpec, config: SolverConfig) -> bool:
+    # Explicit manufacturing/orientation constraints always take precedence.
+    return (config.rotation_mode == "free" and not widget.allowed_angles_degrees
+            and widget.rotation_step_degrees is None)
+
+
+def _edge_directions(polygon, limit=3):
+    edges = []
+    for ring in (polygon.exterior, *polygon.interiors):
+        points = list(ring.coords)
+        for (x, y), (u, v) in zip(points, points[1:]):
+            edges.append(((u-x)**2 + (v-y)**2, math.degrees(math.atan2(v-y, u-x)) % 180))
+    directions = []
+    for _, angle in sorted(edges, reverse=True):
+        if not any(abs((angle-a+90) % 180-90) < 1e-7 for a in directions):
+            directions.append(angle)
+        if len(directions) == limit:
+            break
+    return directions
+
+
+def _free_seed_angles(polygon, boards):
+    # Geometry-derived angles are real-valued, not snapped to an angular grid.
+    # Bound their count independently of outline complexity and instance count.
+    targets = [0., 90.]
+    for board in boards[:4]:
+        targets.extend(_edge_directions(board.polygon, 2))
+    aligned = [(target-edge+turn) % 360 for edge in _edge_directions(polygon)
+               for target in targets for turn in (0, 180)]
+    return tuple(dict.fromkeys(round(a, 9) for a in [0., 90., 180., 270., *aligned, *range(0, 360, 30)]))
+
+
+def _board_fit_angles(polygon, boards, variants, tolerance):
+    """Refine empty-sheet feasibility when no seed orientation fits its bounds.
+
+    Only exceptional tight fits pay this cost. Golden-section searches minimize
+    bounding-box overflow within bounded angular intervals without constructing
+    hundreds of Shapely polygons. This remains a heuristic for irregular sheets.
+    """
+    points = list(polygon.convex_hull.exterior.coords)[:-1]
+    result = []
+    for board in boards:
+        x0, y0, x1, y1 = board.bounds
+        width, height = x1-x0, y1-y0
+        if polygon.area > board.area+tolerance or any(
+                v.bounds[2]-v.bounds[0] <= width+tolerance and
+                v.bounds[3]-v.bounds[1] <= height+tolerance for v in variants):
+            continue
+        def overflow(angle):
+            c, t = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+            xs = [x*c-y*t for x, y in points]
+            ys = [x*t+y*c for x, y in points]
+            return max((max(xs)-min(xs))/width, (max(ys)-min(ys))/height)
+        ratio = (math.sqrt(5)-1)/2
+        for start in range(0, 180, 30):
+            lo, hi = float(start), float(start+30)
+            a, b = hi-ratio*(hi-lo), lo+ratio*(hi-lo)
+            fa, fb = overflow(a), overflow(b)
+            for _ in range(36):
+                if fa < fb:
+                    hi, b, fb = b, a, fa
+                    a = hi-ratio*(hi-lo); fa = overflow(a)
+                else:
+                    lo, a, fa = a, b, fb
+                    b = lo+ratio*(hi-lo); fb = overflow(b)
+            angle = a if fa < fb else b
+            if overflow(angle) <= 1+tolerance/max(width, height):
+                result.extend((angle, angle+180))
+    return result
+
+
+def _rotation_variant(polygon, angle, config):
+    rotated = shapely_rotate(polygon, angle, origin=(0., 0.))
+    return RotationVariant(angle, rotated, rotated.bounds, config.max_item_anchor_points)
+
+
 def _build_runtime(problem: ProblemSpec, config: SolverConfig) -> tuple[list[BoardRuntime], dict[str, ItemRuntime]]:
     boards: list[BoardRuntime] = []
     for board in problem.boards:
@@ -313,21 +401,12 @@ def _build_runtime(problem: ProblemSpec, config: SolverConfig) -> tuple[list[Boa
         min_x, min_y, max_x, max_y = local_polygon.bounds
         bbox_area = max(0.0, max_x - min_x) * max(0.0, max_y - min_y)
         hole_area = sum(Polygon(ring).area for ring in widget.polygon.holes)
-        angles = _allowed_angles(widget, config)
-        rotation_variants: list[RotationVariant] = []
-        for angle in angles:
-            rotated = orient(
-                shapely_rotate(local_polygon, angle, origin=(0.0, 0.0), use_radians=False),
-                sign=1.0,
-            )
-            rotation_variants.append(
-                RotationVariant(
-                    angle_degrees=angle,
-                    polygon=rotated,
-                    bounds=rotated.bounds,
-                    anchor_points=tuple(_item_anchor_points(rotated, limit=config.max_item_anchor_points)),
-                )
-            )
+        free_rotation = _free_rotation(widget, config)
+        angles = _free_seed_angles(local_polygon, boards) if free_rotation else _allowed_angles(widget, config)
+        rotation_variants = tuple(_rotation_variant(local_polygon, a, config) for a in angles)
+        if free_rotation:
+            fit_angles = _board_fit_angles(local_polygon, boards, rotation_variants, config.placement_tolerance)
+            rotation_variants += tuple(_rotation_variant(local_polygon, a, config) for a in fit_angles)
         for index in range(widget.quantity):
             item_id = f"{widget.widget_id}#{index + 1}"
             items[item_id] = ItemRuntime(
@@ -337,7 +416,8 @@ def _build_runtime(problem: ProblemSpec, config: SolverConfig) -> tuple[list[Boa
                 area=float(local_polygon.area),
                 hole_area=float(hole_area),
                 bbox_area=float(bbox_area),
-                rotation_variants=tuple(rotation_variants),
+                rotation_variants=rotation_variants,
+                free_rotation=free_rotation,
             )
     return boards, items
 
@@ -562,6 +642,30 @@ def _placement_rank_key(board: BoardRuntime, occupied_after: Any, geometry: Poly
     )
 
 
+def _rectangular_candidate_rank(board_bounds, occupied_bounds, bounds, centroid):
+    """Same placement score on a rectangle, without constructing a union.
+
+    The score depends only on occupied bounds and the moving centroid. This
+    allows exact score pruning before expensive polygon translations/tests.
+    """
+    x0, y0, x1, y1 = board_bounds
+    a, b, c, d = bounds
+    if occupied_bounds is not None:
+        u, v, w, z = occupied_bounds
+        a, b, c, d = min(a, u), min(b, v), max(c, w), max(d, z)
+    bbox_area = (c-a)*(d-b)
+    left, right = max(0., a-x0), max(0., x1-c)
+    bottom, top = max(0., b-y0), max(0., y1-d)
+    width, height = x1-x0, y1-y0
+    areas = (left*height, right*height, bottom*width, top*width,
+             left*bottom, right*bottom, left*top, right*top)
+    areas = [area for area in areas if area > 1e-9]
+    distance = min(math.hypot(centroid[0]-x, centroid[1]-y)
+                   for x in (x0, x1) for y in (y0, y1))
+    return (round(max(areas, default=0.), 6), round(sum(areas), 6),
+            -round(bbox_area, 6), -round(distance, 6))
+
+
 def _build_placement(
     item: ItemRuntime,
     board: BoardRuntime,
@@ -579,7 +683,7 @@ def _build_placement(
         polygon=orient(geometry, sign=1.0),
         centroid_x=float(centroid.x),
         centroid_y=float(centroid.y),
-        polygon_local=next(v.polygon for v in item.rotation_variants if v.angle_degrees == angle),
+        polygon_local=next((v.polygon for v in item.rotation_variants if v.angle_degrees == angle), None),
     )
 
 
@@ -669,6 +773,36 @@ def _find_contact_candidates(
 
 
 def _find_item_candidates(item, state, boards, config, deadline=None):
+    candidates = _find_angle_candidates(item, state, boards, config, deadline)
+    if not item.free_rotation or not candidates or _expired(deadline):
+        return candidates
+    # Bounded local angular pattern search; translations are re-solved at each
+    # angle, so refinement can move around contacts rather than just spin in place.
+    def rank(p):
+        occupied = state.board_states[p.board_index].occupied
+        return _placement_rank_key(boards[p.board_index], occupied.union(p.polygon), p.polygon)
+    best = max(candidates, key=rank)
+    best_rank = rank(best)
+    seen = {round(v.angle_degrees % 360, 9) for v in item.rotation_variants}
+    for step in (7.5, 3.75, 1.875, .9375, .46875):
+        if _expired(deadline):
+            break
+        angles = [(best.rotation_degrees + sign*step) % 360 for sign in (-1, 1)]
+        angles = [a for a in angles if round(a, 9) not in seen]
+        seen.update(round(a, 9) for a in angles)
+        variants = tuple(_rotation_variant(item.polygon_local, a, config) for a in angles)
+        refined = _find_angle_candidates(replace(item, rotation_variants=variants), state, boards, config, deadline)
+        candidates.extend(refined)
+        if refined:
+            trial = max(refined, key=rank)
+            trial_rank = rank(trial)
+            if trial_rank > best_rank:
+                best, best_rank = trial, trial_rank
+    candidates.sort(key=rank, reverse=True)
+    return candidates[:config.max_candidates_per_item]
+
+
+def _find_angle_candidates(item, state, boards, config, deadline=None):
     if config.candidate_mode == "contact":
         return _find_contact_candidates(item, state, boards, config, deadline)
     try:
@@ -678,6 +812,9 @@ def _find_item_candidates(item, state, boards, config, deadline=None):
     candidates, seen = [], set()
     for board_index, board in enumerate(boards):
         bs = state.board_states[board_index]
+        rectangular = board.polygon.equals(box(*board.bounds))
+        occupied_bounds = None if bs.occupied.is_empty else bs.occupied.bounds
+        free_components = tuple(_iter_polygons(_board_free_space(board, bs)))
         fixed = [(p.polygon_local if p.polygon_local is not None else
                   shapely_translate(p.polygon, xoff=-p.centroid_x, yoff=-p.centroid_y),
                   p.centroid_x, p.centroid_y) for p in bs.placements]
@@ -688,12 +825,25 @@ def _find_item_candidates(item, state, boards, config, deadline=None):
             points = translation_candidates(board.polygon, variant.polygon, fixed, config.placement_tolerance)
             # Contact fallback retains exact hole fits lost by closed-set polygon
             # operations at a zero-area inner-fit region.
-            for component in _iter_polygons(_board_free_space(board, bs)):
+            for component in free_components:
                 points.extend(_candidate_offsets(variant.bounds, variant.anchor_points, component,
                                                  config.max_free_space_anchor_points))
-            for x, y in _dedupe_points(points, decimals=9):
+            points = _dedupe_points(points, decimals=9)
+            if rectangular:
+                a, b, c, d = variant.bounds
+                centroid = variant.polygon.centroid
+                cx, cy = centroid.x, centroid.y
+                ranked = [(_rectangular_candidate_rank(board.bounds, occupied_bounds,
+                           (a+x, b+y, c+x, d+y), (cx+x, cy+y)), x, y) for x, y in points]
+                ranked.sort(key=lambda entry: entry[0], reverse=True)
+            else:
+                ranked = [(None, x, y) for x, y in points]
+            for fast_rank, x, y in ranked:
                 if _expired(deadline):
                     break
+                if fast_rank is not None and len(candidates) >= config.max_candidates_per_item:
+                    if fast_rank <= candidates[-1][0]:
+                        break
                 geometry = shapely_translate(variant.polygon, xoff=x, yoff=y)
                 if not _is_valid_placement(geometry, board, bs.occupied, config.placement_tolerance):
                     continue
@@ -701,9 +851,13 @@ def _find_item_candidates(item, state, boards, config, deadline=None):
                 if key in seen:
                     continue
                 seen.add(key)
-                occupied = geometry if bs.occupied.is_empty else bs.occupied.union(geometry)
                 placement = _build_placement(item, board, board_index, variant.angle_degrees, geometry)
-                candidates.append((_placement_rank_key(board, occupied, geometry), placement))
+                if fast_rank is None:
+                    occupied = geometry if bs.occupied.is_empty else bs.occupied.union(geometry)
+                    fast_rank = _placement_rank_key(board, occupied, geometry)
+                candidates.append((fast_rank, placement))
+                candidates.sort(key=lambda entry: entry[0], reverse=True)
+                del candidates[config.max_candidates_per_item:]
     candidates.sort(key=lambda entry: entry[0], reverse=True)
     return [p for _, p in candidates[:config.max_candidates_per_item]]
 
@@ -851,6 +1005,81 @@ def _state_from_placements(placements, boards, items):
     return LayoutState(tuple(states), tuple(placements), (), sum(p.area for p in placements), 0.)
 
 
+def _refine_placed_rotations(state, boards, items, config, deadline):
+    """Remove/reinsert boundary pieces, retaining every incumbent on failure.
+
+    Unlike restarting from an empty sheet, this spends the angular budget on
+    improving the already complete scene. Never accept a loss of placed area.
+    """
+    def rank_state(candidate):
+        # Equal outer bounds need not freeze the interior: moving parts toward
+        # the lower-left corner can unlock later boundary compaction.
+        potential = sum(p.centroid_x/(boards[p.board_index].bounds[2]-boards[p.board_index].bounds[0]) +
+                        p.centroid_y/(boards[p.board_index].bounds[3]-boards[p.board_index].bounds[1])
+                        for p in candidate.placed)
+        return (*_state_rank_key(candidate, boards), -round(potential, 9))
+    rank = rank_state(state)
+    improved = 0
+    order = sorted(state.placed, key=lambda p: p.polygon.bounds[2], reverse=True)
+    for old in order:
+        if _expired(deadline):
+            break
+        item = items[old.item_instance_id]
+        if not item.free_rotation:
+            continue
+        if all(abs((v.angle_degrees-old.rotation_degrees+180)%360-180) > 1e-8
+               for v in item.rotation_variants):
+            item = replace(item, rotation_variants=(
+                _rotation_variant(item.polygon_local, old.rotation_degrees, config), *item.rotation_variants))
+        fixed = [p for p in state.placed if p.item_instance_id != old.item_instance_id]
+        base = _state_from_placements(fixed, boards, items)
+        base = replace(base, skipped_item_ids=state.skipped_item_ids, skipped_area=state.skipped_area)
+        candidates = _find_item_candidates(item, base, boards, config, deadline)
+        best, best_rank = state, rank
+        for placement in candidates:
+            trial = _apply_placement(base, placement)
+            trial_rank = rank_state(trial)
+            if trial_rank > best_rank:
+                best, best_rank = trial, trial_rank
+        if best is not state:
+            state, rank = best, best_rank
+            improved += 1
+    return state, improved
+
+
+def _compact_angle_items(items):
+    # Keep the four best angular envelopes, including arbitrary edge angles.
+    # This is an alternative construction, never a forced rotation of a layout.
+    return {k: replace(i, rotation_variants=tuple(sorted(i.rotation_variants,
+                    key=lambda v: _bounds_area(v.bounds))[:4])) if i.free_rotation else i
+            for k, i in items.items()}
+
+
+def _strip_envelope_layouts(boards, pools, deadline, tolerance):
+    """Try narrower working sheets to preserve a reusable edge strip."""
+    try:
+        from .constructive import envelope_layouts
+    except ImportError:  # script mode
+        from constructive import envelope_layouts
+    if not all(b.polygon.equals(box(*b.bounds)) for b in boards):
+        return
+    deadline = min(deadline, time.perf_counter()+.15) if deadline else time.perf_counter()+.15
+    for fraction in (.85, .7, .55, .4):
+        for axis in (0, 1):
+            if _expired(deadline):
+                return
+            working = []
+            for board in boards:
+                a, b, c, d = board.bounds
+                bounds = (a, b, a+(c-a)*fraction if axis == 0 else c,
+                          b+(d-b)*fraction if axis == 1 else d)
+                polygon = box(*bounds)
+                working.append(replace(board, polygon=polygon, bounds=bounds,
+                                       area=polygon.area, buffered_polygon=polygon.buffer(tolerance)))
+            for pool in pools:
+                yield from envelope_layouts(working, pool, deadline, tolerance)
+
+
 def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
                   time_limit_seconds: float | None = None) -> SolutionResult:
     """Return a feasible incumbent at a cooperative deadline, if supplied.
@@ -877,7 +1106,7 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
     # Build a cheap full-scene incumbent before exhaustive polygon candidates.
     # On small scenes retain the existing hole-aware search and its scoring.
     warm_full = False
-    if effective_config.constructive_start and effective_config.candidate_mode == 'nfp' and len(items) >= 32:
+    if effective_config.constructive_start and effective_config.candidate_mode == 'nfp' and (len(items) >= 32 or any(i.free_rotation for i in items.values())):
         try:
             from .constructive import envelope_layouts
         except ImportError:  # script mode
@@ -886,8 +1115,19 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
         # list; reserve most time for the bitset polygon constructor in that case.
         envelope_cap = .5 if len({i.widget_id for i in items.values()}) >= 64 else 4.
         warm_deadline = started + (min(envelope_cap, time_limit_seconds * .4) if time_limit_seconds else envelope_cap)
+        # Get a cheap cardinal incumbent first; richer angular searches must
+        # improve it rather than spending the entire budget on extra variants.
+        quick_items = {k: replace(i, rotation_variants=tuple(
+            v for v in i.rotation_variants if abs(v.angle_degrees % 90) < 1e-8))
+            if i.free_rotation else i for k, i in items.items()}
+        pools = (quick_items, _compact_angle_items(items), items) if any(i.free_rotation for i in items.values()) else (items,)
         attempts = 0
-        for raw_placements in envelope_layouts(boards, items, warm_deadline, effective_config.placement_tolerance):
+        layouts = chain.from_iterable(envelope_layouts(boards, pool, warm_deadline,
+                                       effective_config.placement_tolerance) for pool in pools)
+        if len(items) <= 32 and any(i.free_rotation for i in items.values()):
+            layouts = chain(layouts, _strip_envelope_layouts(boards, pools, warm_deadline,
+                                                            effective_config.placement_tolerance))
+        for raw_placements in layouts:
             attempts += 1
             placements = [_build_placement(items[key], boards[bi], bi, variant.angle_degrees,
                                           shapely_translate(variant.polygon, xoff=x, yoff=y))
@@ -903,20 +1143,56 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
                 best_order = tuple(p.item_instance_id for p in state.placed) + state.skipped_item_ids
             if not state.skipped_item_ids:
                 warm_full = True
-                break
+                # Continue through the angular restarts even after a cardinal
+                # full fit. Only the best complete objective survives.
         aggregate_stats['constructive_attempts'] = attempts
         aggregate_stats['constructive_seconds'] = time.perf_counter() - started
         aggregate_stats['constructive_placed'] = best_state.placed_count if best_state else 0
-        if not warm_full and not _expired(deadline):
+        tight_holes = (any(i.hole_area for i in items.values()) and
+                       sum(i.area for i in items.values()) >= .95*sum(b.area for b in boards))
+        filled_sheet = warm_full and best_state.placed_area >= sum(b.area for b in boards)-effective_config.placement_tolerance
+        # If just one of many pieces is missing, preserve time for direct
+        # insertion into the existing layout before a broader restart search.
+        almost_full = (not warm_full and len(items) > 6 and best_state is not None
+                       and best_state.placed_count == len(items)-1)
+        if (1 < len(items) <= 32 and any(i.free_rotation for i in items.values())
+                and not tight_holes and not filled_sheet and not almost_full and not _expired(deadline)):
+            try:
+                from .raster_start import raster_search
+            except ImportError:  # script mode
+                from raster_start import raster_search
+            joint_cap = .35 if len(items) > 6 and not warm_full else .9
+            joint_deadline = min(deadline, started + min(joint_cap, time_limit_seconds*.45)) if deadline else started+joint_cap
+            attempts = 0
+            for raw in raster_search(boards, items, joint_deadline, seed=effective_config.seed):
+                attempts += 1
+                placements = [_build_placement(items[k], boards[bi], bi, v.angle_degrees,
+                                              shapely_translate(v.polygon, xoff=x, yoff=y))
+                              for k, bi, v, x, y in raw]
+                state = _state_from_placements(placements, boards, items)
+                ids = {p.item_instance_id for p in placements}
+                for k in item_ids:
+                    if k not in ids:
+                        state = _skip_item(state, items[k])
+                key = _state_rank_key(state, boards)
+                if best_metrics is None or key > best_metrics:
+                    best_state, best_metrics = state, key
+                    best_order = tuple(p.item_instance_id for p in state.placed) + state.skipped_item_ids
+            aggregate_stats['joint_rotation_candidates'] = attempts
+            warm_full = best_state is not None and not best_state.skipped_item_ids
+        if (not warm_full or 1 < len(items) <= 32) and not _expired(deadline):
             try:
                 from .raster_start import raster_layout
             except ImportError:  # script mode
                 from raster_start import raster_layout
             raster_deadline = min(deadline, started + time_limit_seconds * .75) if deadline else started + 8.
-            for resolution, mode in ((512,'area'), (512,'long_side'), (512,'bbox'), (768,'area'), (768,'height')):
+            raster_attempts = [(quick_items, 512, 'area'), (items, 512, 'area'),
+                               (quick_items, 512, 'long_side'), (quick_items, 512, 'bbox'),
+                               (quick_items, 768, 'area'), (items, 768, 'height')]
+            for pool, resolution, mode in raster_attempts:
                 if _expired(raster_deadline):
                     break
-                raw = raster_layout(boards, items, raster_deadline, resolution=resolution, order_mode=mode)
+                raw = raster_layout(boards, pool, raster_deadline, resolution=resolution, order_mode=mode)
                 placements = [_build_placement(items[k], boards[bi], bi, v.angle_degrees,
                                               shapely_translate(v.polygon, xoff=x, yoff=y))
                               for k, bi, v, x, y in raw]
@@ -948,14 +1224,17 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
             aggregate_stats['termination_reason'] = 'constructive_full_fit'
             aggregate_stats['first_full_fit_seconds'] = time.perf_counter() - started
 
+    search_deadline = deadline
+    refine_small = len(items) <= 32 and any(i.free_rotation for i in items.values())
+
     for _generation in range(0 if warm_full else effective_config.generations):
         evaluated: list[tuple[tuple[float, ...], tuple[str, ...], LayoutState]] = []
         for order in population:
-            if best_state is not None and _expired(deadline):
+            if best_state is not None and _expired(search_deadline):
                 break
             cached = cache.get(order)
             if cached is None:
-                state, stats = _evaluate_order(order, items=items, boards=boards, config=effective_config, deadline=deadline)
+                state, stats = _evaluate_order(order, items=items, boards=boards, config=effective_config, deadline=search_deadline)
                 cache[order] = (state, stats)
                 aggregate_stats["retained_candidates"] += stats["retained_candidates"]
                 aggregate_stats["states_expanded"] += stats["states_expanded"]
@@ -969,7 +1248,7 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
                 best_state = state
                 best_order = order
 
-        if _expired(deadline) or _generation + 1 == effective_config.generations:
+        if _expired(search_deadline) or _generation + 1 == effective_config.generations:
             break
         evaluated.sort(key=lambda entry: entry[0], reverse=True)
         elite_count = min(effective_config.elite_count, max(1, len(evaluated) // 2))
@@ -989,12 +1268,26 @@ def solve_problem(problem: ProblemSpec, config: SolverConfig | None = None, *,
 
     assert best_state is not None
 
+    if refine_small and not _expired(deadline):
+        polish_deadline = min(deadline, time.perf_counter()+.5) if deadline else time.perf_counter()+.5
+        before = time.perf_counter()
+        best_state, improvements = _refine_placed_rotations(best_state, boards, items, effective_config, polish_deadline)
+        aggregate_stats['rotation_refinement_seconds'] = time.perf_counter()-before
+        aggregate_stats['rotation_refinement_improvements'] = improvements
+        best_order = tuple(p.item_instance_id for p in best_state.placed) + best_state.skipped_item_ids
+        if warm_full:
+            aggregate_stats['termination_reason'] = 'constructive_full_fit_with_angular_repair'
+
+
     board_metrics = tuple(_board_metrics(board, board_state) for board, board_state in zip(boards, best_state.board_states))
     max_rest = max((entry["max_rest_rectangle_area"] for entry in board_metrics), default=0.0)
     sum_rest = sum(entry["sum_rest_rectangle_area"] for entry in board_metrics)
     aggregate_stats["time_limit_seconds"] = time_limit_seconds
     aggregate_stats["budget_exhausted"] = _expired(deadline)
     aggregate_stats["solve_seconds"] = time.perf_counter() - started
+    aggregate_stats["non_cardinal_placements"] = sum(abs((p.rotation_degrees+45)%90-45) > 1e-4 for p in best_state.placed)
+    aggregate_stats["rotation_mode"] = effective_config.rotation_mode
+    aggregate_stats["free_rotation_instances"] = sum(i.free_rotation for i in items.values())
     aggregate_stats["candidate_mode"] = effective_config.candidate_mode
     aggregate_stats["unique_orders_evaluated"] = len(cache)
     aggregate_stats["beam_width"] = effective_config.beam_width
@@ -1076,10 +1369,13 @@ def validate_solution(problem: ProblemSpec, solution: SolutionResult, *, toleran
             raise AssertionError("widget identity mismatch")
         if not 0 <= p.board_index < len(problem.boards) or problem.boards[p.board_index].board_id != p.board_id:
             raise AssertionError("board identity mismatch")
-        variant = next((v for v in item.rotation_variants if abs((v.angle_degrees-p.rotation_degrees+180)%360-180) < 1e-6), None)
-        if variant is None:
+        if not math.isfinite(p.rotation_degrees):
+            raise AssertionError("rotation must be finite")
+        if not item.free_rotation and not any(
+                abs((v.angle_degrees-p.rotation_degrees+180)%360-180) < 1e-6 for v in item.rotation_variants):
             raise AssertionError("rotation is not allowed")
-        expected = shapely_translate(variant.polygon, xoff=p.centroid_x, yoff=p.centroid_y)
+        expected = shapely_translate(shapely_rotate(item.polygon_local, p.rotation_degrees, origin=(0, 0)),
+                                     xoff=p.centroid_x, yoff=p.centroid_y)
         if not expected.buffer(tolerance).covers(p.polygon) or not p.polygon.buffer(tolerance).covers(expected):
             raise AssertionError("widget geometry was changed")
 
@@ -1089,9 +1385,15 @@ def validate_solution(problem: ProblemSpec, solution: SolutionResult, *, toleran
         if not boards[placement.board_id].buffer(tolerance).covers(placement.polygon):
             raise AssertionError(f"{placement.item_instance_id} is outside board {placement.board_id}")
 
+    from shapely.strtree import STRtree
     for board_id, placements in placements_by_board.items():
+        polygons = [p.polygon for p in placements]
+        tree = STRtree(polygons)
         for i, left in enumerate(placements):
-            for right in placements[i + 1 :]:
+            for j in tree.query(left.polygon):
+                if j <= i:
+                    continue
+                right = placements[j]
                 overlap_area = left.polygon.intersection(right.polygon).area
                 if overlap_area > tolerance:
                     raise AssertionError(
@@ -1107,8 +1409,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--beam-width", type=int, default=None)
     parser.add_argument("--population-size", type=int, default=None)
     parser.add_argument("--generations", type=int, default=None)
+    parser.add_argument("--rotation-mode", choices=["free", "discrete"], default=None)
     parser.add_argument("--rotation-step-degrees", type=float, default=None)
-    parser.add_argument("--time-limit-seconds", type=float, default=None)
+    parser.add_argument("--time-limit-seconds", type=float, default=2.0)
     parser.add_argument("--candidate-mode", choices=["nfp", "contact"], default=None)
     parser.add_argument("--mujoco-debug", action="store_true", help="Render an optional MuJoCo debug view")
     return parser.parse_args()
@@ -1125,6 +1428,7 @@ def main() -> None:
             "beam_width": args.beam_width,
             "population_size": args.population_size,
             "generations": args.generations,
+            "rotation_mode": args.rotation_mode,
             "rotation_step_degrees": args.rotation_step_degrees,
         },
     )

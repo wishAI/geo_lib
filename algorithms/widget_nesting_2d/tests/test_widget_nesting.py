@@ -303,3 +303,188 @@ def test_budget_preserves_partial_placement():
     validate_solution(problem, solution)
     assert len(solution.placements) == 1
     assert len(solution.skipped_item_ids) == 3
+
+
+def test_free_rotation_fits_non_grid_angle_and_discrete_mode_cannot():
+    from shapely.affinity import rotate
+    from shapely.geometry import box
+    # Neither cardinal nor 15-degree sampling can fit this tight sheet.
+    tilted = rotate(box(0, 0, 10, 2), 17.321, origin=(0, 0))
+    problem = _problem({'boards': [{'id': 'b', 'polygon': _rectangle(10.0001, 2.0001)}],
+                        'widgets': [{'id': 'bar', 'quantity': 1,
+                                     'polygon': {'shell': [list(p) for p in tilted.exterior.coords[:-1]]}}],
+                        'config': {'rotation_step_degrees': 90}})
+    free = solve_problem(problem, _config(), time_limit_seconds=1)
+    validate_solution(problem, free)
+    assert len(free.placements) == 1
+    assert abs(free.placements[0].rotation_degrees % 90 - 72.679) < 1e-6
+    discrete_cfg = _config(rotation_mode='discrete', rotation_step_degrees=15)
+    discrete = solve_problem(problem, discrete_cfg, time_limit_seconds=1)
+    validate_solution(problem, discrete, config=discrete_cfg)
+    assert not discrete.placements
+
+
+def test_free_validator_accepts_arbitrary_angles_but_enforces_shape_and_restrictions():
+    from dataclasses import replace
+    import pytest
+    from shapely.affinity import rotate
+    from algorithms.widget_nesting_2d.benchmark import _result_from_placements
+    from algorithms.widget_nesting_2d.solver import Placement, _localize_polygon
+    problem = _problem({'boards': [{'id': 'b', 'polygon': _rectangle(20, 20)}],
+                        'widgets': [{'id': 'w', 'quantity': 1, 'polygon': _rectangle(3, 2)}]})
+    cfg = _config()
+    local = _localize_polygon(problem.widgets[0].polygon.to_polygon(name='w'))
+    polygon = rotate(local, 12.3456789, origin=(0, 0))
+    p = Placement('w#1', 'w', 'b', 0, 12.3456789, polygon, 0, 0)
+    s = _result_from_placements(problem, cfg, [p], 'test', 0)
+    validate_solution(problem, s, config=cfg)
+    with pytest.raises(AssertionError, match='geometry'):
+        validate_solution(problem, replace(s, placements=(replace(p, rotation_degrees=11),)), config=cfg)
+    for widget in (replace(problem.widgets[0], allowed_angles_degrees=(0, 90)),
+                   replace(problem.widgets[0], rotation_step_degrees=90)):
+        restricted = replace(problem, widgets=(widget,))
+        with pytest.raises(AssertionError, match='rotation is not allowed'):
+            validate_solution(restricted, s, config=cfg)
+
+
+def test_free_angular_refinement_improves_stock_without_grid_snapping():
+    from algorithms.widget_nesting_2d.solver import (
+        _build_runtime, _initial_state, _find_item_candidates, _find_angle_candidates,
+        _placement_rank_key)
+    problem = _problem({'boards': [{'id': 'b', 'polygon': _rectangle(20, 20)}],
+                        'widgets': [{'id': 'triangle', 'quantity': 1,
+                                     'polygon': {'shell': [[0, 0], [7, 1], [1, 4]]}}]})
+    cfg = _config(constructive_start=False)
+    boards, items = _build_runtime(problem, cfg)
+    from dataclasses import replace
+    # Isolate local refinement from the geometry-aligned seed improvement.
+    item = replace(items['triangle#1'], rotation_variants=(items['triangle#1'].rotation_variants[0],))
+    state = _initial_state(boards)
+    seeds = _find_angle_candidates(item, state, boards, cfg)
+    refined = _find_item_candidates(item, state, boards, cfg)
+    rank = lambda p: _placement_rank_key(boards[0], p.polygon, p.polygon)
+    assert max(map(rank, refined)) >= max(map(rank, seeds))
+    # The refinement search tests angles outside the original seed set.
+    assert any(all(abs(p.rotation_degrees-v.angle_degrees) > 1e-7
+                   for v in item.rotation_variants) for p in refined)
+
+
+def test_free_rotation_finds_narrow_feasible_interval_between_seed_angles():
+    import math
+    angle = math.radians(17.321)
+    width = 10*math.cos(angle) + math.sin(angle) + .0001
+    height = 10*math.sin(angle) + math.cos(angle) + .0001
+    problem = _problem({'boards': [{'id':'b', 'polygon':_rectangle(width, height)}],
+                        'widgets': [{'id':'bar', 'quantity':1, 'polygon':_rectangle(10, 1)}]})
+    solution = solve_problem(problem, time_limit_seconds=1)
+    validate_solution(problem, solution)
+    assert len(solution.placements) == 1
+    assert min(abs(solution.placements[0].rotation_degrees % 180-a)
+               for a in (17.321, 180-17.321)) < .01
+
+
+def test_free_angular_restart_is_used_on_ordinary_clothing():
+    from algorithms.widget_nesting_2d.case_library import build_case_library
+    from algorithms.widget_nesting_2d.benchmark import benchmark_problem
+    raw = benchmark_problem(build_case_library()['swim_curved_mix'].problem, 'free')
+    problem = _problem(raw)
+    solution = solve_problem(problem, time_limit_seconds=2)
+    validate_solution(problem, solution)
+    assert len(solution.placements) == 4
+    assert solution.max_rest_rectangle_area > 7000
+    assert any(abs((p.rotation_degrees+45)%90-45) > 1 for p in solution.placements)
+
+
+def test_boundary_reinsertion_improves_real_shirts_and_preserves_failed_replacement(monkeypatch):
+    from dataclasses import replace
+    from shapely.affinity import translate
+    from algorithms.widget_nesting_2d import solver
+    from algorithms.widget_nesting_2d.case_library import build_case_library
+    from algorithms.widget_nesting_2d.benchmark import benchmark_problem
+    from algorithms.widget_nesting_2d.constructive import envelope_layouts
+    problem = _problem(benchmark_problem(build_case_library()['shirts_combo'].problem, 'free'))
+    cfg = _config(); boards, items = solver._build_runtime(problem, cfg)
+    cardinal = {k: replace(i, rotation_variants=tuple(v for v in i.rotation_variants
+                          if abs(v.angle_degrees % 90) < 1e-8)) for k, i in items.items()}
+    raw = next(envelope_layouts(boards, cardinal, None, cfg.placement_tolerance))
+    placements = [solver._build_placement(items[k],boards[bi],bi,v.angle_degrees,
+                  translate(v.polygon,xoff=x,yoff=y)) for k,bi,v,x,y in raw]
+    state = solver._state_from_placements(placements, boards, items)
+    improved, changes = solver._refine_placed_rotations(state, boards, items, cfg, None)
+    assert len(improved.placed) == len(state.placed) == 8
+    assert changes > 0
+    assert solver._state_rank_key(improved, boards) > solver._state_rank_key(state, boards)
+    assert any(abs((p.rotation_degrees+45)%90-45) > 1 for p in improved.placed)
+    monkeypatch.setattr(solver, '_find_item_candidates', lambda *a, **kw: [])
+    unchanged, changes = solver._refine_placed_rotations(state, boards, items, cfg, None)
+    assert unchanged is state
+    assert changes == 0
+
+
+def test_free_rotation_budget_keeps_exact_hole_placement_search():
+    from algorithms.widget_nesting_2d.case_library import build_case_library
+    from algorithms.widget_nesting_2d.benchmark import benchmark_problem
+    problem = _problem(benchmark_problem(build_case_library()['exact_hole_fill'].problem, 'free'))
+    solution = solve_problem(problem, time_limit_seconds=2)
+    validate_solution(problem, solution)
+    assert len(solution.placements) == 2
+    assert abs(solution.placed_area-100) < 1e-6
+
+
+def test_strip_masks_conservatively_cover_rotated_concavities_and_holes():
+    import shapely
+    import numpy as np
+    from shapely.affinity import rotate, scale
+    from shapely.geometry import box
+    from algorithms.widget_nesting_2d.raster_start import _mask
+    shapes = [box(0, 0, 9, 8).difference(box(2, 2, 7, 6)),
+              Polygon([(0, 0), (8, 0), (8, 2), (2, 2), (2, 8), (0, 8)])]
+    for shape in shapes:
+        for angle in (0, 17.321, 113.7):
+            for factor in (.01, 1, 100):
+                polygon = scale(rotate(shape, angle), factor, factor)
+                step = max(polygon.bounds[2]-polygon.bounds[0], polygon.bounds[3]-polygon.bounds[1])/47
+                width, height, rows, _, _ = _mask(polygon, step)
+                a, b, _, _ = polygon.bounds
+                xx, yy = np.meshgrid(np.arange(width), np.arange(height))
+                cells = shapely.box(a+xx*step, b+yy*step, a+(xx+1)*step, b+(yy+1)*step)
+                positive = shapely.area(shapely.intersection(cells, polygon)) > 1e-12*factor*factor
+                assert all(rows[y] & (1 << x) for y, x in zip(*np.nonzero(positive)))
+
+
+def test_numeric_candidate_rank_matches_polygon_union_score():
+    import random
+    from shapely.geometry import box, GeometryCollection
+    from algorithms.widget_nesting_2d import solver
+    rng = random.Random(123)
+    board = solver.BoardRuntime('b', box(-20, -10, 40, 60), box(-20, -10, 40, 60),
+                                4200, (-20, -10, 40, 60))
+    for index in range(50):
+        x, y = rng.uniform(-18, 30), rng.uniform(-8, 50)
+        moving = box(x, y, x+2, y+3)
+        fixed = GeometryCollection() if index == 0 else box(-15, -5, 10, 20)
+        actual = solver._placement_rank_key(board, fixed.union(moving), moving)
+        fast = solver._rectangular_candidate_rank(board.bounds, None if fixed.is_empty else fixed.bounds,
+                                                  moving.bounds, (moving.centroid.x, moving.centroid.y))
+        assert fast == actual
+
+
+def test_joint_order_and_rotation_search_fits_tight_curved_parts():
+    from shapely.affinity import translate
+    from algorithms.widget_nesting_2d import solver
+    from algorithms.widget_nesting_2d.case_library import build_case_library
+    from algorithms.widget_nesting_2d.benchmark import benchmark_problem
+    from algorithms.widget_nesting_2d.raster_start import raster_search
+    problem = _problem(benchmark_problem(build_case_library()['swim_curved_mix_tight'].problem, 'free'))
+    cfg = _config(seed=42)
+    boards, items = solver._build_runtime(problem, cfg)
+    full = None
+    for raw in raster_search(boards, items, None, seed=42):
+        if len(raw) == len(items):
+            full = raw
+            break
+    assert full is not None
+    polygons = [translate(v.polygon, xoff=x, yoff=y) for _, _, v, x, y in full]
+    assert all(boards[bi].polygon.covers(poly) for (_, bi, _, _, _), poly in zip(full, polygons))
+    assert all(a.intersection(b).area < 1e-8 for i, a in enumerate(polygons) for b in polygons[i+1:])
+    assert any(abs((v.angle_degrees+45)%90-45) > 1 for _, _, v, _, _ in full)

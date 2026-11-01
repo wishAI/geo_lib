@@ -119,6 +119,32 @@ class RightRebaseTests(unittest.TestCase):
 
 
 
+class FeedbackMechanismTests(unittest.TestCase):
+    def test_single_interventions_keep_period_stride_and_exact_controls(self):
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import mechanism_grid
+        gait=torch.linspace(-.4,.4,16);turns=torch.linspace(-.1,.1,20);turns[14]=.02
+        gs,ts=mechanism_grid(gait,turns)
+        for row in (0,1):
+            self.assertTrue(torch.equal(gs[row],gait));self.assertTrue(torch.equal(ts[row],turns))
+        for row,index,factor in ((2,7,.95),(3,7,1.05),(4,8,.95),(5,8,1.05)):
+            expected=gait.clone();expected[index]*=factor
+            self.assertTrue(torch.equal(gs[row],expected));self.assertTrue(torch.equal(ts[row],turns))
+        expected=turns.clone();expected[14]=.03
+        self.assertTrue(torch.equal(gs[6],gait));self.assertTrue(torch.equal(ts[6],expected))
+        for invalid in (torch.zeros(15),torch.full((16,),float('nan'))):
+            with self.assertRaises(ValueError):mechanism_grid(invalid,turns)
+
+    def test_later_fall_is_diagnostic_only_and_must_follow_prefix(self):
+        from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import mechanism_source_guard
+        meta={'residual_variant':'zero_active_half_cruise_v1'}
+        result={'config':{'triangle':True},'metrics':dict(reset_count=0,nonfoot_contacts=[],done_count=1,fall_count=1,duration_s=267.27)}
+        mechanism_source_guard(result,meta,260.)
+        for fields in ({'duration_s':260.},{'duration_s':float('nan')},{'reset_count':1},
+                       {'done_count':2},{'fall_count':0},{'nonfoot_contacts':['pelvis']}):
+            bad=copy.deepcopy(result);bad['metrics'].update(fields)
+            with self.assertRaises(ValueError):mechanism_source_guard(bad,meta,260.)
+
+
 class HoldCalibrationTests(unittest.TestCase):
     def test_gain_grid_preserves_every_other_parameter_and_duplicates_controls(self):
         from algorithms.urdf_learn_wasd_walk.landau_hold_calibration import parameter_grid
