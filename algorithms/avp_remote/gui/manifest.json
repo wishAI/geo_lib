@@ -6,7 +6,7 @@
   "summary": "Record and replay Vision Pro head and hands; compare Landau USD, URDF, Unitree H1-2 and measured input.",
   "accent": "#4f7192",
   "runtime": "local",
-  "runtimeLabel": "Browser \u00b7 WebXR \u00b7 no Isaac Sim",
+  "runtimeLabel": "Browser · WebXR · no Isaac Sim",
   "capabilities": [
     "Snapshot",
     "USD skinning",
@@ -85,7 +85,7 @@
     "type": "urdf",
     "urdfCandidates": [
       {
-        "label": "Landau v10 \u00b7 AVP input",
+        "label": "Landau v10 · AVP input",
         "path": "algorithms/avp_remote/inputs/landau_v10/landau_v10_parallel_mesh.urdf"
       }
     ]
@@ -139,6 +139,18 @@
     {
       "label": "xr-buttons.js",
       "path": "algorithms/avp_remote/gui/xr-buttons.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "clip-sync.js",
+      "path": "algorithms/avp_remote/gui/clip-sync.js",
+      "kind": "file",
+      "syncOnly": true
+    },
+    {
+      "label": "skin-retarget.js",
+      "path": "algorithms/avp_remote/gui/skin-retarget.js",
       "kind": "file",
       "syncOnly": true
     }

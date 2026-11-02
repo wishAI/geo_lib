@@ -107,6 +107,20 @@ class TestLandauRetarget(unittest.TestCase):
         self.assertLess(abs(float(pose["thumb1_l"])), 0.8)
         self.assertLess(abs(float(pose["thumb1_r"])), 0.8)
 
+    def test_snapshot_matches_measured_palm_orientation_within_joint_limits(self):
+        from urdf_kinematics import world_map_from_joint_specs
+        self.retargeter.left_seed[:] = 0
+        self.retargeter.right_seed[:] = 0
+        frame = self.retargeter.snapshot_frame
+        pose = self.retargeter.retarget_frame(frame)
+        worlds = world_map_from_joint_specs(self.retargeter.urdf_joint_specs, pose, pose_key="child_link")
+        for side in ("left", "right"):
+            actual = (self.retargeter.base_world_inv @ worlds["hand_" + _side_suffix(side)])[:3, :3]
+            target = self.retargeter._target_hand_base_rotation(side, frame)
+            degrees = math.degrees(math.acos(float(np.clip((np.trace(actual.T @ target) - 1) / 2, -1, 1))))
+            self.assertLess(degrees, 12, side)
+            self.assertGreater(abs(pose["forearm_twist_" + _side_suffix(side)]), .5)
+
     def test_snapshot_retarget_explicitly_zeros_untracked_leg_pose_keys(self):
         pose = self.retargeter.retarget_frame(self.retargeter.snapshot_frame)
 

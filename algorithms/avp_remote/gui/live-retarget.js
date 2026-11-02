@@ -42,18 +42,36 @@ export class LiveRetargeter {
       parent=m;
     });return arm.worlds;
   }
-  solveArm(arm,wrist,pose){
+  targetRotation(arm,stack){
+    if(!stack?.[20])return null;
+    const p=i=>position(fromRows(stack[i]));
+    const lateral=p(5).sub(p(20)),forward=p(6).add(p(11)).add(p(16)).multiplyScalar(1/3).sub(p(0));
+    if(lateral.lengthSq()<1e-10||forward.lengthSq()<1e-10||new THREE.Vector3().crossVectors(lateral,forward).lengthSq()<1e-12)return null;
+    const world=basis(lateral,forward).multiply(arm.basis.clone().transpose());
+    return new THREE.Matrix4().extractRotation(this.baseInverse.clone().multiply(this.transform).multiply(world));
+  }
+  solveArm(arm,wrist,pose,rotation=null){
     const target=position(this.baseInverse.clone().multiply(this.transform).multiply(fromRows(wrist)));
     if(target.length()>arm.cap)target.setLength(arm.cap);
     const tip=()=>position(arm.worlds.at(-1));
     for(let iteration=0;iteration<this.iterations;iteration++){
-      this.chainWorlds(arm);if(tip().distanceToSquared(target)<1e-6)break;
+      this.chainWorlds(arm);
+      const rotationError=rotation?new THREE.Quaternion().setFromRotationMatrix(arm.worlds.at(-1)).angleTo(new THREE.Quaternion().setFromRotationMatrix(rotation)):0;
+      if(tip().distanceToSquared(target)<1e-6&&rotationError<.025)break;
       for(let i=arm.chain.length-1;i>=0;i--){
         const j=arm.chain[i];if(j.type==='fixed')continue;
         this.chainWorlds(arm);const m=arm.worlds[i],origin=position(m),axis=j.axisVector.clone().transformDirection(m);
         const a=tip().sub(origin),b=target.clone().sub(origin);a.addScaledVector(axis,-a.dot(axis));b.addScaledVector(axis,-b.dot(axis));
-        if(a.lengthSq()<1e-16||b.lengthSq()<1e-16)continue;a.normalize();b.normalize();
-        const delta=Math.atan2(axis.dot(new THREE.Vector3().crossVectors(a,b)),THREE.MathUtils.clamp(a.dot(b),-1,1));
+        // Minimize wrist position plus palm-frame orientation. Position-only CCD
+        // cannot observe wrist/forearm roll when their axis passes through the tip.
+        let sin=axis.dot(new THREE.Vector3().crossVectors(a,b)),cos=a.dot(b);
+        if(rotation)for(let column=0;column<3;column++){
+          const u=new THREE.Vector3().setFromMatrixColumn(arm.worlds.at(-1),column),v=new THREE.Vector3().setFromMatrixColumn(rotation,column);
+          u.addScaledVector(axis,-u.dot(axis));v.addScaledVector(axis,-v.dot(axis));
+          sin+=.08**2*axis.dot(new THREE.Vector3().crossVectors(u,v));cos+=.08**2*u.dot(v);
+        }
+        if(Math.abs(sin)+Math.abs(cos)<1e-16)continue;
+        const delta=Math.atan2(sin,cos);
         arm.values[i]=THREE.MathUtils.clamp(arm.values[i]+.85*delta,j.lower,j.upper);
       }
     }
@@ -86,7 +104,7 @@ export class LiveRetargeter {
       const pitch=Math.atan2(forward.z,Math.max(Math.hypot(forward.x,forward.y),1e-6));for(const name of ['neck_x','head_x'])pose[name]=this.mapped(name,pitch);}
     for(const [side,arm] of Object.entries(this.arms)){
       const stack=frame?.[side+'_arm'],wrist=stack?.[0]||frame?.[side+'_wrist'];
-      if(wrist)this.solveArm(arm,wrist,pose);else arm.values.fill(0);
+      if(wrist)this.solveArm(arm,wrist,pose,this.targetRotation(arm,stack));else arm.values.fill(0);
       if(stack&&[25,27].includes(stack.length))this.fingers(arm,stack,pose);
     }
     return pose;

@@ -33,7 +33,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import storage
+from . import storage, avp_recordings
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -1324,7 +1324,7 @@ class Handler(BaseHTTPRequestHandler):
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
         large_upload = self.path in {"/api/designer/import-portrait", "/api/rimworld/import-skin"}
-        if length > (22_100_000 if large_upload else 1_000_000):
+        if length < 0 or length > (avp_recordings.MAX_UPLOAD if self.path == '/api/avp/recordings' else 22_100_000 if large_upload else 1_000_000):
             raise ValueError("Request body is too large")
         return json.loads(self.rfile.read(length) or b"{}")
 
@@ -1376,6 +1376,12 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         try:
+            if parsed.path == '/api/avp/recordings':
+                self._json({'recordings': avp_recordings.summaries()})
+                return
+            if parsed.path.startswith('/api/avp/recordings/'):
+                self._json(avp_recordings.read(parsed.path.rsplit('/', 1)[-1]))
+                return
             if parsed.path == '/api/connection':
                 self._json({'httpsUrl': self.server.lan_https_url,
                             'profileUrl': '/setup/vision-pro.mobileconfig' if self.server.tls_profile else None})
@@ -1534,6 +1540,11 @@ class Handler(BaseHTTPRequestHandler):
             if origin and urlparse(origin).netloc != self.headers.get('Host', ''):
                 raise ValueError('Same-origin requests required')
             body = self._body()
+            if parsed.path == '/api/avp/recordings':
+                if self.headers.get_content_type() != 'application/json':
+                    raise ValueError('Recording uploads require application/json')
+                self._json(avp_recordings.save(body))
+                return
             if parsed.path == "/api/avp/pose":
                 if self.headers.get_content_type() != "application/json":
                     raise ValueError("Pose requests require application/json")

@@ -4,7 +4,14 @@
 
 The redesigned studio includes a bottom timeline, play/pause, seek, 0.25–2×
 speed, looping, JSON import/export and automatic IndexedDB storage of every
-take on the same browser/origin. The take selector restores previous recordings.
+take on the same browser/origin, followed by server sync. Old IndexedDB takes
+sync automatically when their original browser opens this version. The take
+selector merges local and server recordings; **同步录制** retries uploads and
+refreshes recordings from other devices. The Mac must open the same Geo server.
+Server recordings live in `~/.local/state/geo-lib/avp-recordings` as immutable,
+content-addressed gzip files, outside Git; they survive service/host restarts.
+Uploads serialize JSON in a worker so they do not block immersive frames.
+An unavailable server leaves the local copy usable and displays a retry message.
 Stopping leaves live tracking active; **录制新一段** also resumes tracking from
 playback and begins once a fresh head sample arrives. In Vision Pro Safari, enter immersive mode,
 allow hand tracking, and pinch **开始录制** / **结束** in the scene. Each take is
@@ -13,7 +20,9 @@ tracking, unaligned Z-up input, alignment and the displayed robot pose are saved
 playback requires no headset or pose solver. Displayed IK is currently solved
 locally in every XR frame with bounded, warm-started CCD and short pose smoothing; recorded robot joints are estimates, not measured
 body motion. Session end or loss of visibility stops recording and saves the take.
-Export JSON for a durable backup; browser storage is not shared between URLs.
+Export JSON for an additional backup. Old browser-only takes cannot be recovered
+by the server until the original browser/origin is opened again or an exported
+JSON is imported. Clearing that browser's storage may remove unsynced takes.
 
 AVP is part of the main Geo Library service, on its normal port 8767:
 
@@ -60,7 +69,15 @@ to 1.29 MB). These are controlled browser measurements, not headset Wi-Fi timing
 Background resource/job refreshes preserve the mounted recording session. Live head, arm and finger retargeting runs in the browser and does not call
 `/api/avp/pose`; that endpoint remains available for imported single frames.
 Mapping rules are exported from `landau_mapping_config.py`, and all URDF limits
-remain enforced. The immersive HUD reports the actual update Hz. A desktop Chrome
+remain enforced. Both NumPy and browser CCD now constrain the anatomical palm
+frame as well as the wrist position. On the reference snapshot, palm orientation
+error fell from about 93° per hand to 5.74° (left) and 9.14° (right). The measured
+wrist positions remain about 6.8/5.2 cm from the constrained robot wrists; those
+targets exceed this avatar's reachable pose under the current scale and limits.
+The default **回放使用修正后的映射** recalculates displayed joints from saved
+tracking samples, caches per-frame solutions, and leaves original recordings
+unchanged; turn it off to inspect the originally recorded joint motion.
+The immersive HUD reports the actual update Hz. A desktop Chrome
 simulation with the pose endpoint blocked measured 58 updates in 2 seconds and
 0.2 ms median / 0.3 ms p95 solve time (software rendering, not a headset FPS claim).
 
@@ -163,7 +180,11 @@ The current parallel URDF package is copied from
 Refresh latest assets** updates that handoff and exports the original USD as a
 skinned GLB using Blender. All 68 bones, three PBR textures, and materials are
 retained; browser textures are resized to at most 512 px. Source USD files are
-unchanged. Asset hashes detect changed URDF, meshes, USD, textures and mapping
+unchanged. USD skinning maps URDF motion relative to its rest frame onto each
+original GLB bind frame, then derives local transforms using the actual USD
+parent hierarchy (twist bones can be siblings). Regression tests verify all 68
+skin matrices and preservation of the zero-pose bind transforms.
+Asset hashes detect changed URDF, meshes, USD, textures and mapping
 code. Generated files stay in `outputs/web_scene/`.
 
 For Vision Pro, open the same GUI through the trusted LAN HTTPS endpoint and

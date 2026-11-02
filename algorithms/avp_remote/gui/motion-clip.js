@@ -5,7 +5,7 @@ export const FORMAT = 'avp-motion-clip';
 export function createClip(urdfSha256, referenceSpace) {
   return {format:FORMAT, version:1, name:new Date().toLocaleString(), createdAt:new Date().toISOString(),
     urdfSha256, referenceSpace, coordinates:'Z-up, +Y forward, meters; row-major 4x4',
-    sampleHz:30, poseSource:'displayed joint-limited CCD pose, interpolated; not measured body tracking', frames:[]};
+    sampleHz:30, retargetVersion:2, poseSource:'displayed joint-limited CCD pose, interpolated; not measured body tracking', frames:[]};
 }
 export function appendFrame(clip, t, pose, tracking, rawTracking, alignment) {
   if (!Number.isFinite(t) || t < 0) throw new Error('Invalid sample time');
@@ -20,12 +20,13 @@ export function frameIndex(frames, time) {
   while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(frames[mid].t<=time)lo=mid;else hi=mid-1;}
   return lo;
 }
-export function sampleClip(clip,time) {
+export function sampleClip(clip,time,poseAt=null) {
   const i=frameIndex(clip.frames,time), a=clip.frames[i], b=clip.frames[i+1];
   if(!a)return null;
   const alpha=b?Math.max(0,Math.min(1,(time-a.t)/(b.t-a.t))):0;
   // Interpolate only the rendered robot; measured joints remain exact samples.
-  const pose=Object.fromEntries(Object.entries(a.pose).map(([key,v])=>[key,v+((b?.pose[key]??v)-v)*alpha]));
+  const from=poseAt?poseAt(i):a.pose,to=b?(poseAt?poseAt(i+1):b.pose):null;
+  const pose=Object.fromEntries(Object.entries(from).map(([key,v])=>[key,v+((to?.[key]??v)-v)*alpha]));
   return {...a,pose,index:i};
 }
 function matrix(value) {
@@ -59,6 +60,7 @@ export async function clipStorage(value, key='latest') {
     const r=value===undefined?store.get(key):store.put(value,'latest');
     if(value!==undefined){
       store.put(value,'take:'+value.createdAt);
+      store.delete('remote:take:'+value.createdAt);
       store.put({key:'take:'+value.createdAt,name:value.name,createdAt:value.createdAt,frames:value.frames.length},'summary:'+value.createdAt);
     }
     tx.oncomplete=()=>resolve(r.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Storage aborted'));
@@ -71,4 +73,18 @@ export async function clipSummaries() {
     const r=tx.objectStore('clips').getAll(IDBKeyRange.bound('summary:','summary:\uffff'));
     tx.oncomplete=()=>resolve(r.result.reverse());tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Storage aborted'));
   });}finally{db.close();}
+}
+
+export function syncLocalClips(){
+  return new Promise((resolve,reject)=>{
+    const worker=new Worker('/api/artifact?path=algorithms/avp_remote/gui/clip-sync.js');
+    worker.onmessage=event=>{worker.terminate();event.data.error?reject(new Error(event.data.error)):resolve(event.data);};
+    worker.onerror=event=>{worker.terminate();reject(new Error(event.message||'录制同步失败'));};
+    worker.postMessage({});
+  });
+}
+export async function sharedClips(key){
+  const response=await fetch('/api/avp/recordings'+(key?'/'+encodeURIComponent(key.replace(/^server:/,'')):''),{signal:AbortSignal.timeout(20000)});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||response.statusText);
+  return key?result:result.recordings;
 }

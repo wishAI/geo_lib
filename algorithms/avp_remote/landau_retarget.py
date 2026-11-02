@@ -336,11 +336,26 @@ class LandauUpperBodyRetargeter:
         }
         return self._base_relative_world_map(pose)[hand_name][:3, 3]
 
+    def _target_hand_base_rotation(self, side: str, frame) -> np.ndarray | None:
+        stack = frame.get(f"{side}_arm")
+        if stack is None or len(stack) < 25:
+            return None
+        points = np.asarray(stack)[:, :3, 3]
+        lateral = points[5] - points[20]
+        forward = points[[6, 11, 16]].mean(axis=0) - points[0]
+        if np.linalg.norm(lateral) < 1e-5 or np.linalg.norm(np.cross(lateral, forward)) < 1e-6:
+            return None
+        # Match anatomical palm axes, not the unrelated tracker/robot wrist axes.
+        measured = _basis_from_vectors(lateral, forward)
+        world = AVP_TO_SCENE_OPTIONS.pretransform[:3, :3] @ measured @ self.robot_hand_basis[side].T
+        return _orthonormalize(self.base_world_inv[:3, :3] @ world)
+
     def _solve_arm(self, side: str, frame, pose_by_name: dict[str, float]) -> None:
         target_pos = self._target_hand_base_position(side, frame)
         if target_pos is None:
             return
 
+        target_rotation = self._target_hand_base_rotation(side, frame)
         solver = self.left_solver if side == "left" else self.right_solver
         chain = self.left_chain if side == "left" else self.right_chain
         seed = self.left_seed if side == "left" else self.right_seed
@@ -352,7 +367,7 @@ class LandauUpperBodyRetargeter:
             ik_started_at = time.perf_counter() if self.profile_enabled else 0.0
             solution = solver.ik(
                 target_pos,
-                self.rest_hand_base_rotation[side][:3, :3],
+                target_rotation if target_rotation is not None else self.rest_hand_base_rotation[side][:3, :3],
                 seed_jnt_values=seed,
             )
             if self.profile_enabled:
@@ -366,7 +381,7 @@ class LandauUpperBodyRetargeter:
                     solution = None
         if solution is None:
             ccd_started_at = time.perf_counter() if self.profile_enabled else 0.0
-            solution = self._solve_arm_ccd(side, target_pos, seed)
+            solution = self._solve_arm_ccd(side, target_pos, seed, target_rotation)
             if self.profile_enabled:
                 self.last_profile[f"{side}_arm_ccd"] = time.perf_counter() - ccd_started_at
 
@@ -378,7 +393,7 @@ class LandauUpperBodyRetargeter:
         for joint_name, joint_value in zip(chain, solution, strict=False):
             pose_by_name[joint_name] = self._mapped_joint_value(joint_name, joint_value)
 
-    def _solve_arm_ccd(self, side: str, target_pos: np.ndarray, seed: np.ndarray) -> np.ndarray:
+    def _solve_arm_ccd(self, side: str, target_pos: np.ndarray, seed: np.ndarray, target_rotation: np.ndarray | None = None) -> np.ndarray:
         chain = self.left_chain if side == "left" else self.right_chain
         hand_name = f"hand_{_side_suffix(side)}"
         pose = {
@@ -398,7 +413,9 @@ class LandauUpperBodyRetargeter:
         for _ in range(self.arm_ccd_iterations):
             base_relative_map = chain_worlds()
             current_pos = base_relative_map[hand_name][:3, 3]
-            if float(np.linalg.norm(target_pos - current_pos)) <= 1.0e-3:
+            current_rotation = base_relative_map[hand_name][:3, :3]
+            rotation_error = 0.0 if target_rotation is None else math.acos(float(np.clip((np.trace(current_rotation.T @ target_rotation) - 1.0) / 2.0, -1, 1)))
+            if float(np.linalg.norm(target_pos - current_pos)) <= 1.0e-3 and rotation_error < 0.025:
                 break
 
             for joint_name in reversed(chain):
@@ -415,15 +432,19 @@ class LandauUpperBodyRetargeter:
 
                 current_proj = current_vec - axis_world * float(np.dot(axis_world, current_vec))
                 target_proj = target_vec - axis_world * float(np.dot(axis_world, target_vec))
-                if float(np.linalg.norm(current_proj)) < 1.0e-8 or float(np.linalg.norm(target_proj)) < 1.0e-8:
+                sine = float(np.dot(axis_world, np.cross(current_proj, target_proj)))
+                cosine = float(np.dot(current_proj, target_proj))
+                if target_rotation is not None:
+                    current_rotation = base_relative_map[hand_name][:3, :3]
+                    for column in range(3):
+                        u, v = current_rotation[:, column], target_rotation[:, column]
+                        u = u - axis_world * float(np.dot(axis_world, u))
+                        v = v - axis_world * float(np.dot(axis_world, v))
+                        sine += 0.08 ** 2 * float(np.dot(axis_world, np.cross(u, v)))
+                        cosine += 0.08 ** 2 * float(np.dot(u, v))
+                if abs(sine) + abs(cosine) < 1e-16:
                     continue
-
-                current_proj = _normalize(current_proj)
-                target_proj = _normalize(target_proj)
-                signed_angle = math.atan2(
-                    float(np.dot(axis_world, np.cross(current_proj, target_proj))),
-                    float(np.clip(np.dot(current_proj, target_proj), -1.0, 1.0)),
-                )
+                signed_angle = math.atan2(sine, cosine)
                 pose[joint_name] = self._clamp_joint(
                     joint_name,
                     pose.get(joint_name, 0.0) + 0.85 * signed_angle,

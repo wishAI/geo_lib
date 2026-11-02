@@ -4,9 +4,10 @@ import {GLTFLoader} from '/vendor/three/modules/GLTFLoader.js';
 import {DRACOLoader} from '/vendor/three/modules/DRACOLoader.js';
 import {originMatrix, worldTransforms, XR_HAND_NAMES, nativeMatrix, rows, fromRows, sampleXRFrame} from '/api/artifact?path=algorithms/avp_remote/gui/pose-math.js';
 import {TrackingMarkers, XRHandMarkers} from '/api/artifact?path=algorithms/avp_remote/gui/tracking-markers.js';
-import {createClip, appendFrame, sampleClip, validateClip, clipStorage, clipSummaries, MAX_FRAMES, MAX_SECONDS, FORMAT} from '/api/artifact?path=algorithms/avp_remote/gui/motion-clip.js';
+import {createClip, appendFrame, sampleClip, validateClip, clipStorage, clipSummaries, syncLocalClips, sharedClips, MAX_FRAMES, MAX_SECONDS, FORMAT} from '/api/artifact?path=algorithms/avp_remote/gui/motion-clip.js';
 import {unitreePose, BodySchematic, UNITREE_DISPLAY_YAW} from '/api/artifact?path=algorithms/avp_remote/gui/comparison.js';
 import {XRButtonInput} from '/api/artifact?path=algorithms/avp_remote/gui/xr-buttons.js';
+import {SkinRetargeter} from '/api/artifact?path=algorithms/avp_remote/gui/skin-retarget.js';
 import {LiveRetargeter} from '/api/artifact?path=algorithms/avp_remote/gui/live-retarget.js';
 const asset = path => `/api/artifact?path=algorithms/avp_remote/${path}`;
 
@@ -43,6 +44,7 @@ export function mount(root) {
     </section>
     <details><summary>追踪数据检查 <span>INSPECT</span></summary><p>点击场景中的追踪点查看坐标。</p><pre data-marker-detail>尚未选择追踪点</pre><p class="avp-capability-note">实测：头部、每手 25 个关节点。手臂 IK 为估计；不采集面部、全身或前臂点。</p></details>
     <details><summary>沉浸运行状态 <span>XR</span></summary><pre data-xr-diagnostics>尚未进入沉浸模式</pre><button data-action="xr-report">导出运行诊断</button></details>
+    <label class="avp-replay-mapping"><input type="checkbox" data-remap-playback checked> 回放使用修正后的映射</label><p>根据录制的追踪数据重新计算；原录制文件保留不变。</p>
     <details><summary>单帧姿态 <span>POSE</span></summary><div class="avp-button-row"><button data-action="snapshot">参考快照</button><button data-action="reset">零位姿态</button><button data-action="capture">捕获当前帧</button><button data-action="save">导出姿态</button><button data-action="png">保存图片</button></div></details>
     <details><summary>关节微调 <span>JOINTS</span></summary><div class="avp-joints"></div></details>
     <details><summary>资源信息 <span>ASSETS</span></summary><p class="avp-source"></p><button data-action="verify">检查模型来源</button><button data-action="prepare">刷新模型资源</button></details>
@@ -51,12 +53,12 @@ export function mount(root) {
     <div class="avp-timeline-top"><div><small>MOTION TAKE</small><strong data-clip-name>尚未录制动作</strong></div><span data-clip-meta>进入 Vision Pro 后开始录制 · 最长 60 秒</span>
       <button class="avp-record" data-action="record" disabled><span>●</span> 开始录制</button>
       <select data-takes aria-label="已保存的录制"><option value="">已保存的录制</option></select>
-      <label class="avp-file">导入 JSON<input data-import type="file" accept=".json,application/json" aria-label="导入动作或姿态 JSON"></label><button data-action="export" disabled>导出动作 ↗</button>
+      <button data-action="sync-takes">同步录制</button><label class="avp-file">导入 JSON<input data-import type="file" accept=".json,application/json" aria-label="导入动作或姿态 JSON"></label><button data-action="export" disabled>导出动作 ↗</button>
     </div>
     <div class="avp-transport"><button data-action="start" aria-label="回到起点" disabled>⏮</button><button class="avp-play" data-action="play" aria-label="播放动作" disabled>▶</button><output data-play-time>00:00.00</output>
       <div class="avp-scrub"><input data-seek type="range" min="0" max="1" step="0.001" value="0" aria-label="动作播放进度（秒）" disabled><div class="avp-ruler"><span>00:00</span><span data-mid-time>时间轴</span><span data-end-time>00:00</span></div></div>
       <output data-duration>00:00.00</output><select data-speed aria-label="回放速度"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><label class="avp-loop"><input data-loop type="checkbox">循环</label>
-    </div><p data-save-note>录制结束后自动保存在当前浏览器；导出 JSON 可跨设备回放。</p>
+    </div><p data-save-note>录制保存在当前浏览器并同步到本机服务器；Mac 打开同一服务器即可回放。</p>
   </section><footer class="avp-footer"><span>● 网页动作预览 · 无需 Teleop App</span><span>非物理仿真 · 腿部保持默认姿态</span></footer></div>`;
   root.querySelectorAll('button:not([data-action=prepare]),input').forEach(el=>el.disabled=true);
   const $ = sel => root.querySelector(sel), stage = $('.avp-stage');
@@ -115,7 +117,7 @@ export function mount(root) {
   }
   markerOptions();
   const visuals = new Map(), bones = [], geometries = new Map(), unitreeLinks=new Map();
-  let allowedJoints=null;
+  let allowedJoints=null,skinMapper=null;
   const robotMaterial = new THREE.MeshStandardMaterial({color:0x759b99,roughness:.74,metalness:.12,side:THREE.DoubleSide});
   const labels = [];
   function label(text, x) {
@@ -149,13 +151,7 @@ export function mount(root) {
     pose=Object.fromEntries(data.joints.filter(j=>j.type!=='fixed').map(j=>[j.child,THREE.MathUtils.clamp(next[j.child]??0,j.lower,j.upper)]));
     const worlds=worldTransforms(data.joints,pose);
     for(const [name,group] of visuals){group.matrix.copy(worlds[name]||new THREE.Matrix4());group.matrixWorldNeedsUpdate=true;}
-    // USD skeleton parenting skips the URDF's extra hip-roll links. Use world
-    // transforms, then recover each exported bone's own parent-relative matrix.
-    for(const bone of bones){
-      const world=worlds[bone.name];if(!world)throw new Error(`USD bone absent from URDF: ${bone.name}`);
-      const parent=bone.parent?.isBone?worlds[bone.parent.name]:new THREE.Matrix4();
-      bone.matrix.copy(parent.clone().invert().multiply(world));bone.matrix.decompose(bone.position,bone.quaternion,bone.scale);
-    }
+    skinMapper?.apply(worlds);
     gltf?.scene.updateMatrixWorld(true);
     if(unitreeData&&unitreeGltf){
       const mapped=unitreePose(unitreeData,pose), worlds=worldTransforms(unitreeData.joints,mapped,unitreeData.root);
@@ -217,7 +213,7 @@ export function mount(root) {
     if(!live){live=true;playing=false;epoch++;liveTarget=null;rawTracking=null;lastXRFrameAt=0;$('[data-live]').checked=true;syncTimeline();return;}
     toggleRecord();
   }
-  const actions={'xr-report':()=>download(new Blob([JSON.stringify(xrDiagnostics,null,2)],{type:'application/json'}),'avp-xr-diagnostics.json'),begin:beginCapture,verify:()=>void verifyAssets(),record:toggleRecord,play:togglePlay,start:()=>seek(0),export:exportClip,snapshot,prepare,capture:()=>{stopLive();snapshotPose={...pose};snapshotTracking=tracking;updateMarkers(tracking,'Snapshot');mode('Snapshot');jointControls();status('Current pose captured · save JSON to keep it');},reset:()=>{stopLive();tracking=null;updateMarkers(null,'No tracking · zero robot pose');applyPose({});mode('Zero pose');jointControls();status('Zero joint angles · source bind stance');},fit:resetView,recenter,
+  const actions={'sync-takes':()=>void syncTakes(), 'xr-report':()=>download(new Blob([JSON.stringify(xrDiagnostics,null,2)],{type:'application/json'}),'avp-xr-diagnostics.json'),begin:beginCapture,verify:()=>void verifyAssets(),record:toggleRecord,play:togglePlay,start:()=>seek(0),export:exportClip,snapshot,prepare,capture:()=>{stopLive();snapshotPose={...pose};snapshotTracking=tracking;updateMarkers(tracking,'Snapshot');mode('Snapshot');jointControls();status('Current pose captured · save JSON to keep it');},reset:()=>{stopLive();tracking=null;updateMarkers(null,'No tracking · zero robot pose');applyPose({});mode('Zero pose');jointControls();status('Zero joint angles · source bind stance');},fit:resetView,recenter,
     save:()=>download(new Blob([JSON.stringify({version:1,urdfSha256:data.source.urdfSha256,pose,tracking},null,2)],{type:'application/json'}),'landau-pose.json'),
     png:()=>{if(renderer.xr.isPresenting){status('Leave immersive view before saving the desktop image.');return;}renderer.render(scene,camera);renderer.domElement.toBlob(blob=>{if(blob)download(blob,'landau-snapshot.png');});},xr:()=>void enterXR()};
   root.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{try{actions[b.dataset.action]();}catch(e){status(e.message,true);}});
@@ -478,7 +474,7 @@ export function mount(root) {
         if(disposed){disposeObject(model.scene);return;}
         const modelBones=[];model.scene.traverse(o=>{if(o.isBone)modelBones.push(o);if(o.isSkinnedMesh)o.frustumCulled=false;});
         if(modelBones.length!==data.source.bones){disposeObject(model.scene);throw new Error('USD conversion lost skeleton joints');}
-        gltf=model;bones.push(...modelBones);usd.add(model.scene);applyPose(pose);root.dataset.usdBones=String(bones.length);
+        gltf=model;bones.push(...modelBones);skinMapper=new SkinRetargeter(model.scene,data.joints);usd.add(model.scene);applyPose(pose);root.dataset.usdBones=String(bones.length);
         downloads.set('Landau USD','就绪');loadProgress();
       })();
       const unitreeLoad=(async()=>{
@@ -496,8 +492,8 @@ export function mount(root) {
         if(failed.length)$('[data-load-progress]').textContent='部分模型未加载；头手采集和 URDF 可用。'+failed.map(r=>r.reason.message).join('；');
         else {root.dataset.modelLoadSeconds=((performance.now()-loadStarted)/1000).toFixed(1);$('[data-load-progress]').textContent=`四视图已就绪 · 加载 ${root.dataset.modelLoadSeconds} 秒 · 压缩模型 / 本地解码`;}
       });
-      try{const stored=await clipStorage();if(!disposed&&stored&&!clip){clip=validateClip(stored,data.joints,data.source.urdfSha256);await clipStorage(clip);if(disposed)return;$('[data-save-note]').textContent='已恢复上次动作 · 点击播放或拖动时间轴';syncTimeline();}}catch(e){if(!disposed)$('[data-save-note]').textContent='本地动作未恢复：'+e.message;}
-      await refreshTakes();
+      try{const stored=await clipStorage();if(!disposed&&stored&&!clip){clip=validateClip(stored,data.joints,data.source.urdfSha256);if(!(await clipSummaries()).some(t=>t.key==='take:'+clip.createdAt))await clipStorage(clip);if(disposed)return;$('[data-save-note]').textContent='已恢复上次动作 · 点击播放或拖动时间轴';syncTimeline();}}catch(e){if(!disposed)$('[data-save-note]').textContent='本地动作未恢复：'+e.message;}
+      await refreshTakes();void syncTakes();
     }catch(e){if(!disposed)status(e.message,true);}
   }
   function timecode(seconds){const t=Math.max(0,seconds||0);return `${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(2).padStart(5,'0')}`;}
@@ -507,6 +503,7 @@ export function mount(root) {
     $('[data-action=record]').disabled=!data||(!recording&&(!session||savePending||recordRequested));
     $('[data-action=record]').innerHTML=recording?'<span>■</span> 结束录制':savePending?'保存中…':recordRequested?'等待追踪…':clip?'<span>●</span> 录制新一段':'<span>●</span> 开始录制';
     $('[data-takes]').disabled=recording||savePending||recordRequested;
+    $('[data-action=sync-takes]').disabled=recording||savePending;
     $('.avp-shell').classList.toggle('is-recording',recording);
     for(const action of ['play','start','export'])$(`[data-action=${action}]`).disabled=!n||recording;
     $('[data-action=play]').textContent=playing?'Ⅱ':'▶';$('[data-action=play]').setAttribute('aria-label',playing?'暂停动作':'播放动作');
@@ -522,7 +519,19 @@ export function mount(root) {
       const texture=button.material.map,c=texture.image,ctx=c.getContext('2d');ctx.fillStyle=key==='Record'&&recording?'#b43c4c':'#245d53';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='white';ctx.font='26px sans-serif';ctx.textAlign='center';ctx.fillText(label,128,60);texture.needsUpdate=true;
     }
   }
-  function showFrame(t){const f=sampleClip(clip,t);if(!f)return;applyPose(f.pose);tracking=f.tracking;updateMarkers(tracking,'回放 · frame '+(f.index+1));mode('Playback');}
+  const playbackCache=new WeakMap();
+  function replayPose(index){
+    let cache=playbackCache.get(clip);
+    if(!cache){cache={solver:new LiveRetargeter(data,{iterations:80}),poses:new Map()};playbackCache.set(clip,cache);}
+    if(!cache.poses.has(index)){
+      const frame=clip.frames[index];
+      for(const arm of Object.values(cache.solver.arms))arm.values.fill(0);
+      cache.poses.set(index,frame.tracking?cache.solver.solve(frame.tracking):frame.pose);
+    }
+    return cache.poses.get(index);
+  }
+  $('[data-remap-playback]').onchange=()=>{if(clip&&!live&&!recording)showFrame(cursor);};
+  function showFrame(t){const f=sampleClip(clip,t,$('[data-remap-playback]').checked?replayPose:null);if(!f)return;applyPose(f.pose);tracking=f.tracking;updateMarkers(tracking,'回放 · frame '+(f.index+1));mode('Playback');}
   function seek(t){if(recording||!clip?.frames.length)return;stopLive();cursor=Math.max(0,Math.min(t,clip.frames.at(-1).t));showFrame(cursor);jointControls();syncTimeline();}
   $('[data-seek]').oninput=e=>seek(Number(e.target.value));
   function togglePlay(){if(recording||!clip?.frames.length)return;const resume=!playing;stopLive();if(resume&&cursor>=clip.frames.at(-1).t)cursor=0;playing=resume;lastRender=performance.now();showFrame(cursor);syncTimeline();}
@@ -547,20 +556,44 @@ export function mount(root) {
   function stopRecording(){if(!recording)return;recording=false;playing=false;mode('Recorded');if(clip?.frames.length){cursor=clip.frames.at(-1).t;void persistClip();}syncTimeline();}
   async function persistClip(){
     savePending=true;saved=false;const current=clip;
-    try{await clipStorage(current);if(!disposed&&clip===current){saved=true;$('[data-save-note]').textContent='已保存 · 可直接录制新一段；在录制列表中切换历史动作。建议导出 JSON 保留副本。';await refreshTakes();}}
+    try{await clipStorage(current);if(!disposed&&clip===current){saved=true;savePending=false;syncTimeline();$('[data-save-note]').textContent='已保存到本浏览器 · 正在同步服务器…';void syncTakes();}}
     catch(e){if(!disposed)$('[data-save-note]').textContent='自动保存失败，请导出 JSON：'+e.message;}
     finally{savePending=false;if(!disposed)syncTimeline();}
   }
+  let takeSync=null;
+  async function syncTakes(){
+    if(takeSync)await takeSync;
+    if(disposed)return;
+    const work=(async()=>{
+      try{
+        await syncLocalClips();
+        if(disposed)return;
+        const remote=await refreshTakes();
+        if(!clip&&!recording&&!recordRequested&&remote?.length){
+          const stored=await sharedClips(remote[0].key);
+          if(disposed||clip||recording||recordRequested)return;
+          clip=validateClip(stored,data.joints,data.source.urdfSha256);saved=true;cursor=0;syncTimeline();await refreshTakes();
+        }
+        if(!disposed&&!recording)$('[data-save-note]').textContent='已保存 · 已同步服务器 · Mac 打开同一页面，点击「同步录制」即可回放。';
+      }catch(error){if(!disposed){$('[data-save-note]').textContent='本地录制保留 · 服务器同步失败，可点击「同步录制」重试：'+error.message;await refreshTakes().catch(()=>{});}}
+    })();
+    takeSync=work;try{await work;}finally{if(takeSync===work)takeSync=null;}
+  }
   async function refreshTakes(){
-    const takes=await clipSummaries();if(disposed)return;
+    const local=await clipSummaries();let remote=[];
+    try{remote=(await sharedClips()).filter(t=>t.urdfSha256===data.source.urdfSha256);}catch{}
+    if(disposed)return [];
+    const dates=new Set(remote.map(t=>t.createdAt));
+    const takes=[...remote,...local.filter(t=>!dates.has(t.createdAt))].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
     const select=$('[data-takes]');select.replaceChildren(new Option('已保存的录制',''));
-    for(const take of takes)select.add(new Option(`${take.name} · ${take.frames} 帧`,take.key));
-    select.value=clip?'take:'+clip.createdAt:'';
+    for(const take of takes)select.add(new Option(`${take.key.startsWith('server:')?'服务器':'本地'} · ${take.name} · ${take.frames} 帧`,take.key));
+    select.value=clip?(takes.find(t=>t.createdAt===clip.createdAt)?.key||''):'';
+    return remote;
   }
   $('[data-takes]').onchange=async e=>{
     const key=e.target.value;if(!key||recording||savePending)return;
     stopLive();const request=epoch;
-    try{const stored=await clipStorage(undefined,key);if(disposed||recording||request!==epoch)return;clip=validateClip(stored,data.joints,data.source.urdfSha256);saved=true;cursor=0;showFrame(0);syncTimeline();}
+    try{const stored=key.startsWith('server:')?await sharedClips(key):await clipStorage(undefined,key);if(disposed||recording||request!==epoch)return;clip=validateClip(stored,data.joints,data.source.urdfSha256);saved=true;cursor=0;showFrame(0);syncTimeline();}
     catch(error){status('无法读取录制：'+error.message,true);}
   };
   function exportClip(){if(recording||!clip?.frames.length)return;download(new Blob([JSON.stringify(clip)],{type:'application/json'}),'landau-motion-'+clip.createdAt.replace(/[:.]/g,'-')+'.json');}

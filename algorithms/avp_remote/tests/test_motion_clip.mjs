@@ -29,3 +29,11 @@ test('import rejects wrong model, bad timestamps, missing joints and malformed t
 test('JSON round trip preserves timestamps, gaps, raw poses and alignment',()=>{
  const c=fixture(),loaded=validateClip(JSON.parse(JSON.stringify(c)),joints,'sha');assert.deepEqual(loaded,c);
 });
+
+test('recomputed playback interpolates new poses without modifying original recording or tracking',()=>{
+ const c=fixture(),original=structuredClone(c),poseAt=i=>({neck:2+i*2});
+ assert.equal(sampleClip(c,.5,poseAt).pose.neck,3);
+ assert.deepEqual(sampleClip(c,.5,poseAt).tracking,c.frames[0].tracking);
+ assert.deepEqual(c,original);
+ assert.equal(sampleClip(c,.5).pose.neck,.5);
+});

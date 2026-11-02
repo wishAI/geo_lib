@@ -25,8 +25,30 @@ test('moving wrist targets produce fresh solutions each call with a bounded iter
  const solver=new LiveRetargeter(data),times=[],values=[];
  for(let i=0;i<240;i++){
   const frame=structuredClone(data.snapshot);for(const side of ['left','right'])for(const m of frame[side+'_arm'])m[0][3]+=.12*Math.sin(i*.05);
-  const start=performance.now(),pose=solver.solve(frame);times.push(performance.now()-start);values.push(pose.arm_stretch_l);
+  const start=performance.now(),pose=solver.solve(frame);times.push(performance.now()-start);values.push(solver.arms.left.chain.map(j=>pose[j.child].toFixed(5)).join(','));
  }
- assert.ok(new Set(values.map(x=>x.toFixed(5))).size>180);
+ assert.ok(new Set(values).size>180);
  times.sort((a,b)=>a-b);console.log(`local retarget: median ${times[120].toFixed(2)} ms, p95 ${times[228].toFixed(2)} ms`);
+});
+
+test('snapshot palm frames match measured hand direction instead of leaving forearm roll at zero',()=>{
+ const solver=new LiveRetargeter(data);let pose;for(let i=0;i<20;i++)pose=solver.solve(data.snapshot);
+ for(const side of ['left','right']){
+  const arm=solver.arms[side],target=solver.targetRotation(arm,data.snapshot[side+'_arm']);
+  const world=solver.baseInverse.clone().multiply(worldTransforms(data.joints,pose)['hand_'+arm.suffix]);
+  const degrees=new THREE.Quaternion().setFromRotationMatrix(world).angleTo(new THREE.Quaternion().setFromRotationMatrix(target))*180/Math.PI;
+  assert.ok(degrees<12,`${side} palm error ${degrees} degrees`);
+  assert.ok(Math.abs(pose['forearm_twist_'+arm.suffix])>.5,'palm roll must participate');
+ }
+});
+test('rotating the palm about a fixed wrist changes the solved orientation',()=>{
+ const solver=new LiveRetargeter(data),frame=structuredClone(data.snapshot);let first;
+ for(let i=0;i<20;i++)first=solver.solve(frame);
+ const wrist=pos(fromRows(frame.left_arm[0]));
+ const rotate=new THREE.Matrix4().makeTranslation(...wrist.toArray()).multiply(new THREE.Matrix4().makeRotationY(.5)).multiply(new THREE.Matrix4().makeTranslation(...wrist.clone().negate().toArray()));
+ frame.left_arm=frame.left_arm.map(m=>{const e=rotate.clone().multiply(fromRows(m)).elements;return [0,1,2,3].map(r=>[0,1,2,3].map(c=>e[c*4+r]));});
+ let next;for(let i=0;i<20;i++)next=solver.solve(frame);
+ const worlds=p=>worldTransforms(data.joints,p).hand_l;
+ const actual=new THREE.Quaternion().setFromRotationMatrix(worlds(first)).angleTo(new THREE.Quaternion().setFromRotationMatrix(worlds(next)));
+ assert.ok(actual>.15,`palm rotation was ignored: ${actual}`);
 });
