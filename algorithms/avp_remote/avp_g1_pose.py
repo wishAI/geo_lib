@@ -24,8 +24,10 @@ ELBOW_PITCH_STRETCH_SCALE = -0.75
 ELBOW_ROLL_TWIST_SCALE = 0.40
 THUMB_YAW_BIAS = 0.22
 THUMB_YAW_SCALE = 0.28
-THUMB_PITCH_SCALE = 0.30
-FINGER_FLEX_SCALE = 0.55
+# Landau flexion is negative; H1-2 closes its fingers with positive angles.
+# Passing negative curl through clips the fingers (and their mimics) to open.
+THUMB_PITCH_SCALE = -0.30
+FINGER_FLEX_SCALE = -0.55
 
 def estimate_urdf_root_height(
     urdf_path: Path,

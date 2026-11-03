@@ -1,6 +1,8 @@
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {moduleURL as loadModuleURL} from './browser_modules.mjs';
+const {HandRig}=await import(await loadModuleURL('hand-rig.js'));
 import * as THREE from '../../../webgui/static/vendor/three/three.module.js';
 const three=new URL('../../../webgui/static/vendor/three/three.module.js',import.meta.url).href;
 const moduleURL=async name=>'data:text/javascript;base64,'+Buffer.from((await readFile(new URL('../gui/'+name,import.meta.url),'utf8')).replace("'three'",JSON.stringify(three))).toString('base64');
@@ -39,5 +41,17 @@ test('all 68 skin matrices follow URDF rest-relative motion despite sibling twis
    const expected=worlds[objects[id].name].clone().multiply(rest[objects[id].name].clone().invert());
    assert.ok(error(actual,expected)<2e-5,objects[id].name);
   });
+ }
+});
+
+test('anatomical hand rotations deform the original skin using the same bind offsets',()=>{
+ const {root,objects,mapper}=fixture(),rest=worldTransforms(data.joints,{});
+ const originals=objects.map(o=>o.matrixWorld.clone()),rig=new HandRig(data.joints);
+ const worlds=rig.apply(worldTransforms(data.joints,data.snapshotPose),rig.solve(data.snapshot));
+ mapper.apply(worlds);root.updateMatrixWorld(true);
+ for(const name of rig.names){
+  const i=objects.findIndex(o=>o.name===name);
+  const expected=worlds[name].clone().multiply(rest[name].clone().invert()).multiply(originals[i]);
+  assert.ok(error(objects[i].matrixWorld,expected)<1e-10,name);
  }
 });

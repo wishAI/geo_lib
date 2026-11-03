@@ -1321,6 +1321,35 @@ class Handler(BaseHTTPRequestHandler):
     def _error(self, message: str, status: HTTPStatus = HTTPStatus.BAD_REQUEST) -> None:
         self._json({"error": message}, status)
 
+    def _recording(self, identifier: str) -> None:
+        # Recordings are already immutable gzip files. Avoid expanding large
+        # takes into Python objects and sending uncompressed JSON over Wi-Fi.
+        compressed = any(re.fullmatch(r'gzip(?:\s*;\s*q=(?!0(?:\.0*)?$)[0-9.]+)?', item.strip())
+                         for item in self.headers.get('Accept-Encoding', '').split(','))
+        content = avp_recordings.download(identifier, compressed=compressed)
+        etag = f'W/"{identifier}"'
+        unchanged = self.headers.get('If-None-Match') == etag
+        self.send_response(HTTPStatus.NOT_MODIFIED if unchanged else HTTPStatus.OK)
+        self.send_header('ETag', etag)
+        self.send_header('Cache-Control', 'private, max-age=31536000, immutable')
+        self.send_header('Vary', 'Accept-Encoding')
+        if not unchanged:
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(content)))
+            # Stored takes are bounded below 4 GiB; gzip ISIZE is their exact
+            # decoded size. Browser streams are decoded before progress reads.
+            decoded_size = int.from_bytes(content[-4:], 'little') if compressed else len(content)
+            self.send_header('X-Uncompressed-Content-Length', str(decoded_size))
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            if compressed:
+                self.send_header('Content-Encoding', 'gzip')
+        self.end_headers()
+        if not unchanged:
+            try:
+                self.wfile.write(content)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # The user may cancel or switch takes during a download.
+
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
         large_upload = self.path in {"/api/designer/import-portrait", "/api/rimworld/import-skin"}
@@ -1380,7 +1409,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({'recordings': avp_recordings.summaries()})
                 return
             if parsed.path.startswith('/api/avp/recordings/'):
-                self._json(avp_recordings.read(parsed.path.rsplit('/', 1)[-1]))
+                self._recording(parsed.path.rsplit('/', 1)[-1])
                 return
             if parsed.path == '/api/connection':
                 self._json({'httpsUrl': self.server.lan_https_url,

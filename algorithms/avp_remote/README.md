@@ -10,6 +10,12 @@ selector merges local and server recordings; **同步录制** retries uploads an
 refreshes recordings from other devices. The Mac must open the same Geo server.
 Server recordings live in `~/.local/state/geo-lib/avp-recordings` as immutable,
 content-addressed gzip files, outside Git; they survive service/host restarts.
+Downloads reuse those gzip bytes directly, with private immutable browser caching.
+The take loader shows decoded-byte progress, allows 120 seconds for a full take
+(lists retain a 20-second deadline), and cancels an older download when switching
+takes. Download failures are reported separately from upload/sync failures.
+The Nov 2 take is about 6 MB compressed versus 16.3 MB in the former JSON response;
+the former 20-second deadline could abort a valid recording on a slow connection.
 Uploads serialize JSON in a worker so they do not block immersive frames.
 An unavailable server leaves the local copy usable and displays a retry message.
 Stopping leaves live tracking active; **录制新一段** also resumes tracking from
@@ -68,8 +74,8 @@ reduced cold full-model loading from 16.57 s to 10.00 s; a second visit took
 to 1.29 MB). These are controlled browser measurements, not headset Wi-Fi timings.
 Background resource/job refreshes preserve the mounted recording session. Live head, arm and finger retargeting runs in the browser and does not call
 `/api/avp/pose`; that endpoint remains available for imported single frames.
-Mapping rules are exported from `landau_mapping_config.py`, and all URDF limits
-remain enforced. Both NumPy and browser CCD now constrain the anatomical palm
+Body mapping rules are exported from `landau_mapping_config.py`, and body URDF
+limits remain enforced. Both NumPy and browser CCD constrain the anatomical palm
 frame as well as the wrist position. On the reference snapshot, palm orientation
 error fell from about 93° per hand to 5.74° (left) and 9.14° (right). The measured
 wrist positions remain about 6.8/5.2 cm from the constrained robot wrists; those
@@ -77,6 +83,25 @@ targets exceed this avatar's reachable pose under the current scale and limits.
 The default **回放使用修正后的映射** recalculates displayed joints from saved
 tracking samples, caches per-frame solutions, and leaves original recordings
 unchanged; turn it off to inspect the originally recorded joint motion.
+Landau's browser hand animation uses `gui/hand-rig.js`: the 38 hand bones follow
+measured segment directions in a consistent anatomical palm frame. Thumb
+opposition, finger spread and flexion use bind-relative quaternion rotations,
+including the last segment to each fingertip. Hierarchical minimal swing preserves
+bind roll; original pivots, bone lengths, skin weights and the smaller hand size
+are retained. This animation rig drives both the USD skin and URDF preview; it
+is separate from the reduced scalar articulation used by manual sliders, native
+Python and Unitree mapping. It does not alter the source URDF or USD asset.
+New takes and pose snapshots preserve `handPose` rotations; playback interpolates
+them with quaternion slerp. Old takes remain compatible and are corrected from
+their saved tracking when the remapping checkbox is enabled. Disabling remapping
+uses the original saved motion, including saved hand rotations in new takes.
+Missing hands reset to the bind pose; collapsed finger chains are omitted.
+The Nov 2 take (522 frames) was checked across 19,836 bone directions, with
+unchanged bone lengths and near-zero direction error. Open/fist skin renders
+were reviewed from both sides. This verifies recorded geometry, not headset
+performance, collision-free fingertips or unseen gestures.
+Reproduce the numerical check with
+`node algorithms/avp_remote/tests/evaluate_hand_recording.mjs <recording.json.gz>`.
 The immersive HUD reports the actual update Hz. A desktop Chrome
 simulation with the pose endpoint blocked measured 58 updates in 2 seconds and
 0.2 ms median / 0.3 ms p95 solve time (software rendering, not a headset FPS claim).
@@ -395,6 +420,11 @@ limits and URDF finger mimic joints. Its display scale is 0.52×; coordinates an
 recorded data remain in meters. H1-2 assets come from
 `helper_repos/xr_teleoperate_shallow/assets/h1_2`; the browser build exports reduced
 visual meshes and records hashes of the URDF, meshes and mapping implementation.
+The model has six independent hand controls and six linked finger joints per
+hand. Landau's negative finger-flexion angles are sign-inverted for H1-2's
+positive closing range; otherwise its limits clamp all four fingers open.
+`build_unitree_scene.retarget_rules` exports the same signed Python mapping for
+the browser, including the thumb and linked joints.
 
 The input view uses colored measured head/hand markers and finger links. Gray
 dashed head/neck/shoulder/torso/wrist connections are **schematic**, not measured

@@ -6,6 +6,23 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent
 
+def retarget_rules(landau_joints):
+    """Export the Python mapping without loading Blender or rebuilding meshes."""
+    from avp_g1_pose import map_landau_pose_to_h1_2_pose
+    baseline = map_landau_pose_to_h1_2_pose({})
+    rules = {name: dict(bias=value, weights={}) for name, value in baseline.items()}
+    for j in landau_joints:
+        key = j['child']
+        sample = map_landau_pose_to_h1_2_pose({key: .0001})
+        for name, value in sample.items():
+            coefficient = (value - baseline[name]) / .0001
+            if abs(coefficient) > 1e-9:
+                rules[name]['weights'][key] = round(coefficient, 10)
+    for name in rules:
+        if name.endswith('elbow_pitch_joint'):
+            rules[name]['minimum'] = .1
+    return rules
+
 def build(out, landau_joints):
     import bpy
     from mathutils import Euler
@@ -59,18 +76,8 @@ def build(out, landau_joints):
             row['mimic'] = dict(joint=mimic.get('joint'), multiplier=float(mimic.get('multiplier','1')), offset=float(mimic.get('offset','0')))
         joints.append(row)
     baseline = map_landau_pose_to_h1_2_pose({})
-    rules = {name: dict(bias=value, weights={}) for name,value in baseline.items()}
     # Export coefficients from the authoritative Python mapper, not a second set of constants.
-    for j in landau_joints:
-        key = j['child']
-        sample = map_landau_pose_to_h1_2_pose({key: .0001})
-        for name,value in sample.items():
-            coefficient = (value - baseline[name]) / .0001
-            if abs(coefficient) > 1e-9:
-                rules[name]['weights'][key] = round(coefficient, 10)
-    for name in rules:
-        if name.endswith('elbow_pitch_joint'):
-            rules[name]['minimum'] = .1
+    rules = retarget_rules(landau_joints)
     bpy.ops.export_scene.gltf(filepath=str(out / 'unitree.glb'), export_format='GLB', export_yup=False, export_animations=False,
         export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=6,
         export_draco_position_quantization=16, export_draco_normal_quantization=10)

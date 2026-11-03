@@ -153,6 +153,12 @@
       "path": "algorithms/avp_remote/gui/skin-retarget.js",
       "kind": "file",
       "syncOnly": true
+    },
+    {
+      "label": "hand-rig.js",
+      "path": "algorithms/avp_remote/gui/hand-rig.js",
+      "kind": "file",
+      "syncOnly": true
     }
   ]
 }

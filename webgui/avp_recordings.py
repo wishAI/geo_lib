@@ -99,10 +99,16 @@ def summaries():
     return sorted(result, key=lambda item: item['createdAt'], reverse=True)
 
 
-def read(identifier):
+def download(identifier, *, compressed=False):
+    """Return the immutable recording without parsing/re-serializing its JSON."""
     if not re.fullmatch('[0-9a-f]{64}', identifier):
         raise ValueError('Invalid recording identifier')
     path = ROOT / (identifier + '.json.gz')
     if not path.is_file():
         raise KeyError('Recording not found')
-    return json.loads(gzip.decompress(path.read_bytes()))
+    content = path.read_bytes()
+    return content if compressed else gzip.decompress(content)
+
+
+def read(identifier):
+    return json.loads(download(identifier))

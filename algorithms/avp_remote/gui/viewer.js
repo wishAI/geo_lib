@@ -8,6 +8,7 @@ import {createClip, appendFrame, sampleClip, validateClip, clipStorage, clipSumm
 import {unitreePose, BodySchematic, UNITREE_DISPLAY_YAW} from '/api/artifact?path=algorithms/avp_remote/gui/comparison.js';
 import {XRButtonInput} from '/api/artifact?path=algorithms/avp_remote/gui/xr-buttons.js';
 import {SkinRetargeter} from '/api/artifact?path=algorithms/avp_remote/gui/skin-retarget.js';
+import {HandRig, validateHandPose} from '/api/artifact?path=algorithms/avp_remote/gui/hand-rig.js';
 import {LiveRetargeter} from '/api/artifact?path=algorithms/avp_remote/gui/live-retarget.js';
 const asset = path => `/api/artifact?path=algorithms/avp_remote/${path}`;
 
@@ -117,7 +118,7 @@ export function mount(root) {
   }
   markerOptions();
   const visuals = new Map(), bones = [], geometries = new Map(), unitreeLinks=new Map();
-  let allowedJoints=null,skinMapper=null;
+  let allowedJoints=null,skinMapper=null,handRig=null,handPose={},snapshotHands={};
   const robotMaterial = new THREE.MeshStandardMaterial({color:0x759b99,roughness:.74,metalness:.12,side:THREE.DoubleSide});
   const labels = [];
   function label(text, x) {
@@ -144,12 +145,14 @@ export function mount(root) {
     controls.update();
   }
   $('[data-display]').onchange=()=>{layout();if(!renderer.xr.isPresenting)resetView();};layout();
-  function applyPose(next) {
+  function applyPose(next, hands={}) {
     if(!data)return;
     const allowed = allowedJoints||(allowedJoints=new Map(data.joints.map(j=>[j.child,j])));
     for(const [name,value] of Object.entries(next))if(!allowed.has(name)||!Number.isFinite(value))throw new Error(`Invalid pose joint: ${name}`);
     pose=Object.fromEntries(data.joints.filter(j=>j.type!=='fixed').map(j=>[j.child,THREE.MathUtils.clamp(next[j.child]??0,j.lower,j.upper)]));
-    const worlds=worldTransforms(data.joints,pose);
+    handPose=hands;
+    const worlds=handRig.apply(worldTransforms(data.joints,pose),handPose);
+    root.dataset.handRigBones=String(Object.keys(handPose).length);
     for(const [name,group] of visuals){group.matrix.copy(worlds[name]||new THREE.Matrix4());group.matrixWorldNeedsUpdate=true;}
     skinMapper?.apply(worlds);
     gltf?.scene.updateMatrixWorld(true);
@@ -176,7 +179,7 @@ export function mount(root) {
     const response=await fetch('/api/avp/pose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(frame),signal:abort.signal});
     const result=await response.json();if(!response.ok||result.error)throw new Error(result.error||response.statusText);return result.pose;
   }
-  function snapshot(){stopLive();if(!data)return;tracking=snapshotTracking;updateMarkers(tracking,'Snapshot');applyPose(snapshotPose);mode('Snapshot');jointControls();status('参考快照已载入 · 无需头显即可预览');}
+  function snapshot(){stopLive();if(!data)return;tracking=snapshotTracking;updateMarkers(tracking,'Snapshot');applyPose(snapshotPose,snapshotHands);mode('Snapshot');jointControls();status('参考快照已载入 · 无需头显即可预览');}
   function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function loadFile(file){
     if(!file)return;stopLive();const request=++epoch;
@@ -185,7 +188,9 @@ export function mount(root) {
       if(file.size>1000000)throw new Error('单帧姿态文件不能超过 1 MB');
       if(value.urdfSha256&&value.urdfSha256!==data.source.urdfSha256)throw new Error('Snapshot uses a different URDF; load its tracking data instead.');
       const next=value.pose||await solve(value.tracking||value);if(disposed||request!==epoch)return;
-      applyPose(next);snapshotPose={...pose};snapshotTracking=value.tracking||(value.pose?null:value);tracking=snapshotTracking;updateMarkers(tracking,'Snapshot');mode('Snapshot');jointControls();status('Loaded '+file.name);
+      const source=value.tracking||(value.pose?null:value);
+      if(value.handPose!==undefined&&!validateHandPose(value.handPose))throw new Error('Invalid hand rotations');
+      applyPose(next,value.handPose??handRig.solve(source));snapshotHands=structuredClone(handPose);snapshotPose={...pose};snapshotTracking=source;tracking=snapshotTracking;updateMarkers(tracking,'Snapshot');mode('Snapshot');jointControls();status('Loaded '+file.name);
     }catch(error){if(!disposed)status(error.message,true);}
   }
   $('input[type=file]').onchange=e=>void loadFile(e.target.files[0]);
@@ -213,8 +218,8 @@ export function mount(root) {
     if(!live){live=true;playing=false;epoch++;liveTarget=null;rawTracking=null;lastXRFrameAt=0;$('[data-live]').checked=true;syncTimeline();return;}
     toggleRecord();
   }
-  const actions={'sync-takes':()=>void syncTakes(), 'xr-report':()=>download(new Blob([JSON.stringify(xrDiagnostics,null,2)],{type:'application/json'}),'avp-xr-diagnostics.json'),begin:beginCapture,verify:()=>void verifyAssets(),record:toggleRecord,play:togglePlay,start:()=>seek(0),export:exportClip,snapshot,prepare,capture:()=>{stopLive();snapshotPose={...pose};snapshotTracking=tracking;updateMarkers(tracking,'Snapshot');mode('Snapshot');jointControls();status('Current pose captured · save JSON to keep it');},reset:()=>{stopLive();tracking=null;updateMarkers(null,'No tracking · zero robot pose');applyPose({});mode('Zero pose');jointControls();status('Zero joint angles · source bind stance');},fit:resetView,recenter,
-    save:()=>download(new Blob([JSON.stringify({version:1,urdfSha256:data.source.urdfSha256,pose,tracking},null,2)],{type:'application/json'}),'landau-pose.json'),
+  const actions={'sync-takes':()=>void syncTakes(), 'xr-report':()=>download(new Blob([JSON.stringify(xrDiagnostics,null,2)],{type:'application/json'}),'avp-xr-diagnostics.json'),begin:beginCapture,verify:()=>void verifyAssets(),record:toggleRecord,play:togglePlay,start:()=>seek(0),export:exportClip,snapshot,prepare,capture:()=>{stopLive();snapshotPose={...pose};snapshotHands=structuredClone(handPose);snapshotTracking=tracking;updateMarkers(tracking,'Snapshot');mode('Snapshot');jointControls();status('Current pose captured · save JSON to keep it');},reset:()=>{stopLive();tracking=null;updateMarkers(null,'No tracking · zero robot pose');applyPose({});mode('Zero pose');jointControls();status('Zero joint angles · source bind stance');},fit:resetView,recenter,
+    save:()=>download(new Blob([JSON.stringify({version:1,urdfSha256:data.source.urdfSha256,pose,tracking,handPose},null,2)],{type:'application/json'}),'landau-pose.json'),
     png:()=>{if(renderer.xr.isPresenting){status('Leave immersive view before saving the desktop image.');return;}renderer.render(scene,camera);renderer.domElement.toBlob(blob=>{if(blob)download(blob,'landau-snapshot.png');});},xr:()=>void enterXR()};
   root.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{try{actions[b.dataset.action]();}catch(e){status(e.message,true);}});
 
@@ -379,11 +384,11 @@ export function mount(root) {
     }
     if(!live){poseRateStart=poseRateFrames=0;root.dataset.poseHz='0';}
     if(active&&xrPanel.visible){xrInput.update(sampled,session.inputSources,renderer.xr.getReferenceSpace());root.dataset.xrHover=xrInput.hover?.userData.action||'';}
-    if(active&&live&&liveTarget){const alpha=1-Math.exp(-Math.max(0,Math.min((time-lastRender)/1000,.1))*45);const smooth={};for(const j of data.joints)if(j.type!=='fixed')smooth[j.child]=(pose[j.child]||0)+((liveTarget[j.child]||0)-(pose[j.child]||0))*alpha;applyPose(smooth);}
+    if(active&&live&&liveTarget){const alpha=1-Math.exp(-Math.max(0,Math.min((time-lastRender)/1000,.1))*45);const smooth={};for(const j of data.joints)if(j.type!=='fixed')smooth[j.child]=(pose[j.child]||0)+((liveTarget[j.child]||0)-(pose[j.child]||0))*alpha;applyPose(smooth,handRig.solve(tracking));}
     if(recording){
       const elapsed=(performance.now()-recordStart)/1000;
       if(elapsed>MAX_SECONDS||clip.frames.length>=MAX_FRAMES)stopRecording();
-      else if(active&&rawTracking?.head){appendFrame(clip,elapsed,pose,tracking,rawTracking,alignment?rows(alignment):null);cursor=elapsed;}
+      else if(active&&rawTracking?.head){appendFrame(clip,elapsed,pose,tracking,rawTracking,alignment?rows(alignment):null,handPose);cursor=elapsed;}
     }
     if(playing&&clip){
       cursor+=Math.max(0,(time-lastRender)/1000)*Number($('[data-speed]').value);
@@ -458,10 +463,10 @@ export function mount(root) {
     try{
       data=JSON.parse(new TextDecoder().decode(await fetchAsset('outputs/web_scene/scene.json','基础场景')));if(disposed)return;allowedJoints=null;
       if(!data.trackingTransform)throw new Error('请刷新模型资源以补齐追踪坐标变换');
-      markerTransform=fromRows(data.trackingTransform);liveSolver=new LiveRetargeter(data);
+      markerTransform=fromRows(data.trackingTransform);liveSolver=new LiveRetargeter(data);handRig=new HandRig(data.joints);
       for(const [name,vertices] of Object.entries(data.meshes)){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.computeVertexNormals();geometries.set(name,geometry);}
       for(const link of data.links){const group=new THREE.Group();group.matrixAutoUpdate=false;urdf.add(group);visuals.set(link.name,group);for(const v of link.visuals){const mesh=new THREE.Mesh(geometries.get(v.mesh),robotMaterial);mesh.matrixAutoUpdate=false;mesh.matrix.copy(originMatrix(v).multiply(new THREE.Matrix4().makeScale(...v.scale)));group.add(mesh);}}
-      snapshotPose=data.snapshotPose;snapshotTracking=data.snapshot;snapshot();
+      snapshotPose=data.snapshotPose;snapshotTracking=data.snapshot;snapshotHands=handRig.solve(snapshotTracking);snapshot();
       $('.avp-source').textContent=`${data.source.source||data.source.urdf}\nURDF SHA-256 ${data.source.urdfSha256}\n${data.source.triangles.toLocaleString()} URDF triangles`;
       const headAsset=data.source.meshOverrides?.['landau_v10/head_x.stl'];
       if(headAsset)$('.avp-source').textContent+=`\nHead STL · ${headAsset.triangles} triangles\nSHA-256 ${headAsset.sha256}`;
@@ -474,7 +479,7 @@ export function mount(root) {
         if(disposed){disposeObject(model.scene);return;}
         const modelBones=[];model.scene.traverse(o=>{if(o.isBone)modelBones.push(o);if(o.isSkinnedMesh)o.frustumCulled=false;});
         if(modelBones.length!==data.source.bones){disposeObject(model.scene);throw new Error('USD conversion lost skeleton joints');}
-        gltf=model;bones.push(...modelBones);skinMapper=new SkinRetargeter(model.scene,data.joints);usd.add(model.scene);applyPose(pose);root.dataset.usdBones=String(bones.length);
+        gltf=model;bones.push(...modelBones);skinMapper=new SkinRetargeter(model.scene,data.joints);usd.add(model.scene);applyPose(pose,handPose);root.dataset.usdBones=String(bones.length);
         downloads.set('Landau USD','就绪');loadProgress();
       })();
       const unitreeLoad=(async()=>{
@@ -482,7 +487,7 @@ export function mount(root) {
         const model=await modelLoader.parseAsync(buffer,'');
         if(disposed){disposeObject(model.scene);return;}
         unitreeData=JSON.parse(new TextDecoder().decode(metadata));unitreeGltf=model;unitreeLinks.clear();
-        unitreeModel.add(model.scene);model.scene.position.z=unitreeData.rootHeight;unitree.scale.setScalar(.52);applyPose(pose);
+        unitreeModel.add(model.scene);model.scene.position.z=unitreeData.rootHeight;unitree.scale.setScalar(.52);applyPose(pose,handPose);
         downloads.set('Unitree 网格','就绪');loadProgress();
       })();
       void Promise.allSettled([usdLoad,unitreeLoad]).then(results=>{
@@ -531,7 +536,7 @@ export function mount(root) {
     return cache.poses.get(index);
   }
   $('[data-remap-playback]').onchange=()=>{if(clip&&!live&&!recording)showFrame(cursor);};
-  function showFrame(t){const f=sampleClip(clip,t,$('[data-remap-playback]').checked?replayPose:null);if(!f)return;applyPose(f.pose);tracking=f.tracking;updateMarkers(tracking,'回放 · frame '+(f.index+1));mode('Playback');}
+  function showFrame(t){const remap=$('[data-remap-playback]').checked;const f=sampleClip(clip,t,remap?replayPose:null,remap?i=>handRig.solve(clip.frames[i].tracking):null);if(!f)return;applyPose(f.pose,f.handPose);tracking=f.tracking;updateMarkers(tracking,'回放 · frame '+(f.index+1));mode('Playback');}
   function seek(t){if(recording||!clip?.frames.length)return;stopLive();cursor=Math.max(0,Math.min(t,clip.frames.at(-1).t));showFrame(cursor);jointControls();syncTimeline();}
   $('[data-seek]').oninput=e=>seek(Number(e.target.value));
   function togglePlay(){if(recording||!clip?.frames.length)return;const resume=!playing;stopLive();if(resume&&cursor>=clip.frames.at(-1).t)cursor=0;playing=resume;lastRender=performance.now();showFrame(cursor);syncTimeline();}
@@ -560,21 +565,47 @@ export function mount(root) {
     catch(e){if(!disposed)$('[data-save-note]').textContent='自动保存失败，请导出 JSON：'+e.message;}
     finally{savePending=false;if(!disposed)syncTimeline();}
   }
-  let takeSync=null;
+  let takeSync=null,takeLoad=null;
+  async function loadTake(key,{automatic=false}={}){
+    if(automatic&&(clip||recording||recordRequested||live||takeLoad))return false;
+    takeLoad?.controller.abort();
+    const request={key,controller:new AbortController(),epoch};takeLoad=request;
+    const current=()=>!disposed&&takeLoad===request&&!request.controller.signal.aborted&&request.epoch===epoch&&!recording&&!recordRequested;
+    const note=$('[data-save-note]'),remote=key.startsWith('server:');
+    note.textContent=remote?'正在加载服务器录制…':'正在读取本地录制…';
+    try{
+      const stored=remote?await sharedClips(key,{signal:request.controller.signal,onProgress:({loaded,total})=>{
+        const message=`正在加载服务器录制 · 已读取 ${(loaded/1048576).toFixed(1)}${total?' / '+(total/1048576).toFixed(1):''} MiB`;
+        if(current()&&note.textContent!==message)note.textContent=message;
+      }}):await clipStorage(undefined,key);
+      if(!current()||(automatic&&(clip||live)))return false;
+      clip=validateClip(stored,data.joints,data.source.urdfSha256);saved=true;cursor=0;
+      if(!automatic)showFrame(0);
+      syncTimeline();
+      note.textContent=remote?'已同步服务器 · 录制已加载，可播放或拖动时间轴。':'本地录制已加载，可播放或拖动时间轴。';
+      status(note.textContent);
+      return true;
+    }catch(error){
+      if(current()){
+        note.textContent=(remote?'服务器录制加载失败，请重新选择或点击「同步录制」重试：':'本地录制读取失败：')+error.message;
+        status(note.textContent,true);
+      }
+      return false;
+    }finally{if(takeLoad===request)takeLoad=null;}
+  }
   async function syncTakes(){
-    if(takeSync)await takeSync;
+    if(takeSync)return takeSync;
     if(disposed)return;
     const work=(async()=>{
       try{
         await syncLocalClips();
         if(disposed)return;
         const remote=await refreshTakes();
-        if(!clip&&!recording&&!recordRequested&&remote?.length){
-          const stored=await sharedClips(remote[0].key);
-          if(disposed||clip||recording||recordRequested)return;
-          clip=validateClip(stored,data.joints,data.source.urdfSha256);saved=true;cursor=0;syncTimeline();await refreshTakes();
+        if(!clip&&!recording&&!recordRequested&&!live&&remote?.length){
+          if(await loadTake(remote[0].key,{automatic:true}))await refreshTakes();
+          return;
         }
-        if(!disposed&&!recording)$('[data-save-note]').textContent='已保存 · 已同步服务器 · Mac 打开同一页面，点击「同步录制」即可回放。';
+        if(!disposed&&!recording&&!takeLoad)$('[data-save-note]').textContent='已保存 · 已同步服务器 · Mac 打开同一页面，点击「同步录制」即可回放。';
       }catch(error){if(!disposed){$('[data-save-note]').textContent='本地录制保留 · 服务器同步失败，可点击「同步录制」重试：'+error.message;await refreshTakes().catch(()=>{});}}
     })();
     takeSync=work;try{await work;}finally{if(takeSync===work)takeSync=null;}
@@ -587,14 +618,12 @@ export function mount(root) {
     const takes=[...remote,...local.filter(t=>!dates.has(t.createdAt))].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
     const select=$('[data-takes]');select.replaceChildren(new Option('已保存的录制',''));
     for(const take of takes)select.add(new Option(`${take.key.startsWith('server:')?'服务器':'本地'} · ${take.name} · ${take.frames} 帧`,take.key));
-    select.value=clip?(takes.find(t=>t.createdAt===clip.createdAt)?.key||''):'';
+    select.value=takeLoad?.key||(clip?(takes.find(t=>t.createdAt===clip.createdAt)?.key||''):'');
     return remote;
   }
   $('[data-takes]').onchange=async e=>{
     const key=e.target.value;if(!key||recording||savePending)return;
-    stopLive();const request=epoch;
-    try{const stored=key.startsWith('server:')?await sharedClips(key):await clipStorage(undefined,key);if(disposed||recording||request!==epoch)return;clip=validateClip(stored,data.joints,data.source.urdfSha256);saved=true;cursor=0;showFrame(0);syncTimeline();}
-    catch(error){status('无法读取录制：'+error.message,true);}
+    stopLive();await loadTake(key);
   };
   function exportClip(){if(recording||!clip?.frames.length)return;download(new Blob([JSON.stringify(clip)],{type:'application/json'}),'landau-motion-'+clip.createdAt.replace(/[:.]/g,'-')+'.json');}
   function beforeUnload(e){if(recording||savePending||!saved){e.preventDefault();e.returnValue='';}}
@@ -602,5 +631,5 @@ export function mount(root) {
   window.addEventListener('beforeunload',beforeUnload);document.addEventListener('visibilitychange',visibility);
   function disposeObject(object){object.traverse(o=>{o.geometry?.dispose();for(const material of [o.material].flat().filter(Boolean)){for(const value of Object.values(material))if(value?.isTexture)value.dispose();material.dispose();}});}
   void load();
-  return {destroy(){if(recording)stopRecording();window.removeEventListener('beforeunload',beforeUnload);document.removeEventListener('visibilitychange',visibility);disposed=true;epoch++;clearTimeout(refreshTimer);abort.abort();if(session)void session.end();renderer.setAnimationLoop(null);resize.disconnect();renderer.domElement.removeEventListener('pointerdown',pointerDown);renderer.domElement.removeEventListener('pointerup',pointerUp);controls.dispose();draco.dispose();disposeObject(scene);renderer.dispose();renderer.forceContextLoss();root.replaceChildren();}};
+  return {destroy(){if(recording)stopRecording();window.removeEventListener('beforeunload',beforeUnload);document.removeEventListener('visibilitychange',visibility);disposed=true;epoch++;clearTimeout(refreshTimer);abort.abort();takeLoad?.controller.abort();if(session)void session.end();renderer.setAnimationLoop(null);resize.disconnect();renderer.domElement.removeEventListener('pointerdown',pointerDown);renderer.domElement.removeEventListener('pointerup',pointerUp);controls.dispose();draco.dispose();disposeObject(scene);renderer.dispose();renderer.forceContextLoss();root.replaceChildren();}};
 }

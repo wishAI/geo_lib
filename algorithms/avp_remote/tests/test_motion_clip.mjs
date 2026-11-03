@@ -1,8 +1,7 @@
-import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-const code=await readFile(new URL('../gui/motion-clip.js',import.meta.url),'utf8');
-const {createClip,appendFrame,sampleClip,validateClip,MAX_FRAMES}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+import {moduleURL} from './browser_modules.mjs';
+const {createClip,appendFrame,sampleClip,validateClip,MAX_FRAMES}=await import(await moduleURL('motion-clip.js'));
 const joints=[{child:'neck',type:'revolute'}];
 const identity=[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
 function fixture(){const c=createClip('sha','local-floor');appendFrame(c,0,{neck:0},{head:identity},{head:identity},identity);appendFrame(c,1,{neck:1},null,null,null);return c;}
@@ -28,6 +27,18 @@ test('import rejects wrong model, bad timestamps, missing joints and malformed t
 });
 test('JSON round trip preserves timestamps, gaps, raw poses and alignment',()=>{
  const c=fixture(),loaded=validateClip(JSON.parse(JSON.stringify(c)),joints,'sha');assert.deepEqual(loaded,c);
+});
+
+test('hand rotations survive recording/export, interpolate on the sphere and support old takes',()=>{
+ const c=fixture(),q={thumb1_l:[0,0,0,1]};c.frames[0].handPose=q;c.frames[1].handPose={thumb1_l:[1,0,0,0]};
+ const half=sampleClip(c,.5).handPose.thumb1_l;
+ assert.ok(Math.abs(half[0]-Math.SQRT1_2)<1e-12&&Math.abs(half[3]-Math.SQRT1_2)<1e-12);
+ assert.deepEqual(validateClip(JSON.parse(JSON.stringify(c)),joints,'sha'),c);
+ c.frames[0].handPose.thumb1_l=[0,0,0,2];assert.throws(()=>validateClip(c,joints,'sha'));
+ for(const f of c.frames)delete f.handPose;
+ assert.deepEqual(sampleClip(c,.5).handPose,{});assert.equal(validateClip(c,joints,'sha'),c);
+ const original=JSON.stringify(c),corrected=sampleClip(c,.5,null,()=>q);
+ assert.deepEqual(corrected.handPose,q);assert.equal(JSON.stringify(c),original);
 });
 
 test('recomputed playback interpolates new poses without modifying original recording or tracking',()=>{

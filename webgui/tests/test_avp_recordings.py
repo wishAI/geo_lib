@@ -1,4 +1,5 @@
 import copy
+import gzip
 import json
 import tempfile
 import unittest
@@ -39,6 +40,29 @@ class RecordingHttpTests(unittest.TestCase):
     setUp = delivery.AvpDeliveryTests.setUp
     tearDown = delivery.AvpDeliveryTests.tearDown
     request = delivery.AvpDeliveryTests.request
+    def test_recording_download_uses_stored_gzip_and_private_immutable_cache(self):
+        with patch.object(avp_recordings,'ROOT',self.root/'recordings'):
+            value=clip();saved=avp_recordings.save(value)
+            path='/api/avp/recordings/'+saved['id']
+            # Download must not parse and re-serialize a potentially 96 MB take.
+            with patch.object(avp_recordings,'read',side_effect=AssertionError('unnecessary JSON expansion')):
+                status,headers,body=self.request(path=path,headers={'Accept-Encoding':'gzip'})
+            self.assertEqual(status,200)
+            self.assertEqual(headers['Content-Encoding'],'gzip')
+            self.assertEqual(body,(avp_recordings.ROOT/(saved['id']+'.json.gz')).read_bytes())
+            self.assertEqual(json.loads(gzip.decompress(body)),value)
+            self.assertEqual(int(headers['X-Uncompressed-Content-Length']),len(gzip.decompress(body)))
+            self.assertIn('private',headers['Cache-Control'])
+            self.assertIn('immutable',headers['Cache-Control'])
+            self.assertEqual(headers['Vary'],'Accept-Encoding')
+            status,_,body=self.request(path=path,headers={'Accept-Encoding':'gzip','If-None-Match':headers['ETag']})
+            self.assertEqual((status,body),(304,b''))
+            status,headers,body=self.request(path=path,headers={'Accept-Encoding':'gzip;q=0'})
+            self.assertEqual(status,200)
+            self.assertNotIn('Content-Encoding',headers)
+            self.assertEqual(json.loads(body),value)
+            self.assertEqual(int(headers['X-Uncompressed-Content-Length']),len(body))
+
     def test_cross_client_upload_list_read_and_foreign_origin_rejection(self):
         with patch.object(avp_recordings,'ROOT',self.root/'recordings'):
             headers={'Content-Type':'application/json','Origin':'http://'+self.host}

@@ -12,6 +12,20 @@ from avp_g1_pose import estimate_urdf_root_height, h1_2_hand_pose_summary, map_l
 
 
 class TestG1Pose(unittest.TestCase):
+    @unittest.skipUnless(default_g1_urdf_path().exists(), "requires cloned H1_2 helper repo")
+    def test_negative_landau_curl_closes_both_hands_with_real_h1_limits(self):
+        from urdf_kinematics import load_joint_limits
+        limits = load_joint_limits(default_g1_urdf_path())
+        source = {f"{finger}{i}_{side}": -1.4
+                  for side in ("l", "r")
+                  for finger in ("thumb", "index", "middle", "ring", "pinky")
+                  for i in (1, 2, 3)}
+        closed = map_landau_pose_to_h1_2_pose(source, joint_limits=limits)
+        for prefix in ("L", "R"):
+            self.assertGreater(closed[f"{prefix}_thumb_proximal_pitch_joint"], .35)
+            for finger in ("index", "middle", "ring", "pinky"):
+                self.assertGreater(closed[f"{prefix}_{finger}_proximal_joint"], .7)
+
     def test_map_landau_pose_to_g1_pose_covers_upper_body_and_hands(self):
         landau_pose = {
             "spine_02_x": 0.1,
@@ -22,24 +36,24 @@ class TestG1Pose(unittest.TestCase):
             "arm_twist_l": 0.3,
             "forearm_twist_l": 0.4,
             "thumb1_l": 0.5,
-            "thumb2_l": 0.6,
-            "thumb3_l": 0.7,
+            "thumb2_l": -0.6,
+            "thumb3_l": -0.7,
             "index1_base_l": 0.1,
-            "index1_l": 0.8,
-            "index2_l": 0.7,
-            "index3_l": 0.6,
+            "index1_l": -0.8,
+            "index2_l": -0.7,
+            "index3_l": -0.6,
             "middle1_base_l": 0.05,
-            "middle1_l": 0.9,
-            "middle2_l": 0.8,
-            "middle3_l": 0.7,
+            "middle1_l": -0.9,
+            "middle2_l": -0.8,
+            "middle3_l": -0.7,
             "ring1_base_l": -0.02,
-            "ring1_l": 0.6,
-            "ring2_l": 0.5,
-            "ring3_l": 0.4,
+            "ring1_l": -0.6,
+            "ring2_l": -0.5,
+            "ring3_l": -0.4,
             "pinky1_base_l": -0.08,
-            "pinky1_l": 0.5,
-            "pinky2_l": 0.4,
-            "pinky3_l": 0.3,
+            "pinky1_l": -0.5,
+            "pinky2_l": -0.4,
+            "pinky3_l": -0.3,
         }
 
         g1_pose = map_landau_pose_to_h1_2_pose(landau_pose)
