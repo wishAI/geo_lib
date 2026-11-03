@@ -14,6 +14,10 @@ If the repository is heavily restructured, or most code files are deleted and re
 6. `algorithms/urdf_learn_wasd_walk/milestones.json`
 7. `algorithms/urdf_learn_wasd_walk/gui/manifest.json`
 
+## Task-Specific Project Skills
+
+- For AVP hand/finger mapping, palm orientation, arm skin deformation, URDF-to-USD pose transfer, or their playback regressions, read [`skills/avp-hand-arm-retargeting/SKILL.md`](skills/avp-hand-arm-retargeting/SKILL.md). It covers both `avp_remote` and `usd_parallel_urdf`; this work does not advance the locomotion milestone ladder.
+
 ## What To Preserve If You Wipe And Rebuild
 
 Keep these files and folders even if most code is deleted:
@@ -22,6 +26,7 @@ Keep these files and folders even if most code is deleted:
 - `agent_guide.md`
 - `CONTEXT.md`
 - `skills/geo-walk-training/SKILL.md`
+- `skills/avp-hand-arm-retargeting/`
 - `algorithms/urdf_learn_wasd_walk/TRAINING_RULES.md`
 - `algorithms/urdf_learn_wasd_walk/milestones.json`
 - `algorithms/urdf_learn_wasd_walk/inputs/landau_v10/`

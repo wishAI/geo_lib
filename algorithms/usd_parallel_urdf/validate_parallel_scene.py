@@ -11,7 +11,7 @@ import numpy as np
 from asset_paths import default_usd_path, resolve_asset_paths
 from compare_urdf_pose_offline import compare_offline_pose
 from skeleton_common import (
-    apply_pose_to_local_matrices,
+    UrdfSkinMapper,
     build_pose_preset,
     build_demo_pose,
     extract_skeleton_records,
@@ -478,7 +478,7 @@ def _scene_offsets(view: str, base_z: float) -> tuple[np.ndarray, np.ndarray]:
     )
 
 
-def _capture_validation_gallery(app, stage, records, usd_root: str, urdf_root: str, usd_skel, capture_dir: Path) -> list[str]:
+def _capture_validation_gallery(app, stage, records, usd_root: str, urdf_root: str, usd_skel, capture_dir: Path, skin_mapper) -> list[str]:
     from isaacsim.sensors.camera import Camera
 
     capture_dir.mkdir(parents=True, exist_ok=True)
@@ -502,7 +502,7 @@ def _capture_validation_gallery(app, stage, records, usd_root: str, urdf_root: s
     written: list[str] = []
     for preset, view in gallery_specs:
         pose = build_pose_preset(records, preset)
-        local_matrices = rest_local if preset == 'rest' else apply_pose_to_local_matrices(records, pose)
+        local_matrices = rest_local if preset == 'rest' else skin_mapper.apply(pose)
         posed_world_local = world_matrices_from_local(records, local_matrices)
         posed_base_z = max(rest_base_z, root_height_offset_from_world_matrices(posed_world_local))
         if preset in {'walk', 'walk_right'}:
@@ -591,9 +591,10 @@ def main() -> None:
 
         extracted = extract_skeleton_records(usd_skel)
         records = extracted['records']
+        skin_mapper = UrdfSkinMapper(records, urdf_path)
         pose_preset = 'demo'
         pose = build_demo_pose(records)
-        local_posed = apply_pose_to_local_matrices(records, pose)
+        local_posed = skin_mapper.apply(pose)
         posed_world_local = world_matrices_from_local(records, local_posed)
         rest_base_z = root_height_offset(records)
         posed_base_z = max(rest_base_z, root_height_offset_from_world_matrices(posed_world_local))
@@ -679,28 +680,31 @@ def main() -> None:
             }
 
             per_link = []
+            skin_root_offset_inv = np.linalg.inv(skin_mapper.offsets['root_x'])
             for record in records:
                 name = record['name']
-                if name not in urdf_by_name:
+                owner = skin_mapper.sources[name]
+                if owner not in urdf_by_name:
                     continue
                 usd_matrix = usd_by_name[name]
-                urdf_matrix = urdf_by_name[name]
+                urdf_matrix = skin_root_offset_inv @ urdf_by_name[owner] @ skin_mapper.offsets[name]
                 pos_error = float(np.linalg.norm(usd_matrix[:3, 3] - urdf_matrix[:3, 3]))
                 rot_error = float(rotation_error_radians(usd_matrix, urdf_matrix))
                 per_link.append(
                     {
                         'name': name,
+                        'motion_owner': owner,
                         'position_error_m': pos_error,
                         'rotation_error_rad': rot_error,
                         'usd_xyz': [float(v) for v in usd_matrix[:3, 3]],
                         'urdf_xyz': [float(v) for v in urdf_matrix[:3, 3]],
-                        'urdf_prim_path': urdf_link_paths[name],
+                        'urdf_prim_path': urdf_link_paths[owner],
                     }
                 )
             per_link.sort(key=lambda item: item['position_error_m'], reverse=True)
             summary.update(
                 {
-                    'comparison_mode': 'live_isaac_prim_transforms',
+                    'comparison_mode': 'live_isaac_geometry_owner_skin_transforms',
                     'comparison_link_count': len(per_link),
                     'max_position_error_m': max((item['position_error_m'] for item in per_link), default=0.0),
                     'mean_position_error_m': float(np.mean([item['position_error_m'] for item in per_link])) if per_link else 0.0,
@@ -732,6 +736,7 @@ def main() -> None:
                 urdf_root=str(urdf_root),
                 usd_skel=usd_skel,
                 capture_dir=capture_dir,
+                skin_mapper=skin_mapper,
             )
             summary['captured_images'] = captured_images
             summary['capture_dir'] = str(capture_dir)

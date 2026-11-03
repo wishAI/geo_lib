@@ -69,5 +69,33 @@ class TestUrdfKinematics(unittest.TestCase):
         np.testing.assert_allclose(left_hip_pitch.origin[0], expected_row0, atol=5.0e-6)
 
 
+class TestSkinMapping(unittest.TestCase):
+    def test_serial_arms_keep_skin_connected_and_preserve_hand_targets(self):
+        folder = MODULE_ROOT / 'inputs/landau_v10'
+        records = landau_pose.load_skeleton_records(folder / 'landau_v10_skeleton.json')
+        specs = urdf_kinematics.load_urdf_joint_specs(folder / 'landau_v10_parallel_mesh.urdf')
+        mapper = landau_pose.UrdfSkinMapper(records, specs)
+        rest = urdf_kinematics.world_map_from_joint_specs(specs)
+        skin_rest = landau_pose.world_matrices_from_local(records, [r.local_matrix for r in records])
+        for actual, record in zip(mapper.apply({}), records):
+            np.testing.assert_allclose(actual, record.local_matrix, atol=1e-12)
+        for angle in (-1.2, -.5, .5, 1.2):
+            pose = {f'{part}_{side}': value for side in ('l', 'r') for part, value in
+                    [('arm_stretch', -.7), ('arm_twist', angle), ('forearm_stretch', .8),
+                     ('forearm_twist', -angle), ('hand', .3)]}
+            worlds = urdf_kinematics.world_map_from_joint_specs(specs, pose, pose_key='child_link')
+            skin = landau_pose.world_matrices_from_local(records, mapper.apply(pose))
+            for record in records:
+                name = record.name
+                if name not in ('arm_stretch_l', 'arm_stretch_r'):
+                    expected = worlds[name] @ np.linalg.inv(rest[name]) @ skin_rest[record.index]
+                    np.testing.assert_allclose(skin[record.index], expected, atol=1e-12)
+                else:
+                    elbow = name.replace('arm_stretch_', 'forearm_stretch_')
+                    delta = skin[record.index] @ np.linalg.inv(skin_rest[record.index])
+                    endpoint = delta @ rest[elbow][:, 3]
+                    np.testing.assert_allclose(endpoint, worlds[elbow][:, 3], atol=1e-7)
+
+
 if __name__ == "__main__":
     unittest.main()

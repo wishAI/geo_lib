@@ -292,6 +292,37 @@ def root_height_offset(records: Sequence[SkeletonRecord], clearance: float = 0.0
     return -min_z + clearance
 
 
+class UrdfSkinMapper:
+    """Transfer serial URDF motion to source skin frames, including arm owners."""
+
+    def __init__(self, records, specs):
+        self.records = records
+        self.specs = specs
+        rest = world_map_from_joint_specs(specs)
+        skin_rest = world_matrices_from_local(records, [r.local_matrix for r in records])
+        parents = {s.child_link: s.parent_link for s in specs.values()}
+        self.sources = {}
+        self.offsets = {}
+        for record in records:
+            name = record.name
+            source = name
+            if name in ('arm_stretch_l', 'arm_stretch_r'):
+                twist = name.replace('arm_stretch_', 'arm_twist_')
+                forearm = name.replace('arm_stretch_', 'forearm_stretch_')
+                if parents.get(twist) == name and parents.get(forearm) == twist:
+                    source = twist
+            self.sources[name] = source
+            self.offsets[name] = np.linalg.inv(rest[source]) @ skin_rest[record.index]
+
+    def apply(self, pose):
+        worlds = world_map_from_joint_specs(self.specs, pose, pose_key='child_link')
+        targets = {name: worlds[source] @ self.offsets[name] for name, source in self.sources.items()}
+        # Use a full inverse: the source USD rest frames can contain scale.
+        return [targets[r.name] if r.parent_index < 0 else
+                np.linalg.inv(targets[self.records[r.parent_index].name]) @ targets[r.name]
+                for r in self.records]
+
+
 def _find_first_skeleton(stage, root_prim_path: str):
     from pxr import Usd, UsdSkel
 
@@ -446,6 +477,7 @@ class LandauUsdPoseDriver:
         self.skeleton_json_path = Path(skeleton_json_path).resolve()
         self.records = load_skeleton_records(self.skeleton_json_path)
         self.urdf_joint_specs = load_urdf_joint_specs(self.urdf_path) if self.urdf_path is not None else None
+        self.skin_mapper = UrdfSkinMapper(self.records, self.urdf_joint_specs) if self.urdf_joint_specs is not None else None
         self.root_offset_xyz = np.asarray(root_offset_xyz, dtype=float)
         self.anim_name = anim_name
 
@@ -476,8 +508,7 @@ class LandauUsdPoseDriver:
         if self.urdf_joint_specs is None:
             local_matrices = apply_joint_positions_to_local_matrices(self.records, pose_by_name)
         else:
-            world_by_name = world_map_from_joint_specs(self.urdf_joint_specs, pose_by_name, pose_key="child_link")
-            local_matrices = local_matrices_from_world_map(self.records, world_by_name)
+            local_matrices = self.skin_mapper.apply(pose_by_name)
         _set_animation_pose(
             self.translations_attr,
             self.rotations_attr,

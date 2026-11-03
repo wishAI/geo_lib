@@ -8,7 +8,7 @@ import numpy as np
 
 from asset_paths import default_usd_path, resolve_asset_paths
 from skeleton_common import (
-    apply_pose_to_local_matrices,
+    UrdfSkinMapper,
     build_pose_preset,
     extract_skeleton_records,
     pose_preset_names,
@@ -132,9 +132,10 @@ def main() -> None:
             raise RuntimeError('Referenced USD did not expose a skeleton under /World/UsdCharacter')
         extracted = extract_skeleton_records(usd_skel)
         records = extracted['records']
+        skin_mapper = UrdfSkinMapper(records, urdf_path)
         pose = build_pose_preset(records, args.pose_preset if args.posed else 'rest')
         local_rest = [record['local_matrix'].copy() for record in records]
-        local_posed = apply_pose_to_local_matrices(records, pose)
+        local_posed = skin_mapper.apply(pose)
         posed_world_local = world_matrices_from_local(records, local_posed)
         base_z = root_height_offset(records)
         posed_base_z = max(base_z, root_height_offset_from_world_matrices(posed_world_local))

@@ -158,6 +158,7 @@ Render a posed overview:
 - The generated URDF preserves the source standing basis by keeping the original root transform through a fixed `base_link -> root_x` joint.
 - The build script uses a repo-local Kit portable root under `algorithms/usd_parallel_urdf/.kit_portable/` so it does not depend on `~/Documents/Kit/shared`.
 - The mesh URDF keeps the same kinematics as the primitive URDF. Only the collision/visual geometry changes.
+- USD playback, rendering, and validation transfer the loaded URDF's rest-relative world motion back through the original USD hierarchy. Upper-arm stretch weights follow the serial arm-twist geometry owner; hand targets retain the full serial arm/forearm motion. This prevents a sleeve from staying behind its elbow without changing URDF axes or source skin weights.
 - The mesh builder now mixes three watertight outputs depending on the link: repaired surface, low-poly remesh, and voxelized closed-surface fallback. In the latest build all 68 links ended up watertight.
 - `config.py` is the supported tuning point for mesh density and fit tolerance. `head_x` ships with a tighter fit limit and a higher face budget than the rest of the body.
 - The validator, renderer, and animation player now wait briefly after URDF import before applying poses. That warmup avoids an intermittent mesh-import timing race in Isaac where the articulated pose could be driven before mesh-backed links had fully settled.

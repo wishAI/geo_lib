@@ -27,7 +27,7 @@ test('zero URDF pose preserves every original USD bind transform',()=>{
  mapper.apply(worldTransforms(data.joints,{}));root.updateMatrixWorld(true);
  objects.forEach((o,i)=>assert.ok(error(o.matrixWorld,original[i])<1e-10,o.name));
 });
-test('all 68 skin matrices follow URDF rest-relative motion despite sibling twist bones',()=>{
+test('all 68 skin matrices follow geometry owners despite sibling twist bones',()=>{
  const {root,objects,mapper}=fixture(),rest=worldTransforms(data.joints,{});
  assert.equal(root.getObjectByName('arm_twist_l').parent,root.getObjectByName('forearm_stretch_l').parent);
  const skin=gltf.skins[0],accessor=gltf.accessors[skin.inverseBindMatrices],view=gltf.bufferViews[accessor.bufferView];
@@ -38,9 +38,31 @@ test('all 68 skin matrices follow URDF rest-relative motion despite sibling twis
    const offset=(view.byteOffset||0)+(accessor.byteOffset||0)+i*64;
    const inverse=new THREE.Matrix4().fromArray(Array.from({length:16},(_,n)=>binary.readFloatLE(offset+n*4)));
    const actual=objects[id].matrixWorld.clone().multiply(inverse);
-   const expected=worlds[objects[id].name].clone().multiply(rest[objects[id].name].clone().invert());
+   const name=objects[id].name,owner=name.replace(/^arm_stretch_/, 'arm_twist_');
+   const expected=worlds[owner].clone().multiply(rest[owner].clone().invert());
    assert.ok(error(actual,expected)<2e-5,objects[id].name);
   });
+ }
+});
+
+test('upper sleeve and elbow stay connected under bilateral serial arm rotations',()=>{
+ const {root,objects,mapper}=fixture(),rest=worldTransforms(data.joints,{});
+ const binds=new Map(objects.filter(o=>o.isBone).map(o=>[o.name,o.matrixWorld.clone()]));
+ for(const angle of [-1.2,-.5,.5,1.2]){
+  const pose={arm_stretch_l:-.7,arm_stretch_r:.4,arm_twist_l:angle,arm_twist_r:angle,
+   forearm_stretch_l:.8,forearm_stretch_r:-.6,forearm_twist_l:-angle,forearm_twist_r:angle};
+  const worlds=worldTransforms(data.joints,pose);mapper.apply(worlds);root.updateMatrixWorld(true);
+  for(const s of ['l','r']){
+   const arm='arm_stretch_'+s,elbow='forearm_stretch_'+s,hand='hand_'+s;
+   const delta=root.getObjectByName(arm).matrixWorld.clone().multiply(binds.get(arm).clone().invert());
+   const sleeveEnd=new THREE.Vector3().setFromMatrixPosition(rest[elbow]).applyMatrix4(delta);
+   assert.ok(sleeveEnd.distanceTo(new THREE.Vector3().setFromMatrixPosition(worlds[elbow]))<1e-7,arm);
+   // Parent compensation must not add upper-arm roll a second time downstream.
+   for(const name of [elbow,hand]){
+    const expected=worlds[name].clone().multiply(rest[name].clone().invert()).multiply(binds.get(name));
+    assert.ok(error(root.getObjectByName(name).matrixWorld,expected)<1e-10,name);
+   }
+  }
  }
 });
 

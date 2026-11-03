@@ -1,0 +1,3 @@
+interface:
+  display_name: "AVP Hand and Arm Retargeting"
+  short_description: "Repair AVP finger, palm and URDF-to-USD arm mapping"

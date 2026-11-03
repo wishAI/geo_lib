@@ -244,7 +244,7 @@ def main() -> None:
     try:
         from g1_pose import estimate_urdf_root_height, g1_hand_pose_summary, load_joint_limits, map_landau_pose_to_g1_pose
         from skeleton_common import (
-            apply_pose_to_local_matrices,
+            UrdfSkinMapper,
             extract_skeleton_records,
             root_height_offset,
             root_height_offset_from_world_matrices,
@@ -291,6 +291,7 @@ def main() -> None:
 
         extracted = extract_skeleton_records(usd_skel)
         records = extracted['records']
+        skin_mapper = UrdfSkinMapper(records, urdf_path)
         clip = _build_playback_clip(
             args=args,
             records=records,
@@ -300,7 +301,7 @@ def main() -> None:
         total_clip_duration = sum(duration for _, _, duration in clip)
         base_z = root_height_offset(records)
         for _, pose, _ in clip:
-            local_matrices = apply_pose_to_local_matrices(records, pose)
+            local_matrices = skin_mapper.apply(pose)
             posed_world = world_matrices_from_local(records, local_matrices)
             base_z = max(base_z, root_height_offset_from_world_matrices(posed_world))
         base_z += max(args.pose_lift, 0.0)
@@ -379,7 +380,7 @@ def main() -> None:
                 if preset_name in seen:
                     continue
                 seen.add(preset_name)
-                local_matrices = apply_pose_to_local_matrices(records, pose)
+                local_matrices = skin_mapper.apply(pose)
                 _apply_pose_to_usd_skeleton(stage, usd_skel, local_matrices)
                 _configure_urdf_pose(stage, str(urdf_root), urdf_offset, pose, reset_missing=True)
                 if g1_urdf_root is not None:
@@ -402,7 +403,7 @@ def main() -> None:
 
         while app.is_running():
             start_name, end_name, pose = _pose_for_time(clip, elapsed_s)
-            local_matrices = apply_pose_to_local_matrices(records, pose)
+            local_matrices = skin_mapper.apply(pose)
             _apply_pose_to_usd_skeleton(stage, usd_skel, local_matrices)
             _configure_urdf_pose(stage, str(urdf_root), urdf_offset, pose, reset_missing=True)
             if g1_urdf_root is not None:

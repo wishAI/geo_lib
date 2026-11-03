@@ -1115,6 +1115,46 @@ def world_matrices_from_local(records: Sequence[dict], local_matrices: Sequence[
     return world
 
 
+class UrdfSkinMapper:
+    """Map serial articulation motion onto the original USD deformation frames.
+
+    Upper-arm geometry belongs to arm_twist in build_urdf_model. Driving the
+    stretch skin weights from the pre-twist frame leaves the sleeve behind the
+    elbow. Keep each USD rest frame, but use the geometry owner's motion.
+    """
+
+    def __init__(self, records, urdf_path):
+        from g1_pose import load_urdf_joint_specs, world_map_from_joint_specs
+
+        self.records = records
+        self.specs = load_urdf_joint_specs(urdf_path)
+        rest = world_map_from_joint_specs(self.specs)
+        skin_rest = world_matrices_from_local(records, [r['local_matrix'] for r in records])
+        parents = {s.child_link: s.parent_link for s in self.specs.values()}
+        self.sources = {}
+        self.offsets = {}
+        for record in records:
+            name = record['name']
+            source = name
+            if name in ('arm_stretch_l', 'arm_stretch_r'):
+                twist = name.replace('arm_stretch_', 'arm_twist_')
+                forearm = name.replace('arm_stretch_', 'forearm_stretch_')
+                if parents.get(twist) == name and parents.get(forearm) == twist:
+                    source = twist
+            self.sources[name] = source
+            self.offsets[name] = np.linalg.inv(rest[source]) @ skin_rest[record['index']]
+
+    def apply(self, pose):
+        from g1_pose import world_map_from_joint_specs
+
+        joint_pose = {s.name: pose.get(s.child_link, 0.0) for s in self.specs.values()}
+        worlds = world_map_from_joint_specs(self.specs, joint_pose)
+        targets = {name: worlds[source] @ self.offsets[name] for name, source in self.sources.items()}
+        return [targets[r['name']] if r['parent_index'] < 0 else
+                np.linalg.inv(targets[self.records[r['parent_index']]['name']]) @ targets[r['name']]
+                for r in self.records]
+
+
 def records_to_jsonable(records: Sequence[dict]) -> List[dict]:
     payload = []
     for record in records:

@@ -109,8 +109,12 @@ def _joint_motion(spec: UrdfJointSpec, angle_rad: float) -> np.ndarray:
 
 
 def world_map_from_urdf_pose(urdf_path: Path, pose_by_name: Mapping[str, float] | None = None) -> dict[str, np.ndarray]:
+    return world_map_from_joint_specs(load_urdf_joint_specs(urdf_path), pose_by_name)
+
+
+def world_map_from_joint_specs(joint_specs: Mapping[str, UrdfJointSpec], pose_by_name: Mapping[str, float] | None = None) -> dict[str, np.ndarray]:
     pose = pose_by_name or {}
-    specs = tuple(load_urdf_joint_specs(urdf_path).values())
+    specs = tuple(joint_specs.values())
     roots = _root_links(specs)
     world = {link_name: np.eye(4, dtype=float) for link_name in roots}
     pending = {spec.name: spec for spec in specs}
@@ -125,7 +129,7 @@ def world_map_from_urdf_pose(urdf_path: Path, pose_by_name: Mapping[str, float] 
             progressed = True
         if not progressed:
             unresolved = ', '.join(sorted(pending))
-            raise RuntimeError(f'Unable to resolve URDF joint world transforms for {urdf_path}: {unresolved}')
+            raise RuntimeError(f'Unable to resolve URDF joint world transforms: {unresolved}')
     return world
 
 

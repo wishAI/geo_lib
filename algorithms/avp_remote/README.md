@@ -207,8 +207,11 @@ skinned GLB using Blender. All 68 bones, three PBR textures, and materials are
 retained; browser textures are resized to at most 512 px. Source USD files are
 unchanged. USD skinning maps URDF motion relative to its rest frame onto each
 original GLB bind frame, then derives local transforms using the actual USD
-parent hierarchy (twist bones can be siblings). Regression tests verify all 68
-skin matrices and preservation of the zero-pose bind transforms.
+parent hierarchy (twist bones can be siblings). Upper-arm stretch skin weights
+follow the serial URDF arm-twist geometry owner, so the sleeve follows the elbow
+instead of stretching between the pre-twist and post-twist frames. Regression
+tests verify all 68 skin matrices, connected sleeves, unchanged hand targets,
+and preservation of the zero-pose bind transforms.
 Asset hashes detect changed URDF, meshes, USD, textures and mapping
 code. Generated files stay in `outputs/web_scene/`.
 
