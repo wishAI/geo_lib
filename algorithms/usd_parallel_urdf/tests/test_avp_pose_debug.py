@@ -55,5 +55,38 @@ class AvpPoseDebugTests(unittest.TestCase):
         self.assertEqual(summary['index'], (0.4, 0.5, 0.6, 0.7))
 
 
+class HeadMappingTests(unittest.TestCase):
+    def test_native_debug_uses_real_head_axes_and_joint_name_limits(self):
+        from avp_pose_debug import AvpLandauRetargeter, AVP_TO_SCENE_OPTIONS
+        from g1_pose import UrdfJointSpec, _joint_motion
+        from skeleton_common import rpy_to_matrix
+        root = np.eye(4)
+        head_origin = np.eye(4)
+        head_origin[:3, :3] = rpy_to_matrix([np.pi / 2, 0, 0])
+        chain = [UrdfJointSpec('neck_pitch_joint', 'revolute', 'spine_03_x', 'neck_x',
+                              root, np.array([1., 0, 0]), -.7, .7),
+                 UrdfJointSpec('head_yaw_joint', 'revolute', 'neck_x', 'head_x',
+                              head_origin, np.array([0., 1, 0]), -.7, .7)]
+        retarget = AvpLandauRetargeter.__new__(AvpLandauRetargeter)
+        retarget.head_chain, retarget.head_base_world = chain, root
+        for pitch in (-.5, 0, .5):
+            for yaw in (-.5, 0, .5):
+                world = root.copy()
+                for spec, angle in zip(chain, (pitch, yaw)):
+                    world = world @ spec.origin @ _joint_motion(spec, angle)
+                forward = world[:3, 2]
+                right = np.cross(forward, [0, 0, 1]);right /= np.linalg.norm(right)
+                target = np.eye(4)
+                target[:3, :3] = np.column_stack((right, forward, np.cross(right, forward)))
+                raw = np.linalg.inv(AVP_TO_SCENE_OPTIONS.pretransform) @ target
+                pose = {};retarget._retarget_head({'head': raw}, pose)
+                np.testing.assert_allclose([pose['neck_x'], pose['head_x']], [pitch, yaw], atol=1e-6)
+        # Names are deliberately semantic, while emitted pose keys are links.
+        target = np.eye(4);target[:3, 1] = [1, 0, 0]
+        pose = {};retarget._retarget_head({'head': np.linalg.inv(AVP_TO_SCENE_OPTIONS.pretransform) @ target}, pose)
+        self.assertTrue(all(abs(v) <= .7 for v in pose.values()))
+        missing = {};retarget._retarget_head({}, missing);self.assertEqual(missing, {})
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -7,7 +7,7 @@ export const FORMAT = 'avp-motion-clip';
 export function createClip(urdfSha256, referenceSpace) {
   return {format:FORMAT, version:1, name:new Date().toLocaleString(), createdAt:new Date().toISOString(),
     urdfSha256, referenceSpace, coordinates:'Z-up, +Y forward, meters; row-major 4x4',
-    sampleHz:30, retargetVersion:3, poseSource:'joint-limited body CCD plus bind-relative hand rotations; not measured body tracking', frames:[]};
+    sampleHz:30, retargetVersion:4, poseSource:'joint-limited arm CCD, separate neck pitch/head yaw and bind-relative hand rotations; not measured body tracking', frames:[]};
 }
 export function appendFrame(clip, t, pose, tracking, rawTracking, alignment, handPose={}) {
   if (!Number.isFinite(t) || t < 0) throw new Error('Invalid sample time');

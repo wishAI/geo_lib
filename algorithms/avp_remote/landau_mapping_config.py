@@ -67,8 +67,8 @@ class JointOutputRule:
 
 
 HEAD_OUTPUT_RULES = {
-    "neck_x": JointOutputRule(source="head", formula="head pitch", scale=0.55),
-    "head_x": JointOutputRule(source="head", formula="head pitch", scale=0.45),
+    "neck_x": JointOutputRule(source="head", formula="head look-direction IK pitch"),
+    "head_x": JointOutputRule(source="head", formula="head look-direction IK yaw"),
 }
 
 ARM_OUTPUT_RULES = {

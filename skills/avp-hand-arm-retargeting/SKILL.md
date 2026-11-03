@@ -1,6 +1,6 @@
 ---
 name: avp-hand-arm-retargeting
-description: Diagnose and repair AVP head/hand retargeting, finger animation, arm skin deformation, and URDF-to-USD pose transfer in geo_lib's avp_remote and usd_parallel_urdf sandboxes. Use for unnatural palms, fingers, elbows or sleeves, and mapping regressions in live capture or recorded playback; not locomotion training.
+description: Diagnose and repair AVP head/hand retargeting, finger animation, arm skin deformation, and URDF-to-USD pose transfer in geo_lib's avp_remote and usd_parallel_urdf sandboxes. Use for incorrect nods or head turns, unnatural palms, fingers, elbows or sleeves, and mapping regressions in live capture or recorded playback; not locomotion training.
 ---
 
 # AVP Hand and Arm Retargeting
@@ -14,6 +14,7 @@ Reproduce with the same pose, asset version, camera, and playback-remapping sett
 | Observed difference | Inspect first |
 | --- | --- |
 | Tracking markers misplaced in both models | `avp_remote/gui/pose-math.js`, `tracking-markers.js`, tracking pretransform and calibration |
+| Nodding turns the head sideways or moves it backwards | Actual neck/head URDF axes; `LiveRetargeter.headPose`, native `solve_look_direction`, and legacy baked head rules |
 | Both wrists reach reasonably but palms face the wrong way | `gui/live-retarget.js`, `landau_retarget.py`, anatomical palm orientation in arm IK |
 | Thumb opposition, spread or distal fingers wrong | `gui/hand-rig.js`, measured segment directions and bind-relative rotations |
 | URDF arm plausible, USD sleeve flattened or detached | `gui/skin-retarget.js`, geometry ownership, original bind frames and serial/sibling hierarchy |
@@ -33,6 +34,8 @@ The table's abbreviated paths are under `algorithms/`. Follow actual callers; do
 - Keep algorithm Python modules isolated. Handoff between sandboxes is files, never cross-folder Python imports. Equivalent native math can live independently in each sandbox.
 
 ## Repair by layer
+
+**Head.** Landau `neck_x` is pitch and `head_x` is yaw despite their link names. Do not split one pitch angle across both. Fit the transformed native +Y look direction to head-local +Z with actual URDF FK, limits and deterministic CCD. Direct Euler assignment also fails for combined nod/turn motion because the serial yaw axis tilts. The head has no independent roll actuator; validate look direction separately from full orientation. Preserve the existing viewer calibration rather than subtracting the reference snapshot again. See [head details](references/mapping.md#head-look-direction).
 
 **Palm and fingers.** Derive an anatomical basis from measured positions, not vendor joint axes: little metacarpal toward index metacarpal, and wrist toward the mean knuckle position. Match the same polarity in the model rest basis and arm solver. Position-only IK cannot observe roll about an axis through the wrist; include palm orientation while retaining reach/limit checks. Use every measured finger segment, including distal-to-tip. Preserve bind roll with hierarchical minimal-swing quaternion rotations. Omit missing or degenerate chains; verify they do not keep stale curls.
 
@@ -58,10 +61,11 @@ For a task-authorized take, with its real path substituted:
 
 ```sh
 node algorithms/avp_remote/tests/evaluate_hand_recording.mjs /path/to/recording.json.gz
+node algorithms/avp_remote/tests/evaluate_head_recording.mjs /path/to/recording.json.gz
 python3 algorithms/avp_remote/tests/browser_hand_recording.py /path/to/recording.json.gz
 ```
 
-The second command needs Playwright and Chrome and uses an isolated recording store. Resolve available environments from the README/environment; do not rely on a previous agent's `/tmp` virtualenv. Some broader Python tests prepare external assets and may stall independently of mapping. Report that separately. `spawnSync ... EPERM` or localhost socket denial is an execution restriction; use the permitted escalation path rather than changing application logic or suppressing the test.
+The browser command needs Playwright and Chrome and uses an isolated recording store. Resolve available environments from the README/environment; do not rely on a previous agent's `/tmp` virtualenv. Some broader Python tests prepare external assets and may stall independently of mapping. Report that separately. `spawnSync ... EPERM` or localhost socket denial is an execution restriction; use the permitted escalation path rather than changing application logic or suppressing the test.
 
 Validate observable invariants:
 

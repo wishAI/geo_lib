@@ -466,7 +466,7 @@ export function mount(root) {
       markerTransform=fromRows(data.trackingTransform);liveSolver=new LiveRetargeter(data);handRig=new HandRig(data.joints);
       for(const [name,vertices] of Object.entries(data.meshes)){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.computeVertexNormals();geometries.set(name,geometry);}
       for(const link of data.links){const group=new THREE.Group();group.matrixAutoUpdate=false;urdf.add(group);visuals.set(link.name,group);for(const v of link.visuals){const mesh=new THREE.Mesh(geometries.get(v.mesh),robotMaterial);mesh.matrixAutoUpdate=false;mesh.matrix.copy(originMatrix(v).multiply(new THREE.Matrix4().makeScale(...v.scale)));group.add(mesh);}}
-      snapshotPose=data.snapshotPose;snapshotTracking=data.snapshot;snapshotHands=handRig.solve(snapshotTracking);snapshot();
+      snapshotPose={...data.snapshotPose,...liveSolver.headPose(data.snapshot)};snapshotTracking=data.snapshot;snapshotHands=handRig.solve(snapshotTracking);snapshot();
       $('.avp-source').textContent=`${data.source.source||data.source.urdf}\nURDF SHA-256 ${data.source.urdfSha256}\n${data.source.triangles.toLocaleString()} URDF triangles`;
       const headAsset=data.source.meshOverrides?.['landau_v10/head_x.stl'];
       if(headAsset)$('.avp-source').textContent+=`\nHead STL · ${headAsset.triangles} triangles\nSHA-256 ${headAsset.sha256}`;

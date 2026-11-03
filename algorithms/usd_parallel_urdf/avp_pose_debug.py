@@ -442,6 +442,11 @@ class AvpLandauRetargeter:
         }
 
         self.joint_specs = load_urdf_joint_specs(self.urdf_path)
+        from g1_pose import load_urdf_joint_specs as load_kinematic_specs, world_map_from_joint_specs
+        head_specs = load_kinematic_specs(self.urdf_path)
+        by_child = {spec.child_link: spec for spec in head_specs.values()}
+        self.head_chain = [by_child[name] for name in ('neck_x', 'head_x')]
+        self.head_base_world = world_map_from_joint_specs(head_specs)[ARM_BASE_LINK]
         self.left_chain = find_joint_chain(self.urdf_path, ARM_BASE_LINK, LEFT_ARM_TIP)
         self.right_chain = find_joint_chain(self.urdf_path, ARM_BASE_LINK, RIGHT_ARM_TIP)
         self.left_seed = np.zeros(len(self.left_chain), dtype=float)
@@ -512,11 +517,8 @@ class AvpLandauRetargeter:
         head_world = _tracking_matrix_world(frame.get('head'))
         if head_world is None:
             return
-        forward_axis = _normalize(head_world[:3, 1])
-        forward_xy = math.sqrt(float(forward_axis[0] ** 2 + forward_axis[1] ** 2))
-        pitch = math.atan2(float(forward_axis[2]), max(forward_xy, 1.0e-6))
-        pose_by_name['neck_x'] = self._clamp_joint('neck_x', 0.55 * pitch)
-        pose_by_name['head_x'] = self._clamp_joint('head_x', 0.45 * pitch)
+        from g1_pose import solve_look_direction
+        pose_by_name.update(solve_look_direction(self.head_chain, self.head_base_world, head_world[:3, 1]))
 
     def _clamp_hand_base_position(self, side: str, target_pos: np.ndarray) -> np.ndarray:
         clipped = np.asarray(target_pos, dtype=float).copy()

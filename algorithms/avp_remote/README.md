@@ -83,6 +83,16 @@ targets exceed this avatar's reachable pose under the current scale and limits.
 The default **回放使用修正后的映射** recalculates displayed joints from saved
 tracking samples, caches per-frame solutions, and leaves original recordings
 unchanged; turn it off to inspect the originally recorded joint motion.
+Head mapping fits the measured look direction to the actual neck-pitch and
+head-yaw axes with bounded, deterministic CCD. The former pitch split made a nod
+rotate the yaw joint and drove neck pitch backwards. Both native paths and the
+browser now use the same direction objective; mixed nod/turn gestures account
+for the tilted yaw axis. The original two-joint head has no independent roll
+actuator. Existing browser scene packages upgrade their legacy head rules and
+recompute the reference snapshot's head pose at load, without rebuilding meshes.
+New takes use retarget version 4; corrected playback also repairs earlier takes
+from their tracking. Evaluate a supplied take with
+`node algorithms/avp_remote/tests/evaluate_head_recording.mjs <recording.json.gz>`.
 Landau's browser hand animation uses `gui/hand-rig.js`: the 38 hand bones follow
 measured segment directions in a consistent anatomical palm frame. Thumb
 opposition, finger spread and flexion use bind-relative quaternion rotations,

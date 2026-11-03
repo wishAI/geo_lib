@@ -2,6 +2,18 @@
 
 Read the section for the layer being changed. These are repository-specific lessons, not a requirement to reproduce one historical pose.
 
+## Head look direction
+
+The original mapper sent 55% of measured pitch to `neck_x` and 45% to `head_x`. The URDF actually defines `neck_pitch_joint` with world axis +X and `head_yaw_joint` with an approximately +Z axis tilted about 7.7 degrees. The avatar faces -Y; its head bone's local +Z is forward. Native tracking uses local +Y forward, and the existing pretransform rotates it into avatar space. The old split therefore reversed the nod and introduced an unrelated yaw.
+
+Assigning negative pitch and yaw directly fixes pure nods but still misses mixed motion: the input Euler order and the serial joint order differ, and the yaw axis is tilted. `solve_look_direction` and browser `headPose` instead minimize the angle between the actual FK head-forward direction and the transformed measured forward vector. Coordinate descent projects both vectors onto each joint's rotation plane, computes a signed atan2 update, and clamps to that joint's real limits. It starts from zero for every frame and has a bounded iteration count, so a seek cannot inherit the previous head pose. This is a look-direction objective; roll is not independently representable by this two-joint articulation.
+
+Native implementations live separately in `avp_remote/urdf_kinematics.py` and `usd_parallel_urdf/g1_pose.py`. The latter is also used by `avp_pose_debug.py`; load the actual URDF head chain there instead of assuming source-skeleton axes or looking up child-link limits in a joint-name dictionary. Preserve the existing head calibration in `viewer.js`: it already maps the first live frame into the reference snapshot frame. Subtracting snapshot pitch again would change both the recording and marker coordinate contract.
+
+Existing `scene.json` packages bake the old `head pitch` rules and snapshot pose. The browser upgrades those identifiable legacy rules in memory and recomputes the reference head pose at load. Newly built packages use the new rule descriptions. Do not rebuild a GLB just to refresh head math; do not treat its old baked head values as the current native oracle. Dedicated tests compare against the current Python mapper and actual FK.
+
+The 2026-11-03 20:44:13 take had 128 head-tracked frames. Comparing actual head-forward directions with measured tracking gave mean/max errors of 28.47/54.95 degrees for the saved pose and below 0.000002 degrees after correction, without hitting joint limits. The corrected/original playback toggle, nonsequential seeks and pose export/import were tested in an isolated browser/store; original bytes stayed unchanged. This result measures head-forward direction on that take, not full orientation, headset latency, or all extreme poses. New takes carry retarget version 4; old takes are corrected from tracking when remapping is enabled.
+
 ## Anatomical palm and finger mapping
 
 `algorithms/avp_remote/gui/hand-rig.js` has 19 driven bones per hand: three thumb bones and four bones for each other finger (metacarpal/base plus three phalanges). The measured fingertip supplies the last bone's direction even though there is no additional driven tip bone.

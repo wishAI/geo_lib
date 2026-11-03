@@ -31,6 +31,7 @@ from landau_mapping_config import (
 )
 from urdf_kinematics import (
     joint_local_transform,
+    solve_look_direction,
     find_joint_chain_from_specs,
     load_urdf_joint_specs,
     specs_by_child_link,
@@ -299,11 +300,10 @@ class LandauUpperBodyRetargeter:
         if head_world is None:
             return
 
-        forward_axis = _normalize(head_world[:3, 1])
-        forward_xy = math.sqrt(float(forward_axis[0] ** 2 + forward_axis[1] ** 2))
-        pitch = math.atan2(float(forward_axis[2]), max(forward_xy, 1.0e-6))
-        pose_by_name["neck_x"] = self._mapped_joint_value("neck_x", pitch)
-        pose_by_name["head_x"] = self._mapped_joint_value("head_x", pitch)
+        chain = [self.joint_specs[name] for name in ('neck_x', 'head_x')]
+        solved = solve_look_direction(chain, self.base_world, head_world[:3, 1])
+        for name, value in solved.items():
+            pose_by_name[name] = self._mapped_joint_value(name, value)
 
     def _clamp_hand_base_position(self, side: str, target_pos: np.ndarray) -> np.ndarray:
         clipped = np.asarray(target_pos, dtype=float).copy()

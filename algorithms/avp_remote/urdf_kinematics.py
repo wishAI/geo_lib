@@ -193,3 +193,40 @@ def find_joint_chain(
     key: str = "joint_name",
 ) -> tuple[str, ...]:
     return find_joint_chain_from_specs(load_urdf_joint_specs(urdf_path), base_link, tip_link, key=key)
+
+
+def solve_look_direction(chain, base_world, target_forward, iterations=16):
+    """Fit a +Z-facing head to a world look direction using real joint axes.
+
+    This two-axis articulation has no independent roll actuator. Start from
+    zero on every call so playback seeks and tracking recovery are deterministic.
+    """
+    target = np.asarray(target_forward, dtype=float)
+    target = target / max(float(np.linalg.norm(target)), 1e-12)
+    values = np.zeros(len(chain))
+    worlds = []
+
+    def forward():
+        worlds.clear()
+        parent = np.asarray(base_world, dtype=float)
+        for spec, value in zip(chain, values):
+            motion = np.eye(4)
+            motion[:3, :3] = axis_angle_matrix(spec.axis, float(value))
+            parent = parent @ spec.origin @ motion
+            worlds.append(parent)
+        direction = worlds[-1][:3, 2]
+        return direction / np.linalg.norm(direction)
+
+    for _ in range(iterations):
+        if np.linalg.norm(forward() - target) < 1e-10:
+            break
+        for i in range(len(chain) - 1, -1, -1):
+            current = forward()
+            axis = worlds[i][:3, :3] @ chain[i].axis
+            axis = axis / np.linalg.norm(axis)
+            a = current - axis * np.dot(axis, current)
+            b = target - axis * np.dot(axis, target)
+            sine, cosine = np.dot(axis, np.cross(a, b)), np.dot(a, b)
+            if abs(sine) + abs(cosine) > 1e-16:
+                values[i] = np.clip(values[i] + np.arctan2(sine, cosine), chain[i].lower, chain[i].upper)
+    return {spec.child_link: float(value) for spec, value in zip(chain, values)}

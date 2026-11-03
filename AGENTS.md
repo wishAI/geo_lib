@@ -16,7 +16,7 @@ If the repository is heavily restructured, or most code files are deleted and re
 
 ## Task-Specific Project Skills
 
-- For AVP hand/finger mapping, palm orientation, arm skin deformation, URDF-to-USD pose transfer, or their playback regressions, read [`skills/avp-hand-arm-retargeting/SKILL.md`](skills/avp-hand-arm-retargeting/SKILL.md). It covers both `avp_remote` and `usd_parallel_urdf`; this work does not advance the locomotion milestone ladder.
+- For AVP head/neck or hand/finger mapping, palm orientation, arm skin deformation, URDF-to-USD pose transfer, or their playback regressions, read [`skills/avp-hand-arm-retargeting/SKILL.md`](skills/avp-hand-arm-retargeting/SKILL.md). It covers both `avp_remote` and `usd_parallel_urdf`; this work does not advance the locomotion milestone ladder.
 
 ## What To Preserve If You Wipe And Rebuild
 

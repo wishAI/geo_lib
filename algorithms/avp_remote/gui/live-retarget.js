@@ -16,11 +16,16 @@ const angle=(a,b)=>a.lengthSq()<1e-16||b.lengthSq()<1e-16?0:a.angleTo(b);
 export class LiveRetargeter {
   constructor(data,{iterations=10}={}){
     if(!data.retargetConfig)throw new Error('模型缺少实时映射配置，请刷新模型资源');
-    this.config=data.retargetConfig;this.iterations=iterations;
+    this.config={...data.retargetConfig,rules:{...data.retargetConfig.rules}};this.iterations=iterations;
+    // Existing scene.json files baked the erroneous pitch split into both
+    // rules. Upgrade those rules without rebuilding the unchanged GLB/meshes.
+    for(const name of ['neck_x','head_x'])if(this.config.rules[name]?.formula==='head pitch')
+      this.config.rules[name]={...this.config.rules[name],scale:1,formula:name==='neck_x'?'head look-direction IK pitch':'head look-direction IK yaw'};
     this.joints=new Map(data.joints.map(j=>[j.child,{...j,origin:originMatrix(j),axisVector:new THREE.Vector3(...j.axis).normalize()}]));
     this.zero=Object.fromEntries(data.joints.filter(j=>j.type!=='fixed').map(j=>[j.child,0]));
     this.transform=fromRows(data.trackingTransform);
     const rest=worldTransforms(data.joints,{});this.baseInverse=rest[this.config.base].clone().invert();this.arms={};
+    this.head={chain:['neck_x','head_x'].map(n=>this.joints.get(n)),values:[0,0],worlds:[new THREE.Matrix4(),new THREE.Matrix4()]};
     for(const [side,suffix] of [['left','l'],['right','r']]){
       const tip='hand_'+suffix,chain=[];let name=tip;
       while(name!==this.config.base){const j=this.joints.get(name);if(!j)throw new Error('手臂关节链不完整');chain.unshift(j);name=j.parent;}
@@ -98,10 +103,27 @@ export class LiveRetargeter {
       }
     }
   }
+  headPose(frame){
+    if(!frame?.head)return {neck_x:0,head_x:0};
+    const m=this.transform.clone().multiply(fromRows(frame.head));
+    const target=new THREE.Vector3().setFromMatrixColumn(m,1).transformDirection(this.baseInverse);
+    // Native +Y maps to avatar forward -Y (head-local +Z). Fit that direction
+    // using the actual serial pitch/yaw axes, not a pitch split or Euler order.
+    const head=this.head;head.values.fill(0);
+    const forward=()=>{this.chainWorlds(head);return new THREE.Vector3(0,0,1).transformDirection(head.worlds.at(-1));};
+    for(let iteration=0;iteration<16;iteration++){
+      if(forward().distanceTo(target)<1e-10)break;
+      for(let i=head.chain.length-1;i>=0;i--){
+        const current=forward(),j=head.chain[i],axis=j.axisVector.clone().transformDirection(head.worlds[i]);
+        const a=current.addScaledVector(axis,-current.dot(axis)),b=target.clone().addScaledVector(axis,-target.dot(axis));
+        const sin=axis.dot(new THREE.Vector3().crossVectors(a,b)),cos=a.dot(b);
+        if(Math.abs(sin)+Math.abs(cos)>1e-16)head.values[i]=THREE.MathUtils.clamp(head.values[i]+Math.atan2(sin,cos),j.lower,j.upper);
+      }
+    }
+    return Object.fromEntries(head.chain.map((j,i)=>[j.child,this.mapped(j.child,head.values[i])]));
+  }
   solve(frame){
-    const pose={...this.zero};
-    if(frame?.head){const m=this.transform.clone().multiply(fromRows(frame.head)),forward=new THREE.Vector3().setFromMatrixColumn(m,1).normalize();
-      const pitch=Math.atan2(forward.z,Math.max(Math.hypot(forward.x,forward.y),1e-6));for(const name of ['neck_x','head_x'])pose[name]=this.mapped(name,pitch);}
+    const pose={...this.zero,...this.headPose(frame)};
     for(const [side,arm] of Object.entries(this.arms)){
       const stack=frame?.[side+'_arm'],wrist=stack?.[0]||frame?.[side+'_wrist'];
       if(wrist)this.solveArm(arm,wrist,pose,this.targetRotation(arm,stack));else arm.values.fill(0);
