@@ -28,6 +28,9 @@ def build(out, landau_joints):
     from mathutils import Euler
     from asset_paths import default_h1_2_urdf_path
     from avp_g1_pose import map_landau_pose_to_h1_2_pose, estimate_urdf_root_height
+    for name in ('unitree.glb', 'unitree.json'):
+        if (out / name).is_symlink():
+            (out / name).unlink()
     source = default_h1_2_urdf_path()
     xml = ET.parse(source).getroot()
     bpy.ops.wm.read_factory_settings(use_empty=True)

@@ -65,6 +65,10 @@ def build():
     prepared = prepare_landau_inputs()
     out = ROOT / 'outputs/web_scene'
     out.mkdir(parents=True, exist_ok=True)
+    # A rebuild creates a new local revision, never edits an archived cloud file.
+    for name in ('character.glb', 'scene.json'):
+        if (out / name).is_symlink():
+            (out / name).unlink()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.wm.usd_import(filepath=str(prepared.usd_path), import_cameras=False, import_lights=False)
     rigs = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']

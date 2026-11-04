@@ -74,6 +74,23 @@ class AvpDeliveryTests(unittest.TestCase):
         status, _, body = self.request(path='/decoder.wasm', headers={'If-None-Match': headers['ETag']})
         self.assertEqual((status, body), (304, b''))
 
+    def test_avp_cloud_link_requires_registered_target(self):
+        relative = 'algorithms/avp_remote/outputs/web_scene/scene.json'
+        repo, cloud = self.root / 'repo', self.root / 'cloud'
+        cloud.mkdir()
+        target = cloud / 'scene.json'
+        target.write_bytes(self.content)
+        link = repo / relative
+        link.parent.mkdir(parents=True)
+        link.symlink_to(target)
+        with patch.object(server, 'REPO_ROOT', repo), patch.object(server.storage, 'cloud_root', return_value=cloud), patch.object(server, 'avp_artifact_paths', return_value={relative}):
+            with patch.object(server.storage, 'managed_entries', return_value=[{'cloudPath': 'scene.json'}]):
+                status, _, data = self.request(path='/api/artifact?path=' + relative)
+                self.assertEqual((status, data), (200, self.content))
+            with patch.object(server.storage, 'managed_entries', return_value=[]):
+                status, _, _ = self.request(path='/api/artifact?path=' + relative)
+                self.assertEqual(status, 400)
+
     def test_other_declared_assets_keep_lazy_workspace_resolution(self):
         relative = 'algorithms/example/result.json'
         target = self.root / 'example.json'

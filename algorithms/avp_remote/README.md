@@ -10,6 +10,28 @@ selector merges local and server recordings; **同步录制** retries uploads an
 refreshes recordings from other devices. The Mac must open the same Geo server.
 Server recordings live in `~/.local/state/geo-lib/avp-recordings` as immutable,
 content-addressed gzip files, outside Git; they survive service/host restarts.
+Archive recordings and prepared scenes through the existing Nextcloud contract:
+
+```sh
+python3 algorithms/avp_remote/archive_artifacts.py          # preview inventory
+python3 algorithms/avp_remote/archive_artifacts.py --apply  # upload, verify, register links
+./geo storage hydrate                                    # restore links on another checkout
+```
+
+The archive uses the configured `ugreen-nextcloud:` rclone remote under
+`Projects/geo_lib/assets/avp_remote/<sha256>/`. `large_files.json` tracks exact
+sizes/hashes and repository links, including small generated reports. Live server
+recordings remain local and writable; archived copies appear under
+`outputs/recordings/`. Run the archive command again after new recordings or
+builds. A readonly Nextcloud mount is supported: upload and byte verification use
+rclone. `--remote` and `GEO_CLOUD_ROOT` must refer to the same cloud folder.
+No public share is created. On another host, decompress an archived `.json.gz`
+with `gzip -dc recording.json.gz > /tmp/recording.json`, then import the JSON
+through the recording UI. Browser assets and review images use managed links; rebuilds
+detach the scene links before writing a new local revision. Upload/verification
+failure leaves the manifest and local files unchanged. The mount may take its
+directory-cache interval to show newly uploaded files.
+
 Downloads reuse those gzip bytes directly, with private immutable browser caching.
 The take loader shows decoded-byte progress, allows 120 seconds for a full take
 (lists retain a 20-second deadline), and cancels an older download when switching

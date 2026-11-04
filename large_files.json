@@ -249,6 +249,114 @@
       "cloudPath": "remote_outputs/algorithms/motion_anim_generate/outputs/models/Kimodo-SOMA-RP-v1.1/model.safetensors",
       "size": 1133185036,
       "sha256": "ef0a0ca45a6089ab4532dde609785771ae3f38755b4ae6cf314b0213e07cd4a3"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/web_scene/character.glb",
+      "cloudPath": "assets/avp_remote/cc6b05a7f46dc3f51df91c8c79361c6280d4da2b3c5b6469f0c42edae7207c02/character.glb",
+      "size": 1068512,
+      "sha256": "cc6b05a7f46dc3f51df91c8c79361c6280d4da2b3c5b6469f0c42edae7207c02"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/web_scene/scene.json",
+      "cloudPath": "assets/avp_remote/302d48f54477c1f5876f9175056494643d0468f2560916817ed5fae6e70f7269/scene.json",
+      "size": 2148302,
+      "sha256": "302d48f54477c1f5876f9175056494643d0468f2560916817ed5fae6e70f7269"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/web_scene/unitree.glb",
+      "cloudPath": "assets/avp_remote/7e29025b1d640c4aba02401cd2009115350b77ca717612ef1a70ca4cbeff37d8/unitree.glb",
+      "size": 324652,
+      "sha256": "7e29025b1d640c4aba02401cd2009115350b77ca717612ef1a70ca4cbeff37d8"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/web_scene/unitree.json",
+      "cloudPath": "assets/avp_remote/5560d8bea77c5f6005bd3a27005bd34d1cb6ee54ac11e30e5ba2a3ecc88fd7a2/unitree.json",
+      "size": 24376,
+      "sha256": "5560d8bea77c5f6005bd3a27005bd34d1cb6ee54ac11e30e5ba2a3ecc88fd7a2"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/hand_mapping_review/comparison.png",
+      "cloudPath": "assets/avp_remote/bca27a054a02f7d730f8e6a765dae941d1cf2f3abb39e59f74ddb32bc0cdb514/comparison.png",
+      "size": 425518,
+      "sha256": "bca27a054a02f7d730f8e6a765dae941d1cf2f3abb39e59f74ddb32bc0cdb514"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/hand_mapping_review/input_comparison.png",
+      "cloudPath": "assets/avp_remote/c1b3f315f0c67b10761fa06a7ca7d91e83d15d11db74b77c28f0e0f553562b8e/input_comparison.png",
+      "size": 393310,
+      "sha256": "c1b3f315f0c67b10761fa06a7ca7d91e83d15d11db74b77c28f0e0f553562b8e"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/hand_mapping_review/metrics.json",
+      "cloudPath": "assets/avp_remote/6bd4f8041934c3b8499fed6965b9c34151af09c4d796c1c9a04ff46e6b1f7bc0/metrics.json",
+      "size": 568,
+      "sha256": "6bd4f8041934c3b8499fed6965b9c34151af09c4d796c1c9a04ff46e6b1f7bc0"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/hand_mapping_review/palm_comparison.png",
+      "cloudPath": "assets/avp_remote/5ed618bf48dc9bf63c1ac3a2edc235a69cf39e20d7735e6decee1e70ccadd0aa/palm_comparison.png",
+      "size": 459218,
+      "sha256": "5ed618bf48dc9bf63c1ac3a2edc235a69cf39e20d7735e6decee1e70ccadd0aa"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/unitree_hand_review/comparison.png",
+      "cloudPath": "assets/avp_remote/856e575eafd9feece9267c88a6bfa65a77325ab02289e0d68fa1c8d5258e075f/comparison.png",
+      "size": 179685,
+      "sha256": "856e575eafd9feece9267c88a6bfa65a77325ab02289e0d68fa1c8d5258e075f"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/unitree_hand_review/metrics.json",
+      "cloudPath": "assets/avp_remote/fc788adc154ded7743a332dc840d5e17834d2434a2d922e1d48f92d5ae301cae/metrics.json",
+      "size": 2651,
+      "sha256": "fc788adc154ded7743a332dc840d5e17834d2434a2d922e1d48f92d5ae301cae"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/head_mapping_review/after.png",
+      "cloudPath": "assets/avp_remote/a86ace721c2bdb1a5f389d1f34ce1c887abd7daa80b0189a241646fbc218c06a/after.png",
+      "size": 280487,
+      "sha256": "a86ace721c2bdb1a5f389d1f34ce1c887abd7daa80b0189a241646fbc218c06a"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/head_mapping_review/before.png",
+      "cloudPath": "assets/avp_remote/9fc2ed1f1bd22939a1acae74f52a6cc86a6cd92077a8f07fc720281e003406de/before.png",
+      "size": 277931,
+      "sha256": "9fc2ed1f1bd22939a1acae74f52a6cc86a6cd92077a8f07fc720281e003406de"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/recordings/8d596d78ba0553597ea935657a7a425f7c93046c109abf66186d99803b2dbaba.json.gz",
+      "cloudPath": "assets/avp_remote/a70ba594d5a8a98f354e1ad27c08c32ab23c6518742b7a8ab1eb0431f0702f12/8d596d78ba0553597ea935657a7a425f7c93046c109abf66186d99803b2dbaba.json.gz",
+      "size": 89611,
+      "sha256": "a70ba594d5a8a98f354e1ad27c08c32ab23c6518742b7a8ab1eb0431f0702f12"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/recordings/aa2d28196214e0ce6aec23372f307644759812563b39db902dbc04f4ff68ebdd.json.gz",
+      "cloudPath": "assets/avp_remote/7cf392f23c35383e26c6302f4783b5ca90e1bbdb34740bab46a2a6f95aa3031e/aa2d28196214e0ce6aec23372f307644759812563b39db902dbc04f4ff68ebdd.json.gz",
+      "size": 6016816,
+      "sha256": "7cf392f23c35383e26c6302f4783b5ca90e1bbdb34740bab46a2a6f95aa3031e"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/recordings/ca5adcd2605d0acfe941c6a033c05a3b4e109c2b85852e10e7835db29de21135.json.gz",
+      "cloudPath": "assets/avp_remote/811997db253ff6328ad90d2af030ca9b8f5889d4c88df083c2eaa3131d6672a6/ca5adcd2605d0acfe941c6a033c05a3b4e109c2b85852e10e7835db29de21135.json.gz",
+      "size": 1740283,
+      "sha256": "811997db253ff6328ad90d2af030ca9b8f5889d4c88df083c2eaa3131d6672a6"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/recordings/8d596d78ba0553597ea935657a7a425f7c93046c109abf66186d99803b2dbaba.meta.json",
+      "cloudPath": "assets/avp_remote/b0f7d61473c184c158938f3c141b6a8670983f6fa0de18f3153e92585ce4341c/8d596d78ba0553597ea935657a7a425f7c93046c109abf66186d99803b2dbaba.meta.json",
+      "size": 341,
+      "sha256": "b0f7d61473c184c158938f3c141b6a8670983f6fa0de18f3153e92585ce4341c"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/recordings/aa2d28196214e0ce6aec23372f307644759812563b39db902dbc04f4ff68ebdd.meta.json",
+      "cloudPath": "assets/avp_remote/05de884f00be27fc77b4ca658e8aedc287b10571a7b57633584845df371e865b/aa2d28196214e0ce6aec23372f307644759812563b39db902dbc04f4ff68ebdd.meta.json",
+      "size": 344,
+      "sha256": "05de884f00be27fc77b4ca658e8aedc287b10571a7b57633584845df371e865b"
+    },
+    {
+      "repoPath": "algorithms/avp_remote/outputs/recordings/ca5adcd2605d0acfe941c6a033c05a3b4e109c2b85852e10e7835db29de21135.meta.json",
+      "cloudPath": "assets/avp_remote/07b40eac6e96b3dbf7926a10beeb8943b686704c45f5d1ae9d4efea2041a09b6/ca5adcd2605d0acfe941c6a033c05a3b4e109c2b85852e10e7835db29de21135.meta.json",
+      "size": 355,
+      "sha256": "07b40eac6e96b3dbf7926a10beeb8943b686704c45f5d1ae9d4efea2041a09b6"
     }
   ]
 }

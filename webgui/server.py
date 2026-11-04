@@ -116,7 +116,11 @@ def avp_artifact_paths() -> set[str]:
 
 
 def resolve_avp_artifact(relative: str) -> tuple[str, Path] | None:
-    local = _safe_under(REPO_ROOT, relative)
+    try:
+        local = _safe_under(REPO_ROOT, relative)
+    except ValueError:
+        # Managed Nextcloud links use the same allowlist as other artifacts.
+        return resolve_artifact(relative)
     if local.is_file():
         return ('repo', local)
     return resolve_artifact(relative)
