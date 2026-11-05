@@ -108,6 +108,47 @@ class AvpDeliveryTests(unittest.TestCase):
             status, _, _ = self.request(path='/api/artifact?path=private.glb&metadata=1')
             self.assertEqual(status, 403)
 
+    def test_motion_bundle_combines_exact_files_and_revalidates(self):
+        import hashlib
+        import json
+        prefix = 'algorithms/urdf_learn_wasd_walk/outputs/recorded/'
+        meta_path, frames_path = prefix+'motion.json', prefix+'motion.bin.gz'
+        files = {meta_path:self.root/'motion.json', frames_path:self.root/'motion.bin.gz'}
+        packed = gzip.compress(b'complete recorded frames', mtime=0)
+        record = dict(format='landau-walk-motion', version=1, payload='motion.bin.gz',
+                      payloadSha256=hashlib.sha256(packed).hexdigest(), compressedBytes=len(packed))
+        metadata = json.dumps(record).encode()
+        files[meta_path].write_bytes(metadata);files[frames_path].write_bytes(packed)
+        request = '/api/artifact?path='+meta_path+'&bundle=motion-v1'
+        def resolve(relative):
+            return ('repo', files[relative]) if relative in files else None
+        with patch.object(server, 'declared_artifact_paths', return_value=set(files)), patch.object(server, 'resolve_artifact', side_effect=resolve):
+            status, _, body = self.request(path=request+'&metadata=1')
+            self.assertEqual(status, 200)
+            identity = json.loads(body)
+            status, headers, body = self.request(path=request+'&sha256='+identity['sha256'])
+            self.assertEqual(status, 200)
+            self.assertEqual(body[:4], b'LWM1')
+            size = int.from_bytes(body[4:8], 'little')
+            self.assertEqual(body[8:8+size], metadata)
+            self.assertEqual(body[8+size:], packed)
+            self.assertEqual(hashlib.sha256(body).hexdigest(), identity['sha256'])
+            self.assertIn('immutable', headers['Cache-Control'])
+            self.assertEqual(self.request(path=request, headers={'If-None-Match':headers['ETag']})[0], 304)
+            self.assertEqual(files[meta_path].read_bytes(), metadata)
+            self.assertEqual(files[frames_path].read_bytes(), packed)
+            record['note'] = 'updated metadata'
+            files[meta_path].write_text(json.dumps(record))
+            self.assertEqual(self.request(path=request+'&sha256='+identity['sha256'])[0], 409)
+            files[frames_path].write_bytes(b'corrupt frames')
+            self.assertEqual(self.request(path=request)[0], 400)
+            files[frames_path].write_bytes(packed)
+            record['payload'] = '../private.bin'
+            files[meta_path].write_text(json.dumps(record))
+            self.assertEqual(self.request(path=request)[0], 400)
+        with patch.object(server, 'declared_artifact_paths', return_value={meta_path}), patch.object(server, 'resolve_artifact', side_effect=resolve):
+            self.assertEqual(self.request(path=request)[0], 403)
+
     def test_robot_json_is_cached_compressed_and_invalidated(self):
         urdf = self.root / 'robot.urdf'
         urdf.write_text('<robot name="test">' + '<!-- mesh -->' * 500 + '</robot>')

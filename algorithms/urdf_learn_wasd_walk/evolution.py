@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1247,6 +1249,42 @@ def build_evolution(
     }
 
 
+def recorded_joint_defaults(directory: Path, record: dict) -> dict[str, float]:
+    """Recover named angles from the saved model, never from current model guesses."""
+    model_path = directory / 'model.xml'
+    if not model_path.is_file():
+        return {}
+    expected = record.get('model_xml_sha256')
+    if expected and _digest(model_path) != expected:
+        return {}
+    try:
+        model = ET.parse(model_path).getroot()
+        world = model.find('worldbody')
+        if world is None or model.find('.//include') is not None:
+            return {}
+        defaults, names, offset = {}, {}, 0
+        for joint in world.iter():
+            if joint.tag not in ('joint', 'freejoint'):
+                continue
+            kind = 'free' if joint.tag == 'freejoint' else joint.get('type', 'hinge')
+            if kind in ('hinge', 'slide') and joint.get('name'):
+                names[joint.get('name')] = offset
+            offset += {'free': 7, 'ball': 4}.get(kind, 1)
+        positions = record.get('nominal_q')
+        if isinstance(positions, list) and len(positions) == offset and all(type(v) in (int, float) and math.isfinite(v) for v in positions):
+            defaults = {name: float(positions[index]) for name, index in names.items()}
+        controls, actions = record.get('nominal_ctrl'), record.get('action_joints')
+        actuators = model.find('actuator')
+        if isinstance(controls, list) and isinstance(actions, list) and actuators is not None and len(controls) == len(actuators):
+            for actuator, value in zip(actuators, controls):
+                name = actuator.get('joint')
+                if actuator.tag == 'position' and name in names and name not in actions and type(value) in (int, float) and math.isfinite(value):
+                    defaults[name] = float(value)
+        return defaults
+    except (OSError, ValueError, ET.ParseError):
+        return {}
+
+
 def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path: Path = MILESTONES_PATH) -> dict:
     """Join model identities and exact run media without inventing certification."""
     ledger = _read_json(ledger_path) or {}
@@ -1353,12 +1391,31 @@ def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path
                 "physics model SHA": identity.get("model_xml_sha256") or record.get("model_xml_sha256"),
             }.items() if v is not None}
             actions = record.get("action_joints")
-            if not actions and isinstance(cp, str):
-                training = _read_json((REPO_ROOT / cp).parent / "training.json") or {}
-                actions = training.get("action_joints")
+            training, training_path = {}, None
+            if isinstance(cp, str):
+                for filename in ('training.json', 'metadata.json'):
+                    candidate = (REPO_ROOT / cp).parent / filename
+                    training = _read_json(candidate) or {}
+                    if training:
+                        training_path = candidate
+                        break
+                if sha and training.get('urdf_sha256') not in (None, sha):
+                    training = {}
                 sha = sha or training.get("urdf_sha256")
-            if actions:
+            if not isinstance(actions, list):
+                actions = training.get('action_joints')
+            if isinstance(actions, list):
                 node["actionJoints"] = actions
+            defaults = recorded_joint_defaults(path.parent, record)
+            defaults_path = path
+            if not defaults and training and training_path:
+                defaults = recorded_joint_defaults(training_path.parent, training)
+                defaults_path = training_path
+            if defaults:
+                node['defaultJointPositions'] = defaults
+                node['jointDefaultsSource'] = _relative(defaults_path)
+            if not node['bodySettings'].get('hands') and training.get('hand_pose'):
+                node['bodySettings']['hands'] = training['hand_pose']
             motion_path = path.parent / "motion.json"
             motion = _read_json(motion_path)
             if motion and motion.get("source", {}).get("urdfSha256") == sha and (

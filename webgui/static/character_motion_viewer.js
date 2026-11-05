@@ -22,13 +22,26 @@ export async function hash(bytes) {
   }return h.map(v=>v.toString(16).padStart(8,'0')).join('');
 }
 
-async function bytes(path,signal,onProgress) {
-  if(window.GeoAssets)return window.GeoAssets.file(url(path),{signal,onProgress});
-  const response=await fetch(url(path),{signal});
+async function bytes(path,signal,onProgress,bundle=false) {
+  const resource=url(path)+(bundle?'&bundle=motion-v1':'');
+  if(window.GeoAssets)return window.GeoAssets.file(resource,{signal,onProgress});
+  const response=await fetch(resource,{signal});
   if(!response.ok)throw new Error(`${path.split('/').pop()} loading failed: ${response.status}`);
   const buffer=await response.arrayBuffer();
   if(buffer.byteLength>MAX_BYTES)throw new Error('Motion asset too large');
   return buffer;
+}
+
+export function unpackMotionBundle(buffer) {
+  if(buffer.byteLength<8||buffer.byteLength>MAX_BYTES)throw new Error('Invalid motion bundle size');
+  const view=new DataView(buffer),length=view.getUint32(4,true);
+  if(view.getUint32(0,false)!==0x4c574d31||length<2||length>1024*1024||8+length>=buffer.byteLength)
+    throw new Error('Invalid motion bundle header');
+  const meta=JSON.parse(new TextDecoder().decode(new Uint8Array(buffer,8,length)));
+  const packed=buffer.slice(8+length);
+  if(meta?.format!=='landau-walk-motion'||meta.version!==1||meta.payload!=='motion.bin.gz'||meta.compressedBytes!==packed.byteLength)
+    throw new Error('Invalid motion bundle metadata');
+  return {meta,packed};
 }
 async function gunzip(buffer,limit=MAX_BYTES) {
   const reader=new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
@@ -181,9 +194,8 @@ export function mount(root,{motionPath,scenePath,usdPath,onError,onExpand,expand
     const sceneBuffer=await bytes(scenePath,abort.signal,report('Robot scene'));
     const decodeScene=async()=>JSON.parse(new TextDecoder().decode(await gunzip(sceneBuffer)));
     sceneData=window.GeoAssets?await window.GeoAssets.memo('scene:'+window.GeoAssets.keyFor(url(scenePath)),decodeScene):await decodeScene();
-    const meta=JSON.parse(new TextDecoder().decode(await bytes(motionPath,abort.signal,report('Motion metadata'))));
+    const {meta,packed}=unpackMotionBundle(await bytes(motionPath,abort.signal,report('Motion recording'),true));
       if(meta.source.urdfSha256!==sceneData.source.urdfSha256||meta.payload!=='motion.bin.gz')throw new Error('动作与模型版本不匹配');
-      const packed=await bytes(motionPath.replace(/[^/]+$/,'')+meta.payload,abort.signal,report('Motion frames'));
       if(await hash(packed)!==meta.payloadSha256)throw new Error('动作压缩文件校验失败');
       clip=decodeMotion(meta,await gunzip(packed,meta.byteLength));
     if(disposed)return;

@@ -146,6 +146,23 @@ def asset_identity(path: Path) -> dict:
             'byteLength': stat.st_size}
 
 
+def motion_bundle_bytes(metadata_path: Path, frames_path: Path) -> bytes:
+    """One lossless download from the existing, separately authorized evidence files."""
+    if metadata_path.stat().st_size > 1024 * 1024 or frames_path.stat().st_size > 128 * 1024 * 1024:
+        raise ValueError('Motion bundle exceeds the size limit')
+    metadata = metadata_path.read_bytes()
+    record = json.loads(metadata)
+    if (not isinstance(record, dict) or record.get('format') != 'landau-walk-motion'
+            or record.get('version') != 1 or record.get('payload') != 'motion.bin.gz'):
+        raise ValueError('Unsupported motion bundle metadata')
+    frames = frames_path.read_bytes()
+    if len(frames) != record.get('compressedBytes') or hashlib.sha256(frames).hexdigest() != record.get('payloadSha256'):
+        raise ValueError('Motion frames do not match their metadata')
+    if 8 + len(metadata) + len(frames) > 128 * 1024 * 1024:
+        raise ValueError('Motion bundle exceeds the size limit')
+    return b'LWM1' + len(metadata).to_bytes(4, 'little') + metadata + frames
+
+
 def gui_bind_host(value: str) -> str:
     if value == 'localhost':
         return '127.0.0.1'
@@ -1450,6 +1467,29 @@ class Handler(BaseHTTPRequestHandler):
             cache = 'private, max-age=31536000, immutable'
         self._file(path, cache=cache)
 
+    def _motion_bundle(self, metadata: Path, frames: Path, query: dict) -> None:
+        data = motion_bundle_bytes(metadata, frames)
+        digest = hashlib.sha256(data).hexdigest()
+        if query.get('metadata') == ['1']:
+            self._json({'sha256': digest, 'byteLength': len(data)}, revalidate=True)
+            return
+        expected = query.get('sha256', [''])[0]
+        if expected and expected != digest:
+            self._error('Motion bundle changed; refresh its identity', HTTPStatus.CONFLICT)
+            return
+        etag = '"' + digest + '"'
+        unchanged = self.headers.get('If-None-Match') == etag
+        self.send_response(HTTPStatus.NOT_MODIFIED if unchanged else HTTPStatus.OK)
+        self.send_header('ETag', etag)
+        self.send_header('Cache-Control', 'private, max-age=31536000, immutable' if expected else 'private, no-cache')
+        if not unchanged:
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Content-Length', str(len(data)))
+            self.send_header('X-Content-Type-Options', 'nosniff')
+        self.end_headers()
+        if not unchanged:
+            self.wfile.write(data)
+
     def _file(self, path: Path, *, cache: str = "no-cache") -> None:
         if not path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -1560,6 +1600,20 @@ class Handler(BaseHTTPRequestHandler):
                 resolved = resolve_avp_artifact(relative) if is_avp else resolve_artifact(relative)
                 if not resolved:
                     self._error("Artifact is not available", HTTPStatus.NOT_FOUND)
+                    return
+                if 'bundle' in query:
+                    if (query['bundle'] != ['motion-v1'] or not relative.startswith('algorithms/urdf_learn_wasd_walk/outputs/')
+                            or Path(relative).name != 'motion.json'):
+                        raise ValueError('Unsupported motion bundle request')
+                    frames_relative = str(Path(relative).with_name('motion.bin.gz'))
+                    if frames_relative not in declared_artifact_paths(include_nesting=False):
+                        self._error('Motion frames are not declared', HTTPStatus.FORBIDDEN)
+                        return
+                    frames = resolve_artifact(frames_relative)
+                    if not frames:
+                        self._error('Motion frames are not available', HTTPStatus.NOT_FOUND)
+                        return
+                    self._motion_bundle(resolved[1], frames[1], query)
                     return
                 self._asset_file(resolved[1], query)
                 return

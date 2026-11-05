@@ -193,7 +193,21 @@
       viewer = new window.MotionUrdfViewer({meshCanvas: root.querySelector('[data-mesh]'), overlayCanvas: root.querySelector('[data-overlay]'), assetUrl: '/api/robot/asset?urdf=' + encodeURIComponent(path), onStatus: text => { if(root.isConnected){root.querySelector('[data-robot-status]').textContent=text;root.querySelector('[data-urdf-progress]').textContent=text;} }});
       root._dispose = () => viewer.destroy(); viewer.showInspection = true;
       viewer.trainingJoints = mappingKnown ? new Set(actions) : null;
-      root.querySelector('[data-joints]').innerHTML = payload.joints.map(j => `<div class="lineage-joint ${mappingKnown ? actions.includes(j.name) ? 'policy' : 'held' : 'unknown'}" data-name="${escapeHtml(j.name)}"><button class="joint-select" type="button"><i></i><span>${escapeHtml(j.name.replace(/_joint$/, ''))}</span><small>${mappingKnown ? actions.includes(j.name) ? 'action' : 'hold' : '?'}</small></button><div class="joint-adjust"><input type="range" min="${j.lower}" max="${j.upper}" step="0.005" value="0" data-angle aria-label="${escapeHtml(j.name)} angle" disabled><input type="number" min="${j.lower}" max="${j.upper}" step="0.005" value="0.000" data-angle-number aria-label="${escapeHtml(j.name)} radians" disabled></div></div>`).join('');
+      const recorded=node.defaultJointPositions||{};
+      const defaults=new Map(payload.joints.map(j=>[j.name,Math.max(j.lower,Math.min(j.upper,Number.isFinite(recorded[j.name])?recorded[j.name]:0))]));
+      const row=j=>`<div class="lineage-joint ${mappingKnown ? actions.includes(j.name) ? 'policy' : 'held' : 'unknown'}" data-name="${escapeHtml(j.name)}"><button class="joint-select" type="button"><i></i><span>${escapeHtml(j.name.replace(/_joint$/, ''))}</span><small>${mappingKnown ? actions.includes(j.name) ? 'action' : 'hold' : '?'}</small></button><div class="joint-adjust"><input type="range" min="${j.lower}" max="${j.upper}" step="0.005" value="${defaults.get(j.name)}" data-angle aria-label="${escapeHtml(j.name)} angle" disabled><input type="number" min="${j.lower}" max="${j.upper}" step="0.005" value="${defaults.get(j.name).toFixed(3)}" data-angle-number aria-label="${escapeHtml(j.name)} radians" disabled></div></div>`;
+      const policy=actions.map(name=>payload.joints.find(j=>j.name===name)).filter(Boolean),groups=new Map();
+      for(const joint of payload.joints.filter(j=>!actions.includes(j.name))){
+        const group=/(thumb|index|middle|ring|pinky|finger)/.test(joint.name)?(joint.group?.startsWith('left')?'Left hand':'Right hand'):/neck|head/.test(joint.name)?'Head & neck':joint.groupLabel||'Other joints';
+        if(!groups.has(group))groups.set(group,[]);groups.get(group).push(joint);
+      }
+      root.querySelector('[data-joints]').innerHTML=`<div class="training-joint-controls">${policy.length?`<h4>Training joints <span>${policy.length}</span></h4>${policy.map(row).join('')}`:`<p>${mappingKnown?'No policy-controlled joints in this run.':'Training joint mapping is unavailable.'}</p>`}</div><div class="folded-joint-controls"><h4>${mappingKnown?'Outside policy':'Other joints'}</h4>${[...groups].map(([name,joints])=>`<details class="held-joint-group"><summary><span>${escapeHtml(name)}</span><b>${joints.length}</b>${joints.every(j=>Number.isFinite(recorded[j.name]))?'<small>defaults applied</small>':''}</summary><div>${joints.map(row).join('')}</div></details>`).join('')}</div>`;
+      const hasDefaults=Object.keys(recorded).length>0;
+      root.querySelector('[data-reset-joints]').textContent=hasDefaults?'Reset training pose':'Reset pose';
+      const note=document.createElement('p');note.className='joint-default-note';
+      const missingDefaults=payload.joints.filter(j=>!Number.isFinite(recorded[j.name])).length;
+      note.textContent=hasDefaults?`Recorded training pose${node.bodySettings?.hands==='closed_fists_v1'?' · closed fists':''}${missingDefaults?` · ${missingDefaults} unrecorded joints shown at zero`:''}`:'Training defaults not recorded; preview starts at zero.';
+      root.querySelector('[data-joint-hint]').before(note);
       const stage = root.querySelector('.lineage-robot-stage'); let pointer;
       const resize = new ResizeObserver(() => { viewer.fitPending = true; viewer.draw(); });
       resize.observe(stage);
@@ -222,12 +236,14 @@
         slider.onfocus=()=>selectJoint(row);
       });
       root.querySelector('[data-reset-joints]').onclick=()=>{
-        viewer.setJoints(payload.joints.map(j=>j.name),payload.joints.map(()=>0));
-        root.querySelectorAll('[data-angle]').forEach(input=>input.value='0');
-        root.querySelectorAll('[data-angle-number]').forEach(input=>input.value='0.000');
-        root.dataset.jointAngle='0';
+        if(defaults.size)viewer.setJoints([...defaults.keys()],[...defaults.values()]);
+        root.querySelectorAll('[data-name]').forEach(row=>{const value=defaults.get(row.dataset.name);row.querySelector('[data-angle]').value=String(value);row.querySelector('[data-angle-number]').value=value.toFixed(3);});
+        root.dataset.jointAngle=String(defaults.get(root.dataset.changedJoint)||0);
       };
       await viewer.load('/api/robot/urdf?path='+encodeURIComponent(path), [], []);
+      if(!root.isConnected)return;
+      if(defaults.size)viewer.setJoints([...defaults.keys()],[...defaults.values()]);
+      root.dataset.trainingDefaults=String(hasDefaults);
       if(root.isConnected){root.querySelectorAll('[data-angle],[data-angle-number]').forEach(input=>input.disabled=false);root.dataset.jointsReady='true';root.querySelector('[data-urdf-loading]').hidden=true;}
 
     } catch (error) { if(root.isConnected){root.querySelector('[data-robot-status]').textContent=error.message;root.querySelector('[data-urdf-loading]').hidden=true;} }
@@ -342,7 +358,7 @@
         if(!button||button.disabled)return;
         model.autoLoadPlayback=true;saveWorkspace(model);
         button.disabled=true;button.textContent='Loading…';
-        try { const module=await import('/character_motion_viewer.js?v=12'); if(!body.isConnected)return;
+        try { const module=await import('/character_motion_viewer.js?v=13'); if(!body.isConnected)return;
           body._dispose?.();
           const viewer=module.mount(body.querySelector('[data-motion]'), {...selected.playback,onExpand,expandIcon:icon('expand'),onError:()=>{
             if(body.isConnected){button.hidden=false;button.disabled=false;button.textContent='Retry 3D playback';}

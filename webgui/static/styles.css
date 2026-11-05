@@ -1086,3 +1086,10 @@ body.walk-workspace #app { padding: 7px 12px 10px; }
 .lineage-workspace .evolution-node.failed .node-metric { fill: #a33d2c; }
 .lineage-workspace .evolution-node.running .node-status-badge { fill: #f6e7bd; }
 .lineage-workspace .evolution-node.running .node-metric { fill: #88600c; }
+.training-joint-controls > h4,.folded-joint-controls > h4 { display: flex; align-items: center; gap: 7px; margin: 12px 0 5px; color: #60796a; font: 600 10px var(--sans); }
+.training-joint-controls > h4 span { padding: 2px 5px; border-radius: 5px; color: #247561; background: #e4f0e7; }
+.held-joint-group { border-top: 1px solid #e2e9df; }
+.held-joint-group summary { display: flex; align-items: center; gap: 7px; padding: 10px 3px; color: #668071; cursor: pointer; font-size: 10px; list-style: none; }
+.held-joint-group summary::-webkit-details-marker { display: none; }.held-joint-group summary::before { content: '›'; font-size: 15px; line-height: 10px; }.held-joint-group[open] summary::before { transform: rotate(90deg); }
+.held-joint-group summary b { font: 9px var(--mono); padding: 2px 5px; border-radius: 5px; background: #edf1e9; }.held-joint-group summary small { margin-left: auto; color: #8b9d8f; font-size: 8px; }
+.lineage-joint-list .joint-default-note { padding: 7px 8px; border-radius: 6px; color: #658574; background: #edf4ec; font-size: 10px; }

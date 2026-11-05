@@ -30,7 +30,9 @@ class WorkspaceTests(unittest.TestCase):
             train = runtime / 'training/anatomical_train/training.json'
             write(train, {'urdf_sha256': sha, 'action_joints': ['hip'],
                 'arguments': {'checkpoint': 'parent.pt'}, 'parent_checkpoint_sha256': 'parent-sha',
-                'checkpoints': {'model_0.pt': 'child-sha'}})
+                'checkpoints': {'model_0.pt': 'child-sha'}, 'hand_pose': 'closed_fists_v1',
+                'nominal_q': [0,0,0,1,0,0,0,.2,.3], 'nominal_ctrl': [.4,-1.1]})
+            train.with_name('model.xml').write_text('<mujoco><worldbody><body><freejoint/><joint name="hip"/><joint name="finger"/></body></worldbody><actuator><position joint="hip"/><position joint="finger"/></actuator></mujoco>')
             train.with_name('model_0.pt').write_bytes(b'child checkpoint')
             run = runtime / 'anatomical_eval/dynamics.json'
             write(run, {'identity': {'urdf_sha256': sha}, 'milestone': 'gate_5m_no_reset',
@@ -51,11 +53,29 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(evaluation['parentIds'], [training['id']])
             self.assertEqual(training['milestoneId'], 'gate_5m_no_reset')
             self.assertEqual(evaluation['actionJoints'], ['hip'])
+            self.assertEqual(evaluation['defaultJointPositions'], {'hip': .2, 'finger': -1.1})
+            self.assertEqual(training['defaultJointPositions'], evaluation['defaultJointPositions'])
+            self.assertEqual(evaluation['bodySettings']['hands'], 'closed_fists_v1')
             self.assertEqual(evaluation['status'], 'failed')
             self.assertNotIn('playback', evaluation)
             self.assertEqual(evaluation['modelId'], sha)
             self.assertEqual(tree['summary']['checkpointBytes'], len(b'child checkpoint'))
             self.assertEqual(tree['models'][0]['milestones'], [])
+
+    def test_recorded_defaults_require_matching_model_and_preserve_control_semantics(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            model = folder / 'model.xml'
+            model.write_text('<mujoco><worldbody><body><freejoint/><joint name="hip"/><joint name="finger"/><joint name="passive"/></body></worldbody><actuator><position joint="hip"/><position joint="finger"/><motor joint="passive"/></actuator></mujoco>')
+            record = dict(model_xml_sha256=evolution._digest(model), action_joints=['hip'],
+                          nominal_q=[0,0,0,1,0,0,0,.2,.3,.4], nominal_ctrl=[.8,-1.1,9])
+            self.assertEqual(evolution.recorded_joint_defaults(folder, record), {'hip':.2, 'finger':-1.1, 'passive':.4})
+            record['model_xml_sha256'] = 'wrong'
+            self.assertEqual(evolution.recorded_joint_defaults(folder, record), {})
+            record = dict(nominal_q=[0,0], action_joints=[])
+            self.assertEqual(evolution.recorded_joint_defaults(folder, record), {})
+            model.unlink()
+            self.assertEqual(evolution.recorded_joint_defaults(folder, record), {})
 
     def test_unknown_model_does_not_inherit_active_certificates(self):
         with tempfile.TemporaryDirectory() as temporary:
