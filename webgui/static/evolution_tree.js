@@ -108,6 +108,8 @@
     return result;
   }
 
+  const nodeColumnWidth=112;
+
   // Milestone bands share coordinates with their nodes; branches reuse rows.
   function layout(visible, milestones = [], availableHeight = 364) {
     const byId = new Map(visible.map(n => [n.id, n]));
@@ -138,10 +140,10 @@
     let offset = 16;
     const bands = stages.map((stage,index) => {
       const columns = Math.max(1,...[...assigned.values()].filter(p=>p.stage===index).map(p=>p.column+1));
-      const band={...stage,x:offset,width:columns*154};offset+=band.width;return band;
+      const band={...stage,x:offset,width:columns*nodeColumnWidth};offset+=band.width;return band;
     });
     const height=Math.max(300,availableHeight);
-    const points=new Map([...assigned].map(([id,p])=>[id,{x:bands[p.stage].x+p.column*154+12,y:(p.row+.5)*height/3-42.5}]));
+    const points=new Map([...assigned].map(([id,p])=>[id,{x:bands[p.stage].x+(p.column+.5)*nodeColumnWidth-42,y:(p.row+.5)*height/3-42.5}]));
     return {width:offset+16,height,bands,point:id=>points.get(id)};
   }
 
@@ -306,19 +308,24 @@
     const connections=visible.flatMap(n=>(n.parentIds||[]).filter(id=>visibleIds.has(id)).map(id=>({parent:id,child:n.id})));
     const edgePath=({parent,child})=>{
       const a=graph.point(parent),b=graph.point(child);
-      return Math.abs(b.x-a.x)<180?`M ${a.x+60} ${a.y+26} C ${a.x+95} ${a.y+26}, ${b.x-6} ${b.y+26}, ${b.x+21} ${b.y+26}`:`M ${a.x+60} ${a.y+26} Q ${a.x+80} ${a.y+26} ${a.x+80} ${a.y-8} L ${b.x+3} ${a.y-8} Q ${b.x+3} ${b.y+26} ${b.x+21} ${b.y+26}`;
+      return Math.abs(b.x-a.x)<nodeColumnWidth*1.5?`M ${a.x+60} ${a.y+26} C ${a.x+84} ${a.y+26}, ${b.x} ${b.y+26}, ${b.x+24} ${b.y+26}`:`M ${a.x+60} ${a.y+26} Q ${a.x+80} ${a.y+26} ${a.x+80} ${a.y-8} L ${b.x+3} ${a.y-8} Q ${b.x+3} ${b.y+26} ${b.x+24} ${b.y+26}`;
     };
-    const edges=connections.map(edge=>`<path class="evolution-edge${ancestry.has(edge.parent)&&ancestry.has(edge.child)?' active':''}" marker-end="url(#lineage-arrow)" d="${edgePath(edge)}"/>`).join('');
+    const edges=connections.map(edge=>`<path class="evolution-edge${ancestry.has(edge.parent)&&ancestry.has(edge.child)?' active':''}" d="${edgePath(edge)}"/>`).join('');
     const cards = visible.map(n=>{
       const p=graph.point(n.id);
       const statusLabel=n.kind==='milestone'&&n.status==='completed'?'certified':n.status;
       const statusWidth=Math.max(44,statusLabel.length*4.9+14);
       const symbol=n.kind==='milestone'?(n.status==='completed'?'✓':'◇'):n.kind==='checkpoint'?'⬡':n.playback?'▶':'•';
-      return `<g class="evolution-node ${escapeHtml(n.status)}${n.id===model.selectedId?' selected':''}${ancestry.has(n.id)?' ancestor':''}" transform="translate(${p.x} ${p.y})" role="button" tabindex="0" data-node="${escapeHtml(n.id)}" aria-label="${escapeHtml(n.label)}"><title>${escapeHtml(n.label+' — '+(n.result||''))}</title><rect width="130" height="85" rx="8"/><circle class="node-disc" cx="42" cy="26" r="18"/><text class="node-symbol" x="42" y="31" text-anchor="middle">${symbol}</text><circle class="node-state-dot" cx="57" cy="12" r="4"/><text class="node-label" x="42" y="61" text-anchor="middle">${escapeHtml(displayLabel(n).slice(0,22))}</text><rect class="node-status-badge" x="${42-statusWidth/2}" y="65" width="${statusWidth}" height="16" rx="8"/><text class="node-metric" x="42" y="76" text-anchor="middle">${escapeHtml(statusLabel)}</text></g>`;
+      return `<g class="evolution-node ${escapeHtml(n.status)}${n.id===model.selectedId?' selected':''}${ancestry.has(n.id)?' ancestor':''}" transform="translate(${p.x} ${p.y})" role="button" tabindex="0" data-node="${escapeHtml(n.id)}" aria-label="${escapeHtml(n.label)}"><title>${escapeHtml(n.label+' — '+(n.result||''))}</title><rect class="node-hit" x="-10" y="3" width="104" height="82" rx="8"/><circle class="node-disc" cx="42" cy="26" r="18"/><text class="node-symbol" x="42" y="31" text-anchor="middle">${symbol}</text><circle class="node-state-dot" cx="57" cy="12" r="4"/><text class="node-label" x="42" y="61" text-anchor="middle">${escapeHtml(displayLabel(n).length>20?displayLabel(n).slice(0,19)+'…':displayLabel(n))}</text><rect class="node-status-badge" x="${42-statusWidth/2}" y="65" width="${statusWidth}" height="16" rx="8"/><text class="node-metric" x="42" y="76" text-anchor="middle">${escapeHtml(statusLabel)}</text></g>`;
     }).join('');
     const bands = graph.bands.map((b,i)=>`<div class="lineage-band ${escapeHtml(b.status)}" style="left:${b.x}px;width:${b.width}px;--band-hue:${[205,155,175,35,26,270,290,310,210,225,95,65,0][i%13]}"><span>${b.id?'M'+b.order:'LAB'}</span><b>${escapeHtml(b.label)}</b><small>${escapeHtml(b.status.replaceAll('_',' '))}</small></div>`).join('');
     const video = selected?.artifacts?.find(a=>a.kind==='video');
-    container.innerHTML = `<div class="lineage-workspace"><div class="lineage-toolbar"><button class="model-picker-trigger" data-model-picker aria-haspopup="dialog">${icon('model')}<span><small>MODEL</small><b>${escapeHtml(modelLabel(robot))}</b></span>${icon('chevron')}</button><span class="lineage-count">${visible.length} / ${scoped.length} nodes</span><input type="search" data-search placeholder="Find a run…" aria-label="Search lineage" value="${escapeHtml(model.search)}"><button class="button button-light" data-mode>${model.mode==='all'?'Compact':'All runs'}</button><button class="button button-light" data-fit>Locate</button>${options.onRefresh?'<button class="button button-light lineage-icon-button" data-refresh aria-label="Refresh lineage" title="Refresh">↻</button>':''}${options.onTools?'<button class="button button-light lineage-icon-button" data-tools aria-label="Tools and logs" title="Tools and logs">⋯</button>':''}</div><div class="lineage-body"><section class="lineage-graph"><div class="lineage-scroll"><div class="lineage-band-header" style="width:${graph.width}px">${bands}</div><svg width="${graph.width}" height="${graph.height}" role="group" aria-label="Checkpoint evolution by milestone"><defs><marker id="lineage-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#678b7e"/></marker></defs>${graph.bands.map((b,i)=>`<rect x="${b.x}" width="${b.width}" height="${graph.height}" fill="${i%2?'#eaf1ec':'#f5f6f1'}"/>`).join('')}<g>${edges}</g><g>${cards}</g></svg></div><footer class="lineage-footer"><span>● certified gate &nbsp; ◌ experiment &nbsp; ▶ recorded 3D</span><span>Columns = target gate · only certified nodes prove a pass</span></footer></section><aside class="lineage-inspector"><header><p class="eyebrow">SELECTED NODE</p><h3>${escapeHtml(displayLabel(selected))}</h3></header><nav class="lineage-tabs" aria-label="Node inspector">${['details','playback','joints'].map(tab=>`<button data-tab="${tab}" class="${model.tab===tab?'active':''}" aria-pressed="${model.tab===tab}">${{details:'Details',playback:'Playback',joints:'Joints'}[tab]}</button>`).join('')}</nav><div data-inspector-body></div></aside></div></div>`;
+    container.innerHTML = `<div class="lineage-workspace"><div class="lineage-toolbar"><button class="model-picker-trigger" data-model-picker aria-haspopup="dialog">${icon('model')}<span><small>MODEL</small><b>${escapeHtml(modelLabel(robot))}</b></span>${icon('chevron')}</button><span class="lineage-count">${visible.length} / ${scoped.length} nodes</span><input type="search" data-search placeholder="Find a run…" aria-label="Search lineage" value="${escapeHtml(model.search)}"><button class="button button-light" data-mode>${model.mode==='all'?'Compact':'All runs'}</button><button class="button button-light" data-fit>Locate</button>${options.onRefresh?'<button class="button button-light lineage-icon-button" data-refresh aria-label="Refresh lineage" title="Refresh">↻</button>':''}${options.onTools?'<button class="button button-light lineage-icon-button" data-tools aria-label="Tools and logs" title="Tools and logs">⋯</button>':''}</div><div class="lineage-body"><section class="lineage-graph"><div class="lineage-scroll"><div class="lineage-band-header" style="width:${graph.width}px">${bands}</div><svg width="${graph.width}" height="${graph.height}" role="group" aria-label="Checkpoint evolution by milestone">${graph.bands.map((b,i)=>`<rect x="${b.x}" width="${b.width}" height="${graph.height}" fill="${i%2?'#eaf1ec':'#f5f6f1'}"/>`).join('')}<g>${edges}</g><g>${cards}</g></svg></div><footer class="lineage-footer"><span>● certified gate &nbsp; ◌ experiment &nbsp; ▶ recorded 3D</span><span>Columns = target gate · only certified nodes prove a pass</span></footer></section><aside class="lineage-inspector"><header><p class="eyebrow">SELECTED NODE</p><h3>${escapeHtml(displayLabel(selected))}</h3></header><nav class="lineage-tabs" aria-label="Node inspector">${['details','playback','joints'].map(tab=>`<button data-tab="${tab}" class="${model.tab===tab?'active':''}" aria-pressed="${model.tab===tab}">${{details:'Details',playback:'Playback',joints:'Joints'}[tab]}</button>`).join('')}</nav><div data-inspector-body></div></aside></div></div>`;
+    // Fit the hover target around the icon and its actual caption, centered together.
+    container.querySelectorAll('[data-node]').forEach(node=>{
+      const width=Math.max(52,node.querySelector('.node-label').getBBox().width+12,node.querySelector('.node-status-badge').width.baseVal.value+12);
+      const hit=node.querySelector('.node-hit');hit.setAttribute('x',42-width/2);hit.setAttribute('width',width);
+    });
     const body=container.querySelector('[data-inspector-body]');
     const onExpand=event=>expandInspector(container,body,`${model.tab==='joints'?'URDF inspector':'3D playback'} · ${displayLabel(selected)}`,event.currentTarget);
     if(model.tab==='details') {
@@ -371,7 +378,7 @@
     fitGraph();
     const graphResize=new ResizeObserver(fitGraph);graphResize.observe(scroll);
     container._disposeGraph=()=>graphResize.disconnect();
-    const locate=()=>{const p=graph.point(model.selectedId);if(p)container.querySelector('.lineage-scroll').scrollTo({left:Math.max(0,p.x-container.querySelector('.lineage-scroll').clientWidth+170),top:0});};
+    const locate=()=>{const p=graph.point(model.selectedId);if(p)container.querySelector('.lineage-scroll').scrollTo({left:Math.max(0,p.x-container.querySelector('.lineage-scroll').clientWidth+104),top:0});};
     container.querySelector('[data-fit]').onclick=locate;
     // Selection and inspector changes rebuild the DOM, but must not move the graph.
     if(scrollPosition&&previousModelId===model.modelId)container.querySelector('.lineage-scroll').scrollTo(scrollPosition);
