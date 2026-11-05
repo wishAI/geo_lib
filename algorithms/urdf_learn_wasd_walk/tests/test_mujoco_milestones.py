@@ -10,6 +10,63 @@ from algorithms.urdf_learn_wasd_walk import mujoco_milestones as gates
 
 
 class StandingCertificateTests(unittest.TestCase):
+    def test_derived_urdf_identity_and_input_boundary_are_enforced(self):
+        original=self.root/'inputs/landau_v10/landau_v10_parallel_mesh.urdf'
+        derived=self.root/'inputs/anatomical/landau.urdf'
+        derived.parent.mkdir();derived.write_bytes(original.read_bytes())
+        self.ledger['assetContract']['urdfPath']='inputs/anatomical/landau.urdf'
+        original.unlink()
+        gates.check_standing(self.folder,self.ledger)
+        derived.write_text('<robot/>')
+        with self.assertRaisesRegex(ValueError,'Source URDF changed'):
+            gates.check_standing(self.folder,self.ledger)
+        self.ledger['assetContract']['urdfPath']='outputs/run/model.xml'
+        with self.assertRaises(ValueError):gates.check_standing(self.folder,self.ledger)
+
+    def test_anatomical_standing_reproduction_keeps_profile(self):
+        self.cfg['model_profile']='anatomical_legs_mass_v2'
+        self.cfg['name']='new_model'
+        job=gates.reproduction_job(self.record,None)
+        self.assertTrue(job['module'].endswith('.leg_model_variant'))
+        self.assertIn('anatomical_legs_mass_v2',job['args'])
+
+    def test_animation_standing_records_peak_without_weakening_strict_profile(self):
+        self.metrics['peak_support_force_body_weight_ratio']=3.24
+        self.metrics['peak_support_body_weight_ratio']=3.24
+        self.save()
+        with self.assertRaises(ValueError):gates.check_standing(self.folder,self.ledger)
+        self.ledger['acceptance']['support_profile']='animation_approximate_v1'
+        gates.check_standing(self.folder,self.ledger)
+
+    def test_fist_lineage_archives_history_only_after_valid_proof(self):
+        ledger_path=self.root/'milestones.json'
+        self.ledger.update(lineage=gates.LINEAGE,milestones=[
+            dict(order=1,id=gates.STANDING[0],stage='stand',status='passed'),
+            dict(order=2,id=gates.STANDING[1],stage='stand',status='passed')],
+            sessionStatus={'certifiedMilestones':7,'checkpoint':'old','currentExperiment':{'status':'pending'}})
+        checkpoint=self.root/'outputs/training/model.pt';checkpoint.parent.mkdir()
+        checkpoint.write_bytes(b'candidate')
+        controls={'initial_qpos':[0.,1.],'initial_ctrl':[1.]}
+        self.record['identity']['initial_control_sha256']=hashlib.sha256(json.dumps(controls,sort_keys=True).encode()).hexdigest()
+        self.save()
+        gates.write(checkpoint.parent/'training.json',dict(hand_pose='closed_fists_v1',
+            support_profile='animation_approximate_v1',nominal_q=controls['initial_qpos'],
+            nominal_ctrl=controls['initial_ctrl'],checkpoints={checkpoint.name:gates.digest(checkpoint)}))
+        gates.write(ledger_path,self.ledger);original=ledger_path.read_bytes()
+        with patch.object(gates,'LEDGER',ledger_path),patch.object(gates,'ROOT',self.root),patch.object(gates,'sync_gui'):
+            review=self.folder/'visual_review.json';review.unlink()
+            with self.assertRaises(FileNotFoundError):gates.initialize_fists(self.folder,checkpoint)
+            self.assertEqual(ledger_path.read_bytes(),original)
+            self.assertFalse((self.root/'outputs/milestone_lineages').exists())
+            self.save()
+            result=gates.initialize_fists(self.folder,checkpoint)
+        self.assertEqual(result['lineage'],gates.FISTS_LINEAGE)
+        self.assertFalse(result['historyCarriedForward'])
+        self.assertEqual([m['status'] for m in result['milestones']],['in_progress','not_started'])
+        self.assertEqual(result['sessionStatus']['certifiedMilestones'],0)
+        self.assertNotIn('checkpoint',result['sessionStatus'])
+        self.assertEqual((self.root/'outputs/milestone_lineages'/gates.LINEAGE/'milestones.json').read_bytes(),original)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -62,6 +119,14 @@ class StandingCertificateTests(unittest.TestCase):
 
     def test_complete_passive_certificate(self):
         gates.check_standing(self.folder, self.ledger)
+
+    def test_diagnostic_pose_override_cannot_be_certified(self):
+        for target in (self.record,self.cfg):
+            target['diagnostic_hand_pose_override']='closed_fists_v1'
+            self.save()
+            with self.assertRaisesRegex(ValueError,'Diagnostic hand pose'):
+                gates.check_standing(self.folder,self.ledger)
+            del target['diagnostic_hand_pose_override']
 
     def test_different_replay_model_cannot_use_claimed_identity(self):
         (self.folder/'model.xml').write_text('different model')
@@ -416,6 +481,34 @@ class WalkingCertificateTests(StandingCertificateTests):
 
     def test_completed_walking_protocol(self):
         cp,_=self.walking_fixture();gates.check_walking(self.folder,self.ledger,cp)
+
+    def test_animation_peak_requires_matching_explicit_training_and_lineage(self):
+        cp,_=self.walking_fixture()
+        self.metrics['peak_support_body_weight_ratio']=3.15
+        self.save()
+        with self.assertRaisesRegex(ValueError,'strict peak'):
+            gates.check_walking(self.folder,self.ledger,cp)
+        self.cfg['support_profile']='animation_approximate_v1'
+        self.record['identity']['config_sha256']=hashlib.sha256(json.dumps(self.cfg,sort_keys=True).encode()).hexdigest()
+        training=gates.read(cp.parent/'training.json')
+        training['support_profile']='animation_approximate_v1'
+        gates.write(cp.parent/'training.json',training)
+        self.save()
+        with self.assertRaisesRegex(ValueError,'Support profile must match'):
+            gates.check_walking(self.folder,self.ledger,cp)
+        self.ledger['acceptance']['support_profile']='animation_approximate_v1'
+        gates.check_walking(self.folder,self.ledger,cp)
+        for peak in (float('nan'), float('inf'), -1.):
+            with self.subTest(peak=peak):
+                self.metrics['peak_support_body_weight_ratio']=peak
+                self.save()
+                with self.assertRaisesRegex(ValueError,'Nonfinite walking metric|invalid peak'):
+                    gates.check_walking(self.folder,self.ledger,cp)
+        self.metrics['peak_support_body_weight_ratio']=3.15
+        self.metrics['fall_count']=1
+        self.save()
+        with self.assertRaisesRegex(ValueError,'fall_count'):
+            gates.check_walking(self.folder,self.ledger,cp)
 
     def test_longer_walking_run_preserves_full_trace_requirement(self):
         cp,feet=self.walking_fixture(45.)

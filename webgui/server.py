@@ -158,6 +158,25 @@ def discover_manifests() -> list[dict]:
             statuses = {item["id"]: item for item in ledger.get("milestones", [])}
             payload["milestones"] = [{**item, "status": statuses.get(item["id"], {}).get("status", "not_started")}
                                      for item in payload.get("milestones", [])]
+            if payload.get("trainingDashboard"):
+                session = ledger.get("sessionStatus", {})
+                payload["trainingState"] = {
+                    key: session[key] for key in
+                    ("updatedAt", "nextWork", "checkpoint", "currentExperiment") if key in session
+                }
+                experiment = payload['trainingState'].get('currentExperiment', {})
+                for key, suffix, kind in (('evidence', '.json', 'json'), ('video', '.mp4', 'video'), ('motion', '/motion.json', 'motion')):
+                    relative = experiment.get(key)
+                    if relative:
+                        if (not relative.startswith(f'algorithms/{sandbox}/outputs/')
+                                or not relative.endswith(suffix) or '..' in Path(relative).parts):
+                            raise ValueError('Training evidence must be an algorithm output')
+                        payload.setdefault('artifacts', []).append({
+                            'label': 'Current experiment ' + key, 'path': relative, 'kind': kind,
+                        })
+                        if key == 'motion':
+                            payload['artifacts'].append({'label':'Compressed motion samples',
+                                'path':str(Path(relative).with_name('motion.bin.gz')),'kind':'binary'})
         payload["manifestPath"] = str(path.relative_to(REPO_ROOT))
         manifests.append(payload)
     return manifests
@@ -225,7 +244,7 @@ def evolution_artifacts(manifest: dict) -> list[dict]:
             path = item.get("path", "")
             if not isinstance(path, str) or not path.startswith(prefix) or ".." in Path(path).parts:
                 continue
-            kind = kinds.get(Path(path).suffix.lower())
+            kind = "binary" if Path(path).name == "motion.bin.gz" else kinds.get(Path(path).suffix.lower())
             if not kind:
                 continue
             try:
@@ -1265,7 +1284,11 @@ def _mesh_part_urdf(sandbox: str, part: str, variant: str) -> dict:
 
 
 def _allowed_robot_path(relative: str) -> bool:
-    return any(item.get("path") == relative for item in robot_candidates())
+    # Asset requests only need the explicit declaration. Building the complete
+    # robot catalog here repeatedly traverses remote artifacts for every STL.
+    return any(item.get("path") == relative
+               for manifest in discover_manifests()
+               for item in manifest.get("viewer", {}).get("urdfCandidates", []))
 
 
 def _resolve_robot_asset(urdf_relative: str, uri: str) -> Path | None:
@@ -1313,25 +1336,44 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args) -> None:
         print(f"[geo-gui] {format % args}")
 
-    def _json(self, payload: object, status: HTTPStatus = HTTPStatus.OK) -> None:
+    def _json(self, payload: object, status: HTTPStatus = HTTPStatus.OK, *, revalidate: bool = False) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        if revalidate:
+            import hashlib
+            etag = 'W/"' + hashlib.sha256(data).hexdigest() + '"'
+            if self.headers.get('If-None-Match') == etag:
+                self.send_response(HTTPStatus.NOT_MODIFIED)
+                self.send_header('ETag', etag)
+                self.send_header('Cache-Control', 'private, no-cache')
+                self.send_header('Vary', 'Accept-Encoding')
+                self.end_headers()
+                return
+        compress = len(data) > 1024 and any(re.fullmatch(r'gzip(?:\s*;\s*q=(?!0(?:\.0*)?$)[0-9.]+)?', item.strip())
+                                          for item in self.headers.get('Accept-Encoding', '').split(','))
+        if compress:
+            data = gzip.compress(data)
         self.send_response(status)
+        self.send_header('Vary', 'Accept-Encoding')
+        if compress:
+            self.send_header('Content-Encoding', 'gzip')
+        if revalidate:
+            self.send_header('ETag', etag)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "private, no-cache" if revalidate else "no-store")
         self.end_headers()
         self.wfile.write(data)
 
     def _error(self, message: str, status: HTTPStatus = HTTPStatus.BAD_REQUEST) -> None:
         self._json({"error": message}, status)
 
-    def _recording(self, identifier: str) -> None:
+    def _recording(self, identifier: str, *, packed: bool = False) -> None:
         # Recordings are already immutable gzip files. Avoid expanding large
         # takes into Python objects and sending uncompressed JSON over Wi-Fi.
         compressed = any(re.fullmatch(r'gzip(?:\s*;\s*q=(?!0(?:\.0*)?$)[0-9.]+)?', item.strip())
                          for item in self.headers.get('Accept-Encoding', '').split(','))
-        content = avp_recordings.download(identifier, compressed=compressed)
-        etag = f'W/"{identifier}"'
+        content = avp_recordings.download(identifier, compressed=compressed, packed=packed)
+        etag = f'W/"{identifier}{"-packed" if packed else ""}"'
         unchanged = self.headers.get('If-None-Match') == etag
         self.send_response(HTTPStatus.NOT_MODIFIED if unchanged else HTTPStatus.OK)
         self.send_header('ETag', etag)
@@ -1359,7 +1401,17 @@ class Handler(BaseHTTPRequestHandler):
         large_upload = self.path in {"/api/designer/import-portrait", "/api/rimworld/import-skin"}
         if length < 0 or length > (avp_recordings.MAX_UPLOAD if self.path == '/api/avp/recordings' else 22_100_000 if large_upload else 1_000_000):
             raise ValueError("Request body is too large")
-        return json.loads(self.rfile.read(length) or b"{}")
+        raw=self.rfile.read(length)
+        encoding=self.headers.get('Content-Encoding','identity')
+        if encoding=='gzip' and self.path=='/api/avp/recordings':
+            try:
+                with gzip.GzipFile(fileobj=io.BytesIO(raw)) as stream:
+                    raw=stream.read(avp_recordings.MAX_UPLOAD+1)
+            except (EOFError, OSError) as error:
+                raise ValueError('Invalid compressed recording upload') from error
+            if len(raw)>avp_recordings.MAX_UPLOAD:raise ValueError('Expanded upload is too large')
+        elif encoding!='identity':raise ValueError('Unsupported upload encoding')
+        return json.loads(raw or b"{}")
 
     def _file(self, path: Path, *, cache: str = "no-cache") -> None:
         if not path.is_file():
@@ -1376,7 +1428,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         accepts_gzip = any(re.fullmatch(r'gzip(?:\s*;\s*q=(?!0(?:\.0*)?$)[0-9.]+)?', item.strip())
                            for item in self.headers.get('Accept-Encoding', '').split(','))
-        compress = accepts_gzip and 1024 < stat.st_size < 16_000_000 and path.suffix.lower() in {'.js', '.css', '.html', '.json', '.glb', '.wasm'}
+        compress = accepts_gzip and 1024 < stat.st_size < 16_000_000 and path.suffix.lower() in {'.js', '.css', '.html', '.json', '.glb', '.wasm', '.stl', '.urdf', '.svg'}
         content = compressed_file(str(path), stat.st_mtime_ns, stat.st_size) if compress else path.read_bytes()
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         if path.suffix.lower() == ".mobileconfig":
@@ -1413,7 +1465,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({'recordings': avp_recordings.summaries()})
                 return
             if parsed.path.startswith('/api/avp/recordings/'):
-                self._recording(parsed.path.rsplit('/', 1)[-1])
+                self._recording(parsed.path.rsplit('/', 1)[-1],packed=query.get('packed')==['1'])
                 return
             if parsed.path == '/api/connection':
                 self._json({'httpsUrl': self.server.lan_https_url,
@@ -1518,7 +1570,7 @@ class Handler(BaseHTTPRequestHandler):
                     self._error("URDF is not available", HTTPStatus.NOT_FOUND)
                     return
                 text = resolved[1].read_text(encoding="utf-8")
-                self._json({"urdf": text, "path": relative, "joints": _robot_joint_info(text)})
+                self._json({"urdf": text, "path": relative, "joints": _robot_joint_info(text)}, revalidate=True)
                 return
             if parsed.path == "/api/robot/asset":
                 urdf = query.get("urdf", [""])[0]

@@ -39,7 +39,7 @@
     const attempts = method === 'GET' ? 2 : 1;
     let lastError = null;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const response = await fetch(url, { cache: 'no-store', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+      const response = await fetch(url, { cache: 'default', ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
       const payload = await response.json().catch(() => ({}));
       if (response.ok) return payload;
       lastError = new Error(payload.error || `Request failed (${response.status})`);
@@ -138,7 +138,31 @@
 
   function milestonePanel(sandbox) {
     if (!sandbox.milestones?.length) return '';
-    return `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('milestones')}</span><div><p class="eyebrow">CLEAN RESTART</p><h2>Milestone ladder</h2></div></div><span class="runtime-badge">${icon('warning')}history removed</span></header><div class="panel-body milestone-list">${sandbox.milestones.map((item, index) => `<div class="milestone"><span class="milestone-number">${index + 1}</span><div><b>${escapeHtml(item.name || item.id)}</b><small>${escapeHtml(item.passWhen || item.stage || '')}</small></div><span class="milestone-state" title="${escapeHtml(item.status || 'not started')}">${icon('milestones')}</span></div>`).join('')}</div></section>`;
+    const current = sandbox.milestones.findIndex(item => item.status !== 'passed');
+    return `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('milestones')}</span><h2>训练关卡</h2></div><span>${sandbox.milestones.filter(item => item.status === 'passed').length} / ${sandbox.milestones.length}</span></header><div class="panel-body milestone-list">${sandbox.milestones.map((item, index) => {
+      const status = item.status === 'passed' ? 'passed' : index === current ? 'current' : 'queued';
+      const label = status === 'passed' ? '已通过' : status === 'current' ? '待攻克' : '待开始';
+      return `<details class="milestone milestone-${status}" ${status === 'current' ? 'open' : ''}><summary><span class="milestone-number">${index + 1}</span><b>${escapeHtml(item.name || item.id)}</b><span class="milestone-state">${icon(status === 'passed' ? 'check' : status === 'current' ? 'arrow' : 'milestones')}${label}</span></summary><p>${escapeHtml(item.passWhen || item.stage || '')}</p></details>`;
+    }).join('')}</div></section>`;
+  }
+
+  function trainingDashboard() {
+    return `<div class="training-dashboard lineage-dashboard"><div data-training-tree>${window.GeoEvolutionTree.loading('Loading checkpoint lineage…')}</div></div>`;
+  }
+
+  function openWalkTools(sandbox) {
+    artifactPreview.innerHTML=`<div class="walk-tools"><h2>Tools & logs</h2><button class="button" data-open-workbench="urdf">Open URDF workbench</button><details open><summary>Run logs</summary>${consolePanel(sandbox)}</details><details><summary>Legacy Isaac tools</summary>${visibleExamples(sandbox).map(example=>exampleCard(sandbox,example)).join('')}</details><details><summary>Result files</summary>${artifactPanel(sandbox)}</details></div>`;
+    artifactDialog.showModal();bindSandbox(sandbox);
+  }
+
+  async function loadTrainingTree(sandbox) {
+    const root=app.querySelector('[data-training-tree]');
+    try {
+      const data=await api('/api/artifact?path='+encodeURIComponent(sandbox.inspector.path));
+      if(!root?.isConnected)return;
+      state.evolution[sandbox.id]=data;
+      window.GeoEvolutionTree.mount(root,{data,artifacts:(state.artifacts[sandbox.id] ||= []),onPreview:previewArtifact,onRefresh:()=>void refreshAll(true),onTools:()=>openWalkTools(sandbox)});
+    } catch(error) {if(root?.isConnected){root.innerHTML='<p class="evolution-empty">Lineage unavailable. Use Refresh to retry.</p>';toast(error.message,true);}}
   }
 
   function artifactPanel(sandbox) {
@@ -217,7 +241,10 @@
       if (!path) throw new Error('Evolution artifact path is missing.');
       const payload = state.evolution[sandbox.id] || await api(`/api/artifact?path=${encodeURIComponent(path)}`);
       state.evolution[sandbox.id] = payload;
-      if (container.isConnected) container.innerHTML = evolutionPreviewMarkup(payload);
+      if (container.isConnected) {
+        container.innerHTML = evolutionPreviewMarkup(payload);
+        container.querySelectorAll('[data-open-workbench="evolution"]').forEach(button => button.addEventListener('click', () => void openEvolutionTree(sandbox)));
+      }
     } catch (error) {
       if (container.isConnected) container.innerHTML = `<div class="warning-box">Evolution lineage unavailable: ${escapeHtml(error.message)}</div>`;
     }
@@ -238,6 +265,8 @@
     state.rimworldPrepare?.destroy?.();
     state.charDetails?.destroy?.();
     state.avpRemote?.destroy?.();
+    window.GeoEvolutionTree?.destroy(app.querySelector('[data-training-tree]') || app);
+    state.motionPlayback?.destroy?.();
     state.avpRemote = null;
     state.shipDesigner = null;
     state.rimworldPrepare = null;
@@ -261,6 +290,12 @@
       }).catch(error => { if (root.isConnected) root.textContent = 'Animation viewer unavailable: ' + error.message; });
       return;
     }
+    if (sandbox.trainingDashboard) {
+      app.innerHTML = trainingDashboard(sandbox);
+      bindSandbox(sandbox);
+      void loadTrainingTree(sandbox);
+      return;
+    }
     const resultCount = declaredArtifactCount(sandbox);
     const examples = visibleExamples(sandbox);
     app.innerHTML = `
@@ -275,7 +310,8 @@
       ${designerPanel(sandbox)}
       ${sandbox.designer ? '' : `<div class="workspace-grid">
         <div class="workspace-main">
-          ${evolutionPreviewPanel(sandbox)}
+          ${sandbox.motionViewer ? '<details class="panel training-advanced" id="training-joint-inspection"><summary>URDF 关节检查 · 旋转模型、查看轴向和限位</summary><div id="training-joint-inspector" class="character-motion-viewer"></div></details>' : ''}
+      ${evolutionPreviewPanel(sandbox)}
           ${visualToolsPanel(sandbox)}
           ${examples.length ? `<section class="panel"><header class="panel-head"><div class="panel-title"><span class="section-icon">${icon('play')}</span><div><p class="eyebrow">ALLOWLISTED</p><h2>Runnable examples</h2></div></div><span class="panel-count">${examples.length}</span></header><div class="panel-body example-list">${examples.map(example => exampleCard(sandbox, example)).join('')}</div></section>` : milestonePanel(sandbox)}
           ${examples.length && sandbox.milestones?.length ? milestonePanel(sandbox) : ''}
@@ -581,7 +617,7 @@
 
   async function previewArtifact(path, kind) {
     const url = `/api/artifact?path=${encodeURIComponent(path)}`;
-    artifactPreview.innerHTML = '<p>Loading preview…</p>';
+    artifactPreview.innerHTML = window.GeoEvolutionTree.loading('Loading evidence…');
     artifactDialog.showModal();
     try {
       if (kind === 'image' || /\.(png|jpg|jpeg|gif|pgm)$/i.test(path)) {
@@ -601,8 +637,10 @@
   async function loadArtifacts(sandbox, announce = false) {
     try {
       const payload = await api(`/api/artifacts/${encodeURIComponent(sandbox.id)}`);
-      state.artifacts[sandbox.id] = payload.artifacts;
-      if (currentSandbox()?.id === sandbox.id && sandbox.designer?.type !== 'avpRemote') sandboxView(sandbox);
+      if(sandbox.trainingDashboard && state.artifacts[sandbox.id]) state.artifacts[sandbox.id].splice(0,state.artifacts[sandbox.id].length,...payload.artifacts);
+      else state.artifacts[sandbox.id] = payload.artifacts;
+      delete state.evolution[sandbox.id];
+      if (currentSandbox()?.id === sandbox.id && !sandbox.trainingDashboard && sandbox.designer?.type !== 'avpRemote') sandboxView(sandbox);
       if (announce) toast('Results refreshed');
     } catch (error) { toast(error.message, true); }
   }
@@ -620,12 +658,13 @@
     try {
       const payload = await api('/api/robot/catalog');
       const robots = payload.robots.filter(item => sandbox.viewer.urdfCandidates.some(candidate => candidate.path === item.path));
-      container.innerHTML = `<div class="viewer-layout"><div class="viewer-stage" id="viewer-stage"><canvas id="robot-mesh"></canvas><canvas id="robot-overlay"></canvas><div class="viewer-tools"><label class="viewer-select">${icon('robot')}<select id="robot-select" aria-label="Robot URDF">${robots.map(robot => `<option value="${escapeHtml(robot.path)}" ${robot.exists ? '' : 'disabled'}>${escapeHtml(robot.label)}${robot.exists ? '' : ' · unavailable'}</option>`).join('')}</select></label><button class="button button-light button-with-icon" id="reset-view" type="button">${icon('focus')}<span>Reset view</span></button></div><span class="viewer-status" id="viewer-status">Select a URDF</span></div><div class="joint-controls"><div class="joint-controls-head"><span class="section-icon">${icon('joint')}</span><div><p class="eyebrow">ARTICULATION</p><h3>Joint controls</h3></div></div><div class="joint-toolbar"><label class="search-shell">${icon('search')}<input id="joint-search" type="search" placeholder="Find joint" aria-label="Filter joints"></label><button class="button button-light button-icon-only" id="zero-joints" type="button" aria-label="Zero all joints" title="Zero all joints">${icon('refresh')}</button></div><div id="joint-list" aria-live="polite"><div class="joint-list-state">Loading joints…</div></div></div></div>`;
+      container.innerHTML = `<div class="viewer-layout"><div class="viewer-stage" id="viewer-stage"><canvas id="robot-mesh"></canvas><canvas id="robot-overlay"></canvas><div class="viewer-tools"><label class="viewer-select">${icon('robot')}<select id="robot-select" aria-label="Robot URDF">${robots.map(robot => `<option value="${escapeHtml(robot.path)}" ${robot.exists ? '' : 'disabled'}>${escapeHtml(robot.label)}${robot.exists ? '' : ' · unavailable'}</option>`).join('')}</select></label><button class="button button-light button-with-icon" id="reset-view" type="button">${icon('focus')}<span>重置镜头</span></button><label class="viewer-select"><input type="checkbox" id="show-robot-joints" checked>关节与轴</label></div><span class="viewer-status" id="viewer-status">Select a URDF</span></div><div class="joint-controls"><div class="joint-controls-head"><span class="section-icon">${icon('joint')}</span><div><p class="eyebrow">ARTICULATION</p><h3>关节编辑</h3></div></div><div class="joint-toolbar"><label class="search-shell">${icon('search')}<input id="joint-search" type="search" placeholder="搜索关节：hip / knee / ankle" aria-label="Filter joints"></label><button class="button button-light button-icon-only" id="zero-joints" type="button" aria-label="Zero all joints" title="Zero all joints">${icon('refresh')}</button></div><pre id="robot-joint-detail" class="robot-joint-detail">选择关节查看局部轴、世界轴与限位。紫色表示选中的旋转轴。</pre><div id="joint-list" aria-live="polite"><div class="joint-list-state">Loading joints…</div></div></div></div>`;
       const select = document.querySelector('#robot-select');
-      const first = robots.find(robot => robot.exists);
+      const first = robots.find(robot => robot.exists && robot.path === sandbox.viewer.defaultUrdf) || robots.find(robot => robot.exists);
       if (!first) { document.querySelector('#viewer-status').textContent = 'No declared URDF is available'; return; }
       select.value = first.path;
       select.addEventListener('change', () => void loadRobot(select.value));
+      document.querySelector('#show-robot-joints').addEventListener('change',event=>{if(state.robotViewer){state.robotViewer.showInspection=event.target.checked;state.robotViewer.draw();}});
       document.querySelector('#reset-view').addEventListener('click', () => state.robotViewer?.resetView());
       document.querySelector('#zero-joints').addEventListener('click', () => {
         document.querySelectorAll('.joint-row input[type="range"]').forEach(input => { input.value = '0'; input.dispatchEvent(new Event('input')); });
@@ -661,12 +700,14 @@
   }
 
   async function loadRobot(path) {
+    const revision=state.robotLoadRevision=(state.robotLoadRevision||0)+1;
     const status = document.querySelector('#viewer-status');
     const list = document.querySelector('#joint-list');
     status.textContent = 'Reading URDF…';
     list.setAttribute('aria-busy', 'true');
     list.innerHTML = '<div class="joint-list-state">Loading joint definitions…</div>';
     const payload = await api(`/api/robot/urdf?path=${encodeURIComponent(path)}`);
+    if(revision!==state.robotLoadRevision||!urdfDialog.open)return;
     state.robotViewer?.destroy?.();
     state.robotPath = path;
     state.robotViewer = new window.MotionUrdfViewer({
@@ -675,7 +716,16 @@
       assetUrl: `/api/robot/asset?urdf=${encodeURIComponent(path)}`,
       onStatus: message => { status.textContent = message; },
     });
+    const viewer=state.robotViewer;
     const joints = payload.joints;
+    state.robotViewer.showInspection=document.querySelector('#show-robot-joints').checked;
+    const inspect=name=>{
+      if(state.robotViewer!==viewer)return;
+      state.robotViewer.selectedJoint=name;state.robotViewer.draw();
+      const j=joints.find(item=>item.name===name),frame=state.robotViewer.jointFrame(name);if(!j||!frame)return;
+      document.querySelectorAll('.joint-row').forEach(row=>row.classList.toggle('joint-row-selected',row.dataset.name===name.toLowerCase()));
+      document.querySelector('#robot-joint-detail').textContent=[name,`${frame.parent} → ${frame.child}`,`局部轴 ${frame.axis.map(x=>x.toFixed(4)).join(', ')}`,`世界轴 ${frame.worldAxis.map(x=>x.toFixed(4)).join(', ')} (Z-up)`,`限位 ${j.lower.toFixed(3)} … ${j.upper.toFixed(3)} rad`,'正角遵循右手规则 · 修改仅用于预览'].join('\n');
+    };
     const knownGroups = new Set(JOINT_GROUPS.map(([group]) => group));
     const groups = [...JOINT_GROUPS];
     if (joints.some(joint => !knownGroups.has(joint.group))) groups.push(['other', 'Other']);
@@ -688,9 +738,12 @@
     list.removeAttribute('aria-busy');
     document.querySelectorAll('[data-joint]').forEach(input => input.addEventListener('input', () => {
       input.closest('.joint-row').querySelector('output').textContent = Number(input.value).toFixed(3);
-      state.robotViewer.setJoints([input.dataset.joint], [Number(input.value)]);
+      state.robotViewer.setJoints([input.dataset.joint], [Number(input.value)]);inspect(input.dataset.joint);
     }));
-    await state.robotViewer.load(`/api/robot/urdf?path=${encodeURIComponent(path)}`, joints.map(item => item.name), joints.map(() => 0));
+    await viewer.load(`/api/robot/urdf?path=${encodeURIComponent(path)}`, joints.map(item => item.name), joints.map(() => 0));
+    if(state.robotViewer!==viewer)return;
+    document.querySelectorAll('[data-joint]').forEach(input=>input.addEventListener('focus',()=>inspect(input.dataset.joint)));
+    if(joints.length)inspect(joints.find(j=>j.name==='left_ankle_roll_joint')?.name||joints[0].name);
   }
 
   function bindViewerGestures(stage, viewerProvider) {
@@ -846,12 +899,16 @@
     state.nestingRoot = null;
     const sandbox = currentSandbox();
     document.body.classList.toggle('avp-workspace',sandbox?.designer?.type==='avpRemote');
+    document.body.classList.toggle('walk-workspace',Boolean(sandbox?.trainingDashboard));
+    window.GeoEvolutionTree?.destroy(app.querySelector('[data-training-tree]') || app);
     state.robotViewer?.destroy?.();
     state.meshViewers.forEach(viewer => viewer.destroy?.());
     state.shipDesigner?.destroy?.();
     state.rimworldPrepare?.destroy?.();
     state.charDetails?.destroy?.();
     state.avpRemote?.destroy?.();
+    window.GeoEvolutionTree?.destroy(app.querySelector('[data-training-tree]') || app);
+    state.motionPlayback?.destroy?.();
     state.avpRemote = null;
     state.robotViewer = null;
     state.meshViewers = [];
@@ -879,7 +936,13 @@
       const before = previous.find(job => job.sandbox === sandbox.id);
       const after = state.jobs.find(job => job.sandbox === sandbox.id);
       if (sandbox.designer?.type !== 'avpRemote' && JSON.stringify(before) !== JSON.stringify(after)) {
-        sandboxView(sandbox);
+        if (sandbox.trainingDashboard && document.querySelector('.run-panel')) {
+          document.querySelector('.run-panel').outerHTML = consolePanel(sandbox);
+          document.querySelector('[data-cancel-job]')?.addEventListener('click', async () => {
+            try { await api(`/api/jobs/${after.id}/cancel`, { method: 'POST', body: '{}' }); ensureJobPolling(); }
+            catch (error) { toast(error.message, true); }
+          });
+        } else if (!sandbox.trainingDashboard) sandboxView(sandbox);
         if (after && ['succeeded', 'failed', 'cancelled'].includes(after.status)) {
           if (sandbox.workspace?.type !== 'nesting') void loadArtifacts(sandbox);
           if (meshDialog.open && after.example === sandbox.meshWorkbench?.applyExample) {
@@ -899,6 +962,8 @@
   }
 
   async function refreshAll(announce = false) {
+    state.evolution = {};
+    state.artifacts = {};
     // Health checks can involve SSH; the local workspace needs only its catalog.
     const status = api('/api/status').then(payload => {
       state.status = payload;

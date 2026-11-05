@@ -13,11 +13,15 @@ from g1_pose import world_map_from_joint_specs
 
 
 class SkinMappingTests(unittest.TestCase):
-    def test_serial_motion_and_geometry_ownership(self):
+    def exercise_chain(self, part):
         for serial in (False, True):
             for side in ('l', 'r'):
                 names = ['root_x', f'arm_stretch_{side}', f'arm_twist_{side}',
                          f'forearm_stretch_{side}', f'forearm_twist_{side}', f'hand_{side}']
+                if part=='thigh':
+                    names=[n.replace('forearm','leg').replace('arm','thigh').replace('hand','foot') for n in names]
+                elif part=='leg':
+                    names=[n.replace('forearm_stretch','foot').replace('forearm_twist','toes_01').replace('arm','leg').replace('hand','toe_tip') for n in names]
                 parents = [-1, 0, 1, 1, 3, 3]
                 positions = [(0, 0, .4), (.1, 0, 0), (0, 0, 0), (0, .1, 0), (0, .05, 0), (0, .1, 0)]
                 records = []
@@ -43,6 +47,17 @@ class SkinMappingTests(unittest.TestCase):
                     ET.SubElement(joint, 'child', link=name)
                     ET.SubElement(joint, 'origin', xyz=' '.join(map(str, xyz)), rpy='0 0 0')
                     ET.SubElement(joint, 'axis', xyz='0 0 1' if i == 2 else '1 0 0')
+                if serial and part=='thigh':
+                    # Virtual hip/ankle nodes are absent from the USD skin.
+                    for index,label in [(2,'hip_roll'),(5,'ankle_pitch')]:
+                        downstream=xml.find(f"joint[@name='joint_{index}']")
+                        parent=downstream.find('parent').get('link')
+                        extra=ET.SubElement(xml,'joint',name=label,type='revolute')
+                        ET.SubElement(extra,'parent',link=parent)
+                        ET.SubElement(extra,'child',link=label+'_virtual')
+                        ET.SubElement(extra,'origin',xyz='0 0 0',rpy='0 0 0')
+                        ET.SubElement(extra,'axis',xyz='0 1 0')
+                        downstream.find('parent').set('link',label+'_virtual')
                 with tempfile.TemporaryDirectory() as folder:
                     path = Path(folder) / 'robot.urdf'
                     ET.ElementTree(xml).write(path)
@@ -55,7 +70,7 @@ class SkinMappingTests(unittest.TestCase):
                     worlds = world_map_from_joint_specs(mapper.specs, {f'joint_{i}': pose.get(n, 0) for i, n in enumerate(names)})
                     actual = world_matrices_from_local(records, mapper.apply(pose))
                     for i, name in enumerate(names):
-                        owner = names[2] if serial and i == 1 else name
+                        owner = names[2] if serial and i == 1 else (names[4] if serial and i==3 and part=='thigh' else name)
                         expected = worlds[owner] @ np.linalg.inv(rest[owner]) @ skin_rest[i]
                         np.testing.assert_allclose(actual[i], expected, atol=1e-12)
                     if serial:
@@ -63,6 +78,10 @@ class SkinMappingTests(unittest.TestCase):
                         # the articulated elbow, even for a transverse twist axis.
                         delta = actual[1] @ np.linalg.inv(skin_rest[1])
                         np.testing.assert_allclose(delta @ rest[names[3]][:, 3], worlds[names[3]][:, 3], atol=1e-12)
+
+    def test_serial_motion_and_geometry_ownership(self):
+        for part in ('arm','thigh','leg'):
+            with self.subTest(part=part):self.exercise_chain(part)
 
 
 if __name__ == '__main__':

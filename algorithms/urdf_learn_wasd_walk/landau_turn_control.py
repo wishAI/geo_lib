@@ -310,8 +310,9 @@ def train(args):
     import torch
     import warp as wp
     from algorithms.urdf_learn_wasd_walk.landau_rsl_control import configure_model
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
     from algorithms.urdf_learn_wasd_walk.landau_forward_control import load_gait_source, make_actor, action_scales
-    backend, batches, _ = configure_model('balanced_hands_v1')
+    backend, batches, _ = configure_model('balanced_hands_v1', checkpoint_hand_pose(json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())))
     parent = Path(args.checkpoint).resolve()
     parent.relative_to((backend.OUTPUT/'training').resolve())
     parent_meta = json.loads((parent.parent/'training.json').read_text())

@@ -22,7 +22,7 @@ def action_scales(names, hip_roll=.2):
     values = []
     for name in names:
         values.append(.35 if 'hip_pitch' in name else .5 if 'knee' in name else
-                      .4 if 'ankle_pitch' in name else hip_roll if 'hip_roll' in name else
+                      .4 if 'ankle_pitch' in name else .3 if 'ankle_roll' in name else hip_roll if 'hip_roll' in name else
                       .12 if any(k in name for k in ('hip_yaw', 'toe', 'shoulder')) else .08)
     return values
 
@@ -119,7 +119,8 @@ def load_gait_source(checkpoint, metadata):
     """Load this run's hash-bound controller snapshot, independent of later edits."""
     import importlib.util
     source=Path(checkpoint).parent/'control_source.py'
-    expected=[value for path,value in metadata['source_sha256'].items() if Path(path).name=='landau_gait_search.py']
+    sources=metadata.get('parent_source_sha256',metadata['source_sha256']) if metadata.get('policy_family')=='anatomical_feedback_residual_ppo' else metadata['source_sha256']
+    expected=[value for path,value in sources.items() if Path(path).name in ('landau_gait_search.py','leg_gait_search.py')]
     actual=hashlib.sha256(source.read_bytes()).hexdigest()
     if len(expected)!=1 or actual!=expected[0]:raise ValueError('Saved parametric controller source changed')
     spec=importlib.util.spec_from_file_location('landau_gait_'+actual[:16],source)
@@ -133,7 +134,9 @@ def train(args):
     from tensordict import TensorDict
     from mjlab.rl import MjlabOnPolicyRunner, RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
     from algorithms.urdf_learn_wasd_walk.landau_rsl_control import configure_model
-    backend, batches, variant = configure_model('balanced_hands_v1')
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
+    parent_meta = json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())
+    backend, batches, variant = configure_model('balanced_hands_v1', checkpoint_hand_pose(parent_meta))
     parent = Path(args.checkpoint).resolve()
     parent.relative_to((backend.OUTPUT/'training').resolve())
     parent_meta = json.loads((parent.parent/'training.json').read_text())
@@ -322,6 +325,7 @@ def train(args):
         'model_xml_sha256':hashlib.sha256(batch.xml.encode()).hexdigest(),
         'urdf_sha256':batch.spec['source']['urdf_sha256'],'mesh_tree_sha256':batch.spec['source']['mesh_tree_sha256'],
         'action_joints':batch.spec['action_joints'],'nominal_q':batch.nominal_q.tolist(),
+        'hand_pose':batch.spec.get('hand_pose','open'),
         'nominal_ctrl':batch.nominal_ctrl.tolist(),'action_scale':action_scales(batch.spec['action_joints'],args.hip_roll_range),
         'stand_action_scale':.08,'observation_dim':OBS_DIM,'reference_xy':batch.reference_xy.tolist(),
         'action_mapping':args.action_mapping,
@@ -358,7 +362,10 @@ def evaluate(args):
     from types import SimpleNamespace
     from algorithms.urdf_learn_wasd_walk import mujoco_policy as old_policy
     from algorithms.urdf_learn_wasd_walk.landau_rsl_control import configure_model
-    backend, _, _ = configure_model('balanced_hands_v1')
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
+    meta=json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())
+    diagnostic_hand_pose = getattr(args, 'hand_pose_diagnostic', None)
+    backend, _, _ = configure_model('balanced_hands_v1', diagnostic_hand_pose or checkpoint_hand_pose(meta))
     checkpoint=Path(args.checkpoint).resolve()
     checkpoint.relative_to((backend.OUTPUT/'training').resolve())
     meta=json.loads((checkpoint.parent/'training.json').read_text())
@@ -367,6 +374,20 @@ def evaluate(args):
     if meta['period_s']!=PERIOD or meta['action_scale']!=action_scales(meta['action_joints'],meta['arguments'].get('hip_roll_range',.2)):
         raise ValueError('Checkpoint control mapping mismatch')
     blob=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    contract_meta,contract_blob,contract_folder=meta,blob,checkpoint.parent
+    if 'animation_profile_transfer' in meta or 'animation_profile_transfer' in blob:
+        from algorithms.urdf_learn_wasd_walk.landau_animation_profile import check_contract
+        donor,contract_meta,contract_blob=check_contract(meta,blob,contract_folder,backend.digest)
+        contract_folder=donor.parent
+    calibrated_indices=[]
+    if 'fist_calibration' in contract_meta or 'fist_calibration' in contract_blob:
+        from algorithms.urdf_learn_wasd_walk.landau_fist_calibration import check_contract, VERSIONS
+        calibrated_indices=VERSIONS[contract_meta['fist_calibration']['version']][0]
+        donor,contract_meta,contract_blob=check_contract(contract_meta,contract_blob,contract_folder,backend.digest)
+        contract_folder=donor.parent
+    if 'hand_pose_transfer' in contract_meta or 'hand_pose_transfer' in contract_blob:
+        from algorithms.urdf_learn_wasd_walk.landau_hand_transfer import check_contract
+        _,contract_meta,contract_blob=check_contract(contract_meta,contract_blob,contract_folder,backend.digest)
     turn_mode=getattr(args,'turn',False)
     teleop_mode=getattr(args,'teleop',False)
     direction_origin=None
@@ -442,11 +463,11 @@ def evaluate(args):
             from algorithms.urdf_learn_wasd_walk import landau_active_scale as active_scale
         from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as cruise_scale
         check_active_contract=active_scale.check_contract
-        active_scale.check_sources(checkpoint.parent,meta,backend.digest)
+        active_scale.check_sources(checkpoint.parent,contract_meta,backend.digest)
     elif half_cruise:
         from algorithms.urdf_learn_wasd_walk import landau_cruise_scale as cruise_scale
         check_active_contract=cruise_scale.check_contract
-        cruise_scale.check_sources(checkpoint.parent,meta,backend.digest)
+        cruise_scale.check_sources(checkpoint.parent,contract_meta,backend.digest)
     elif meta.get('residual_variant')=='adapted_cruise_frozen_active_v1':
         from algorithms.urdf_learn_wasd_walk.landau_cruise_adaptation import check_contract as check_active_contract
     elif right_calibrated:
@@ -457,7 +478,7 @@ def evaluate(args):
         from algorithms.urdf_learn_wasd_walk.landau_right_rebase import check_contract as check_active_contract
     elif any(key.startswith(('frozen_active_','cruise_initialization_','frozen_dual_')) for key in meta):
         raise ValueError('Unexpected cruise adaptation metadata')
-    active_enabled=check_active_contract(meta,blob,backend.digest)
+    active_enabled=check_active_contract(contract_meta,contract_blob,backend.digest)
     if active_enabled and meta.get('policy_family')!='periodic_feedback_residual_ppo':raise ValueError('Active residual family mismatch')
     if meta.get('policy_family')=='periodic_feedback_residual_ppo':
         from algorithms.urdf_learn_wasd_walk.landau_cruise_residual import load_source
@@ -482,6 +503,7 @@ def evaluate(args):
             # Its strict recursive edge contract has already bound this immediate donor.
             frozen=torch.load(meta['right_controller_donor_checkpoint'],map_location='cpu',weights_only=False)
             fixed=[i for i in range(20) if i not in (7,8,12,13)]
+        fixed=[i for i in fixed if i not in calibrated_indices]
         if not torch.equal(frozen['parameters'],blob['parameters']) or not torch.equal(frozen['turn_parameters'][fixed],blob['turn_parameters'][fixed]):
             raise ValueError('Frozen controller tensors changed')
         standing=frozen['standing_actor_state_dict'];candidate_standing=blob['standing_actor_state_dict']
@@ -545,6 +567,10 @@ def evaluate(args):
     def load_actor(path,model,spec):
         if meta['urdf_sha256']!=spec['source']['urdf_sha256'] or meta['mesh_tree_sha256']!=spec['source']['mesh_tree_sha256']:
             raise ValueError('Evaluation asset mismatch')
+        if diagnostic_hand_pose:
+            initial=backend.initialize(model,spec,pose='geometric')
+            meta.update(nominal_q=initial.qpos.tolist(),nominal_ctrl=initial.ctrl.tolist(),
+                        reference_xy=initial.xpos[model.body('root_x').id,:2].tolist())
         def inference(obs):
             if has_turn:
                 baseline=turn_implementation.commanded_action(gait_implementation,actor.parameters,actor.standing_prior,
@@ -571,7 +597,9 @@ def evaluate(args):
         pose='geometric',gain_scale=1.,noslip_iterations=0,contact_timeconst=.004,assistance=0.,
         checkpoint=str(checkpoint),forward=args.forward,target_distance_m=getattr(args,'target_distance',5.),turn=turn_mode,
         turn_hold_start=turn_implementation.HOLD_START if turn_mode else None,teleop=teleop_mode,direction=direction,
-        direction_navigation=direction_navigation,triangle=triangle,render=False))
+        direction_navigation=direction_navigation,triangle=triangle,render=False,
+        support_profile=meta.get('support_profile','robot_strict_v1'),
+        diagnostic_hand_pose_override=diagnostic_hand_pose))
     if teleop_mode:
         protocol_path=protocol_source if meta.get('memory_version')==2 else Path(teleop_contract.__file__)
         (backend.OUTPUT/args.name/'command_protocol_source.py').write_text(protocol_path.read_text())
@@ -613,19 +641,31 @@ def evaluate(args):
         'checkpoint':str(checkpoint),'checkpoint_sha256':backend.digest(checkpoint),
         'initial_untrained':checkpoint.name=='model_initial.pt','profile':'balanced_hands_v1',
         'policy_composition':meta.get('policy_composition','single transferred MLP'),
-        'action_mapping':meta.get('action_mapping','range_v1'),'canonical_milestone_pass':False})
+        'action_mapping':meta.get('action_mapping','range_v1'),'canonical_milestone_pass':False,
+        'diagnostic_hand_pose_override':diagnostic_hand_pose})
+    if diagnostic_hand_pose:
+        result_path=backend.OUTPUT/args.name/'dynamics.json'
+        result=json.loads(result_path.read_text())
+        result.update(diagnostic_hand_pose_override=diagnostic_hand_pose,
+                      canonical_milestone_pass=False,
+                      certification_blocked='Diagnostic pose differs from checkpoint training; explicit migration and fresh cumulative proof required.')
+        backend.write_json(result_path,result)
     # Every evaluated candidate, including failures, gets its exact replay.
     import subprocess
     import sys
     subprocess.run([sys.executable,'-m','algorithms.urdf_learn_wasd_walk.continuation',
         '--mode','render','--render-directory',str(backend.OUTPUT/args.name)],
         check=True,timeout=max(300.,3.*args.seconds+120.))
+    from algorithms.urdf_learn_wasd_walk.motion_recording import export_motion
+    export_motion(backend.OUTPUT/args.name)
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--name',required=True);p.add_argument('--checkpoint',required=True)
     p.add_argument('--mode',choices=('train','evaluate'),default='train')
+    p.add_argument('--hand-pose-diagnostic',choices=('open','closed_fists_v1'),
+                   help='Uncertifiable transfer diagnostic; never changes the saved checkpoint')
     p.add_argument('--num-envs',type=int,default=512);p.add_argument('--iterations',type=int,default=1000)
     p.add_argument('--forward',type=float,default=.2);p.add_argument('--seconds',type=float,default=30.)
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
@@ -640,6 +680,7 @@ def main():
     p.add_argument('--moving-tilt-weight',type=float,default=2.)
     p.add_argument('--initialization',choices=('transfer','fresh_moving'),default='transfer')
     args=p.parse_args()
+    if args.hand_pose_diagnostic and args.mode!='evaluate':raise ValueError('Hand pose diagnostic is evaluation only')
     if args.triangle and args.mode!='evaluate':raise ValueError('Triangle is evaluation only')
     if args.direction_navigation!='legacy' and (args.mode!='evaluate' or not args.direction):
         raise ValueError('Signed navigation is serial evaluation only; legacy training memory is unchanged')

@@ -10,6 +10,7 @@ import {XRButtonInput} from '/api/artifact?path=algorithms/avp_remote/gui/xr-but
 import {SkinRetargeter} from '/api/artifact?path=algorithms/avp_remote/gui/skin-retarget.js';
 import {HandRig, validateHandPose} from '/api/artifact?path=algorithms/avp_remote/gui/hand-rig.js';
 import {LiveRetargeter} from '/api/artifact?path=algorithms/avp_remote/gui/live-retarget.js';
+import {compressedClip,readClipFile} from '/api/artifact?path=algorithms/avp_remote/gui/motion-codec.js';
 const asset = path => `/api/artifact?path=algorithms/avp_remote/${path}`;
 
 export function mount(root) {
@@ -54,7 +55,7 @@ export function mount(root) {
     <div class="avp-timeline-top"><div><small>MOTION TAKE</small><strong data-clip-name>尚未录制动作</strong></div><span data-clip-meta>进入 Vision Pro 后开始录制 · 最长 60 秒</span>
       <button class="avp-record" data-action="record" disabled><span>●</span> 开始录制</button>
       <select data-takes aria-label="已保存的录制"><option value="">已保存的录制</option></select>
-      <button data-action="sync-takes">同步录制</button><label class="avp-file">导入 JSON<input data-import type="file" accept=".json,application/json" aria-label="导入动作或姿态 JSON"></label><button data-action="export" disabled>导出动作 ↗</button>
+      <button data-action="sync-takes">同步录制</button><label class="avp-file">导入动作<input data-import type="file" accept=".json,.gz,application/json,application/gzip" aria-label="导入动作或姿态 JSON"></label><button data-action="export" disabled>导出压缩动作 ↗</button>
     </div>
     <div class="avp-transport"><button data-action="start" aria-label="回到起点" disabled>⏮</button><button class="avp-play" data-action="play" aria-label="播放动作" disabled>▶</button><output data-play-time>00:00.00</output>
       <div class="avp-scrub"><input data-seek type="range" min="0" max="1" step="0.001" value="0" aria-label="动作播放进度（秒）" disabled><div class="avp-ruler"><span>00:00</span><span data-mid-time>时间轴</span><span data-end-time>00:00</span></div></div>
@@ -183,7 +184,7 @@ export function mount(root) {
   function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   async function loadFile(file){
     if(!file)return;stopLive();const request=++epoch;
-    try{if(file.size>128*1024*1024)throw new Error('文件大小不能超过 128 MiB');const value=JSON.parse(await file.text());
+    try{if(file.size>128*1024*1024)throw new Error('文件大小不能超过 128 MiB');const value=await readClipFile(file);
       if(value.format===FORMAT){const imported=validateClip(value,data.joints,data.source.urdfSha256);if(disposed||request!==epoch)return;clip=imported;cursor=0;seek(0);void persistClip();status('已导入动作：'+file.name);return;}
       if(file.size>1000000)throw new Error('单帧姿态文件不能超过 1 MB');
       if(value.urdfSha256&&value.urdfSha256!==data.source.urdfSha256)throw new Error('Snapshot uses a different URDF; load its tracking data instead.');
@@ -466,7 +467,9 @@ export function mount(root) {
       markerTransform=fromRows(data.trackingTransform);liveSolver=new LiveRetargeter(data);handRig=new HandRig(data.joints);
       for(const [name,vertices] of Object.entries(data.meshes)){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.computeVertexNormals();geometries.set(name,geometry);}
       for(const link of data.links){const group=new THREE.Group();group.matrixAutoUpdate=false;urdf.add(group);visuals.set(link.name,group);for(const v of link.visuals){const mesh=new THREE.Mesh(geometries.get(v.mesh),robotMaterial);mesh.matrixAutoUpdate=false;mesh.matrix.copy(originMatrix(v).multiply(new THREE.Matrix4().makeScale(...v.scale)));group.add(mesh);}}
-      snapshotPose={...data.snapshotPose,...liveSolver.headPose(data.snapshot)};snapshotTracking=data.snapshot;snapshotHands=handRig.solve(snapshotTracking);snapshot();
+      snapshotPose={...data.snapshotPose,...liveSolver.headPose(data.snapshot)};
+      for(const side of ['left','right'])if(data.snapshot?.[side+'_arm'])liveSolver.fingers(liveSolver.arms[side],data.snapshot[side+'_arm'],snapshotPose);
+      snapshotTracking=data.snapshot;snapshotHands=handRig.solve(snapshotTracking);snapshot();
       $('.avp-source').textContent=`${data.source.source||data.source.urdf}\nURDF SHA-256 ${data.source.urdfSha256}\n${data.source.triangles.toLocaleString()} URDF triangles`;
       const headAsset=data.source.meshOverrides?.['landau_v10/head_x.stl'];
       if(headAsset)$('.avp-source').textContent+=`\nHead STL · ${headAsset.triangles} triangles\nSHA-256 ${headAsset.sha256}`;
@@ -625,7 +628,7 @@ export function mount(root) {
     const key=e.target.value;if(!key||recording||savePending)return;
     stopLive();await loadTake(key);
   };
-  function exportClip(){if(recording||!clip?.frames.length)return;download(new Blob([JSON.stringify(clip)],{type:'application/json'}),'landau-motion-'+clip.createdAt.replace(/[:.]/g,'-')+'.json');}
+  async function exportClip(){if(recording||!clip?.frames.length)return;try{const current=clip;download(await compressedClip(current),'landau-motion-'+current.createdAt.replace(/[:.]/g,'-')+'.json.gz');}catch(error){status('导出失败：'+error.message);}}
   function beforeUnload(e){if(recording||savePending||!saved){e.preventDefault();e.returnValue='';}}
   function visibility(){if(document.hidden&&recording)stopRecording();}
   window.addEventListener('beforeunload',beforeUnload);document.addEventListener('visibilitychange',visibility);

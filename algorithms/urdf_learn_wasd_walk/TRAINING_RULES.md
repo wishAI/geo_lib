@@ -1,6 +1,6 @@
 # Landau Milestones — Clean Restart Contract
 
-This file is the only retained behavioral contract from the old locomotion implementation. No milestone is currently passed and no earlier checkpoint or prose claim carries forward.
+This file is the only retained behavioral contract from the old locomotion implementation. Current certification lives in `milestones.json`; checkpoints from before the clean reset do not carry forward.
 
 ## Cumulative Rules
 
@@ -30,3 +30,19 @@ This file is the only retained behavioral contract from the old locomotion imple
 12. `game_10m_no_reset` (`game`): clear 10 m of mixed terrain and obstacles while preserving a walking pose.
 
 `milestones.json` is the machine-readable source for status. It starts with every milestone set to `not_started`.
+
+## Animation physical estimates (2026-11-04)
+
+The user clarified that Landau is a wuxia furry animation character: masses and
+mass distribution may be approximate. New walking experiments may explicitly
+select `animation_approximate_v1`: instantaneous landing peaks are recorded for
+motion review rather than rejected solely for exceeding 3 body weights. Mean
+support, finite physics, falls, resets, joint speed, sliding, flight and full
+visual review remain checked. Historical `robot_strict_v1` proofs retain their
+original meaning. The profile must match checkpoint, evaluation and lineage;
+changing it never retroactively promotes a failed run.
+
+Walking holds both hands in `closed_fists_v1`, outside policy outputs (17 body actions in retained v10; 19 in the authorized anatomical leg variant).
+The hand profile is inherited by subsequent training/evaluation stages. Legacy
+checkpoints keep open hands for faithful replay. New nominal poses require
+fresh cumulative evidence before replacing the historical promoted checkpoint.

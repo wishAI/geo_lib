@@ -10,15 +10,19 @@ export class SkinRetargeter {
     model.updateMatrixWorld(true);
     const inverseRoot=model.matrixWorld.clone().invert(),rest=worldTransforms(joints,{});
     const parents=new Map(joints.map(j=>[j.child,j.parent]));
+    const descendant=(child,ancestor)=>{const seen=new Set();while(parents.has(child)&&!seen.has(child)){seen.add(child);child=parents.get(child);if(child===ancestor)return true;}return false;};
+    const ownerFor=name=>{for(const [part,distal] of [['arm','forearm_stretch'],['thigh','leg_stretch'],['leg','foot']]){
+      if(!name.startsWith(part+'_stretch_'))continue;const side=name.slice(-1),owner=part+'_twist_'+side;
+      if(descendant(owner,name)&&descendant(distal+'_'+side,owner))return owner;
+    }return name;};
+
     this.records=[];this.byBone=new Map();
     model.traverse(bone=>{
       if(!bone.isBone)return;
       bone.matrixAutoUpdate=false;
       if(!rest[bone.name])throw new Error('USD bone absent from URDF: '+bone.name);
       const bind=inverseRoot.clone().multiply(bone.matrixWorld);
-      const twist=bone.name.replace(/^arm_stretch_/, 'arm_twist_');
-      const forearm=bone.name.replace(/^arm_stretch_/, 'forearm_stretch_');
-      const source=twist!==bone.name&&parents.get(twist)===bone.name&&parents.get(forearm)===twist?twist:bone.name;
+      const source=ownerFor(bone.name);
       const record={bone,source,offset:rest[source].clone().invert().multiply(bind),target:new THREE.Matrix4(),
         parentRest:inverseRoot.clone().multiply(bone.parent.matrixWorld)};
       this.records.push(record);this.byBone.set(bone,record);

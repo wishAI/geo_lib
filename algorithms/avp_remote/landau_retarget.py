@@ -470,12 +470,18 @@ class LandauUpperBodyRetargeter:
         if local_positions is None:
             return None
 
-        lateral = local_positions["littleMetacarpal"] - local_positions["indexMetacarpal"]
+        required = ('indexMetacarpal', 'littleMetacarpal', 'indexKnuckle', 'middleKnuckle', 'ringKnuckle')
+        if any(name not in local_positions or not np.all(np.isfinite(local_positions[name])) for name in required):
+            return None
+
+        lateral = local_positions["indexMetacarpal"] - local_positions["littleMetacarpal"]
         forward = (
             local_positions["indexKnuckle"]
             + local_positions["middleKnuckle"]
             + local_positions["ringKnuckle"]
         ) / 3.0
+        if np.linalg.norm(lateral) < 1e-8 or np.linalg.norm(np.cross(lateral, forward)) < 1e-8:
+            return None
         avp_basis = _basis_from_vectors(lateral, forward)
         alignment = self.robot_hand_basis[side] @ avp_basis.T
         return {
@@ -484,7 +490,9 @@ class LandauUpperBodyRetargeter:
         }
 
     def _apply_thumb(self, suffix: str, local_positions: dict[str, np.ndarray], pose_by_name: dict[str, float]) -> None:
-        points = [local_positions[name] for name in FINGER_LAYOUT["thumb"]["avp"]]
+        points = self._valid_finger_points(local_positions, FINGER_LAYOUT['thumb']['avp'])
+        if points is None:
+            return
         base_vec = points[0]
         seg_1 = points[1] - points[0]
         seg_2 = points[2] - points[1]
@@ -495,12 +503,22 @@ class LandauUpperBodyRetargeter:
         thumb3_name = f"thumb3_{suffix}"
 
         oppose = math.atan2(float(base_vec[0]), max(abs(float(base_vec[1])), 1.0e-6))
-        flex_2 = -1.15 * _angle_between(seg_1, seg_2)
-        flex_3 = -1.05 * _angle_between(seg_2, seg_3)
+        flex_sign = 1. if suffix == 'l' else -1.
+        flex_2 = flex_sign * 1.15 * _angle_between(seg_1, seg_2)
+        flex_3 = flex_sign * 1.05 * _angle_between(seg_2, seg_3)
 
         pose_by_name[thumb1_name] = self._mapped_joint_value(thumb1_name, oppose)
         pose_by_name[thumb2_name] = self._mapped_joint_value(thumb2_name, flex_2)
         pose_by_name[thumb3_name] = self._mapped_joint_value(thumb3_name, flex_3)
+
+    @staticmethod
+    def _valid_finger_points(positions, names):
+        if any(name not in positions or not np.all(np.isfinite(positions[name])) for name in names):
+            return None
+        points = [positions[name] for name in names]
+        if any(np.linalg.norm(b - a) < 1e-8 for a, b in zip(points, points[1:])):
+            return None
+        return points
 
     def _apply_finger_chain(
         self,
@@ -512,7 +530,9 @@ class LandauUpperBodyRetargeter:
     ) -> None:
         avp_names = FINGER_LAYOUT[chain_key]["avp"]
         robot_roots = FINGER_LAYOUT[chain_key]["robot"]
-        points = [local_positions[name] for name in avp_names]
+        points = self._valid_finger_points(local_positions, avp_names)
+        if points is None:
+            return
         base_vec = points[1] - points[0]
         seg_1 = points[2] - points[1]
         seg_2 = points[3] - points[2]

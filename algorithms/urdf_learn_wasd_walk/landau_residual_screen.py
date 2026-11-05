@@ -65,11 +65,12 @@ def run(args):
     import torch
     import warp as wp
     from algorithms.urdf_learn_wasd_walk.landau_rsl_control import configure_model
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
     from algorithms.urdf_learn_wasd_walk.landau_forward_control import load_gait_source,make_actor,action_scales
     from algorithms.urdf_learn_wasd_walk.landau_cruise_residual import load_source,CruiseMemory,FAMILY
     from algorithms.urdf_learn_wasd_walk.landau_turn_control import install_physics_audit
     from algorithms.urdf_learn_wasd_walk.landau_direction_training import commands
-    backend,batches,_=configure_model('balanced_hands_v1')
+    backend,batches,_=configure_model('balanced_hands_v1', checkpoint_hand_pose(json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())))
     checkpoint=Path(args.checkpoint).resolve();meta=json.loads((checkpoint.parent/'training.json').read_text())
     if meta['policy_family']!=FAMILY or str(meta.get('status','')).startswith('invalidated_') or meta['checkpoints'][checkpoint.name]!=backend.digest(checkpoint):raise ValueError('Residual checkpoint changed')
     folder=backend.OUTPUT/args.name;folder.mkdir(exist_ok=False)

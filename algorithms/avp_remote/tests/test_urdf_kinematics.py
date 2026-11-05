@@ -96,6 +96,24 @@ class TestSkinMapping(unittest.TestCase):
                     endpoint = delta @ rest[elbow][:, 3]
                     np.testing.assert_allclose(endpoint, worlds[elbow][:, 3], atol=1e-7)
 
+    def test_leg_owners_preserve_off_axis_skin_and_distal_targets(self):
+        folder = MODULE_ROOT / 'inputs/landau_v10'
+        records = landau_pose.load_skeleton_records(folder / 'landau_v10_skeleton.json')
+        specs = urdf_kinematics.load_urdf_joint_specs(folder / 'landau_v10_parallel_mesh.urdf')
+        mapper=landau_pose.UrdfSkinMapper(records,specs)
+        rest=urdf_kinematics.world_map_from_joint_specs(specs)
+        binds=landau_pose.world_matrices_from_local(records,[r.local_matrix for r in records])
+        for angle in (-.4,.4):
+            pose={f'{part}_{side}':value for side in ('l','r') for part,value in
+                  [('thigh_stretch',-.2),('thigh_twist',angle),('leg_stretch',.7),('leg_twist',angle),('foot',-.1),('toes_01',.2)]}
+            worlds=urdf_kinematics.world_map_from_joint_specs(specs,pose,pose_key='child_link')
+            actual=landau_pose.world_matrices_from_local(records,mapper.apply(pose))
+            for r in records:
+                if not r.name.startswith(('thigh_','leg_','foot_','toes_')):continue
+                owner=r.name.replace('thigh_stretch_','thigh_twist_').replace('leg_stretch_','leg_twist_')
+                expected=worlds[owner]@np.linalg.inv(rest[owner])@binds[r.index]
+                np.testing.assert_allclose(actual[r.index],expected,atol=1e-12)
+
 
 if __name__ == "__main__":
     unittest.main()

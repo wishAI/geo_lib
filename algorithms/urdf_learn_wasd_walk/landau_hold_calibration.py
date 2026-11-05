@@ -35,6 +35,33 @@ def nominal_grid(seed):
     return rows
 
 
+def heading_grid(seed, strong=False):
+    """Prospective moving-heading feedback grid, eight shared starts per row."""
+    import torch
+    parameter_grid(seed)
+    rows=seed.repeat(26,1)
+    # Two incumbent controls expose contact-solver variation in the same batch.
+    rows[:2,3]=-.06;rows[:2,17]=1.61
+    gains=(-.12,-.08,-.04,0.,.02,float(seed[2])) if strong else (0.,.01,.02,.03,float(seed[2]),.04)
+    rows[2:,2]=torch.tensor([gain for gain in gains for _ in range(4)],device=seed.device)
+    rows[2:,3]=-.06
+    rows[2:,17]=torch.tensor(([1.55,1.65,1.75,1.85] if strong else [1.45,1.55,1.65,1.75])*6,device=seed.device)
+    return rows
+
+
+def hold_response_grid(seed, fine=False):
+    """Probe stop-feedback sign and gain while preserving the moving controller."""
+    import torch
+    parameter_grid(seed)
+    rows=seed.repeat(26,1)
+    rows[:2,3]=-.06;rows[:2,17]=1.61
+    gains=(0.,.03,.06,.09,.12,.15) if fine else (-1.,-.5,-.25,0.,.25,.5,1.,2.)
+    yaws=(1.6,1.625,1.65,1.675) if fine else (1.6,1.65,1.7)
+    rows[2:,3]=torch.tensor([gain for gain in gains for _ in yaws],device=seed.device)
+    rows[2:,17]=torch.tensor(list(yaws)*len(gains),device=seed.device)
+    return rows
+
+
 def feedback_grid(seed):
     """Small existing roll/rate gain grid with two exact incumbent controls."""
     import torch
@@ -176,12 +203,14 @@ def run(args):
     import torch
     import warp as wp
     from algorithms.urdf_learn_wasd_walk.landau_rsl_control import configure_model
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
     from algorithms.urdf_learn_wasd_walk.landau_forward_control import load_gait_source, make_actor, action_scales
     from algorithms.urdf_learn_wasd_walk.landau_cruise_residual import load_source
     from algorithms.urdf_learn_wasd_walk.landau_right_rebase import check_contract
     from algorithms.urdf_learn_wasd_walk.landau_turn_control import install_physics_audit
     from algorithms.urdf_learn_wasd_walk import landau_teleop_contract as teleop
-    nominal_mode=args.nominal_grid or args.feedback_nominal_grid
+    heading_mode=args.heading_grid or args.strong_heading_grid or args.hold_response_grid
+    nominal_mode=args.nominal_grid or args.feedback_nominal_grid or heading_mode
     mechanism=getattr(args,'feedback_mechanism_diagnostic',False)
     quarter_transition=getattr(args,'quarter_cruise_transition_diagnostic',False)
     cruise_diagnostic=getattr(args,'cruise_scale_diagnostic',False) or getattr(args,'cruise_retention_diagnostic',False) or quarter_transition
@@ -190,7 +219,7 @@ def run(args):
     half_active=triangle_active or backward_active
     active_diagnostic=args.active_scale_diagnostic or half_active
     scale_diagnostic=active_diagnostic or cruise_diagnostic
-    backend,batches,_ = configure_model('balanced_hands_v1')
+    backend,batches,_ = configure_model('balanced_hands_v1', checkpoint_hand_pose(json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())))
     checkpoint = Path(args.checkpoint).resolve()
     meta = json.loads((checkpoint.parent/'training.json').read_text())
     if meta['checkpoints'][checkpoint.name] != backend.digest(checkpoint):raise ValueError('Checkpoint changed')
@@ -220,7 +249,11 @@ def run(args):
         from algorithms.urdf_learn_wasd_walk.landau_right_controller_rebase import check_contract
     elif meta.get('residual_variant')=='yaw_hold_calibrated_dual_residual_v1':
         from algorithms.urdf_learn_wasd_walk.landau_yaw_hold_rebase import check_contract
-    check_contract(meta,blob,backend.digest)
+    contract_meta,contract_blob=meta,blob
+    if 'hand_pose_transfer' in meta:
+        from algorithms.urdf_learn_wasd_walk.landau_hand_transfer import check_contract as check_transfer
+        _,contract_meta,contract_blob=check_transfer(meta,blob,checkpoint.parent,backend.digest)
+    check_contract(contract_meta,contract_blob,backend.digest)
     turn = load_source(checkpoint.parent/'turn_source.py',meta['turn_source_sha256'],'hold_saved_turn')
     if meta['arguments']['turn_duration'] != 44.:raise ValueError('Calibration requires the current44s turn profile')
     turn.configure_profile(meta['arguments']['turn_duration'])
@@ -280,7 +313,7 @@ def run(args):
     (folder/'teleop_source.py').write_bytes(Path(teleop.__file__).read_bytes())
     torch.set_num_threads(4);torch.manual_seed(42)
     grid = (blob['turn_parameters'].repeat(6 if quarter_transition else 3 if cruise_diagnostic else 5,1) if scale_diagnostic else
-            (feedback_grid if args.feedback_grid or args.feedback_nominal_grid else nominal_grid if nominal_mode else parameter_grid)(blob['turn_parameters'])).to('cuda')
+            ((lambda seed:hold_response_grid(seed,args.fine_hold_response)) if args.hold_response_grid else (lambda seed:heading_grid(seed,args.strong_heading_grid)) if heading_mode else feedback_grid if args.feedback_grid or args.feedback_nominal_grid else nominal_grid if nominal_mode else parameter_grid)(blob['turn_parameters'])).to('cuda')
     walking_grid=None
     if mechanism:
         walking_grid,grid=mechanism_grid(blob['parameters'],blob['turn_parameters'])
@@ -291,7 +324,7 @@ def run(args):
     walking = blob['parameters'].to('cuda')
     results = {}
     for mode,states,memory,sources,start,end in prepared:
-        width = 4 if nominal_mode else 2*len(states)
+        width = (8 if heading_mode else 4) if nominal_mode else 2*len(states)
         n = len(grid)*width
         batch = batches.WarpBatch(n,42,0.,'stand','load',.004,.2,.0225)
         if hashlib.sha256(batch.xml.encode()).hexdigest() != meta['model_xml_sha256']:raise ValueError('Calibration model changed')
@@ -329,6 +362,7 @@ def run(args):
         live = torch.ones(n,dtype=torch.bool,device='cuda')
         bits = torch.zeros(n,dtype=torch.int,device='cuda')
         peak = torch.zeros(n,device='cuda')
+        saturated_controls = torch.zeros(n,device='cuda')
         foot_peak = torch.zeros((n,2),device='cuda')
         first_failure = torch.full((n,),float('nan'),device='cuda')
         hold_error = torch.zeros(n,device='cuda');hold_drift = torch.zeros_like(hold_error)
@@ -341,7 +375,7 @@ def run(args):
         end_heading = torch.zeros(n,device='cuda')
         origin = batch.pos[:,batch.pelvis,:2].clone()
         terminal_xy = origin.clone()
-        hold_origins = {};hold_headings = {}
+        hold_origins = {};hold_headings = {};heading_snapshots = {}
         durations = torch.zeros(n,device='cuda')
         last_xy = batch.pos[:,batch.pelvis,:2].clone()
         for step in range(round((end-start)/.02)):
@@ -373,7 +407,9 @@ def run(args):
                 complete = active.apply(active_actor,action,obs,walking,memory,names,residual)
                 if zero_active:complete=active_scale.apply(action,complete)
                 if quarter_active:complete=scale_active(action,active_scale.apply(action,complete),active_factors)
-                action = (scale_active(action,complete,scales) if active_diagnostic else complete).clamp(-limits,limits)
+                unclipped = scale_active(action,complete,scales) if active_diagnostic else complete
+                saturated_controls += ((unclipped.abs()>limits).any(1)&live).float()
+                action = unclipped.clamp(-limits,limits)
             heading = torch.atan2(rot[:,1,0],rot[:,0,0])
             before_heading = heading.clone()
             for a,b in holds:
@@ -399,8 +435,13 @@ def run(args):
                 body_progress += torch.where(live,-before_heading.sin()*delta[:,0]+before_heading.cos()*delta[:,1],0.)
                 terminal_xy = torch.where(live[:,None],xy,terminal_xy)
                 end_heading = torch.where(live,heading,end_heading)
+            if heading_mode:
+                terminal_xy=torch.where(live[:,None],xy,terminal_xy)
+                end_heading=torch.where(live,heading,end_heading)
+                if any(abs(age+.02-t)<1e-8 for t in (47.,49.,51.,56.)):
+                    heading_snapshots[str(round(age+.02))]=heading.clone()
             tilt = batch.rot[:,batch.base,2,2].clamp(-1,1).acos()
-            if mechanism:
+            if mechanism or heading_mode:
                 roll=torch.atan2(batch.rot[:,batch.base,2,0],batch.rot[:,batch.base,2,2]).abs()
                 reference=memory.reference+float(command[2])*.02
                 gap=torch.atan2((heading-reference).sin(),(heading-reference).cos()).abs()
@@ -410,7 +451,8 @@ def run(args):
                 _,slip,_,_=batch.feet(with_forces=True)
                 slip_total+=torch.where(live,slip,0.)*.02
             failure = (tilt>math.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()
-            failure += 4*(audit['speed']>4.+1e-6).int()+8*(audit['force']>3.*weight).int()
+            failure += 4*(audit['speed']>4.+1e-6).int()
+            if not args.animation_support:failure += 8*(audit['force']>3.*weight).int()
             failure += 16*(audit['nonfoot']!=0).int()+32*(audit['flight']>60).int()
             failure += 64*(~torch.isfinite(batch.q).all(1)|~torch.isfinite(batch.v).all(1)).int()
             peak = torch.maximum(peak,torch.where(live,audit['force']/weight,0.))
@@ -441,14 +483,16 @@ def run(args):
         eligible = (air_fraction<=.05)&(bits==0)&(hold_error<=math.pi/36)&(hold_drift<=.03)&(hold_speed<=.05)&(hold_yaw_speed<=.1)
         result_key = mode+'_'+str(start) if mode in ('active','cruise_attribution','cruise_retention','triangle_active','backward_active','quarter_cruise_transition','feedback_mechanism') else mode
         results[result_key] = dict(sources=sources,start_s=start,end_s=end,
-            candidate_records=[dict(index=i,gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),
+            candidate_records=[dict(index=i,heading_feedback_delta=float(grid[i,2]),
+                heading_snapshots_rad={t:values[i*width:(i+1)*width].tolist() for t,values in heading_snapshots.items()},gain=float(grid[i,3]),left_yaw_scale=float(grid[i,17]),
                 active_scale=float(scales[i*width]) if active_diagnostic else .25*float(active_factors[i*width]) if quarter_active else 0. if zero_active else 1.,
                 cruise_scale=float(scales[i*width])*(.5 if quarter_active else 1.) if cruise_diagnostic else .5 if half_cruise or zero_active else 1.,
                 first_failure_control_time_s=[v if math.isfinite(v) else None for v in first_failure[i*width:(i+1)*width].tolist()],
-                max_tilt_rad=max_tilt[i*width:(i+1)*width].tolist() if mechanism else None,
-                max_roll_rad=max_roll[i*width:(i+1)*width].tolist() if mechanism else None,
-                max_reference_heading_gap_rad=max_gap[i*width:(i+1)*width].tolist() if mechanism else None,
-                mean_contact_slip_mps=(slip_total/durations.clamp_min(.02))[i*width:(i+1)*width].tolist() if mechanism else None,
+                max_tilt_rad=max_tilt[i*width:(i+1)*width].tolist() if mechanism or heading_mode else None,
+                max_roll_rad=max_roll[i*width:(i+1)*width].tolist() if mechanism or heading_mode else None,
+                max_reference_heading_gap_rad=max_gap[i*width:(i+1)*width].tolist() if mechanism or heading_mode else None,
+                mean_contact_slip_mps=(slip_total/durations.clamp_min(.02))[i*width:(i+1)*width].tolist() if mechanism or heading_mode else None,
+                saturated_control_fraction=(saturated_controls*.02/durations.clamp_min(.02))[i*width:(i+1)*width].tolist(),
                 per_foot_peak_bw=foot_peak[i*width:(i+1)*width].tolist(),
                 max_heading_deviation_rad=max_heading_deviation[i*width:(i+1)*width].tolist(),
                 body_forward_progress_m=body_progress[i*width:(i+1)*width].tolist(),
@@ -459,7 +503,8 @@ def run(args):
                 hold_speed_mps=hold_speed[i*width:(i+1)*width].tolist(),hold_yaw_speed_rad_s=hold_yaw_speed[i*width:(i+1)*width].tolist(),duration_s=durations[i*width:(i+1)*width].tolist())
                 for i in range(len(grid))])
         del batch,audit
-    backend.write_json(folder/'screen.json',dict(kind='recorded_state_feedback_mechanism_diagnostic' if mechanism else 'recorded_state_quarter_cruise_transition_attribution' if quarter_transition else 'recorded_state_half_backward_active_scale_attribution' if backward_active else 'recorded_state_triangle_active_scale_attribution' if triangle_active else 'recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
+    backend.write_json(folder/'screen.json',dict(kind='nominal_common_start_hold_response_calibration' if args.hold_response_grid else 'nominal_common_start_strong_heading_calibration' if args.strong_heading_grid else 'nominal_common_start_heading_calibration' if args.heading_grid else 'recorded_state_feedback_mechanism_diagnostic' if mechanism else 'recorded_state_quarter_cruise_transition_attribution' if quarter_transition else 'recorded_state_half_backward_active_scale_attribution' if backward_active else 'recorded_state_triangle_active_scale_attribution' if triangle_active else 'recorded_state_cruise_retention' if getattr(args,'cruise_retention_diagnostic',False) else 'recorded_state_cruise_scale_attribution' if cruise_diagnostic else 'nominal_common_start_feedback_calibration' if args.feedback_nominal_grid else 'recorded_state_feedback_calibration' if args.feedback_grid else 'recorded_state_active_scale_attribution' if args.active_scale_diagnostic else 'nominal_common_start_yaw_hold_calibration' if nominal_mode else 'paired_recorded_state_hold_calibration',canonical_milestone_pass=False,
+        support_profile='animation_approximate_v1' if args.animation_support else 'robot_strict_v1',
         checkpoint=str(checkpoint),checkpoint_sha256=backend.digest(checkpoint),training_sha256=backend.digest(checkpoint.parent/'training.json'),
         source_sha256=backend.digest(__file__),turn_source_sha256=meta['turn_source_sha256'],
         frozen_cruise_output_scale=None if quarter_active else .5 if half_cruise or zero_active else 1.,
@@ -473,8 +518,8 @@ def run(args):
         common_start_source_sha256=backend.digest(folder/'direction_training_source.py') if nominal_mode else None,
         candidate_walking_parameters=walking_grid.cpu().tolist() if mechanism else None,
         changed_walking_indices=[7,8] if mechanism else [],
-        candidate_parameters=grid.cpu().tolist(),changed_indices=[14] if mechanism else [18,19] if args.feedback_grid or args.feedback_nominal_grid else [] if scale_diagnostic else [3,17] if nominal_mode else [3],results=results,
-        screen_criteria=('Diagnostic comparison of forces, tilt, roll, heading gap, slip and progress; no checkpoint export or qualification.' if mechanism else 'Physical survival and force margin across late, healthy renewed-turn and early-turn windows; independent nominal proofs required.' if args.feedback_grid else 'Physical survival/forces only; residual-scale attribution is not training or qualification.' if scale_diagnostic else
+        candidate_parameters=grid.cpu().tolist(),changed_indices=[3,17] if args.hold_response_grid else [2,3,17] if heading_mode else [14] if mechanism else [18,19] if args.feedback_grid or args.feedback_nominal_grid else [] if scale_diagnostic else [3,17] if nominal_mode else [3],results=results,
+        screen_criteria=('Animation heading screen: peak force diagnostic only; survival, joint speed, contacts, flight and hold guards remain. Independent nominal proofs required.' if args.animation_support else 'Diagnostic comparison of forces, tilt, roll, heading gap, slip and progress; no checkpoint export or qualification.' if mechanism else 'Physical survival and force margin across late, healthy renewed-turn and early-turn windows; independent nominal proofs required.' if args.feedback_grid else 'Physical survival/forces only; residual-scale attribution is not training or qualification.' if scale_diagnostic else
             'Physical survival, force, joint speed, contacts, flight and hold metrics only; M6 block response/qualified swings still require nominal validation.'),
         limitations=('Diagnostic-only restored states after earlier source force failure; clean10s lead-in; source violations retained; NO export/qualification. ' if args.cruise_scale_diagnostic else '')+('Recorded pre-action states and full command memory; cleared solver warmstart; recorded joystick replay, not nominal navigation or acceptance. ' if mechanism or scale_diagnostic or args.feedback_grid else 'Common nominal/perturbed starts with simultaneous batched duplicate controls; no independent serial proof. ' if nominal_mode else 'Cleared solver warmstart; correlated states and batched copies, not exact continuation or nominal acceptance. M6 prefix before18s is not simulated. ')+'Hold and mechanism metrics sampled20ms; physical force/speed/contact guards sampled2ms; no landing-velocity attribution.'))
     print(json.dumps({mode:[sum(r['eligible']) for r in result['candidate_records']] for mode,result in results.items()}),flush=True)
@@ -484,6 +529,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name',required=True);parser.add_argument('--checkpoint',required=True)
     parser.add_argument('--nominal-grid',action='store_true')
+    parser.add_argument('--heading-grid',action='store_true')
+    parser.add_argument('--strong-heading-grid',action='store_true')
+    parser.add_argument('--hold-response-grid',action='store_true')
+    parser.add_argument('--fine-hold-response',action='store_true')
+    parser.add_argument('--animation-support',action='store_true',help='Record peak support without rejecting it; other guards remain')
     parser.add_argument('--active-scale-diagnostic',action='store_true')
     parser.add_argument('--triangle-active-scale-diagnostic',action='store_true')
     parser.add_argument('--triangle-repeat-directory')
@@ -502,7 +552,7 @@ def main():
     parser.add_argument('--m5-directory',action='append',default=[])
     parser.add_argument('--m6-directory',action='append',default=[])
     args = parser.parse_args()
-    if sum((args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic,args.triangle_active_scale_diagnostic,args.half_backward_active_scale_diagnostic,args.quarter_cruise_transition_diagnostic,args.feedback_mechanism_diagnostic))>1:
+    if sum((args.hold_response_grid,args.strong_heading_grid,args.heading_grid,args.nominal_grid,args.feedback_grid,args.active_scale_diagnostic,args.feedback_nominal_grid,args.cruise_scale_diagnostic,args.cruise_retention_diagnostic,args.triangle_active_scale_diagnostic,args.half_backward_active_scale_diagnostic,args.quarter_cruise_transition_diagnostic,args.feedback_mechanism_diagnostic))>1:
         raise ValueError('Choose exactly one calibration mode')
     if (args.backward_repeat_directory or args.backward_third_directory) and not args.half_backward_active_scale_diagnostic:
         raise ValueError('Backward repeat directory requires half backward active attribution')
@@ -528,10 +578,12 @@ def main():
         if (args.active_scale_diagnostic and args.feedback_grid) or args.nominal_grid or not args.backward_directory or args.m5_directory or args.m6_directory:
             raise ValueError('Recorded-state modes require exactly one mode and one backward directory')
     elif args.backward_directory:raise ValueError('Backward directory requires a recorded-state mode')
-    elif args.nominal_grid or args.feedback_nominal_grid:
+    elif args.nominal_grid or args.feedback_nominal_grid or args.heading_grid or args.strong_heading_grid or args.hold_response_grid:
         if args.m5_directory or args.m6_directory:raise ValueError('Nominal grid cannot use warm starts')
     elif len(args.m5_directory)!=2 or len(args.m6_directory)!=2:
         raise ValueError('Require paired passing and failed M5/M6 states')
+    if args.fine_hold_response and not args.hold_response_grid:raise ValueError('Fine hold response requires hold-response-grid')
+    if args.animation_support and not (args.heading_grid or args.strong_heading_grid or args.hold_response_grid):raise ValueError('Animation support is explicit for the new heading grid only')
     run(args)
 
 

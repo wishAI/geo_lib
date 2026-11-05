@@ -360,7 +360,7 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                       "meshTreeSha256": record.get("audit", {}).get("source", {}).get("mesh_tree_sha256"),
                       "artifacts": media + [_artifact(path, node_id)],
                       "evidenceNote": "No video recorded for this attempt; the numeric trace is retained." if not media else None})
-    for path in sorted(path for pattern in ("resume_*/dynamics.json", "rsl_transfer_*/dynamics.json", "matched9_cumulative*/dynamics.json", "m7_*/dynamics.json")
+    for path in sorted(path for pattern in ("resume_*/dynamics.json", "rsl_transfer_*/dynamics.json", "matched9_cumulative*/dynamics.json", "m7_*/dynamics.json", "m8_*/dynamics.json", "fists_*/dynamics.json")
                        for path in (runtime / "mujoco").glob(pattern)):
         record = _read_json(path)
         if not record:
@@ -414,7 +414,7 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                                 (failure_summary if record.get("failures") else "Dynamics passed; certification and visual review are required.") + (" " + review["observations"] if review else ""),
                       "metrics": {k: v for k, v in metrics.items() if k in ("duration_s", "horizontal_drift_m", "fall_count", "reset_count", "minimum_support_polygon_margin_m", "semantic_forward_displacement_m", "direction_progress_m", "gate_crossing_time_s", "direction_cross_track_m", "average_gate_speed_mps", "peak_support_body_weight_ratio", "left_completed_swings", "right_completed_swings", "mean_contact_foot_slip_mps", "final_heading_rad", "hold_max_heading_error_rad", "hold_max_drift_m", "hold_duration_s", "teleop_blocks_completed", "teleop_left_turn_rad", "teleop_right_turn_rad")},
                       "startedAt": record.get("created_at", ""), "artifacts": artifacts})
-    for path in sorted(path for pattern in ("resume_*/training.json", "rsl_transfer_*/training.json", "m7_*/training.json")
+    for path in sorted(path for pattern in ("resume_*/training.json", "rsl_transfer_*/training.json", "m7_*/training.json", "m8_*/training.json", "fists_*/training.json")
                        for path in (runtime / "mujoco/training").glob(pattern)):
         record = _read_json(path)
         if not record:
@@ -430,7 +430,8 @@ def _backend_evolution(output_root: Path) -> tuple[list[dict], dict | None]:
                       "parentCheckpointSha256": record.get("parent_checkpoint_sha256"),
                       "metrics": {k: v for k, v in record.get("metrics", {}).items() if k in ("iteration", "recent_30s_success_rate", "approximate_kl", "generation", "forward_m", "survival_s", "completed_swings", "peak_clearance_m", "eligible", "eligible_candidate_count", "max_joint_speed_rad_s", "peak_support_body_weight_ratio")},
                       "artifacts": [_artifact(path, node_id)]})
-    for path in sorted((runtime / "mujoco/training").glob("rsl_transfer_*/metadata.json")):
+    for path in sorted(path for pattern in ("rsl_transfer_*/metadata.json", "fists_*/metadata.json")
+                       for path in (runtime / "mujoco/training").glob(pattern)):
         if (path.parent / "training.json").exists():
             continue
         record = _read_json(path)
@@ -1164,6 +1165,7 @@ def build_evolution(
                           "result": "Certified with matching proof video" if passed else "Training; gate not yet passed",
                           "metrics": record.get("metrics", {}),
                           "checkpointPath": (record.get("checkpoint") or {}).get("path"),
+                          "checkpointSha256": (record.get("checkpoint") or {}).get("sha256"),
                           "meshTreeSha256": ledger.get("assetContract", {}).get("meshTreeSha256")})
             previous = node_id
     child_count = {item["id"]: 0 for item in nodes}
@@ -1245,8 +1247,184 @@ def build_evolution(
     }
 
 
+def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path: Path = MILESTONES_PATH) -> dict:
+    """Join model identities and exact run media without inventing certification."""
+    ledger = _read_json(ledger_path) or {}
+    manifest = _read_json(ALGORITHM_ROOT / "gui/manifest.json") or {}
+    models = {}
+    for candidate in manifest.get("viewer", {}).get("urdfCandidates", []):
+        path = REPO_ROOT / candidate["path"]
+        if not path.is_file():
+            continue
+        sha = _digest(path)
+        variant = _read_json(path.parent / "variant.json") or {}
+        models[sha] = {"id": sha, "label": candidate["label"], "urdfPath": candidate["path"],
+                       "massKg": variant.get("mass_kg"), "massGroupsKg": variant.get("mass_groups_kg", {}),
+                       "milestones": [], "actionJoints": []}
+    ledgers = [*sorted((output_root / "milestone_lineages").glob("*/milestones.json")), ledger_path]
+    lineage_models = {}
+    archived_nodes = []
+    for path in ledgers:
+        record = _read_json(path) or {}
+        asset = record.get("assetContract", {})
+        sha = asset.get("urdfSha256")
+        if sha not in models:
+            continue
+        lineage_models[record.get("lineage")] = sha
+        # Keep certificates specific to a physics lineage, even for shared URDFs.
+        models[sha]["milestones"] = _milestone_summaries(record)
+        models[sha]["lineage"] = record.get("lineage")
+        if path != ledger_path:
+            previous = None
+            for gate in record.get("milestones", []):
+                if gate.get("status") != "passed":
+                    continue
+                node_id = "certificate:" + str(record.get("lineage")) + ":" + gate["id"]
+                artifacts = []
+                for item in gate.get("evidence", []):
+                    evidence_path = REPO_ROOT / item["path"]
+                    if evidence_path.suffix not in {".json", ".mp4", ".png"} or not evidence_path.is_file():
+                        continue
+                    if item.get("sha256") != _digest(evidence_path):
+                        continue
+                    artifacts.append({**_artifact(evidence_path, node_id), "kind": {".mp4": "video", ".png": "image"}.get(evidence_path.suffix, "json")})
+                checkpoint = gate.get("checkpoint") or {}
+                archived_nodes.append({"id": node_id, "parentIds": [previous] if previous else [],
+                    "kind": "milestone", "milestoneId": gate["id"], "lineage": record.get("lineage"),
+                    "label": "M" + str(gate["order"]) + " · " + MILESTONE_LABELS.get(gate["id"], gate["id"]),
+                    "status": "completed", "result": "Archived certificate; applies only to this physics lineage",
+                    "startedAt": gate.get("passedAt"), "checkpointPath": checkpoint.get("path"),
+                    "checkpointSha256": checkpoint.get("sha256"), "metrics": gate.get("metrics", {}), "artifacts": artifacts})
+                previous = node_id
+        models[sha]["massKg"] = asset.get("massVariant", {}).get("mass_kg", models[sha]["massKg"])
+        models[sha]["massGroupsKg"] = asset.get("massVariant", {}).get("mass_groups_kg", models[sha]["massGroupsKg"])
+    nodes = payload["nodes"]
+    nodes.extend(archived_nodes)
+    represented = {a["path"] for n in nodes for a in n.get("artifacts", [])}
+    runtime = output_root / "tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco"
+    sources = [*runtime.glob("training/anatomical*/training.json"), *runtime.glob("anatomical*/dynamics.json"),
+               *output_root.glob("support_transition_*/dynamics.json")]
+    for path in sorted(sources):
+        if _relative(path) in represented:
+            continue
+        record = _read_json(path) or {}
+        node_id = "run:" + path.parent.name
+        nodes.append({"id": node_id, "parentIds": [], "label": _run_label(path.parent.name),
+                      "kind": "checkpoint" if path.name == "training.json" else "experiment",
+                      "status": "failed" if record.get("failures") or record.get("status") in {"failed", "interrupted_after_checkpoint"} else "completed",
+                      "milestoneId": record.get("milestone"), "startedAt": record.get("created_at"),
+                      "result": "; ".join(map(str, record.get("failures", [])[:3])) or "Recorded run; certification requires cumulative evidence",
+                      "metrics": _metrics(record), "artifacts": [_artifact(path, node_id)] + _proof_artifacts(path.parent, node_id, record)})
+    for node in nodes:
+        certificate = {key: node.get(key) for key in ("checkpointPath", "checkpointSha256", "milestoneId", "parentIds")} if node.get("kind") == "milestone" else None
+        records = []
+        for artifact in list(node.get("artifacts", [])):
+            path = REPO_ROOT / artifact["path"]
+            if path.name in {"training.json", "metadata.json", "dynamics.json", "validation.json", "result.json"}:
+                record = _read_json(path)
+                if record:
+                    records.append((path, record))
+        sha = lineage_models.get(node.get("lineage"))
+        if node.get("kind") == "milestone" and node.get("lineage") == ledger.get("lineage"):
+            sha = ledger.get("assetContract", {}).get("urdfSha256")
+        for path, record in records:
+            identity = record.get("identity") or {}
+            config = record.get("config") or record.get("arguments") or {}
+            sha = record.get("urdf_sha256") or identity.get("urdf_sha256") or sha
+            checkpoints = record.get("checkpoints") or {}
+            checkpoint_name = max(checkpoints, key=lambda name: int(re.search(r"(\d+)", name).group(1)) if re.search(r"(\d+)", name) else -1) if isinstance(checkpoints, dict) and checkpoints else None
+            # Training arguments identify the input parent, never the produced model.
+            cp = str(path.parent / checkpoint_name) if checkpoint_name else record.get("checkpoint") or (config.get("checkpoint") if path.name != "training.json" else None)
+            if isinstance(cp, dict):
+                cp = cp.get("path")
+            if isinstance(cp, str):
+                node["checkpointPath"] = cp
+            node["checkpointSha256"] = checkpoints[checkpoint_name] if checkpoint_name else record.get("checkpoint_sha256") or config.get("checkpoint_sha256") or node.get("checkpointSha256")
+            node["parentCheckpointSha256"] = record.get("parent_checkpoint_sha256") or node.get("parentCheckpointSha256")
+            node["milestoneId"] = record.get("milestone") or node.get("milestoneId")
+            if not node.get("milestoneId") and path.name == "training.json":
+                distance = config.get("target_distance") or config.get("target_distance_m")
+                node["milestoneId"] = {5: "gate_5m_no_reset", 10: "gate_10m_no_reset"}.get(distance)
+            node["bodySettings"] = {k: v for k, v in {
+                "mass profile": config.get("model_profile") or config.get("profile") or (record.get("mass_variant") or {}).get("profile"),
+                "hands": record.get("hand_pose") or config.get("hand_pose"),
+                "support": record.get("support_profile") or config.get("support_profile"),
+                "assistance": config.get("assistance"), "action scale": record.get("action_scale"),
+                "physics model SHA": identity.get("model_xml_sha256") or record.get("model_xml_sha256"),
+            }.items() if v is not None}
+            actions = record.get("action_joints")
+            if not actions and isinstance(cp, str):
+                training = _read_json((REPO_ROOT / cp).parent / "training.json") or {}
+                actions = training.get("action_joints")
+                sha = sha or training.get("urdf_sha256")
+            if actions:
+                node["actionJoints"] = actions
+            motion_path = path.parent / "motion.json"
+            motion = _read_json(motion_path)
+            if motion and motion.get("source", {}).get("urdfSha256") == sha and (
+                    motion.get("source", {}).get("trajectorySha256") == record.get("trajectory_sha256")):
+                scene = output_root / "playback" / "scene.json.gz"
+                for model_scene in (output_root / "playback").glob("*/scene.json.gz"):
+                    import gzip
+                    try:
+                        if json.loads(gzip.decompress(model_scene.read_bytes())).get("source", {}).get("urdfSha256") == sha:
+                            scene = model_scene
+                            break
+                    except (OSError, ValueError):
+                        continue
+                node["playback"] = {"motionPath": _relative(motion_path), "scenePath": _relative(scene),
+                                    "usdPath": manifest.get("motionViewer", {}).get("usdPath")}
+                for media in (motion_path, motion_path.with_name("motion.bin.gz")):
+                    node["artifacts"].append({**_artifact(media, node["id"]), "kind": "motion" if media.suffix == ".json" else "binary"})
+        if certificate:
+            node.update(certificate)
+            if node.get("milestoneId") == "stand_zero_signal_30s_no_reset":
+                node["actionJoints"] = []
+        node["modelId"] = sha if sha in models else "unidentified:" + str(node.get("model") or node.get("lineage") or "legacy")
+        if sha in models:
+            node["urdfPath"] = models[sha]["urdfPath"]
+            node["modelLabel"] = models[sha]["label"]
+            if node.get("actionJoints"):
+                models[sha]["actionJoints"] = node["actionJoints"]
+        cp = node.get("checkpointPath")
+        if isinstance(cp, str) and (REPO_ROOT / cp).is_file():
+            node["diskBytes"] = (REPO_ROOT / cp).stat().st_size
+        if node["modelId"] not in models:
+            models[node["modelId"]] = {"id": node["modelId"], "label": str(node.get("model") or node.get("lineage") or "Unidentified legacy model"), "milestones": []}
+    for node in nodes:
+        for key in ("checkpointSha256", "parentCheckpointSha256"):
+            if isinstance(node.get(key), dict):
+                node[key] = node[key].get("sha256")
+    checkpoint_nodes = {n.get("checkpointSha256"): n["id"] for n in nodes if n.get("checkpointSha256") and n.get("kind") == "milestone"}
+    checkpoint_nodes.update({n.get("checkpointSha256"): n["id"] for n in nodes if n.get("checkpointSha256") and n.get("kind") == "checkpoint"})
+    for node in nodes:
+        parent = checkpoint_nodes.get(node.get("parentCheckpointSha256"))
+        if node.get("kind") not in {"checkpoint", "milestone"}:
+            parent = checkpoint_nodes.get(node.get("checkpointSha256")) or parent
+        if parent and parent != node["id"]:
+            node["parentIds"] = [parent]
+    for node in nodes:
+        if node.get("kind") == "checkpoint" and not node.get("milestoneId"):
+            gates = {child["milestoneId"] for child in nodes if node["id"] in child.get("parentIds", []) and child.get("milestoneId")}
+            if len(gates) == 1:
+                node["milestoneId"] = gates.pop()
+    active_model = ledger.get("assetContract", {}).get("urdfSha256")
+    payload["models"] = list(models.values())
+    payload["activeModelId"] = active_model
+    current_evidence = ledger.get("sessionStatus", {}).get("currentExperiment", {}).get("evidence")
+    current = next((n for n in nodes if any(a["path"] == current_evidence for a in n.get("artifacts", []))), None)
+    if current:
+        payload["currentNodeId"] = current["id"]
+    payload["summary"]["nodeCount"] = len(nodes)
+    # Count each local checkpoint once, even when several evaluations reference it.
+    sizes = {str((REPO_ROOT / n["checkpointPath"]).resolve()): n.get("diskBytes", 0) for n in nodes if isinstance(n.get("checkpointPath"), str)}
+    payload["summary"]["checkpointBytes"] = sum(sizes.values())
+    payload["summary"]["checkpointStorage"] = "Unique recorded checkpoint paths; sizes shown where locally available"
+    return payload
+
+
 def write_evolution(path: Path = DEFAULT_OUTPUT) -> dict:
-    payload = build_evolution()
+    payload = enrich_workspace(build_evolution())
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
     temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

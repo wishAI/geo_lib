@@ -765,7 +765,8 @@ def _build_spec(args: argparse.Namespace, extra_args: list[str]) -> LaunchSpec:
             return LaunchSpec(
                 "direct",
                 [sys.executable, "algorithms/urdf_learn_wasd_walk/evolution.py", *extra_args],
-                success_artifact=REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk" / "outputs" / "evolution.json",
+                # evolution.py replaces the snapshot atomically; keep the previous
+                # tree available while it rebuilds instead of falling back to cloud history.
             )
         if args.walk_cmd == "inspect":
             return LaunchSpec(

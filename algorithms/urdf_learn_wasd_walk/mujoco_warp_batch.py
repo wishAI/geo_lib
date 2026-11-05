@@ -85,7 +85,7 @@ class WarpBatch:
         self.reference_xy=torch.tensor(template.xpos[self.pelvis,:2],device='cuda',dtype=torch.float32)
         self.reference_height=float(template.xpos[self.pelvis,2])
         self.reference_quat=torch.tensor(template.xquat[self.pelvis],device='cuda',dtype=torch.float32)
-        self.previous=torch.zeros((n,17),device='cuda'); self.episode_steps=torch.zeros(n,device='cuda',dtype=torch.long)
+        self.previous=torch.zeros((n,len(self.jids)),device='cuda'); self.episode_steps=torch.zeros(n,device='cuda',dtype=torch.long)
         self.air_steps=torch.zeros((n,2),device='cuda',dtype=torch.long)
         self.touched=torch.zeros((n,2),device='cuda',dtype=torch.bool)
         self.total_liftoffs=torch.zeros(2,device='cuda',dtype=torch.long)
@@ -113,7 +113,7 @@ class WarpBatch:
         wp.to_torch(self.wd.time)[mask]=0
         self.wrench[mask]=0; wp.to_torch(self.wd.qfrc_applied)[mask]=0
         noise=torch.zeros((count,self.model.nq),device='cuda')
-        noise[:,self.jq]=torch.rand((count,17),device='cuda')*.004-.002
+        noise[:,self.jq]=torch.rand((count,len(self.jids)),device='cuda')*.004-.002
         self.q[mask]+=noise
         low=torch.tensor(self.model.jnt_range[self.jids,0],device='cuda',dtype=torch.float32)
         high=torch.tensor(self.model.jnt_range[self.jids,1],device='cuda',dtype=torch.float32)

@@ -34,14 +34,11 @@
 
     async load(urdfUrl, jointNames, jointValues) {
       this.onStatus('Loading robot URDF');
-      let response = await fetch(urdfUrl, { cache: 'no-store' });
-      if (!response.ok && [404, 502, 503].includes(response.status) && !this.destroyed) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        response = await fetch(urdfUrl, { cache: 'no-store' });
-      }
-      const payload = await response.json();
+      const payload = window.GeoAssets
+        ? await window.GeoAssets.json(urdfUrl)
+        : await fetch(urdfUrl).then(response=>{if(!response.ok)throw new Error('URDF unavailable');return response.json();});
       if (this.destroyed) return null;
-      if (!response.ok || payload.error) throw new Error(payload.error || response.statusText);
+      if (payload.error) throw new Error(payload.error);
       this.model = parseUrdf(payload.urdf);
       this.armJointNames = Array.from(jointNames || []);
       const values = Array.from(jointValues || []);
@@ -82,6 +79,36 @@
       jointNames.forEach((name, index) => { this.model.jointValues[name] = jointValues[index]; });
       this.updateLinkWorlds();
       if (redraw) this.draw();
+    }
+
+    selectJoint(name) {
+      this.selectedJoint = name;
+      this.highlightedLinks = new Set();
+      const child = this.model?.joints.find(joint => joint.name === name)?.child;
+      const pending = child ? [child] : [];
+      while (pending.length) {
+        const link = pending.pop();
+        if (this.highlightedLinks.has(link)) continue;
+        this.highlightedLinks.add(link);
+        for (const joint of this.model.childrenByParent[link] || []) pending.push(joint.child);
+      }
+      this.draw();
+    }
+
+    jointFrame(name) {
+      const j=this.model?.joints.find(j=>j.name===name);if(!j)return null;
+      const frame=matMul(this.model.linkWorld[j.parent],j.origin),pivot=transformPoint(frame,[0,0,0]);
+      const worldAxis=norm(sub(transformPoint(frame,j.axis),pivot));
+      return {...j,pivot,worldAxis};
+    }
+
+    drawInspection(){
+      if(!this.showInspection||!this.model)return;
+      for(const j of this.model.joints){if(j.type==='fixed')continue;const f=this.jointFrame(j.name),selected=j.name===this.selectedJoint;
+        const color = this.trainingJoints ? (this.trainingJoints.has(j.name) ? '#0d9c9b' : '#9aa6ae') : '#f8a72b';
+        this.point(f.pivot,selected?6:this.trainingJoints?.has(j.name)?5:2.8,selected?'#de44e8':color);
+        if(selected){const end=f.pivot.map((v,i)=>v+f.worldAxis[i]*.13);this.line(f.pivot,end,'#c72dd6',3);this.point(end,3,'#c72dd6');}
+      }
     }
 
     setOverlay({ boundsPoints, draw, refit = false }) {
@@ -147,12 +174,14 @@
       for (const link of Object.values(this.model.links)) {
         for (const visual of link.visuals) visuals.push(visual);
       }
-      let nextVisual = 0;
+      let nextVisual = 0, completedVisuals = 0;
       const worker = async () => {
         while (!this.destroyed && nextVisual < visuals.length) {
           const visual = visuals[nextVisual];
           nextVisual += 1;
           await this.loadVisualMesh(visual);
+          completedVisuals++;
+          if(!this.destroyed)this.onStatus(`Loading meshes · ${completedVisuals}/${visuals.length}`);
         }
       };
       await Promise.all(Array.from({ length: Math.min(8, visuals.length) }, () => worker()));
@@ -192,14 +221,13 @@
         if (!this.meshCache.has(visual.uri)) {
           const separator = this.assetUrl.includes('?') ? '&' : '?';
           const assetRequest = `${this.assetUrl}${separator}uri=${encodeURIComponent(visual.uri)}`;
-          let response = await fetch(assetRequest);
-          if (!response.ok && [404, 502, 503].includes(response.status) && !this.destroyed) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-            response = await fetch(assetRequest, { cache: 'reload' });
-          }
-          if (!response.ok) throw new Error(response.statusText || `HTTP ${response.status}`);
-          const mesh = parseStl(await response.arrayBuffer());
+          const bytes = window.GeoAssets ? await window.GeoAssets.read(assetRequest) : await fetch(assetRequest).then(response=>{if(!response.ok)throw new Error(response.statusText);return response.arrayBuffer();});
+          const geometry = window.GeoAssets ? await window.GeoAssets.memo('stl:'+window.GeoAssets.keyFor(assetRequest),()=>parseStl(bytes)) : parseStl(bytes);
+          // Geometry arrays are shared; WebGL buffers belong to this viewer's context.
+          const mesh = {...geometry, buffers:null};
           if (this.destroyed) return;
+          // Another visual may have awaited this same shared download.
+          if (this.meshCache.has(visual.uri)) { visual.mesh=this.meshCache.get(visual.uri);return; }
           if (!mesh.triangleCount) throw new Error('Mesh contains no renderable triangles');
           this.prepareBuffers(mesh);
           this.meshCache.set(visual.uri, mesh);
@@ -239,6 +267,7 @@
       this.drawGrid();
       this.drawLinkTree(this.webgl && this.meshStats.loaded > 0);
       this.drawArmJoints();
+      this.drawInspection();
       if (this.overlayDrawer) this.overlayDrawer(this);
     }
 
@@ -293,8 +322,8 @@
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
       const x1 = cy * p[0] - sy * p[1];
       const y1 = sy * p[0] + cy * p[1];
-      const y2 = cp * y1 - sp * p[2];
-      const z2 = sp * y1 + cp * p[2];
+      const y2 = cp * p[2] - sp * y1;
+      const z2 = cp * y1 + sp * p[2];
       const perspective = this.distance / Math.max(0.8, this.distance - z2);
       return [
         this.overlayCanvas.width * 0.5 + x1 * this.viewScale * this.zoom * perspective,
@@ -390,7 +419,7 @@
           gl.uniform4f(program.uniforms.row0, matrix[0], matrix[1], matrix[2], matrix[3]);
           gl.uniform4f(program.uniforms.row1, matrix[4], matrix[5], matrix[6], matrix[7]);
           gl.uniform4f(program.uniforms.row2, matrix[8], matrix[9], matrix[10], matrix[11]);
-          gl.uniform3fv(program.uniforms.color, new Float32Array(hexToRgb01(visual.color || colorForName(linkName) || DEFAULT_MESH_COLOR)));
+          gl.uniform3fv(program.uniforms.color, new Float32Array(hexToRgb01(this.highlightedLinks?.has(linkName) ? '#f0ad4e' : visual.color || colorForName(linkName) || DEFAULT_MESH_COLOR)));
           gl.bindBuffer(gl.ARRAY_BUFFER, mesh.buffers.positions);
           gl.vertexAttribPointer(program.attributes.position, 3, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(program.attributes.position);
           gl.bindBuffer(gl.ARRAY_BUFFER, mesh.buffers.normals);
@@ -477,7 +506,7 @@
         vec4 local=vec4(a_position,1.0); vec3 world=vec3(dot(u_row0,local),dot(u_row1,local),dot(u_row2,local));
         vec4 nl=vec4(a_normal,0.0); vec3 nw=normalize(vec3(dot(u_row0,nl),dot(u_row1,nl),dot(u_row2,nl)));
         vec3 p=world-u_target; float cy=cos(u_yaw),sy=sin(u_yaw),cp=cos(u_pitch),sp=sin(u_pitch);
-        float x1=cy*p.x-sy*p.y; float y1=sy*p.x+cy*p.y; float y2=cp*y1-sp*p.z; float z2=sp*y1+cp*p.z;
+        float x1=cy*p.x-sy*p.y; float y1=sy*p.x+cy*p.y; float y2=cp*p.z-sp*y1; float z2=cp*y1+sp*p.z;
         float perspective=u_distance/max(0.8,u_distance-z2);
         gl_Position=vec4(x1*u_viewScale*perspective/(u_canvasSize.x*.5), .04+y2*u_viewScale*perspective/(u_canvasSize.y*.5), clamp(.5-z2/u_depthSpan,.001,.999), 1.0);
         vec3 lightDir=normalize(vec3(-.35,-.45,.82)); v_light=.58+max(dot(nw,lightDir),0.0)*.34+max(nw.z,0.0)*.08;

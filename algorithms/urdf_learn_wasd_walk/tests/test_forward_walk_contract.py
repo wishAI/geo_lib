@@ -40,6 +40,15 @@ def passing_forward() -> dict:
 
 
 class ForwardWalkContractTests(unittest.TestCase):
+    def test_animation_support_profile_preserves_legacy_acceptance(self):
+        metrics = {'mean_support_body_weight_ratio': 1., 'peak_support_body_weight_ratio': 3.15}
+        self.assertTrue(contract.support_force_failures(metrics))
+        self.assertEqual(contract.support_force_failures(metrics, 'animation_approximate_v1'), [])
+        self.assertTrue(contract.support_force_failures({**metrics, 'mean_support_body_weight_ratio': .1}, 'animation_approximate_v1'))
+        self.assertTrue(contract.support_force_failures({**metrics, 'peak_support_body_weight_ratio': float('nan')}, 'animation_approximate_v1'))
+        with self.assertRaises(ValueError):
+            contract.support_force_failures(metrics, 'unknown')
+
     def test_checkpoint_transfer_resets_loaded_scalar_exploration_std(self) -> None:
         class Scalar:
             def __init__(self, value):

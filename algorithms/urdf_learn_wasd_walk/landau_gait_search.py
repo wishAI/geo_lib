@@ -166,6 +166,7 @@ def main():
     p.add_argument('--initial-parameters',type=json.loads,default={},help='Explicit bounded moving-controller search initialization; never modifies the standing branch')
     p.add_argument('--stride-sign',choices=('any','positive','negative'),default='any')
     p.add_argument('--trace-seed',action='store_true',help='Record first-generation nominal seed observations and states for evaluator parity diagnosis')
+    p.add_argument('--support-profile', choices=('robot_strict_v1', 'animation_approximate_v1'), default='robot_strict_v1')
     args=p.parse_args()
     if not 32<=args.num_envs<=2048 or not 1<=args.generations<=40 or not 3<=args.seconds<=120:
         raise ValueError('Bounded search limits exceeded')
@@ -184,7 +185,9 @@ def main():
         bounds=PARAMETERS[args.sweep_secondary]
         if args.search_mode!='stride_sweep' or args.secondary_min is None or args.secondary_max is None or not bounds[0]<=args.secondary_min<args.secondary_max<=bounds[1]:
             raise ValueError('Secondary sweep must stay inside the existing parameter bounds')
-    backend,batches,variant=configure_model('balanced_hands_v1')
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
+    parent_meta=json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())
+    backend,batches,variant=configure_model('balanced_hands_v1', checkpoint_hand_pose(parent_meta))
     parent=Path(args.checkpoint).resolve();parent.relative_to((backend.OUTPUT/'training').resolve())
     parent_meta=json.loads((parent.parent/'training.json').read_text())
     if parent_meta['observation_dim']!=63 or parent_meta['checkpoints'][parent.name]!=backend.digest(parent):
@@ -292,6 +295,8 @@ def main():
         'packages':{name:importlib.metadata.version(name) for name in ('torch','mujoco','mujoco-warp','warp-lang','rsl-rl-lib')},
         'action_joints':names,'action_scale':action_scales(names,.4),'stand_action_scale':.08,
         'action_mapping':'legacy_radians_v2','nominal_q':batch.nominal_q.tolist(),'nominal_ctrl':batch.nominal_ctrl.tolist(),
+        'hand_pose':batch.spec.get('hand_pose','open'),
+        'support_profile':args.support_profile,
         'reference_xy':batch.reference_xy.tolist(),'model_xml_sha256':model_hash,
         'urdf_sha256':batch.spec['source']['urdf_sha256'],'mesh_tree_sha256':batch.spec['source']['mesh_tree_sha256'],
         'parent_checkpoint':str(seed_checkpoint or parent),'parent_checkpoint_sha256':backend.digest(seed_checkpoint or parent),'mass_variant':variant,
@@ -300,7 +305,8 @@ def main():
         'objective':args.objective,
         'forward_fitness_contract':f'After survival and sustained-swing constraints, prioritize worst-replica distance up to {args.target_distance+.5:g} m for validation margin; clearance score only breaks near ties. Incomplete candidates retain discovery shaping.',
         'joint_speed_acceptance':'all 69 physical joints, every 0.002 s physics step; above 4 rad/s makes the candidate ineligible',
-        'support_force_acceptance':'Actual foot-contact vertical forces every 0.002 s; above 3 body weights makes the candidate ineligible',
+        'support_force_acceptance':('Actual foot-contact vertical forces every 0.002 s; above 3 body weights makes the candidate ineligible'
+            if args.support_profile=='robot_strict_v1' else 'Estimated animation masses; instantaneous support peaks recorded as diagnostics, not a rejection alone'),
         'physics_refresh_contract':'mjwarp.step then mjwarp.forward every 0.002 s, matching independent validation cadence; policy control every 0.02 s',
         'lateral_acceptance':'Final semantic lateral displacement at most0.75m for every start, matching independent gate; excess makes candidate ineligible',
         'nonfoot_contact_acceptance':'Any non-foot ground contact above 0.01 N makes the candidate ineligible',
@@ -396,7 +402,8 @@ def main():
             heading=torch.atan2(batch.rot[:,batch.base,1,0],batch.rot[:,batch.base,0,0])
             max_heading=torch.maximum(max_heading,torch.where(alive,heading.abs(),0.))
             max_tilt=torch.maximum(max_tilt,torch.where(alive,tilt,0.))
-            reason=(tilt>torch.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()+4*(~finite).int()+8*(speed_view>4.+1e-6).int()+16*(support_view>3.*body_weight).int()+32*(heading.abs()>torch.pi/6).int()+64*(nonfoot_view!=0).int()+128*(flight_max_view>60).int()
+            support_failure=(support_view>3.*body_weight).int() if args.support_profile=='robot_strict_v1' else torch.zeros_like(failure_reasons)
+            reason=(tilt>torch.pi/6).int()+2*(batch.pos[:,batch.pelvis,2]<batch.reference_height-.08).int()+4*(~finite).int()+8*(speed_view>4.+1e-6).int()+16*support_failure+32*(heading.abs()>torch.pi/6).int()+64*(nonfoot_view!=0).int()+128*(flight_max_view>60).int()
             failed=reason!=0
             newly_failed=alive&failed
             failure_reasons=torch.where(newly_failed,reason,failure_reasons)

@@ -335,6 +335,10 @@ class ManifestTests(unittest.TestCase):
                 "validate_forward_walk",
             ],
         )
+        self.assertTrue(manifest['trainingDashboard'])
+        self.assertEqual(manifest['trainingState']['nextWork'], payload['sessionStatus']['nextWork'])
+        self.assertNotIn('recentEvaluations', manifest['trainingState'])
+        self.assertEqual([item['status'] for item in manifest['milestones']], statuses)
         example = next(item for item in manifest["examples"] if item["id"] == "validate_passive_stand")
         self.assertEqual(example["command"][:3], ["./geo", "walk", "validate-passive"])
         self.assertEqual({artifact["kind"] for artifact in example["artifacts"]}, {"json", "video", "image"})
@@ -422,6 +426,14 @@ class StorageAndRobotTests(unittest.TestCase):
                 for path in ("unsafe.zip", "../cloud/release.zip", str(release)):
                     with self.assertRaises(ValueError):
                         server.resolve_artifact(path)
+
+    def test_robot_asset_allowlist_does_not_probe_remote_catalog(self):
+        declared='algorithms/walk/inputs/robot.urdf'
+        with patch('webgui.server.discover_manifests',return_value=[{'viewer':{'urdfCandidates':[{'path':declared}]}}]), \
+             patch('webgui.server.robot_candidates',side_effect=AssertionError('remote scan')):
+            self.assertTrue(server._allowed_robot_path(declared))
+            self.assertFalse(server._allowed_robot_path('../robot.urdf'))
+            self.assertFalse(server._allowed_robot_path('algorithms/walk/inputs/undeclared.urdf'))
 
     def test_declared_robot_urdfs_are_parseable_and_have_controls(self) -> None:
         candidates = [item for item in server.robot_candidates() if item["exists"]]

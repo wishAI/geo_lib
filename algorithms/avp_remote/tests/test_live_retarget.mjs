@@ -11,9 +11,26 @@ const {worldTransforms,fromRows}=await import(mathURL);
 const data=JSON.parse(await readFile(new URL('../outputs/web_scene/scene.json',import.meta.url)));
 const pos=m=>new THREE.Vector3().setFromMatrixPosition(m);
 function error(solver,pose,side,frame){const arm=solver.arms[side],wrist=frame[side+'_arm']?.[0]||frame[side+'_wrist'];const target=pos(solver.baseInverse.clone().multiply(solver.transform).multiply(fromRows(wrist)));if(target.length()>arm.cap)target.setLength(arm.cap);return pos(solver.baseInverse.clone().multiply(worldTransforms(data.joints,pose)['hand_'+arm.suffix])).distanceTo(target);}
-test('browser scalar fingers match the authoritative Python snapshot',()=>{
- const solver=new LiveRetargeter(data),pose=solver.solve(data.snapshot);
- for(const name of Object.keys(data.retargetConfig.rules).filter(n=>!['neck_x','head_x'].includes(n)&&!Object.values(solver.arms).some(a=>a.chain.some(j=>j.child===n))))assert.ok(Math.abs(pose[name]-(data.snapshotPose[name]||0))<1e-6,`${name}: ${pose[name]} vs ${data.snapshotPose[name]}`);
+function scalarFixture() {
+ const points = [[0,0,0],[.015,.015,.005],[.02,.025,.005],[.025,.035,.01],[.025,.045,.02]];
+ for(const x of [.02,0,-.02,-.04])for(let i=0;i<5;i++)points.push([x,.02+i*.02,0]);
+ // Symmetric palm basis with a deliberately asymmetric thumb position.
+ points[20]=[-.02,.02,0];
+ return points.map(([x,y,z])=>[[1,0,0,x],[0,1,0,y],[0,0,1,z],[0,0,0,1]]);
+}
+test('scalar palm polarity and mirrored thumb axes match independent geometry',()=>{
+ const solver=new LiveRetargeter(data),stack=scalarFixture();
+ for(const side of ['left','right']){
+  const arm=solver.arms[side],pose={};arm.basis.identity();solver.fingers(arm,stack,pose);
+  assert.ok(Math.abs(pose['thumb1_'+arm.suffix]-solver.mapped('thumb1_'+arm.suffix,Math.PI/4))<1e-10);
+  assert.ok(pose['thumb2_'+arm.suffix]*(side==='left'?1:-1)>0);
+ }
+});
+test('degenerate palm and individual finger chains produce no fabricated curls',()=>{
+ const solver=new LiveRetargeter(data),arm=solver.arms.left;arm.basis.identity();
+ let stack=scalarFixture(),pose={};stack[20]=structuredClone(stack[5]);solver.fingers(arm,stack,pose);assert.deepEqual(pose,{});
+ stack=scalarFixture();pose={};stack[3]=structuredClone(stack[2]);solver.fingers(arm,stack,pose);
+ assert.equal(pose.thumb2_l,undefined);assert.ok(Number.isFinite(pose.index2_l));
 });
 test('warm-started arm CCD converges while respecting every URDF limit',()=>{
  const solver=new LiveRetargeter(data);let pose;for(let i=0;i<30;i++)pose=solver.solve(data.snapshot);

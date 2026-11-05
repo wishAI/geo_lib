@@ -22,6 +22,44 @@ from landau_retarget import (
 )
 
 
+class TestScalarPalmBasis(unittest.TestCase):
+    def setUp(self):
+        self.retargeter = LandauUpperBodyRetargeter.__new__(LandauUpperBodyRetargeter)
+        self.retargeter.robot_hand_basis = {'left': np.eye(3)}
+        self.points = {name: np.array(point) for name, point in {
+            'indexMetacarpal': [.02,.02,0], 'littleMetacarpal': [-.02,.02,0],
+            'indexKnuckle': [.02,.04,0], 'middleKnuckle': [0,.04,0],
+            'ringKnuckle': [-.02,.04,0], 'thumbKnuckle': [.015,.015,.005],
+            'thumbIntermediateBase': [.02,.025,.005],
+            'thumbIntermediateTip': [.025,.035,.01], 'thumbTip': [.025,.045,.02],
+        }.items()}
+        self.retargeter._wrist_local_positions = lambda side, frame: self.points
+        self.retargeter._mapped_joint_value = lambda name, value: value
+
+    def test_anatomical_basis_preserves_asymmetric_points(self):
+        actual = self.retargeter._aligned_hand_local_positions('left', {})
+        for name, point in self.points.items():
+            np.testing.assert_allclose(actual[name], point, atol=1e-12)
+
+    def test_mirrored_thumb_axes(self):
+        left, right = {}, {}
+        self.retargeter._apply_thumb('l', self.points, left)
+        self.retargeter._apply_thumb('r', self.points, right)
+        for segment in ('thumb2', 'thumb3'):
+            self.assertGreater(left[segment+'_l'], 0)
+            self.assertAlmostEqual(left[segment+'_l'], -right[segment+'_r'])
+
+    def test_degenerate_palm_and_thumb_are_omitted(self):
+        self.points['littleMetacarpal'] = self.points['indexMetacarpal'].copy()
+        self.assertIsNone(self.retargeter._aligned_hand_local_positions('left', {}))
+        self.points['thumbIntermediateTip'] = self.points['thumbIntermediateBase'].copy()
+        pose = {}
+        self.retargeter._apply_thumb('l', self.points, pose)
+        self.assertEqual(pose, {})
+        del self.points['indexKnuckle']
+        self.assertIsNone(self.retargeter._aligned_hand_local_positions('left', {}))
+
+
 class TestLandauRetarget(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

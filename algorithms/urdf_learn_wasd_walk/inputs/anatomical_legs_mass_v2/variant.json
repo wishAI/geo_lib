@@ -1,0 +1,59 @@
+{
+  "profile": "anatomical_legs_mass_v2",
+  "source_urdf_sha256": "859d3c29930822f77750f6dcc0940e1c7e84393817cdefdcdc36c0025ddb46ca",
+  "urdf_sha256": "030428bad6137d544fc976cfc8f2f29b41712e530b26a380737206a31f9f702b",
+  "mass_kg": 18.0,
+  "density_scale": 9.83739335309192,
+  "mass_groups_kg": {
+    "head_neck": 4.5,
+    "torso": 6.0,
+    "legs": 5.4,
+    "arms": 1.8,
+    "fingers": 0.3
+  },
+  "mass_estimate": "Approximate animation character; not a measured biological mass",
+  "semantic_forward_native": [
+    0,
+    -1,
+    0
+  ],
+  "legacy_semantic_forward_native": [
+    0,
+    1,
+    0
+  ],
+  "zero_bind_max_error": 0.0,
+  "changes": [
+    {
+      "side": "left",
+      "new_joint": "left_ankle_roll_joint",
+      "world_axis_zero": [
+        0,
+        1,
+        0
+      ],
+      "knee_limits_rad": [
+        -0.25,
+        2.0
+      ],
+      "knee_anatomical_flexion_at_zero_rad": 0.25353
+    },
+    {
+      "side": "right",
+      "new_joint": "right_ankle_roll_joint",
+      "world_axis_zero": [
+        0,
+        1,
+        0
+      ],
+      "knee_limits_rad": [
+        -0.25,
+        2.0
+      ],
+      "knee_anatomical_flexion_at_zero_rad": 0.25353
+    }
+  ],
+  "policy_actions": 19,
+  "inherited_milestone_passes": 0,
+  "source_reference": "https://github.com/unitreerobotics/unitree_ros/blob/master/robots/g1_description/g1_23dof.urdf"
+}

@@ -2,15 +2,33 @@ import sys
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from dex_hand_specs import build_h1_2_target_specs, build_landau_target_specs
+from dex_hand_specs import avp_hand_basis, build_h1_2_target_specs, build_landau_target_specs
 
 
 class TestDexHandSpecs(unittest.TestCase):
+    def test_anatomical_palm_basis_preserves_asymmetric_point(self):
+        positions = {
+            'indexMetacarpal': np.array([.02,.02,0]),
+            'littleMetacarpal': np.array([-.02,.02,0]),
+            'indexKnuckle': np.array([.02,.04,0]),
+            'middleKnuckle': np.array([0,.04,0]),
+            'ringKnuckle': np.array([-.02,.04,0]),
+        }
+        basis = avp_hand_basis(positions)
+        point = np.array([.015,.025,.007])
+        np.testing.assert_allclose(basis.T @ point, point, atol=1e-12)
+        # A rotated tracked palm must map back to the same anatomical point.
+        rotation = np.array([[0.,-1.,0.],[0.,0.,-1.],[1.,0.,0.]])
+        rotated = avp_hand_basis({name: rotation @ value for name,value in positions.items()})
+        np.testing.assert_allclose(rotated.T @ (rotation @ point), point, atol=1e-12)
+
     def test_build_landau_target_specs_cover_all_finger_joints(self):
         specs = build_landau_target_specs(
             MODULE_ROOT / "inputs" / "landau_v10" / "landau_v10_parallel_mesh.urdf",

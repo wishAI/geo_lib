@@ -15,7 +15,7 @@ from types import SimpleNamespace
 import time
 
 
-def configure_model(profile):
+def configure_model(profile, hand_pose='open'):
     import mujoco
     from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
     from algorithms.urdf_learn_wasd_walk import mujoco_warp_batch as batch
@@ -24,14 +24,26 @@ def configure_model(profile):
     variant = {}
 
     def build(**kwargs):
+        if profile in ('anatomical_legs_v1','anatomical_legs_mass_v2'):
+            from . import leg_model_variant as legs
+            if hand_pose != 'closed_fists_v1':raise ValueError('Anatomical profile requires fixed fists')
+            spec=legs.specification(profile)
+            model,spec,xml=original_build(urdf_path=spec['urdf_path'],specification=spec,**kwargs)
+            variant.update(spec['variant'],source_audit=original_audit(model,spec))
+            return model,spec,xml
         model, spec, xml = original_build(**kwargs)
+        if hand_pose != 'open':
+            from algorithms.urdf_learn_wasd_walk.model_spec import fixed_hand_positions
+            fixed_hand_positions(hand_pose)  # Reject an unknown profile before simulation.
+            spec['hand_pose'] = hand_pose
         source = original_audit(model, spec)
         xml, record = redistribute_mass(xml, profile)
         variant.update(record, source_audit=source)
         return mujoco.MjModel.from_xml_string(xml), spec, xml
 
     def audit(model, spec):
-        return {**variant['source_audit'], 'canonical_model': profile == 'original',
+        return {**variant['source_audit'], 'canonical_model': profile == 'original' and hand_pose == 'open',
+                'hand_pose': hand_pose,
                 'mass_variant': {k: v for k, v in variant.items() if k != 'source_audit'}}
 
     backend.build_model = batch.build_model = build
@@ -44,7 +56,7 @@ def train(args):
     import torch
     from tensordict import TensorDict
     from mjlab.rl import MjlabOnPolicyRunner, RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
-    backend, batch_module, variant = configure_model(args.profile)
+    backend, batch_module, variant = configure_model(args.profile, args.hand_pose)
     directory = (backend.OUTPUT / 'training' / args.name).resolve()
     directory.relative_to((backend.OUTPUT / 'training').resolve())
     directory.mkdir(parents=True, exist_ok=False)
@@ -63,7 +75,7 @@ def train(args):
 
     class StandingEnv:
         num_envs = args.num_envs
-        num_actions = 17
+        num_actions = len(batch.spec['action_joints'])
         max_episode_length = 1500
         device = 'cuda:0'
         cfg = {'task': 'finite_horizon_30s_standing', 'reward_units': 'rate times 0.02 s'}
@@ -123,8 +135,10 @@ def train(args):
         'urdf_sha256': batch.spec['source']['urdf_sha256'],
         'mesh_tree_sha256': batch.spec['source']['mesh_tree_sha256'],
         'action_joints': batch.spec['action_joints'], 'nominal_q': batch.nominal_q.tolist(),
+        'hand_pose': batch.spec.get('hand_pose', 'open'),
         'nominal_ctrl': batch.nominal_ctrl.tolist(), 'action_scale': .08,
-        'observation_dim': 63, 'reference_xy': batch.reference_xy.tolist(),
+        'observation_dim': 12+3*len(batch.spec['action_joints']),
+        'support_profile': 'animation_approximate_v1' if args.profile in ('anatomical_legs_v1','anatomical_legs_mass_v2') else 'robot_strict_v1', 'reference_xy': batch.reference_xy.tolist(),
         'mass_variant': variant, 'runner_config': config, 'canonical_milestone_pass': False,
         'packages': {p: importlib.metadata.version(p) for p in ('torch', 'mjlab', 'mujoco', 'mujoco-warp', 'rsl-rl-lib')},
         'source_sha256': {str(p): backend.digest(p) for p in (Path(__file__), Path(batch_module.__file__), Path(backend.__file__))},
@@ -153,12 +167,12 @@ def evaluate(args):
     from algorithms.urdf_learn_wasd_walk import mujoco_policy as old_policy
     checkpoint = Path(args.checkpoint).resolve()
     meta = json.loads((checkpoint.parent / 'training.json').read_text())
-    backend, _, _ = configure_model(meta['arguments']['profile'])
+    backend, _, _ = configure_model(meta['arguments']['profile'], meta['arguments'].get('hand_pose', 'open'))
     checkpoint.relative_to((backend.OUTPUT / 'training').resolve())
     if backend.digest(checkpoint) != meta['checkpoints'][checkpoint.name]:
         raise ValueError('Checkpoint differs from completed training provenance')
-    actor = MLPModel(TensorDict({'actor': torch.zeros(1, 63)}, batch_size=[1]),
-        {'actor': ['actor']}, 'actor', 17, hidden_dims=[128, 128], activation='elu',
+    actor = MLPModel(TensorDict({'actor': torch.zeros(1, meta['observation_dim'])}, batch_size=[1]),
+        {'actor': ['actor']}, 'actor', len(meta['action_joints']), hidden_dims=[128, 128], activation='elu',
         obs_normalization=True,
         distribution_cfg={'class_name': 'GaussianDistribution', 'init_std': .1, 'std_type': 'scalar'})
     actor.load_state_dict(torch.load(checkpoint, map_location='cpu', weights_only=False)['actor_state_dict'], strict=True)
@@ -184,7 +198,8 @@ def evaluate(args):
     old_policy.load_actor, old_policy.observe = load_actor, observe
     backend.run(SimpleNamespace(name=args.name, backend='mujoco_warp_cuda', seconds=30.,
         dt=.002, seed=42, pose='geometric', gain_scale=1., noslip_iterations=0,
-        contact_timeconst=.004, assistance=0., checkpoint=str(checkpoint), forward=0., render=False))
+        contact_timeconst=.004, assistance=0., checkpoint=str(checkpoint), forward=0., render=False,
+        support_profile=meta.get('support_profile','robot_strict_v1'),model_profile=meta['arguments']['profile']))
     folder = backend.OUTPUT / args.name
     backend.write_json(folder / 'transfer.json', {'checkpoint': str(checkpoint),
         'checkpoint_sha256': backend.digest(checkpoint), 'initial_untrained': checkpoint.name == 'model_initial.pt',
@@ -194,20 +209,35 @@ def evaluate(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name', required=True)
-    parser.add_argument('--mode', choices=['train', 'evaluate'], default='train')
-    parser.add_argument('--profile', choices=['original', 'balanced_hands_v1'], default='balanced_hands_v1')
+    parser.add_argument('--mode', choices=['train', 'evaluate', 'passive'], default='train')
+    parser.add_argument('--hand-pose', choices=['open', 'closed_fists_v1'], default='closed_fists_v1',
+                        help='New training holds fingers outside policy actions; saved evaluations use checkpoint metadata')
+    parser.add_argument('--profile', choices=['original', 'balanced_hands_v1', 'anatomical_legs_v1','anatomical_legs_mass_v2'], default='balanced_hands_v1')
     parser.add_argument('--num-envs', type=int, default=256)
     parser.add_argument('--iterations', type=int, default=500)
     parser.add_argument('--checkpoint')
+    parser.add_argument('--render', action='store_true', help='Record every evaluation frame in a separate renderer process')
     args = parser.parse_args()
     if not 1 <= args.num_envs <= 512 or not 1 <= args.iterations <= 1000:
         raise ValueError('Standing transfer budget exceeded')
-    if args.mode == 'evaluate':
+    if args.mode == 'passive':
+        backend, _, _ = configure_model(args.profile, args.hand_pose)
+        backend.run(SimpleNamespace(name=args.name, backend='mujoco_warp_cuda', seconds=30.,
+            dt=.002, seed=42, pose='geometric', gain_scale=1., noslip_iterations=0,
+            contact_timeconst=.004, assistance=0., checkpoint=None, forward=0., render=False))
+    elif args.mode == 'evaluate':
         if not args.checkpoint:
             raise ValueError('An exact checkpoint is required')
         evaluate(args)
     else:
         train(args)
+    if args.render and args.mode != 'train':
+        import subprocess
+        import sys
+        from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
+        subprocess.run([sys.executable, '-m', 'algorithms.urdf_learn_wasd_walk.continuation',
+                        '--mode', 'render', '--render-directory', str(backend.OUTPUT / args.name)],
+                       check=True, timeout=300)
 
 
 if __name__ == '__main__':

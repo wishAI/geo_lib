@@ -1,4 +1,5 @@
 // Keep large JSON serialization and network uploads off the immersive render thread.
+import {compressedClip} from '/api/artifact?path=algorithms/avp_remote/gui/motion-codec.js';
 self.onmessage=async()=>{
  let db;
  try{
@@ -11,7 +12,7 @@ self.onmessage=async()=>{
   for(const summary of summaries){
    const previous=await access('remote:'+summary.key);if(previous&&ids.has(previous))continue;
    const clip=await access(summary.key);if(!clip?.frames?.length)continue;
-   const saved=await request('/api/avp/recordings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(clip)});
+   const saved=await request('/api/avp/recordings',{method:'POST',headers:{'Content-Type':'application/json','Content-Encoding':'gzip'},body:await compressedClip(clip)});
    await access('remote:'+summary.key,saved.id);ids.add(saved.id);uploaded++;
   }
   self.postMessage({uploaded});

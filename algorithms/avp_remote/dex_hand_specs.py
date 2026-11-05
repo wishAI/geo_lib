@@ -115,8 +115,9 @@ def human_local_position_map(local_positions: np.ndarray) -> dict[str, np.ndarra
 
 
 def avp_hand_basis(local_positions: Mapping[str, np.ndarray]) -> np.ndarray:
-    lateral = np.asarray(local_positions["littleMetacarpal"], dtype=float) - np.asarray(
-        local_positions["indexMetacarpal"],
+    # Match the index-minus-little convention of both robot target specs.
+    lateral = np.asarray(local_positions["indexMetacarpal"], dtype=float) - np.asarray(
+        local_positions["littleMetacarpal"],
         dtype=float,
     )
     forward = (

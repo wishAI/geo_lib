@@ -6,6 +6,94 @@
   const formatNumber = value => typeof value === 'number' ? new Intl.NumberFormat('en', { maximumFractionDigits: 4 }).format(value) : '—';
   const compactNumber = value => typeof value === 'number' ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) : '—';
 
+  const displayLabel = node => String(node?.label || 'No runs recorded').replace(/^anatomical(?: mass)? \d+ /i, '').replaceAll('_', ' ');
+
+  const svgPaths = {
+    model:'<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
+    joint:'<circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="m9 9 6 6M4 15l5 5M15 4l5 5"/>',
+    storage:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/>',
+    mass:'<path d="M8 7h8l4 14H4L8 7Z"/><circle cx="12" cy="4" r="3"/>',
+    branch:'<circle cx="6" cy="4" r="2"/><circle cx="6" cy="20" r="2"/><circle cx="18" cy="5" r="2"/><path d="M6 6v12M6 14c8 0 12-2 12-7"/>',
+    check:'<path d="m5 12 4 4L19 6"/>',
+    warning:'<path d="m12 3 10 18H2L12 3ZM12 9v5M12 17v1"/>',
+    play:'<path d="m8 4 12 8-12 8V4Z"/>',
+    file:'<path d="M14 2H5v20h14V7l-5-5ZM14 2v6h5M8 12h8M8 16h6"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>',
+    expand:'<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/>',
+    chevron:'<path d="m9 5 7 7-7 7"/>',
+    close:'<path d="m6 6 12 12M6 18 18 6"/>',
+    settings:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>',
+  };
+  const icon = name => `<svg class="walk-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svgPaths[name]||svgPaths.file}</svg>`;
+  const modelLabel = model => model?.urdfPath?.includes('anatomical_legs_mass_v2')?'Anatomical v2':model?.urdfPath?.includes('anatomical_legs_v1')?'Anatomical v1':model?.urdfPath?.includes('landau_v10')?'Landau v10':model?.label||'Unknown model';
+  const loading = label => `<div class="walk-loading" role="status"><span class="loading-spinner"></span><span>${escapeHtml(label)}</span></div>`;
+
+  const modelPreviewImages = new Map();
+  function modelPreview(host, model) {
+    const key=model.id+':'+model.urdfPath;
+    const showImage=source=>{const img=new Image();img.src=source;img.alt=modelLabel(model)+' · URDF neutral pose';host.replaceChildren(img);host.dataset.previewReady='true';};
+    if(modelPreviewImages.has(key)){showImage(modelPreviewImages.get(key));return ()=>{};}
+    host.innerHTML='<canvas data-preview-mesh></canvas><canvas data-preview-overlay></canvas><span class="model-preview-loading" role="status"><i class="loading-spinner"></i><span>Loading model preview…</span></span>';
+    let viewer,stopped=false;
+    const dispose=()=>{if(stopped)return;stopped=true;if(viewer){viewer.destroy();viewer.gl?.getExtension('WEBGL_lose_context')?.loseContext();}};
+    void (async()=>{try{
+      viewer=new window.MotionUrdfViewer({meshCanvas:host.querySelector('[data-preview-mesh]'),overlayCanvas:host.querySelector('[data-preview-overlay]'),assetUrl:'/api/robot/asset?urdf='+encodeURIComponent(model.urdfPath),onStatus:text=>{const label=host.querySelector('.model-preview-loading span');if(label)label.textContent=text;}});
+      viewer.showInspection=true;viewer.trainingJoints=Array.isArray(model.actionJoints)?new Set(model.actionJoints):null;
+      const stats=await viewer.load('/api/robot/urdf?path='+encodeURIComponent(model.urdfPath),[],[]);
+      if(stopped||!host.isConnected)return;
+      if(!stats.loaded)throw new Error('Model meshes unavailable');
+      // Capture immediately after drawing, while the WebGL framebuffer is valid.
+      viewer.render();const canvas=document.createElement('canvas');canvas.width=viewer.meshCanvas.width;canvas.height=viewer.meshCanvas.height;
+      const ctx=canvas.getContext('2d');ctx.drawImage(viewer.meshCanvas,0,0);ctx.drawImage(viewer.overlayCanvas,0,0);
+      const source=canvas.toDataURL('image/webp',.88);
+      if(!stats.failed)modelPreviewImages.set(key,source);
+      showImage(source);
+    }catch(error){if(!stopped){host.innerHTML=`<span class="model-preview-unavailable">${icon('model')}<span>Preview unavailable</span></span>`;host.title=error.message;}}
+    finally{dispose();}})();
+    return dispose;
+  }
+  function recordedTime(value) {
+    if(!value)return null;
+    let stamp=String(value);
+    const compact=stamp.match(/^(20\d{2})(\d{2})(\d{2})[_T-](\d{2})(\d{2})(\d{2})/);
+    if(compact)stamp=`${compact[1]}-${compact[2]}-${compact[3]}T${compact[4]}:${compact[5]}:${compact[6]}`;
+    const date=new Date(stamp);if(!Number.isFinite(date.getTime()))return null;
+    return {value:date.getTime(),raw:String(value),label:new Intl.DateTimeFormat(undefined,{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(date)};
+  }
+
+  function modelPicker(container, models, raw, current, choose, trigger) {
+    const dialog=document.createElement('dialog');dialog.className='walk-model-picker';dialog.setAttribute('aria-label','Choose robot model');
+    const card=m=>{
+      const runs=raw.filter(n=>n.modelId===m.id),passed=(m.milestones||[]).filter(g=>g.status==='passed').length;
+      const mass=Object.entries(m.massGroupsKg||{});
+      const times=runs.map(n=>recordedTime(n.startedAt)).filter(Boolean).sort((a,b)=>a.value-b.value);
+      const timeRow=(label,time)=>`<div><span>${label}</span><time title="${escapeHtml(time?.raw||'')}">${escapeHtml(time?.label||'Not recorded')}</time></div>`;
+      return `<button class="model-choice ${m.id===current?'selected':''}" data-choose-model="${escapeHtml(m.id)}"><div class="model-choice-top"><span class="model-emblem">${icon('model')}</span><span class="model-choice-badge">${m.id===current?'Selected':m.urdfPath?'URDF available':'Historical record'}</span></div>${m.urdfPath?`<div class="model-preview" data-model-preview="${escapeHtml(m.id)}"></div>`:`<div class="model-preview"><span class="model-preview-unavailable">${icon('model')}<span>No verified URDF preview</span></span></div>`}<h3>${escapeHtml(modelLabel(m))}</h3><p>${escapeHtml(m.label)}</p><div class="model-choice-stats"><span>${icon('mass')}<b>${m.massKg?m.massKg+' kg':'Unknown mass'}</b></span><span>${icon('joint')}<b>${m.actionJoints?.length??'—'} actions</b></span><span>${icon('branch')}<b>${runs.length} nodes</b></span></div><div class="model-recorded-times">${icon('clock')}<div>${timeRow('First record',times[0])}${timeRow('Latest record',times.at(-1))}</div></div><div class="model-choice-progress"><span>${m.milestones?.length?`${passed} / ${m.milestones.length} certified gates`:'No certification ledger'}</span><progress value="${passed}" max="${m.milestones?.length||12}"></progress></div><div class="model-mass-chips">${mass.map(([k,v])=>`<span>${escapeHtml(k.replaceAll('_',' '))} <b>${formatNumber(v)} kg</b></span>`).join('')}</div><footer><code>${escapeHtml(m.urdfPath?.split('/').slice(-2).join('/')||'URDF mapping not recorded')}</code>${icon('chevron')}</footer></button>`;
+    };
+    const known=models.filter(m=>m.urdfPath),history=models.filter(m=>!m.urdfPath);
+    dialog.innerHTML=`<header><div><p class="eyebrow">MODEL LIBRARY</p><h2>Choose a robot model</h2><p>Each model keeps its own experiments and certification record.</p></div><button class="button button-light" data-close-models aria-label="Close model picker">${icon('close')}</button></header><div class="model-picker-scroll"><div class="model-card-grid">${known.map(card).join('')}</div>${history.length?`<details class="historical-models"><summary>Historical & comparison models <span>${history.length}</span></summary><div class="model-card-grid">${history.map(card).join('')}</div></details>`:''}</div>`;
+    const previews=[];
+    const close=()=>{previews.forEach(dispose=>dispose());dialog.close();dialog.remove();container._closePicker=null;trigger?.focus({preventScroll:true});};
+    container._closePicker=close;container.append(dialog);
+    dialog.querySelector('[data-close-models]').onclick=close;
+    dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+    dialog.addEventListener('click',e=>{if(e.target===dialog)close();});
+    dialog.querySelectorAll('[data-choose-model]').forEach(button=>button.onclick=()=>{const id=button.dataset.chooseModel;close();choose(id);});
+    dialog.showModal();
+    dialog.querySelectorAll('[data-model-preview]').forEach(host=>previews.push(modelPreview(host,known.find(m=>m.id===host.dataset.modelPreview))));
+  }
+
+  function detailsPane(node, robot, nodes, milestones) {
+    if(!node)return '<p class="evolution-empty">No recorded runs for this model.</p>';
+    const status=node.kind==='milestone'&&node.status==='completed'?'Certified':node.status==='failed'?'Needs work':node.status==='running'?'In progress':'Recorded';
+    const gate=milestones.find(m=>m.id===node.milestoneId);
+    const stats=[['joint','Policy actions',node.actionJoints?.length??'—'],['storage','Checkpoint',formatBytes(node.diskBytes)],['mass','Body mass',robot?.massKg?robot.massKg+' kg':'—']];
+    const mass=Object.entries(robot?.massGroupsKg||{}),total=mass.reduce((v,[,n])=>v+Number(n),0);
+    const colors=['#427b86','#77a68c','#bfa06a','#a18daf','#cb8c78'];
+    const metrics=Object.entries(node.metrics||{}).filter(([,v])=>typeof v==='number').slice(0,4);
+    return `<div class="node-detail-design"><section class="node-outcome ${escapeHtml(node.status)}"><div>${icon(node.status==='failed'?'warning':'check')}<span>${status}</span>${gate?`<small>M${gate.order} · ${escapeHtml(gate.label)}</small>`:''}</div><p>${escapeHtml(node.result||'No observed result recorded.')}</p></section><div class="node-stat-grid">${stats.map(([i,k,v])=>`<div>${icon(i)}<strong>${escapeHtml(v)}</strong><span>${k}</span></div>`).join('')}</div><section class="node-detail-section"><h4>${icon('model')}Robot configuration</h4><div class="node-model-identity"><span class="model-emblem">${icon('model')}</span><div><b>${escapeHtml(modelLabel(robot))}</b><small>${escapeHtml(node.bodySettings?.['mass profile']||'Model configuration from recorded evidence')}</small></div></div><div class="node-setting-chips">${Object.entries(node.bodySettings||{}).filter(([k])=>!k.includes('SHA')&&k!=='mass profile').map(([k,v])=>`<span>${escapeHtml(k)}<b>${escapeHtml(v)}</b></span>`).join('')}</div></section><section class="node-detail-section"><h4>${icon('branch')}Checkpoint ancestry</h4><div class="node-parent-links">${(node.parentIds||[]).length?node.parentIds.map(id=>`<button data-select-parent="${escapeHtml(id)}" ${nodes.has(id)?'':'disabled'}>${icon('branch')}<span>${escapeHtml(displayLabel(nodes.get(id)||{label:id}))}</span>${icon('chevron')}</button>`).join(''):'<p>No parent checkpoint recorded.</p>'}</div></section>${mass.length?`<section class="node-detail-section"><h4>${icon('mass')}Mass distribution <small>kg</small></h4><div class="mass-distribution-bar">${mass.map(([k,v],i)=>`<span style="flex:${Number(v)/total};background:${colors[i%colors.length]}" title="${escapeHtml(k)}: ${v} kg"></span>`).join('')}</div><div class="mass-distribution-legend">${mass.map(([k,v],i)=>`<div><i style="background:${colors[i%colors.length]}"></i><span>${escapeHtml(k.replaceAll('_',' '))}</span><b>${formatNumber(v)}</b></div>`).join('')}</div></section>`:''}${metrics.length?`<section class="node-detail-section"><h4>${icon('settings')}Observed metrics</h4><div class="node-metric-grid">${metrics.map(([k,v])=>`<div><b>${formatNumber(v)}</b><span>${escapeHtml(k.replaceAll('_',' '))}</span></div>`).join('')}</div></section>`:''}<section class="node-detail-section"><h4>${icon('file')}Evidence & provenance</h4><div class="node-evidence-actions">${(node.artifacts||[]).filter(a=>['video','json','image'].includes(a.kind)||a.path.endsWith('.json')).slice(0,4).map(a=>`<button data-detail-artifact="${escapeHtml(a.path)}" data-kind="${escapeHtml(a.kind)}">${icon(a.kind==='video'?'play':'file')}<span>${escapeHtml(a.path.split('/').pop())}</span>${icon('chevron')}</button>`).join('')}</div><details class="node-provenance"><summary>Checkpoint path & all metrics</summary><code>${escapeHtml(typeof node.checkpointPath==='string'?node.checkpointPath:'No policy checkpoint attached')}</code>${node.checkpointSha256?`<p>SHA-256</p><code>${escapeHtml(node.checkpointSha256)}</code>`:''}<div class="evolution-parameters">${keyValueGrid(node.metrics,'No metrics recorded.')}</div></details></section></div>`;
+  }
+
   function parentsOf(nodes, id) { return nodes.get(id)?.parentIds || []; }
 
   function ancestorSet(nodes, id) {
@@ -20,39 +108,40 @@
     return result;
   }
 
-  function commonAncestor(nodes, left, right) {
-    const leftAncestors = ancestorSet(nodes, left);
-    let current = right;
-    const seen = new Set();
-    while (current && !seen.has(current)) {
-      if (leftAncestors.has(current)) return nodes.get(current);
-      seen.add(current);
-      current = parentsOf(nodes, current)[0];
-    }
-    return null;
-  }
-
-  function layout(visible) {
-    const byId = new Map(visible.map(node => [node.id, node]));
-    const depths = new Map();
-    const depth = (node, stack = new Set()) => {
-      if (depths.has(node.id)) return depths.get(node.id);
-      if (stack.has(node.id)) return 0;
-      stack.add(node.id);
-      const parentDepths = (node.parentIds || []).map(id => byId.get(id)).filter(Boolean).map(parent => depth(parent, stack) + 1);
-      const value = parentDepths.length ? Math.max(...parentDepths) : 0;
-      depths.set(node.id, value);
-      stack.delete(node.id);
-      return value;
+  // Milestone bands share coordinates with their nodes; branches reuse rows.
+  function layout(visible, milestones = []) {
+    const byId = new Map(visible.map(n => [n.id, n]));
+    const stages = [{id: '', label: 'Experiments', order: '·', status: 'diagnostic'}, ...milestones];
+    const stageIndex = new Map(stages.map((m, i) => [m.id, i]));
+    const positions = new Map(), visiting = new Set();
+    const column = node => {
+      if (positions.has(node.id)) return positions.get(node.id);
+      const stage = stageIndex.get(node.milestoneId) || 0;
+      if (visiting.has(node.id)) return {stage, depth: 0};
+      visiting.add(node.id);
+      const parents = (node.parentIds || []).map(id => byId.get(id)).filter(Boolean).map(column);
+      const depth = Math.max(0, ...parents.filter(p => p.stage === stage).map(p => p.depth + 1));
+      const result = {stage, depth}; positions.set(node.id, result); visiting.delete(node.id); return result;
     };
-    visible.forEach(node => depth(node));
-    const lanes = new Map();
-    visible.forEach((node, index) => lanes.set(node.id, index));
-    return {
-      width: Math.max(900, ...visible.map(node => 260 + depths.get(node.id) * 270)),
-      height: Math.max(430, 115 + visible.length * 112),
-      point: id => ({ x: 38 + (depths.get(id) || 0) * 270, y: 48 + (lanes.get(id) || 0) * 112 }),
-    };
+    visible.forEach(column);
+    const occupied = new Map();
+    // Three lanes keep the graph inside a laptop viewport; overflow grows rightward.
+    const assigned = new Map();
+    [...visible].sort((a,b)=>positions.get(a.id).depth-positions.get(b.id).depth).forEach(node => {
+      const p = positions.get(node.id);
+      const parentColumns = (node.parentIds || []).map(id => assigned.get(id)).filter(q => q?.stage === p.stage).map(q => q.column + 1);
+      let column = Math.max(p.depth, 0, ...parentColumns), key = `${p.stage}:${column}`;
+      while ((occupied.get(key) || 0) >= 3) { column++; key = `${p.stage}:${column}`; }
+      const row = occupied.get(key) || 0; occupied.set(key, row + 1);
+      assigned.set(node.id, {stage:p.stage,column,row});
+    });
+    let offset = 16;
+    const bands = stages.map((stage,index) => {
+      const columns = Math.max(1,...[...assigned.values()].filter(p=>p.stage===index).map(p=>p.column+1));
+      const band={...stage,x:offset,width:columns*154};offset+=band.width;return band;
+    });
+    const points=new Map([...assigned].map(([id,p])=>[id,{x:bands[p.stage].x+p.column*154+12,y:28+p.row*108}]));
+    return {width:offset+16,height:364,bands,point:id=>points.get(id)};
   }
 
   function progressLabel(node) {
@@ -81,160 +170,197 @@
     return node.status === 'running' ? 'current gate' : node.status;
   }
 
-  function milestoneStrip(data, nodes) {
-    const milestones = Array.isArray(data.milestones) ? data.milestones : [];
-    if (!milestones.length) return '';
-    const passed = milestones.filter(item => item.status === 'passed').length;
-    const current = milestones.find(item => item.status === 'in_progress');
-    const cards = milestones.map(item => {
-      const nodeId = `milestone:${item.id}`;
-      const selectable = nodes.has(nodeId);
-      const status = item.status || 'not_started';
-      return `<button class="evolution-milestone ${escapeHtml(status)}" type="button" ${selectable ? `data-evolution-milestone="${escapeHtml(nodeId)}"` : 'disabled'}><span>M${escapeHtml(item.order)}</span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(status.replace('_', ' '))}</small></button>`;
-    }).join('');
-    return `<section class="evolution-milestone-strip"><header><div><p class="eyebrow">MILESTONE OUTCOMES</p><h3>${passed}/${milestones.length} passed</h3></div><b>${current ? `Current · M${escapeHtml(current.order)} ${escapeHtml(current.label)}` : 'No active milestone'}</b></header><div>${cards}</div></section>`;
-  }
-
   function keyValueGrid(values, empty) {
-    const rows = Object.entries(values || {}).map(([key, value]) => `<div><span>${escapeHtml(key)}</span><b>${escapeHtml(typeof value === 'number' ? formatNumber(value) : value)}</b></div>`).join('');
+    const rows = Object.entries(values || {}).map(([key, value]) => `<div><span>${escapeHtml(key)}</span><b>${escapeHtml(typeof value === 'number' ? formatNumber(value) : typeof value === 'object' ? JSON.stringify(value) : value)}</b></div>`).join('');
     return rows || `<p class="evolution-muted">${escapeHtml(empty)}</p>`;
   }
 
-  function propertyPane(node, nodes, artifacts, primaryMetric, onPreview) {
-    if (!node) return '<div class="evolution-empty">Select a lineage node.</div>';
-    const available = new Map((artifacts || []).map(item => [item.path, item]));
-    const artifactRows = (node.artifacts || []).map(artifact => {
-      const inventory = available.get(artifact.path);
-      const canPreview = Boolean(inventory?.exists);
-      return `<button class="evolution-artifact" type="button" ${canPreview ? `data-evolution-artifact="${escapeHtml(artifact.path)}" data-kind="${escapeHtml(artifact.kind)}"` : 'disabled'}><span>${escapeHtml(artifact.kind)}</span><b>${escapeHtml(artifact.path.split('/').pop())}</b><small>${canPreview ? `${escapeHtml(inventory.source)} · ${formatBytes(inventory.size)}` : 'metadata only / not synced for preview'}</small></button>`;
-    }).join('');
-    const parentLabels = (node.parentIds || []).map(id => nodes.get(id)?.label || id).join(', ') || 'none';
-    const storage = node.checkpointStorage;
-    const checkpointPath = typeof node.checkpointPath === 'string' ? node.checkpointPath : node.checkpointPath?.path || node.checkpointPath?.identity || null;
-    const checkpoint = checkpointPath
-      ? `<div class="evolution-checkpoint"><span>${node.kind === 'range' ? 'Latest model · merged storage' : 'Model / configuration'} · ${formatBytes(node.diskBytes)}</span><code>${escapeHtml(checkpointPath)}</code>${node.checkpointSha256 ? `<small>SHA · ${escapeHtml(node.checkpointSha256)}</small>` : ''}<small>${escapeHtml(storage ? `${storage.provider} · ${storage.macHydration}` : 'identity only; no policy model')}</small><button type="button" data-evolution-copy-path>Copy path</button></div>`
-      : '<div class="evolution-checkpoint evolution-checkpoint-empty"><span>Model / configuration</span><b>No policy model for this node</b><small>Passive or milestone-only node</small></div>';
-    const changes = (node.parameterChanges || []).map(item => `<div><span>${escapeHtml(item.key)}</span><b>${escapeHtml(item.from == null ? '—' : item.from)} → ${escapeHtml(item.to)}</b></div>`).join('');
-    const failures = (node.failureBreakdown || []).map(item => `<li><b>${escapeHtml(item.count)}×</b><span>${escapeHtml(item.result)}</span></li>`).join('');
-    const milestoneBreakdown = (node.milestoneBreakdown || []).map(item => `<li><b>${escapeHtml(item.count)}×</b><span>${escapeHtml(item.milestone)}</span></li>`).join('');
-    queueMicrotask(() => document.querySelectorAll('[data-evolution-artifact]').forEach(button => button.addEventListener('click', () => onPreview(button.dataset.evolutionArtifact, button.dataset.kind))));
-    queueMicrotask(() => document.querySelector('[data-evolution-copy-path]')?.addEventListener('click', async () => { if (checkpointPath) await navigator.clipboard.writeText(checkpointPath); }));
-    return `<div class="evolution-properties">
-      <div class="evolution-node-heading"><span class="evolution-status ${escapeHtml(node.status)}">${escapeHtml(node.status)}</span><p>${escapeHtml(node.kind)} · ${escapeHtml(progressLabel(node))}</p><h3>${escapeHtml(node.label)}</h3></div>
-      <section class="evolution-change"><h4>Changed in this node</h4><p>${escapeHtml(node.changeSummary || node.approach || 'No parameter change recorded')}</p>${changes ? `<div class="evolution-change-grid">${changes}</div>` : ''}</section>
-      <dl><div><dt>Milestone</dt><dd>${escapeHtml(node.milestoneId || 'lineage setup')}</dd></div><div><dt>Model / asset hash</dt><dd>${escapeHtml(node.model || 'Landau')} · <code>${escapeHtml(node.assetTreeSha256 || node.meshTreeSha256 || 'see validation artifact')}</code></dd></div><div><dt>Observed result</dt><dd>${escapeHtml(node.result || 'No result recorded')}</dd></div><div><dt>Parent</dt><dd>${escapeHtml(parentLabels)}</dd></div><div><dt>Source revision</dt><dd><code>${escapeHtml(node.sourceRevision || 'not recorded')}</code></dd></div></dl>
-      ${checkpoint}
-      ${node.memberNodeIds?.length ? `<button class="button evolution-inspect-runs" type="button" data-evolution-expand-group="${escapeHtml(node.id)}">Inspect ${node.memberNodeIds.length} runs</button>` : ''}
-      <section><h4>Run progress / steps</h4><div class="evolution-metrics">${keyValueGrid(node.trainingProgress, 'No step metadata recorded.')}</div></section>
-      <section><h4>Parameters</h4><div class="evolution-parameters">${keyValueGrid(node.experimentParameters, 'No experiment parameters recorded.')}</div></section>
-      <section><h4>Observed metrics</h4><div class="evolution-metrics">${keyValueGrid(node.metrics, `${primaryMetric} not recorded.`)}</div></section>
-      ${milestoneBreakdown ? `<section><h4>Merged milestone stages</h4><ol class="evolution-failures evolution-stage-breakdown">${milestoneBreakdown}</ol></section>` : ''}
-      ${failures ? `<section><h4>Merged failure outcomes</h4><ol class="evolution-failures">${failures}</ol></section>` : ''}
-      <section><h4>Artifacts</h4><div class="evolution-artifacts">${artifactRows || '<p class="evolution-muted">No artifacts recorded for this node.</p>'}</div></section>
-    </div>`;
+  async function inspectJoints(root, node, robot, onExpand) {
+    const path = node.urdfPath || robot?.urdfPath;
+    if (!path) { root.innerHTML = '<p class="evolution-empty">No verified URDF mapping for this record.</p>'; return; }
+    root.classList.add('joint-inspector-body');
+    const actions = node.actionJoints || [], mappingKnown = Array.isArray(node.actionJoints);
+    root.innerHTML = `<div class="joint-legend"><span class="policy-dot">Policy action</span><span class="held-dot">Held / outside policy</span><span class="unknown-dot">Unknown</span></div><div class="lineage-robot-stage"><canvas data-mesh></canvas><canvas data-overlay></canvas><button class="viewport-expand" data-expand-viewer aria-label="Expand URDF inspector" title="Expand URDF inspector">${icon('expand')}</button><div class="viewer-load-overlay" data-urdf-loading role="status"><span class="loading-spinner"></span><b data-urdf-progress>Reading joint definitions…</b></div><span data-robot-status>Loading URDF…</span></div><div class="lineage-joint-list"><p>${mappingKnown ? `${actions.length} policy joints · exact run metadata` : 'Policy joint mapping not recorded for this run.'}</p><div class="lineage-joint-tools"><button class="button button-light" data-reset-joints>Reset pose</button><span>rad · preview only</span></div><p data-joint-hint>Move a slider to highlight its moving links in amber.</p><div data-joints></div></div>`;
+    let viewer;
+    try {
+      root.querySelector('[data-expand-viewer]').addEventListener('click',onExpand);
+      const payload = await window.GeoAssets.json('/api/robot/urdf?path=' + encodeURIComponent(path),{onProgress:p=>{
+        if(root.isConnected)root.querySelector('[data-urdf-progress]').textContent='Joint definitions · '+window.GeoAssets.describe(p);
+      }}); if (!root.isConnected) return;
+      viewer = new window.MotionUrdfViewer({meshCanvas: root.querySelector('[data-mesh]'), overlayCanvas: root.querySelector('[data-overlay]'), assetUrl: '/api/robot/asset?urdf=' + encodeURIComponent(path), onStatus: text => { if(root.isConnected){root.querySelector('[data-robot-status]').textContent=text;root.querySelector('[data-urdf-progress]').textContent=text;} }});
+      root._dispose = () => viewer.destroy(); viewer.showInspection = true;
+      viewer.trainingJoints = mappingKnown ? new Set(actions) : null;
+      root.querySelector('[data-joints]').innerHTML = payload.joints.map(j => `<div class="lineage-joint ${mappingKnown ? actions.includes(j.name) ? 'policy' : 'held' : 'unknown'}" data-name="${escapeHtml(j.name)}"><button class="joint-select" type="button"><i></i><span>${escapeHtml(j.name.replace(/_joint$/, ''))}</span><small>${mappingKnown ? actions.includes(j.name) ? 'action' : 'hold' : '?'}</small></button><div class="joint-adjust"><input type="range" min="${j.lower}" max="${j.upper}" step="0.005" value="0" data-angle aria-label="${escapeHtml(j.name)} angle" disabled><input type="number" min="${j.lower}" max="${j.upper}" step="0.005" value="0.000" data-angle-number aria-label="${escapeHtml(j.name)} radians" disabled></div></div>`).join('');
+      const stage = root.querySelector('.lineage-robot-stage'); let pointer;
+      const resize = new ResizeObserver(() => { viewer.fitPending = true; viewer.draw(); });
+      resize.observe(stage);
+      root._dispose = () => { resize.disconnect(); viewer.destroy(); };
+      stage.onpointerdown = e => { if(e.target.closest('button'))return; pointer = [e.clientX, e.clientY]; stage.setPointerCapture(e.pointerId); };
+      stage.onpointermove = e => { if (!pointer) return; viewer.orbit(e.clientX-pointer[0], e.clientY-pointer[1]); pointer=[e.clientX,e.clientY]; };
+      stage.onpointerup = stage.onpointercancel = () => { pointer=null; };
+      stage.addEventListener('wheel', e => {e.preventDefault(); viewer.dolly(e.deltaY);}, {passive:false});
+      const selectJoint = row => {
+        viewer.selectJoint(row.dataset.name);
+        root.querySelectorAll('[data-name]').forEach(item=>item.classList.toggle('selected',item===row));
+        const frame=viewer.jointFrame(row.dataset.name);
+        root.querySelector('[data-joint-hint]').textContent=frame ? `${frame.parent} → ${frame.child} · amber = moving links · purple = joint axis` : 'Loading joint frame…';
+      };
+      root.querySelectorAll('[data-name]').forEach(row => {
+        row.querySelector('.joint-select').onclick=()=>selectJoint(row);
+        const slider=row.querySelector('[data-angle]'), number=row.querySelector('[data-angle-number]');
+        const change=input=>{
+          if(!Number.isFinite(input.valueAsNumber))return;
+          const value=Math.max(Number(slider.min),Math.min(Number(slider.max),input.valueAsNumber));
+          slider.value=String(value);number.value=value.toFixed(3);
+          viewer.setJoints([row.dataset.name],[value],false);selectJoint(row);
+          root.dataset.changedJoint=row.dataset.name;root.dataset.jointAngle=String(value);
+        };
+        slider.oninput=()=>change(slider);number.oninput=()=>change(number);
+        slider.onfocus=()=>selectJoint(row);
+      });
+      root.querySelector('[data-reset-joints]').onclick=()=>{
+        viewer.setJoints(payload.joints.map(j=>j.name),payload.joints.map(()=>0));
+        root.querySelectorAll('[data-angle]').forEach(input=>input.value='0');
+        root.querySelectorAll('[data-angle-number]').forEach(input=>input.value='0.000');
+        root.dataset.jointAngle='0';
+      };
+      await viewer.load('/api/robot/urdf?path='+encodeURIComponent(path), [], []);
+      if(root.isConnected){root.querySelectorAll('[data-angle],[data-angle-number]').forEach(input=>input.disabled=false);root.dataset.jointsReady='true';root.querySelector('[data-urdf-loading]').hidden=true;}
+
+    } catch (error) { if(root.isConnected){root.querySelector('[data-robot-status]').textContent=error.message;root.querySelector('[data-urdf-loading]').hidden=true;} }
   }
 
-  function comparisonPane(selected, compared, nodes, primaryMetric) {
-    if (!selected || !compared || selected.id === compared.id) return '<p class="evolution-compare-empty">Choose another visible node to compare parameters, metrics, and ancestry.</p>';
-    const fields = (type, leftValues, rightValues) => [...new Set([...Object.keys(leftValues || {}), ...Object.keys(rightValues || {})])].map(key => {
-      const left = leftValues?.[key];
-      const right = rightValues?.[key];
-      const delta = typeof left === 'number' && typeof right === 'number' ? left - right : null;
-      return `<tr><th>${escapeHtml(type)} · ${escapeHtml(key)}</th><td>${escapeHtml(left ?? '—')}</td><td>${escapeHtml(right ?? '—')}</td><td>${delta == null ? (left === right ? 'same' : 'changed') : formatNumber(delta)}</td></tr>`;
-    }).join('');
-    const rows = fields('parameter', selected.experimentParameters, compared.experimentParameters) + fields('metric', selected.metrics, compared.metrics);
-    const ancestor = commonAncestor(nodes, selected.id, compared.id);
-    return `<div class="evolution-compare-summary"><span>Common ancestor</span><b>${escapeHtml(ancestor?.label || 'none')}</b><span>Primary Δ</span><b>${formatNumber((selected.metrics?.[primaryMetric] ?? 0) - (compared.metrics?.[primaryMetric] ?? 0))}</b></div><div class="evolution-table-wrap"><table><thead><tr><th>Field</th><th>Selected</th><th>Compare</th><th>Δ</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No parameters or metrics to compare.</td></tr>'}</tbody></table></div>`;
+  function expandInspector(container, body, title, trigger) {
+    if (container._closeExpanded) return;
+    const placeholder = document.createComment('inspector position');
+    body.before(placeholder);
+    const dialog = document.createElement('dialog');
+    dialog.className = 'lineage-viewer-dialog';
+    dialog.setAttribute('aria-label', title);
+    dialog.innerHTML = `<header><h2>${escapeHtml(title)}</h2><button class="button button-light" data-close-expanded aria-label="Close expanded viewer">Close ✕</button></header>`;
+    container.append(dialog);
+    dialog.append(body);
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      placeholder.replaceWith(body);
+      dialog.close();
+      dialog.remove();
+      container._closeExpanded = null;
+      trigger?.focus({preventScroll:true});
+    };
+    container._closeExpanded = restore;
+    dialog.querySelector('[data-close-expanded]').onclick = restore;
+    dialog.addEventListener('cancel', event => { event.preventDefault(); restore(); });
+    dialog.addEventListener('close', restore);
+    dialog.addEventListener('click', event => { if(event.target === dialog) restore(); });
+    dialog.showModal();
+  }
+
+  function destroy(container) { container._closePicker?.(); container._closeExpanded?.(); container.querySelector('[data-inspector-body]')?._dispose?.(); }
+
+  const workspaceStateKey='geo.landau.workspace.v1';
+  function restoredWorkspace() {
+    try {
+      const saved=JSON.parse(localStorage.getItem(workspaceStateKey)||'{}'),state={};
+      for(const key of ['modelId','selectedId','search'])if(typeof saved?.[key]==='string')state[key]=saved[key];
+      if(['details','playback','joints'].includes(saved?.tab))state.tab=saved.tab;
+      if(['overview','all'].includes(saved?.mode))state.mode=saved.mode;
+      state.autoLoadPlayback=saved?.autoLoadPlayback===true;
+      return state;
+    } catch { return {}; }
+  }
+  function saveWorkspace(model) {
+    try {localStorage.setItem(workspaceStateKey,JSON.stringify(model));} catch { /* Storage may be disabled. */ }
   }
 
   function mount(container, options) {
-    const data = options.data || {};
-    const raw = Array.isArray(data.nodes) ? data.nodes : [];
-    const overview = Array.isArray(data.overviewNodes) && data.overviewNodes.length ? data.overviewNodes : raw.filter(node => (data.defaultVisibleNodeIds || []).includes(node.id));
-    const combined = new Map([...raw, ...overview].map(node => [node.id, node]));
-    const currentPath = ancestorSet(combined, data.currentNodeId);
-    const orderedOverview = overview.map((node, index) => ({ node, index })).sort((left, right) => {
-      const pathRank = Number(!currentPath.has(left.node.id)) - Number(!currentPath.has(right.node.id));
-      return pathRank || left.index - right.index;
-    }).map(item => item.node);
-    const model = container._evolutionModel || { selectedId: data.currentNodeId || raw.at(-1)?.id, compareId: '', mode: 'overview', groupId: '' };
+    const previousScroll=container.querySelector('.lineage-scroll');
+    const scrollPosition=previousScroll?{left:previousScroll.scrollLeft,top:previousScroll.scrollTop}:null;
+    const previousModelId=container._renderedModelId;
+    destroy(container);
+    const data = options.data || {}, raw = data.nodes || [], models = data.models || [];
+    const model = container._evolutionModel || {modelId: data.activeModelId || raw[0]?.modelId, selectedId: data.currentNodeId, tab: 'details', mode: 'overview', search: '',...restoredWorkspace()};
+    if(models.length&&!models.some(item=>item.id===model.modelId))model.modelId=data.activeModelId||models[0].id;
     container._evolutionModel = model;
-    let visible = orderedOverview;
-    if (model.mode === 'all') visible = raw;
-    if (model.mode === 'group') {
-      const group = orderedOverview.find(node => node.id === model.groupId);
-      const members = new Set(group?.memberNodeIds || []);
-      const parentPath = ancestorSet(combined, group?.parentIds?.[0]);
-      visible = [...orderedOverview.filter(node => parentPath.has(node.id)), ...raw.filter(node => members.has(node.id))];
+    container._renderedModelId = model.modelId;
+    const robot = models.find(m => m.id === model.modelId);
+    const scoped = raw.filter(n => !models.length || n.modelId === model.modelId);
+    const nodes = new Map(scoped.map(n => [n.id, n]));
+    if (!nodes.has(model.selectedId)) model.selectedId = scoped.at(-1)?.id;
+    saveWorkspace(model);
+    const selected = nodes.get(model.selectedId);
+    const ancestry = ancestorSet(nodes, model.selectedId);
+    let visible = scoped;
+    if (model.mode !== 'all') {
+      const recent = [...scoped].sort((a,b)=>String(b.startedAt||'').localeCompare(String(a.startedAt||'')));
+      const ids = new Set([...ancestry, ...scoped.filter(n=>n.kind==='milestone').map(n=>n.id), ...recent.slice(0,12).map(n=>n.id)]);
+      visible = scoped.filter(n=>ids.has(n.id));
     }
-    const visibleIds = new Set(visible.map(node => node.id));
-    if (!combined.has(model.selectedId) || !visibleIds.has(model.selectedId)) model.selectedId = data.currentNodeId || visible.at(-1)?.id;
-    const selected = combined.get(model.selectedId);
-    const graph = layout(visible);
-    const highlighted = ancestorSet(combined, model.selectedId);
-    const milestoneOrder = new Map((data.milestones || []).map(item => [item.id, item.order]));
-    const edges = visible.flatMap(node => (node.parentIds || []).filter(parent => visibleIds.has(parent)).map(parent => {
-      const from = graph.point(parent);
-      const to = graph.point(node.id);
-      const active = highlighted.has(parent) && highlighted.has(node.id);
-      return `<path class="evolution-edge${active ? ' active' : ''}" d="M ${from.x + 214} ${from.y + 41} C ${from.x + 244} ${from.y + 41}, ${to.x - 30} ${to.y + 41}, ${to.x} ${to.y + 41}"/>`;
+    if (model.search) visible = scoped.filter(n => (n.label+' '+n.id+' '+(n.result||'')).toLowerCase().includes(model.search.toLowerCase()));
+    const milestones = robot?.milestones?.length ? robot.milestones : (data.milestones || []).map(m=>({...m,status:'unverified'}));
+    const graph = layout(visible, milestones), visibleIds = new Set(visible.map(n=>n.id));
+    const edges = visible.flatMap(n=>(n.parentIds||[]).filter(id=>visibleIds.has(id)).map(id=>{
+      const a=graph.point(id), b=graph.point(n.id);
+      const route=Math.abs(b.x-a.x)<180?`M ${a.x+60} ${a.y+26} C ${a.x+95} ${a.y+26}, ${b.x-6} ${b.y+26}, ${b.x+21} ${b.y+26}`:`M ${a.x+60} ${a.y+26} Q ${a.x+80} ${a.y+26} ${a.x+80} ${a.y-8} L ${b.x+3} ${a.y-8} Q ${b.x+3} ${b.y+26} ${b.x+21} ${b.y+26}`;
+      return `<path class="evolution-edge${ancestry.has(id)&&ancestry.has(n.id)?' active':''}" marker-end="url(#lineage-arrow)" d="${route}"/>`;
     })).join('');
-    const nodeMarkup = visible.map(node => {
-      const point = graph.point(node.id);
-      const isSelected = node.id === model.selectedId;
-      const path = highlighted.has(node.id);
-      const milestone = milestoneOrder.get(node.milestoneId);
-      const eyebrow = `${milestone ? `M${milestone} · ` : ''}${node.kind}${node.step != null ? ` · seq ${node.step}` : ''}`;
-      return `<g class="evolution-node ${escapeHtml(node.status)}${node.kind === 'range' ? ' merged' : ''}${isSelected ? ' selected' : ''}${path ? ' path' : ''}" data-evolution-node="${escapeHtml(node.id)}" tabindex="0" role="button" aria-label="${escapeHtml(`${node.label}, ${node.status}`)}" transform="translate(${point.x} ${point.y})"><rect width="214" height="82" rx="13"/><circle cx="17" cy="16" r="5"/><text class="node-kind" x="29" y="19">${escapeHtml(eyebrow.slice(0, 34))}</text><text class="node-label" x="14" y="43">${escapeHtml(node.label.slice(0, 31))}</text><text class="node-metric" x="14" y="66">${escapeHtml(outcomeLabel(node, data.primaryMetric).slice(0, 39))}</text>${node.diskBytes ? `<text class="node-size" x="200" y="66" text-anchor="end">${escapeHtml(formatBytes(node.diskBytes))}</text>` : ''}</g>`;
+    const cards = visible.map(n=>{
+      const p=graph.point(n.id);
+      const symbol=n.kind==='milestone'?(n.status==='completed'?'✓':'◇'):n.kind==='checkpoint'?'⬡':n.playback?'▶':'•';
+      return `<g class="evolution-node ${escapeHtml(n.status)}${n.id===model.selectedId?' selected':''}${ancestry.has(n.id)?' ancestor':''}" transform="translate(${p.x} ${p.y})" role="button" tabindex="0" data-node="${escapeHtml(n.id)}" aria-label="${escapeHtml(n.label)}"><title>${escapeHtml(n.label+' — '+(n.result||''))}</title><rect width="130" height="85" rx="8"/><circle class="node-disc" cx="42" cy="26" r="18"/><text class="node-symbol" x="42" y="31" text-anchor="middle">${symbol}</text><circle class="node-state-dot" cx="57" cy="12" r="4"/><text class="node-label" x="42" y="61" text-anchor="middle">${escapeHtml(displayLabel(n).slice(0,22))}</text><text class="node-metric" x="42" y="76" text-anchor="middle">${escapeHtml(n.kind==='milestone'&&n.status==='completed'?'certified':n.status)}</text></g>`;
     }).join('');
-    const compareOptions = visible.map(node => `<option value="${escapeHtml(node.id)}" ${model.compareId === node.id ? 'selected' : ''}>${escapeHtml(node.label)}</option>`).join('');
-    const modeButton = model.mode === 'overview' ? '' : '<button class="button button-light" type="button" data-evolution-overview>Smart overview</button>';
-    container.innerHTML = `<div class="evolution-shell">
-      ${milestoneStrip(data, combined)}
-      <div class="evolution-layout">
-        <section class="evolution-main">
-          <header class="evolution-toolbar"><div><p class="eyebrow">REAL ARTIFACT LINEAGE</p><b>Clean milestone lineage</b><span>${data.summary?.overviewNodeCount || overview.length} overview · ${raw.length} recorded · ${data.summary?.failedGroupCount || 0} merged groups · ${formatBytes(data.summary?.checkpointBytes)}</span></div><div>${modeButton}<button class="button button-light" type="button" data-evolution-fit>Fit current</button>${model.mode !== 'all' && raw.length > overview.length ? `<button class="button" type="button" data-evolution-show-all>All ${raw.length}</button>` : ''}</div></header>
-          <div class="evolution-canvas" tabindex="0"><svg width="${graph.width}" height="${graph.height}" viewBox="0 0 ${graph.width} ${graph.height}" aria-label="Checkpoint evolution tree"><g>${edges}</g><g>${nodeMarkup}</g></svg></div>
-          <section class="evolution-compare"><header><div><p class="eyebrow">NODE COMPARISON</p><h3>What changed?</h3></div><label>Against<select data-evolution-compare><option value="">Choose visible node</option>${compareOptions}</select></label></header>${comparisonPane(selected, combined.get(model.compareId), combined, data.primaryMetric)}</section>
-        </section>
-        <aside class="evolution-side">${propertyPane(selected, combined, options.artifacts, data.primaryMetric, options.onPreview)}</aside>
-      </div>
-    </div>`;
-
-    const centerSelected = behavior => {
-      const canvas = container.querySelector('.evolution-canvas');
-      const point = graph.point(model.selectedId);
-      if (!canvas || !point) return;
-      canvas.scrollTo({
-        left: Math.max(0, point.x + 107 - canvas.clientWidth / 2),
-        top: Math.max(0, point.y + 41 - canvas.clientHeight / 2),
-        behavior,
-      });
-    };
-    queueMicrotask(() => centerSelected('auto'));
-    const selectNode = id => { model.selectedId = id; mount(container, options); };
-    const ordered = visible.map(node => node.id);
-    container.querySelectorAll('[data-evolution-node]').forEach(element => {
-      element.addEventListener('click', () => selectNode(element.dataset.evolutionNode));
-      element.addEventListener('keydown', event => {
-        const id = element.dataset.evolutionNode;
-        const index = ordered.indexOf(id);
-        let next = null;
-        if (event.key === 'ArrowLeft') next = parentsOf(combined, id).find(parent => visibleIds.has(parent));
-        if (event.key === 'ArrowRight') next = visible.find(node => (node.parentIds || []).includes(id))?.id;
-        if (event.key === 'ArrowUp') next = ordered[Math.max(0, index - 1)];
-        if (event.key === 'ArrowDown') next = ordered[Math.min(ordered.length - 1, index + 1)];
-        if (event.key === 'Enter' || event.key === ' ') next = id;
-        if (next) { event.preventDefault(); selectNode(next); queueMicrotask(() => container.querySelector(`[data-evolution-node="${CSS.escape(next)}"]`)?.focus()); }
-      });
-    });
-    container.querySelectorAll('[data-evolution-milestone]').forEach(button => button.addEventListener('click', () => selectNode(button.dataset.evolutionMilestone)));
-    container.querySelector('[data-evolution-expand-group]')?.addEventListener('click', event => { model.mode = 'group'; model.groupId = event.currentTarget.dataset.evolutionExpandGroup; model.selectedId = combined.get(model.groupId)?.memberNodeIds?.at(-1); mount(container, options); });
-    container.querySelector('[data-evolution-show-all]')?.addEventListener('click', () => { model.mode = 'all'; model.groupId = ''; mount(container, options); });
-    container.querySelector('[data-evolution-overview]')?.addEventListener('click', () => { model.mode = 'overview'; model.groupId = ''; model.selectedId = data.currentNodeId; mount(container, options); });
-    container.querySelector('[data-evolution-fit]')?.addEventListener('click', () => centerSelected(matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'));
-    container.querySelector('[data-evolution-compare]')?.addEventListener('change', event => { model.compareId = event.target.value; mount(container, options); });
+    const bands = graph.bands.map((b,i)=>`<div class="lineage-band ${escapeHtml(b.status)}" style="left:${b.x}px;width:${b.width}px;--band-hue:${[205,155,175,35,26,270,290,310,210,225,95,65,0][i%13]}"><span>${b.id?'M'+b.order:'LAB'}</span><b>${escapeHtml(b.label)}</b><small>${escapeHtml(b.status.replaceAll('_',' '))}</small></div>`).join('');
+    const video = selected?.artifacts?.find(a=>a.kind==='video');
+    container.innerHTML = `<div class="lineage-workspace"><div class="lineage-toolbar"><button class="model-picker-trigger" data-model-picker aria-haspopup="dialog">${icon('model')}<span><small>MODEL</small><b>${escapeHtml(modelLabel(robot))}</b></span>${icon('chevron')}</button><span class="lineage-count">${visible.length} / ${scoped.length} nodes</span><input type="search" data-search placeholder="Find a run…" aria-label="Search lineage" value="${escapeHtml(model.search)}"><button class="button button-light" data-mode>${model.mode==='all'?'Compact':'All runs'}</button><button class="button button-light" data-fit>Locate</button>${options.onRefresh?'<button class="button button-light lineage-icon-button" data-refresh aria-label="Refresh lineage" title="Refresh">↻</button>':''}${options.onTools?'<button class="button button-light lineage-icon-button" data-tools aria-label="Tools and logs" title="Tools and logs">⋯</button>':''}</div><div class="lineage-body"><section class="lineage-graph"><div class="lineage-scroll"><div class="lineage-band-header" style="width:${graph.width}px">${bands}</div><svg width="${graph.width}" height="${graph.height}" role="group" aria-label="Checkpoint evolution by milestone"><defs><marker id="lineage-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#678b7e"/></marker></defs>${graph.bands.map((b,i)=>`<rect x="${b.x}" width="${b.width}" height="${graph.height}" fill="${i%2?'#eaf1ec':'#f5f6f1'}"/>`).join('')}<g>${edges}</g><g>${cards}</g></svg></div><footer class="lineage-footer"><span>● certified gate &nbsp; ◌ experiment &nbsp; ▶ recorded 3D</span><span>Columns = target gate · only certified nodes prove a pass</span></footer></section><aside class="lineage-inspector"><header><p class="eyebrow">SELECTED NODE</p><h3>${escapeHtml(displayLabel(selected))}</h3></header><nav class="lineage-tabs" aria-label="Node inspector">${['details','playback','joints'].map(tab=>`<button data-tab="${tab}" class="${model.tab===tab?'active':''}" aria-pressed="${model.tab===tab}">${{details:'Details',playback:'Playback',joints:'Joints'}[tab]}</button>`).join('')}</nav><div data-inspector-body></div></aside></div></div>`;
+    const body=container.querySelector('[data-inspector-body]');
+    const onExpand=event=>expandInspector(container,body,`${model.tab==='joints'?'URDF inspector':'3D playback'} · ${displayLabel(selected)}`,event.currentTarget);
+    if(model.tab==='details') {
+      body.innerHTML=detailsPane(selected,robot,nodes,milestones);
+      body.querySelectorAll('[data-select-parent]').forEach(button=>button.onclick=()=>{model.selectedId=button.dataset.selectParent;mount(container,options);});
+      body.querySelectorAll('[data-detail-artifact]').forEach(button=>button.onclick=()=>options.onPreview(button.dataset.detailArtifact,button.dataset.kind));
+    } else if(model.tab==='joints') { if(selected) void inspectJoints(body,selected,robot,onExpand); }
+    else {
+      body.classList.add('playback-inspector-body');
+      body.innerHTML=`<div class="lineage-playback">${selected?.playback?'<button class="button" data-load-motion>Load 3D playback</button><p>Downloads only this node’s recorded motion.</p><div data-motion></div>':'<p>No 3D recording attached to this node.</p>'}${video?`<button class="button button-light" data-video>Open proof video</button>`:''}<p class="muted">Playback belongs to the selected run. A recording alone is not a milestone certificate.</p></div>`;
+      body.querySelector('[data-video]')?.addEventListener('click',()=>options.onPreview(video.path,'video'));
+      const loadPlayback=async()=>{
+        const button=body.querySelector('[data-load-motion]');
+        if(!button||button.disabled)return;
+        model.autoLoadPlayback=true;saveWorkspace(model);
+        button.disabled=true;button.textContent='Loading…';
+        try { const module=await import('/character_motion_viewer.js?v=11'); if(!body.isConnected)return;
+          body._dispose?.();
+          const viewer=module.mount(body.querySelector('[data-motion]'), {...selected.playback,onExpand,expandIcon:icon('expand'),onError:()=>{
+            if(body.isConnected){button.hidden=false;button.disabled=false;button.textContent='Retry 3D playback';}
+          }});body._dispose=()=>viewer.destroy();button.hidden=true;body.querySelector('.lineage-playback').classList.add('is-loaded');
+        } catch(error) {if(body.isConnected){const button=body.querySelector('[data-load-motion]');button.disabled=false;button.textContent='Retry 3D · '+error.message;}}
+      };
+      body.querySelector('[data-load-motion]')?.addEventListener('click',loadPlayback);
+      if(model.autoLoadPlayback)void loadPlayback();
+    }
+    const redraw=()=>mount(container,options);
+    container.querySelector('[data-model-picker]').onclick=event=>modelPicker(container,models,raw,model.modelId,id=>{model.modelId=id;model.selectedId='';model.search='';redraw();},event.currentTarget);
+    container.querySelector('[data-mode]').onclick=()=>{model.mode=model.mode==='all'?'overview':'all';redraw();};
+    const search=container.querySelector('[data-search]');search.onchange=()=>{model.search=search.value;redraw();};
+    container.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{model.tab=b.dataset.tab;redraw();});
+    const select=id=>{model.selectedId=id;redraw();};
+    container.querySelectorAll('[data-node]').forEach(b=>{b.onclick=()=>select(b.dataset.node);b.onkeydown=e=>{const id=b.dataset.node,index=visible.findIndex(n=>n.id===id);let next;
+      if(e.key==='Enter'||e.key===' ')next=id;
+      if(e.key==='ArrowLeft')next=(nodes.get(id)?.parentIds||[]).find(parent=>visibleIds.has(parent));
+      if(e.key==='ArrowRight')next=visible.find(n=>(n.parentIds||[]).includes(id))?.id;
+      if(e.key==='ArrowUp')next=visible[Math.max(0,index-1)]?.id;
+      if(e.key==='ArrowDown')next=visible[Math.min(visible.length-1,index+1)]?.id;
+      if(next){e.preventDefault();select(next);queueMicrotask(()=>container.querySelector(`[data-node="${CSS.escape(next)}"]`)?.focus({preventScroll:true}));}};});
+    const locate=()=>{const p=graph.point(model.selectedId);if(p)container.querySelector('.lineage-scroll').scrollTo({left:Math.max(0,p.x-container.querySelector('.lineage-scroll').clientWidth+170),top:0});};
+    container.querySelector('[data-fit]').onclick=locate;
+    // Selection and inspector changes rebuild the DOM, but must not move the graph.
+    if(scrollPosition&&previousModelId===model.modelId)container.querySelector('.lineage-scroll').scrollTo(scrollPosition);
+    else locate();
+    container.querySelector('[data-refresh]')?.addEventListener('click',options.onRefresh);
+    container.querySelector('[data-tools]')?.addEventListener('click',options.onTools);
   }
 
-  window.GeoEvolutionTree = { mount };
+  window.GeoEvolutionTree = {mount, destroy, layout, icon, loading};
 })();

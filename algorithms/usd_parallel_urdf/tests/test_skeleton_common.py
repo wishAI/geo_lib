@@ -14,6 +14,7 @@ if str(MODULE_ROOT) not in sys.path:
 
 from skeleton_common import (
     BodyBasis,
+    _inertial_from_geoms,
     build_urdf_model,
     build_link_geometries,
     generate_urdf_text,
@@ -35,6 +36,26 @@ class SkeletonCommonTests(unittest.TestCase):
             up_world=np.array([0.0, 0.0, 1.0], dtype=float),
             forward_world=np.array([0.0, 1.0, 0.0], dtype=float),
         )
+
+    def test_separated_spheres_use_center_of_mass_and_parallel_axis(self) -> None:
+        geoms=[dict(kind='sphere',radius=.05,origin_xyz=[x,2.,3.],origin_rpy=[0,0,0]) for x in (.8,1.2)]
+        mass,center,tensor=_inertial_from_geoms(geoms)
+        np.testing.assert_allclose(center,[1,2,3],atol=1e-12)
+        # Both spheres have intrinsic I/m=.4*r^2; transverse axes also get d^2.
+        np.testing.assert_allclose(tensor,np.diag(mass*np.array([.001,.041,.041])),atol=1e-12)
+        self.assertAlmostEqual(tensor[1,1],.0107337749,places=9)
+
+    def test_rotated_box_preserves_off_diagonal_inertia(self) -> None:
+        mass,center,tensor=_inertial_from_geoms([dict(kind='box',size_xyz=[.2,.4,.6],
+            origin_xyz=[1,2,3],origin_rpy=[0,0,np.pi/4])])
+        self.assertAlmostEqual(mass,12.)
+        np.testing.assert_allclose(center,[1,2,3])
+        np.testing.assert_allclose(tensor,[[.46,.06,0],[.06,.46,0],[0,0,.2]],atol=1e-12)
+
+    def test_small_geometry_mass_floor_scales_inertia_consistently(self) -> None:
+        mass,_,tensor=_inertial_from_geoms([dict(kind='sphere',radius=.001)])
+        self.assertEqual(mass,.02)
+        np.testing.assert_allclose(tensor,np.eye(3)*(.4*mass*.001**2),atol=1e-14)
 
     def test_rpy_round_trip(self) -> None:
         rpy = np.array([0.31, -0.44, 1.27], dtype=float)
@@ -124,6 +145,12 @@ class SkeletonCommonTests(unittest.TestCase):
         self.assertIn('base_link', link_names)
         self.assertIsNotNone(fixed_joint)
         self.assertEqual(fixed_joint.attrib['type'], 'fixed')
+        custom={'root_x':[dict(kind='box',size_xyz=[.2,.4,.6],origin_xyz=[.01,.02,.03],origin_rpy=[0,0,np.pi/4])]}
+        exported=ET.fromstring(generate_urdf_text('inertia',records,inertial_geoms_by_name=custom))
+        inertial=exported.find("./link[@name='root_x']/inertial")
+        np.testing.assert_allclose(np.fromstring(inertial.find('origin').get('xyz'),sep=' '),[.01,.02,.03],atol=1e-6)
+        self.assertAlmostEqual(float(inertial.find('inertia').get('ixy')),.06,places=10)
+
 
     def test_generate_urdf_is_pretty_printed(self) -> None:
         records = [

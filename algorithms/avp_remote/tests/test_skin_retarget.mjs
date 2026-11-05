@@ -31,14 +31,14 @@ test('all 68 skin matrices follow geometry owners despite sibling twist bones',(
  const {root,objects,mapper}=fixture(),rest=worldTransforms(data.joints,{});
  assert.equal(root.getObjectByName('arm_twist_l').parent,root.getObjectByName('forearm_stretch_l').parent);
  const skin=gltf.skins[0],accessor=gltf.accessors[skin.inverseBindMatrices],view=gltf.bufferViews[accessor.bufferView];
- const poses=[data.snapshotPose,{arm_stretch_l:-.7,arm_twist_l:.5,forearm_stretch_l:.8,forearm_twist_l:-.4,hand_l:.3,left_hip_roll_link:.1}];
+ const poses=[data.snapshotPose,{arm_stretch_l:-.7,arm_twist_l:.5,forearm_stretch_l:.8,forearm_twist_l:-.4,hand_l:.3,left_hip_roll_link:.1,thigh_twist_l:.35,leg_twist_l:-.12,left_ankle_pitch_link:.1,foot_l:.2,toes_01_l:-.1}];
  for(const pose of poses){
   const worlds=worldTransforms(data.joints,pose);mapper.apply(worlds);root.updateMatrixWorld(true);
   skin.joints.forEach((id,i)=>{
    const offset=(view.byteOffset||0)+(accessor.byteOffset||0)+i*64;
    const inverse=new THREE.Matrix4().fromArray(Array.from({length:16},(_,n)=>binary.readFloatLE(offset+n*4)));
    const actual=objects[id].matrixWorld.clone().multiply(inverse);
-   const name=objects[id].name,owner=name.replace(/^arm_stretch_/, 'arm_twist_');
+   const name=objects[id].name,owner=name.replace(/^(arm|thigh|leg)_stretch_/, '$1_twist_');
    const expected=worlds[owner].clone().multiply(rest[owner].clone().invert());
    assert.ok(error(actual,expected)<2e-5,objects[id].name);
   });

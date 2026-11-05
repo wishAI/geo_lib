@@ -159,6 +159,11 @@
       "path": "algorithms/avp_remote/gui/hand-rig.js",
       "kind": "file",
       "syncOnly": true
+    },
+    {
+      "label": "Lossless motion codec",
+      "path": "algorithms/avp_remote/gui/motion-codec.js",
+      "kind": "javascript"
     }
   ]
 }

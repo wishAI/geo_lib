@@ -281,15 +281,20 @@ def evaluate_static_derivation(derivation: dict) -> list[str]:
     return failures
 
 
-def evaluate_free_root_support(metrics: dict) -> list[str]:
+def evaluate_free_root_support(metrics: dict, support_profile: str = 'robot_strict_v1') -> list[str]:
     """Fail closed on free-root COM containment and contact-load plausibility."""
 
+    if support_profile not in ('robot_strict_v1','animation_approximate_v1'):
+        raise ValueError('Unknown support-force acceptance profile')
     failures = []
     if metrics["first_support_exit_time_s"] is not None:
         failures.append("free-root COM exited the canonical collision support hull")
     if metrics["minimum_support_polygon_margin_m"] <= 0.0:
         failures.append("free-root minimum support-polygon margin is not positive")
-    if metrics["peak_support_force_body_weight_ratio"] > MAX_FREE_ROOT_PEAK_SUPPORT_BODY_WEIGHT_RATIO:
+    peak = metrics["peak_support_force_body_weight_ratio"]
+    if not math.isfinite(peak) or peak < 0:
+        failures.append('free-root peak support force is invalid')
+    elif support_profile == 'robot_strict_v1' and peak > MAX_FREE_ROOT_PEAK_SUPPORT_BODY_WEIGHT_RATIO:
         failures.append("free-root peak support force exceeded 3 body weights")
     mean_ratio = metrics["mean_support_force_body_weight_ratio"]
     if not MIN_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO <= mean_ratio <= MAX_FREE_ROOT_MEAN_SUPPORT_BODY_WEIGHT_RATIO:

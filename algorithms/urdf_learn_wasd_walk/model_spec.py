@@ -577,18 +577,44 @@ def analyze_pose_geometry(
     }
 
 
-def derive_static_pose(urdf_path: Path = URDF_PATH) -> dict:
+def fixed_hand_positions(profile: str = 'closed_fists_v1') -> dict[str, float]:
+    """Constant physical PD targets, outside the 17-dimensional policy action."""
+    if profile not in ('open', 'closed_fists_v1'):
+        raise ValueError('Unknown fixed hand profile')
+    pose = dict.fromkeys(FINGER_JOINTS, 0.)
+    if profile == 'closed_fists_v1':
+        for side, sign in (('left', 1.), ('right', -1.)):
+            # The thumb axes mirror in the source URDF; the other fingers do not.
+            for segment, value in (('metacarpal', -.4), ('proximal', .7), ('distal', .7)):
+                pose[f'{side}_thumb_{segment}_joint'] = sign * value
+            for finger in ('index', 'middle', 'ring', 'pinky'):
+                for segment, value in (('proximal', -1.1), ('intermediate', -1.3), ('distal', -.9)):
+                    pose[f'{side}_{finger}_{segment}_joint'] = value
+    return pose
+
+
+def checkpoint_hand_pose(metadata: dict) -> str:
+    """Legacy checkpoints keep their original open hands during replay."""
+    profile = metadata.get('hand_pose', metadata.get('arguments', {}).get('hand_pose', 'open'))
+    fixed_hand_positions(profile)
+    return profile
+
+
+def derive_static_pose(urdf_path: Path = URDF_PATH, *, hand_pose: str = 'open') -> dict:
     """Derive a small crouch and center its COM using only exact current assets."""
 
     # Half of the installed G1 leg flexion retains Landau's heel/toe support;
     # the full G1 angles do not. Search waist pitch at 1 mrad resolution for
-    # maximum collision-hull margin without moving hands, fingers, or head.
+    # maximum collision-hull margin with the selected hands held fixed.
     leg_pose = {
         f"{side}_hip_pitch_joint": -0.10
         for side in ("left", "right")
     }
     leg_pose.update({f"{side}_knee_joint": 0.21 for side in ("left", "right")})
     leg_pose.update({f"{side}_ankle_pitch_joint": -0.115 for side in ("left", "right")})
+    if hand_pose != 'open':
+        # Include hand mass in the COM search before choosing the waist target.
+        leg_pose.update(fixed_hand_positions(hand_pose))
     root = ET.parse(urdf_path).getroot()
     seed_geometry = analyze_pose_geometry(leg_pose, urdf_path)
     support_hull = seed_geometry["support_hull_xy_m"]

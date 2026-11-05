@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from webgui import avp_recordings
+from webgui import motion_codec
 from webgui.tests import test_avp_delivery as delivery
 
 
@@ -16,6 +17,18 @@ def clip():
 
 
 class RecordingTests(unittest.TestCase):
+    def test_packed_storage_preserves_legacy_identity_and_original_file(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(avp_recordings,'ROOT',Path(directory)):
+            value=clip();saved=avp_recordings.save(value)
+            original=(Path(directory)/(saved['id']+'.json.gz')).read_bytes()
+            compact=avp_recordings.download(saved['id'],packed=True,compressed=True)
+            self.assertEqual(motion_codec.unpack(json.loads(gzip.decompress(compact))),value)
+            self.assertEqual((Path(directory)/(saved['id']+'.json.gz')).read_bytes(),original)
+            self.assertEqual(avp_recordings.save(motion_codec.pack(value)),saved)
+            (Path(directory)/(saved['id']+'.json.gz')).unlink()
+            self.assertEqual(avp_recordings.read(saved['id']),value)
+            self.assertEqual(len(avp_recordings.summaries()),1)
+
     def test_immutable_deduplicated_recordings_survive_new_reader(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(avp_recordings,'ROOT',Path(directory)):
             value=clip();first=avp_recordings.save(value)
@@ -40,6 +53,20 @@ class RecordingHttpTests(unittest.TestCase):
     setUp = delivery.AvpDeliveryTests.setUp
     tearDown = delivery.AvpDeliveryTests.tearDown
     request = delivery.AvpDeliveryTests.request
+    def test_truncated_compressed_upload_returns_bad_request(self):
+        status,_,_=self.request('POST','/api/avp/recordings',
+            {'Content-Type':'application/json','Content-Encoding':'gzip'},gzip.compress(b'{}')[:-4])
+        self.assertEqual(status,400)
+    def test_compressed_packed_upload_and_legacy_download(self):
+        with patch.object(avp_recordings,'ROOT',self.root/'recordings'):
+            content=gzip.compress(json.dumps(motion_codec.pack(clip())).encode())
+            status,_,body=self.request('POST','/api/avp/recordings',
+                {'Content-Type':'application/json','Content-Encoding':'gzip'},content)
+            self.assertEqual(status,200);identifier=json.loads(body)['id']
+            status,_,body=self.request(path='/api/avp/recordings/'+identifier+'?packed=1')
+            self.assertEqual(status,200);self.assertEqual(motion_codec.unpack(json.loads(body)),clip())
+            status,_,body=self.request(path='/api/avp/recordings/'+identifier)
+            self.assertEqual(status,200);self.assertEqual(json.loads(body),clip())
     def test_recording_download_uses_stored_gzip_and_private_immutable_cache(self):
         with patch.object(avp_recordings,'ROOT',self.root/'recordings'):
             value=clip();saved=avp_recordings.save(value)

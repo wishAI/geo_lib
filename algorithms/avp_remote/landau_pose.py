@@ -301,16 +301,29 @@ class UrdfSkinMapper:
         rest = world_map_from_joint_specs(specs)
         skin_rest = world_matrices_from_local(records, [r.local_matrix for r in records])
         parents = {s.child_link: s.parent_link for s in specs.values()}
+        def descendant(child, ancestor):
+            seen = set()
+            while child in parents and child not in seen:
+                seen.add(child)
+                child = parents[child]
+                if child == ancestor:
+                    return True
+            return False
+
+        owners = {
+            f'{part}_stretch_{side}': (f'{part}_twist_{side}', f'{distal}_{side}')
+            for side in ('l', 'r')
+            for part, distal in (('arm', 'forearm_stretch'), ('thigh', 'leg_stretch'), ('leg', 'foot'))
+        }
         self.sources = {}
         self.offsets = {}
         for record in records:
             name = record.name
             source = name
-            if name in ('arm_stretch_l', 'arm_stretch_r'):
-                twist = name.replace('arm_stretch_', 'arm_twist_')
-                forearm = name.replace('arm_stretch_', 'forearm_stretch_')
-                if parents.get(twist) == name and parents.get(forearm) == twist:
-                    source = twist
+            if name in owners:
+                owner, distal = owners[name]
+                if descendant(owner, name) and descendant(distal, owner):
+                    source = owner
             self.sources[name] = source
             self.offsets[name] = np.linalg.inv(rest[source]) @ skin_rest[record.index]
 

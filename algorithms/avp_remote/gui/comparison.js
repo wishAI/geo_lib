@@ -8,7 +8,12 @@ export function unitreePose(data, landau) {
   const values = {};
   for (const [name, rule] of Object.entries(data.rules)) {
     let value = rule.bias;
-    for (const [key, weight] of Object.entries(rule.weights)) value += (landau[key] || 0) * weight;
+    for (const [key, weight] of Object.entries(rule.weights)) {
+      const legacyLeftThumb = (data.scalarFingerVersion ?? 1) < 2 && (
+        (name === 'L_thumb_proximal_pitch_joint' && ['thumb2_l', 'thumb3_l'].includes(key)) ||
+        (name === 'L_thumb_proximal_yaw_joint' && key === 'thumb1_l'));
+      value += (landau[key] || 0) * (legacyLeftThumb ? -weight : weight);
+    }
     values[name] = Math.max(rule.minimum ?? -Infinity, value);
   }
   const pending = [...data.joints], result = {}, resolved = new Set();

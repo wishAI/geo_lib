@@ -41,6 +41,29 @@ TRAIN_FORWARD_SPEED_RANGE_MPS = (0.25, 0.45)
 TRAIN_STANDING_ENVIRONMENT_FRACTION = 0.25
 ALTERNATING_SINGLE_SUPPORT_WEIGHT = 0.25
 TARGET_DISTANCE_M = 5.0
+SUPPORT_PROFILES = ('robot_strict_v1', 'animation_approximate_v1')
+
+
+def support_force_failures(metrics: dict, profile: str = 'robot_strict_v1') -> list[str]:
+    """Animation masses are estimates; isolated impulses remain diagnostics.
+
+    This is an explicit experimental option for approximate animation physics.
+    Legacy evidence keeps its strict profile; falls, slip and flight stay checked.
+    """
+    if profile not in SUPPORT_PROFILES:
+        raise ValueError('Unknown support-force acceptance profile')
+    mean = metrics['mean_support_body_weight_ratio']
+    peak = metrics['peak_support_body_weight_ratio']
+    if not math.isfinite(mean) or not math.isfinite(peak) or peak < 0:
+        return ['nonfinite or negative ground support']
+    failures = []
+    if not .5 <= mean <= 1.5:
+        failures.append('mean ground support outside [0.5, 1.5] body weight')
+    if profile == 'robot_strict_v1' and peak > 3:
+        failures.append('peak support exceeded 3 body weights')
+    return failures
+
+
 # Default episode budget; TRAINING_RULES specifies no walking deadline.
 MAX_GATE_DURATION_S = 30.0
 STAND_DURATION_S = 30.0
@@ -519,7 +542,7 @@ def evaluate_forward_gate(
     if not math.isfinite(duration) or duration <= 0:
         failures.append("walking duration must be finite and positive")
     if float(metrics.get("semantic_forward_displacement_m", -math.inf)) < required_distance_m:
-        failures.append(f"semantic +Y forward displacement did not reach {required_distance_m:g} m")
+        failures.append(f"semantic forward displacement did not reach {required_distance_m:g} m")
     if abs(float(metrics.get("semantic_strafe_displacement_m", math.inf))) > MAX_STRAFE_DISPLACEMENT_M:
         failures.append("strafe drift exceeded 0.75 m")
     if float(metrics.get("max_reference_tilt_rad", math.inf)) > MAX_REFERENCE_TILT_RAD:

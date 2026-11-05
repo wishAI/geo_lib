@@ -83,19 +83,25 @@ export class LiveRetargeter {
     arm.chain.forEach((j,i)=>{if(j.type!=='fixed')pose[j.child]=this.mapped(j.child,arm.values[i]);});
   }
   fingers(arm,stack,pose){
+    if(!stack?.[0])return;
     const wristInverse=fromRows(stack[0]).invert();
-    const local=Object.fromEntries(stack.map((m,i)=>[HAND_NAMES[i],position(wristInverse.clone().multiply(fromRows(m)))]));
-    const lateral=local.littleMetacarpal.clone().sub(local.indexMetacarpal);
+    const local=Object.fromEntries(stack.flatMap((m,i)=>m?[ [HAND_NAMES[i],position(wristInverse.clone().multiply(fromRows(m)))] ]:[]));
+    const valid=p=>p&&p.toArray().every(Number.isFinite);
+    if(!['indexMetacarpal','littleMetacarpal','indexKnuckle','middleKnuckle','ringKnuckle'].every(n=>valid(local[n])))return;
+    const lateral=local.indexMetacarpal.clone().sub(local.littleMetacarpal);
     const forward=local.indexKnuckle.clone().add(local.middleKnuckle).add(local.ringKnuckle).multiplyScalar(1/3);
+    if(lateral.lengthSq()<1e-16||new THREE.Vector3().crossVectors(lateral,forward).lengthSq()<1e-16)return;
     const rotation=arm.basis.clone().multiply(basis(lateral,forward).transpose());
     for(const point of Object.values(local))point.applyMatrix4(rotation);
     const set=(name,value)=>{pose[name+'_'+arm.suffix]=this.mapped(name+'_'+arm.suffix,value);};
     for(const [finger,layout] of Object.entries(this.config.fingers)){
-      const p=layout.avp.map(n=>local[n]);if(p.some(v=>!v))continue;
+      const p=layout.avp.map(n=>local[n]);if(!p.every(valid))continue;
       const segments=p.slice(1).map((v,i)=>v.clone().sub(p[i]));
+      if(segments.some(v=>v.lengthSq()<1e-16))continue;
       if(finger==='thumb'){
         set(layout.robot[0],Math.atan2(p[0].x,Math.max(Math.abs(p[0].y),1e-6)));
-        set(layout.robot[1],-1.15*angle(segments[0],segments[1]));set(layout.robot[2],-1.05*angle(segments[1],segments[2]));
+        const flexSign=arm.suffix==='l'?1:-1;
+        set(layout.robot[1],flexSign*1.15*angle(segments[0],segments[1]));set(layout.robot[2],flexSign*1.05*angle(segments[1],segments[2]));
       }else{
         const length=segments.reduce((sum,v)=>sum+v.length(),0),curl=length>1e-8?THREE.MathUtils.clamp(1-p.at(-1).distanceTo(p[0])/length,0,1):0;
         set(layout.robot[0],Math.atan2(segments[0].x,Math.max(Math.abs(segments[0].y),1e-6)));

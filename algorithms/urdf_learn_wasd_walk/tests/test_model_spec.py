@@ -16,6 +16,23 @@ class ModelSpecTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.spec = model_spec.build_robot_spec()
 
+    def test_fixed_fists_exclude_actions_and_respect_mirrored_axes(self):
+        pose = model_spec.fixed_hand_positions()
+        self.assertEqual(set(pose), set(model_spec.FINGER_JOINTS))
+        self.assertFalse(set(pose) & set(model_spec.ACTION_JOINTS))
+        joints = {j.get('name'): j for j in ET.parse(model_spec.URDF_PATH).getroot().findall('joint')}
+        for name, value in pose.items():
+            limit = joints[name].find('limit')
+            self.assertLessEqual(float(limit.get('lower')), value)
+            self.assertLessEqual(value, float(limit.get('upper')))
+        self.assertGreater(pose['left_thumb_proximal_joint'], 0)
+        self.assertEqual(pose['left_thumb_proximal_joint'], -pose['right_thumb_proximal_joint'])
+        self.assertTrue(all(v == 0 for v in model_spec.fixed_hand_positions('open').values()))
+        geometry = model_spec.derive_static_pose(hand_pose='closed_fists_v1')
+        for name, value in pose.items():
+            self.assertEqual(geometry['joint_positions_rad'][name], value)
+        self.assertGreater(geometry['support_margin_m'], 0)
+
     def test_exact_current_urdf_and_mesh_package(self) -> None:
         source = self.spec["source"]
         self.assertEqual(source["urdf_sha256"], model_spec.EXPECTED_URDF_SHA256)

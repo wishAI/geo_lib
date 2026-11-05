@@ -64,13 +64,16 @@ def origin(element):
     return {'pos': element.get('xyz', '0 0 0'), 'quat': numbers(q[[3, 0, 1, 2]])}
 
 
-def build_model(*, dt=0.002, gain_scale=1.0, noslip_iterations=0, contact_timeconst=None):
+def build_model(*, dt=0.002, gain_scale=1.0, noslip_iterations=0, contact_timeconst=None,
+                urdf_path=None, specification=None):
     build_start=time.perf_counter()
-    spec = model_spec.build_robot_spec()
+    urdf_path = Path(urdf_path or model_spec.URDF_PATH)
+    spec = specification or model_spec.build_robot_spec(urdf_path)
     spec_s=time.perf_counter()-build_start
-    if spec['source']['urdf_sha256'] != model_spec.EXPECTED_URDF_SHA256:
+    expected = spec.get('variant', {}).get('urdf_sha256', model_spec.EXPECTED_URDF_SHA256)
+    if spec['source']['urdf_sha256'] != expected or digest(urdf_path) != expected:
         raise ValueError('URDF identity mismatch')
-    urdf = ET.parse(model_spec.URDF_PATH).getroot()
+    urdf = ET.parse(urdf_path).getroot()
     root = ET.Element('mujoco', model='landau_rabbit_ear')
     ET.SubElement(root, 'compiler', angle='radian', inertiafromgeom='false', fusestatic='false')
     opt = ET.SubElement(root, 'option', timestep=str(dt), gravity='0 0 -9.81', integrator='implicitfast',
@@ -85,7 +88,7 @@ def build_model(*, dt=0.002, gain_scale=1.0, noslip_iterations=0, contact_timeco
         if key not in mesh_names:
             name = f'mesh_{len(mesh_names)}'
             mesh_names[key] = name
-            ET.SubElement(assets, 'mesh', name=name, file=str(model_spec.URDF_PATH.parent / key[0]), scale=key[1])
+            ET.SubElement(assets, 'mesh', name=name, file=str(urdf_path.parent / key[0]), scale=key[1])
     world = ET.SubElement(root, 'worldbody')
     ET.SubElement(world, 'light', pos='1 -1 3', dir='-0.3 0.3 -1', diffuse='0.8 0.8 0.8')
     ET.SubElement(world, 'geom', name='floor', type='plane', size='4 4 .1', contype='1', conaffinity='2',
@@ -145,7 +148,7 @@ def build_model(*, dt=0.002, gain_scale=1.0, noslip_iterations=0, contact_timeco
 def audit_model(model, spec):
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
-    tree = ET.parse(model_spec.URDF_PATH).getroot()
+    tree = ET.parse(spec.get('urdf_path', model_spec.URDF_PATH)).getroot()
     transforms, _ = model_spec._joint_world_transforms(tree)
     position_errors, rotation_errors, inertia_errors, mass_errors, axes = [], [], [], [], []
     for link in tree.findall('link'):
@@ -180,7 +183,7 @@ def audit_model(model, spec):
              'action_joints': spec['action_joints'], 'pd_hold_names': spec['locked_joints']}
     if max(position_errors+rotation_errors+mass_errors+inertia_errors) > 1e-8 or min(axes) < .999999:
         raise ValueError(f'Compiled model mismatch: {audit}')
-    if model.nbody-1 != spec['structure']['link_count'] or model.nmesh != 68 or model.nu != 69:
+    if model.nbody-1 != spec['structure']['link_count'] or model.nmesh != 68 or model.nu != len(spec['joints']):
         raise ValueError('Model structure changed')
     return audit
 
@@ -218,7 +221,7 @@ class Assistance:
 
 def initialize(model, spec, *, pose='source', gain_scale=1.):
     data = mujoco.MjData(model)
-    geometry = model_spec.derive_static_pose() if pose == 'geometric' else spec['nominal_pose']['geometry']
+    geometry = model_spec.derive_static_pose(Path(spec.get('urdf_path', model_spec.URDF_PATH)), hand_pose=spec.get('hand_pose', 'open')) if pose == 'geometric' else spec['nominal_pose']['geometry']
     positions = geometry['joint_positions_rad']
     for r in spec['joints']:
         j, a = model.joint(r['name']), model.actuator(r['name'])
@@ -252,13 +255,13 @@ def run(args):
     initial_pelvis = data.xpos[pelvis].copy()
     initial_rotation = data.xmat[pelvis].reshape(3,3).copy()
     initial_com = data.subtree_com[model.body('base_link').id].copy()
-    pose_geometry=model_spec.analyze_pose_geometry({r['name']:float(data.qpos[model.joint(r['name']).qposadr[0]]) for r in spec['joints']})
+    pose_geometry=model_spec.analyze_pose_geometry({r['name']:float(data.qpos[model.joint(r['name']).qposadr[0]]) for r in spec['joints']},Path(spec.get('urdf_path',model_spec.URDF_PATH)))
     support_hull=pose_geometry['support_hull_xy_m']
     minimum_margin=float('inf'); first_support_exit=None
     control_identity=hashlib.sha256(json.dumps({'initial_qpos':data.qpos.tolist(),'initial_ctrl':data.ctrl.tolist()},sort_keys=True).encode()).hexdigest()
     assist = Assistance(args.assistance)
     policy = None
-    previous_action = np.zeros(17, dtype=np.float32)
+    previous_action = np.zeros(len(spec['action_joints']), dtype=np.float32)
     policy_calls = 0
     max_action = 0.
     if args.checkpoint:
@@ -412,14 +415,14 @@ def run(args):
         failures=evaluate_forward_gate(metrics)
     else:
         passed, failures = evaluate_gate(gate_metrics)
-        failures.extend(evaluate_free_root_support(metrics))
+        failures.extend(evaluate_free_root_support(metrics,getattr(args,'support_profile','robot_strict_v1')))
     if failure:
         failures.append(failure)
     if max_speed > limits.min()+1e-6:
         failures.append('joint velocity exceeded URDF limit')
     if not .5 <= metrics['mean_support_body_weight_ratio'] <= 1.5:
         failures.append('mean ground support outside [0.5, 1.5] body weight')
-    if metrics['peak_support_body_weight_ratio'] > 3:
+    if metrics['peak_support_body_weight_ratio'] > 3 and getattr(args,'support_profile','robot_strict_v1') != 'animation_approximate_v1':
         failures.append('peak support exceeded 3 body weights')
     if bad_contacts:
         failures.append('nonfoot ground contact')
@@ -451,7 +454,7 @@ def run(args):
               'gate_passed': False, 'canonical_milestones_modified': False,
               'milestone': 'gate_5m_no_reset' if args.forward else 'stand_30s_no_reset' if policy is not None else 'stand_zero_signal_30s_no_reset', 'identity': identity, 'config': config,
               'metrics': metrics, 'failures': failures, 'performance': performance,
-              'reproduce': shlex.join(['env', *[f'{k}={os.environ[k]}' for k in ('MUJOCO_GL','LIBGL_ALWAYS_SOFTWARE') if k in os.environ],sys.executable, '-m', 'algorithms.urdf_learn_wasd_walk.mujoco_backend', *sys.argv[1:]]),
+              'reproduce': shlex.join(['env', *[f'{k}={os.environ[k]}' for k in ('MUJOCO_GL','LIBGL_ALWAYS_SOFTWARE') if k in os.environ],sys.executable, '-m', getattr(getattr(sys.modules.get('__main__'), '__spec__', None), 'name', 'algorithms.urdf_learn_wasd_walk.mujoco_backend'), *sys.argv[1:]]),
               'created_at': datetime.now(timezone.utc).isoformat(), 'visual_review': 'pending'}
     write_json(out/'dynamics.json', result)
     write_json(out/'trace.json', rows)
@@ -469,6 +472,10 @@ def run(args):
         except Exception as error:
             result['proof_error'] = repr(error)
         write_json(out/'dynamics.json', result)
+        if 'proof' in result:
+            proof = dict(result['proof'])
+            proof.update(dynamics_sha256=digest(out/'dynamics.json'), model_xml_sha256=digest(out/'model.xml'))
+            write_json(out/'proof_metadata.json', proof)
     progress_path = model_spec.ALGORITHM_ROOT/'outputs/backend_progress.json'
     progress = json.loads(progress_path.read_text()) if progress_path.exists() else {}
     pass_key='gpu_backend_passes' if warp_info is not None else 'backend_passes'

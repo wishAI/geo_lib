@@ -17,7 +17,7 @@ test('schematic has no body without head and drops missing hand connections',()=
 test('browser H1-2 mapping matches authoritative Python including elbows and mimic joints',async()=>{
   const data=JSON.parse(await readFile(new URL('../outputs/web_scene/unitree.json',import.meta.url)));
   const scene=JSON.parse(await readFile(new URL('../outputs/web_scene/scene.json',import.meta.url)));
-  const samples=[{},scene.snapshotPose,{forearm_stretch_l:3,forearm_stretch_r:-2,index1_l:-1.4,thumb2_r:-.9,shoulder_l:3,arm_stretch_r:-2}];
+  const samples=[{},scene.snapshotPose,{forearm_stretch_l:3,forearm_stretch_r:-2,index1_l:-1.4,thumb2_r:-.9,thumb3_r:-.9,thumb2_l:.9,thumb3_l:.9,shoulder_l:3,arm_stretch_r:-2}];
   const expected=JSON.parse(execFileSync('python3',['-c',`import sys,json;sys.path.insert(0,'algorithms/avp_remote');from avp_g1_pose import map_landau_pose_to_h1_2_pose;print(json.dumps([map_landau_pose_to_h1_2_pose(p) for p in json.loads(sys.argv[1])]))`,JSON.stringify(samples)],{encoding:'utf8'}));
   samples.forEach((sample,i)=>{
     const actual=unitreePose(data,sample);
@@ -28,16 +28,16 @@ test('browser H1-2 mapping matches authoritative Python including elbows and mim
   });
 });
 
-test('negative Landau curl closes every H1-2 finger and moves linked meshes on both hands',async()=>{
+test('mirrored Landau curl closes every H1-2 finger and moves linked meshes on both hands',async()=>{
   const data=JSON.parse(await readFile(new URL('../outputs/web_scene/unitree.json',import.meta.url)));
   const open=unitreePose(data,{}),rest=worldTransforms(data.joints,open,data.root);
   for(const [prefix,suffix] of [['L','l'],['R','r']])for(const finger of ['thumb','index','middle','ring','pinky']){
-    const source={};for(const i of finger==='thumb'?[2,3]:[1,2,3])source[`${finger}${i}_${suffix}`]=-1.4;
+    const source={};for(const i of finger==='thumb'?[2,3]:[1,2,3])source[`${finger}${i}_${suffix}`]=finger==='thumb'?(suffix==='l'?.9:-.9):-1.4;
     const pose=unitreePose(data,source),worlds=worldTransforms(data.joints,pose,data.root);
     const driver=finger==='thumb'?`${prefix}_thumb_proximal_pitch_joint`:`${prefix}_${finger}_proximal_joint`;
     const j=data.joints.find(j=>j.name===driver);
     assert.ok(j&&j.type==='revolute',driver);
-    assert.ok(pose[j.child]>.35,`${driver} must close, not clamp to zero`);
+    assert.ok(pose[j.child]>(finger==='thumb'?.25:.35),`${driver} must close, not clamp to zero`);
     for(const linked of data.joints.filter(j=>j.mimic?.joint===driver)){
       assert.ok(pose[linked.child]>0,linked.name);
       assert.ok(new THREE.Vector3().setFromMatrixPosition(worlds[linked.child]).distanceTo(new THREE.Vector3().setFromMatrixPosition(rest[linked.child]))>.005,linked.child+' mesh must move');
@@ -50,4 +50,16 @@ test('negative Landau curl closes every H1-2 finger and moves linked meshes on b
 test('Unitree front faces the same displayed direction as Landau',()=>{
   const forward=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,0,1),UNITREE_DISPLAY_YAW).applyAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
   assert.ok(forward.distanceTo(new THREE.Vector3(0,0,1))<1e-9);
+});
+
+test('legacy Unitree rules upgrade without mutating assets or applying twice',async()=>{
+ const legacy=JSON.parse(await readFile(new URL('../outputs/web_scene/unitree.json',import.meta.url)));
+ const modern=structuredClone(legacy);
+ if((modern.scalarFingerVersion??1)<2){
+  for(const key of ['thumb2_l','thumb3_l'])modern.rules.L_thumb_proximal_pitch_joint.weights[key]*=-1;
+  modern.rules.L_thumb_proximal_yaw_joint.weights.thumb1_l*=-1;
+ }
+ modern.scalarFingerVersion=2;
+ const before=JSON.stringify(legacy),pose={thumb1_l:-.4,thumb1_r:.4,thumb2_l:.8,thumb3_l:.8,thumb2_r:-.8,thumb3_r:-.8};
+ assert.deepEqual(unitreePose(legacy,pose),unitreePose(modern,pose));assert.equal(JSON.stringify(legacy),before);
 });

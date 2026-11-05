@@ -128,9 +128,9 @@ def map_landau_pose_to_h1_2_pose(
         h1_pose[f"{prefix}wrist_yaw_joint"] = WRIST_YAW_TWIST_SCALE * arm_twist + WRIST_YAW_HAND_SCALE * hand
 
         h1_pose[f"{hand_prefix}_thumb_proximal_yaw_joint"] = (
-            THUMB_YAW_BIAS + THUMB_YAW_SCALE * _pose_value(landau_pose, f"thumb1_{suffix}")
+            THUMB_YAW_BIAS + THUMB_YAW_SCALE * (-1 if suffix == 'l' else 1) * _pose_value(landau_pose, f"thumb1_{suffix}")
         )
-        h1_pose[f"{hand_prefix}_thumb_proximal_pitch_joint"] = THUMB_PITCH_SCALE * _chain_average(
+        h1_pose[f"{hand_prefix}_thumb_proximal_pitch_joint"] = THUMB_PITCH_SCALE * (-1 if suffix == 'l' else 1) * _chain_average(
             landau_pose,
             (f"thumb2_{suffix}", f"thumb3_{suffix}"),
             weights=(0.45, 0.55),

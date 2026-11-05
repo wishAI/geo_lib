@@ -58,6 +58,8 @@ class WebPoseTests(unittest.TestCase):
             # cover the current head mapping without rebuilding the GLB.
             if name in ('neck_x', 'head_x') and scene['retargetConfig']['rules'][name]['formula'] == 'head pitch':
                 continue
+            if scene['retargetConfig'].get('scalarFingerVersion', 1) < 2 and name.startswith(('thumb', 'index', 'middle', 'ring', 'pinky')):
+                continue  # Legacy scalar bake; independent palm/axis tests cover version 2.
             self.assertAlmostEqual(value, scene['snapshotPose'][name], places=6)
 
 

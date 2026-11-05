@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#102a24">
     <title>Geo Lab · Sandbox Console</title>
     <meta name="description" content="Local Geo Library sandbox runner, result explorer, remote TK2 console, and URDF workbench.">
-    <link rel="stylesheet" href="/styles.css?v=14">
+    <link rel="stylesheet" href="/styles.css?v=29">
     <link rel="stylesheet" href="/rimworld_prepare.css?v=2">
     <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","BufferGeometryUtils":"/vendor/three/modules/BufferGeometryUtils.js"}}</script>
   </head>
@@ -53,7 +53,7 @@
 
     <dialog id="urdf-dialog" class="workbench-dialog" aria-labelledby="urdf-dialog-title">
       <header class="workbench-dialog-head">
-        <div><p class="eyebrow">FLOATING 3D TOOL</p><h2 id="urdf-dialog-title">URDF workbench</h2></div>
+        <div><p class="eyebrow">FLOATING 3D TOOL</p><h2 id="urdf-dialog-title">URDF 编辑器</h2></div>
         <button class="button button-icon" type="button" data-close-workbench="urdf" aria-label="Close URDF workbench"><svg class="icon"><use href="/icons.svg?v=3#icon-close"></use></svg></button>
       </header>
       <div id="urdf-dialog-content" class="workbench-dialog-content"></div>
@@ -76,11 +76,12 @@
     </dialog>
 
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
-    <script src="/motion_urdf_viewer.js?v=6"></script>
-    <script src="/evolution_tree.js?v=6"></script>
+    <script src="/motion_urdf_viewer.js?v=33"></script>
+    <script src="/shared_assets.js?v=2"></script>
+    <script src="/evolution_tree.js?v=40"></script>
     <script src="/stellaris_mod_editor.js?v=1"></script>
     <script src="/stellaris_ship_designer.js?v=8"></script>
     <script src="/rimworld_prepare.js?v=2"></script>
-    <script src="/app.js?v=21"></script>
+    <script src="/app.js?v=33"></script>
   </body>
 </html>

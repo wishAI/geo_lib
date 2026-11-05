@@ -18,7 +18,7 @@ def browser_retarget_config():
     from dataclasses import asdict
     from landau_mapping_config import ARM_BASE_LINK, FINGER_LAYOUT, JOINT_OUTPUT_RULES
     from avp_config import AVP_HAND_RADIUS_CAP_SCALE
-    return {'base': ARM_BASE_LINK, 'fingers': FINGER_LAYOUT,
+    return {'base': ARM_BASE_LINK, 'fingers': FINGER_LAYOUT, 'scalarFingerVersion': 2,
             'rules': {name: asdict(rule) for name, rule in JOINT_OUTPUT_RULES.items()},
             'radiusCapScale': AVP_HAND_RADIUS_CAP_SCALE}
 

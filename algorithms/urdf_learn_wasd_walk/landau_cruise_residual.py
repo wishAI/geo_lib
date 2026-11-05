@@ -216,10 +216,11 @@ def train(args):
     from tensordict import TensorDict
     from mjlab.rl import MjlabOnPolicyRunner,RslRlModelCfg,RslRlOnPolicyRunnerCfg,RslRlPpoAlgorithmCfg
     from algorithms.urdf_learn_wasd_walk.landau_rsl_control import configure_model
+    from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
     from algorithms.urdf_learn_wasd_walk.landau_forward_control import load_gait_source,make_actor as make_prior,action_scales
     from algorithms.urdf_learn_wasd_walk.landau_turn_control import install_physics_audit
     from algorithms.urdf_learn_wasd_walk import landau_direction_training as direction
-    backend,batches,_=configure_model('balanced_hands_v1')
+    backend,batches,_=configure_model('balanced_hands_v1', checkpoint_hand_pose(json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())))
     parent=Path(args.checkpoint).resolve();parent.relative_to((backend.OUTPUT/'training').resolve())
     meta=json.loads((parent.parent/'training.json').read_text())
     if meta['checkpoints'][parent.name]!=backend.digest(parent):raise ValueError('Parent changed')
@@ -451,7 +452,7 @@ def train(args):
         runner.alg.critic.load_state_dict(extend_critic_state(active_seed['critic_state_dict'],runner.alg.critic.state_dict()),strict=True)
     else:
         with torch.no_grad():runner.alg.actor.mlp[-1].weight.zero_();runner.alg.actor.mlp[-1].bias.zero_()
-    inherited=('backend','mujoco_version','observation_dim','period_s','observation_clock_period_s',
+    inherited=('hand_pose','support_profile','backend','mujoco_version','observation_dim','period_s','observation_clock_period_s',
         'gait_period_source','packages','action_joints','action_scale','stand_action_scale','action_mapping',
         'nominal_q','nominal_ctrl','reference_xy','model_xml_sha256','urdf_sha256','mesh_tree_sha256',
         'mass_variant','standing_checkpoint','standing_checkpoint_sha256','source_sha256','command_extension',

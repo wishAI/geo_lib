@@ -1,5 +1,62 @@
 # URDF Learn WASD Walk — Clean Room
 
+Current work (2026-11-04): the user explicitly authorized leg-axis/DOF changes
+and requested reuse of the other sandboxes' URDF editor. The walking header now
+opens that shared workbench with original/experimental model selection, grouped
+joint sliders, search, actual local/world axes and limits. Per-STL authorization
+no longer rebuilds the remote artifact catalog; the shared viewer's Z-up camera
+projection is corrected. The temporary inline inspector is no longer exposed.
+
+`leg_model_variant.py` produces `inputs/anatomical_legs_v1/landau.urdf` without
+changing retained v10: hip roll/yaw zero-pose axes +Y/+Z, new bilateral ankle
+roll ±0.35 rad, knee limits [-0.25, 2.0] rad, shin twist ±0.15 rad. Original knee
+zero already has 14.526 degrees flexion, so negative angles near -0.25353 mean
+extension. Every original zero-pose bind is preserved exactly; 1% of each foot's
+mass/inertia is partitioned into its new virtual articulation link. Foot pose
+Jacobian rank increases from 5 to 6. The new policy has 19 actions and no finger
+actions; fixed fists remain outside the policy. Toe/front geometry establishes
+native -Y anatomical forward; historical +Y control retains its old meaning.
+
+The first articulation experiment scales all masses/inertias/PD/effort to
+18 kg, preserving source distribution to isolate the articulation change.
+**This distribution is not yet anatomically plausible:** fingers sum to 7.476 kg,
+head/neck only 0.3935 kg, torso 1.584 kg. The separate `anatomical_legs_mass_v2` corrects this to head/neck 4.5 kg, torso
+6 kg, legs 5.4 kg, arms 1.8 kg and fingers 0.3 kg. It retains all v1 articulation
+and motor gains, and passed GPU passive standing (`anatomical_mass_20261104_passive30`,
+7.275 mm drift, no resets/falls); its policy standing training is active.
+The first v1 model's two standing GPU evaluations passed
+numerically: `anatomical_20261104_passive30` drift 3.429 mm, zero action/reset/fall;
+`anatomical_20261104_stand_eval0` drift 3.912 mm, 1,500 policy calls, no reset/fall.
+The latter uses `anatomical_20261104_stand200/model_0.pt`; later PPO checkpoints
+100/199 worsened drift to ~0.15 m in CPU screening and are not promoted.
+
+`leg_gait_search.py` uses a distinct anatomical policy family, 76 observations,
+19 motor outputs and 3 added ankle-roll feedback parameters. Its -Y discovery
+run `anatomical_20261104_gait6` finished 24 generations without an eligible
+walking candidate (best final worst-start distance 0.031 m / 6 s, zero completed
+swings). It is a failed experiment, not a milestone. New physical
+models inherit zero certificates. Historical 7/12 remains separately recorded.
+The user-selected `animation_approximate_v1` records instantaneous support peaks
+without vetoing solely above 3 BW; falls, resets, slip, flight and visual guards
+remain. Shared/native USD skin mappings now use ancestry-checked arm, thigh
+and shin geometry owners while preserving all original bind matrices.
+
+Old-model baseline: `fists_20261104_animation_heading20/model_0.pt` passed standing,
+5 m, 10.5355 m and two independent turns, but prospective turn repeat 3 failed
+with 5.92 degrees hold error. Strong negative heading feedback destabilized the
+model. The later fine hold grid finished; candidates 4 and 12 passed M5/M6 in
+all eight starting states, but have not been independently certified. Keep those
+artifacts as a comparison; do not inherit their results into anatomical models.
+
+The dashboard replays `motion.json` + `motion.bin.gz` in an orbitable 3D scene,
+with USD skin / URDF model selection, a blue checkerboard floor and a joint
+and skeleton overlay. Model changes preserve time and camera. Every recorded
+frame is retained; root components use float32, joint quantization is bounded
+by 0.00005 rad, and irregular timestamps remain float64. The 56-second turn
+preview is 178,781 bytes versus 1,798,181 bytes for its original trajectory.
+Original NPZ trajectories and full proof videos remain unchanged acceptance
+artifacts; the video is available under the collapsed proof section.
+
 Current milestone truth (2026-10-04): **7/12 certified; M8 in progress.**
 Four directions mean turning and walking toward world-direction 10 m gates,
 as confirmed by the user. No checkpoint is promoted until its exact weights

@@ -13,16 +13,19 @@ from avp_g1_pose import estimate_urdf_root_height, h1_2_hand_pose_summary, map_l
 
 class TestG1Pose(unittest.TestCase):
     @unittest.skipUnless(default_g1_urdf_path().exists(), "requires cloned H1_2 helper repo")
-    def test_negative_landau_curl_closes_both_hands_with_real_h1_limits(self):
+    def test_mirrored_landau_curl_closes_both_hands_with_real_h1_limits(self):
         from urdf_kinematics import load_joint_limits
         limits = load_joint_limits(default_g1_urdf_path())
         source = {f"{finger}{i}_{side}": -1.4
                   for side in ("l", "r")
                   for finger in ("thumb", "index", "middle", "ring", "pinky")
                   for i in (1, 2, 3)}
+        source.update(thumb1_l=-.4, thumb1_r=.4, thumb2_l=.9, thumb3_l=.9, thumb2_r=-.9, thumb3_r=-.9)
         closed = map_landau_pose_to_h1_2_pose(source, joint_limits=limits)
+        self.assertEqual(h1_2_hand_pose_summary(closed, 'left')['thumb'],
+                         h1_2_hand_pose_summary(closed, 'right')['thumb'])
         for prefix in ("L", "R"):
-            self.assertGreater(closed[f"{prefix}_thumb_proximal_pitch_joint"], .35)
+            self.assertGreater(closed[f"{prefix}_thumb_proximal_pitch_joint"], .25)
             for finger in ("index", "middle", "ring", "pinky"):
                 self.assertGreater(closed[f"{prefix}_{finger}_proximal_joint"], .7)
 
@@ -36,8 +39,8 @@ class TestG1Pose(unittest.TestCase):
             "arm_twist_l": 0.3,
             "forearm_twist_l": 0.4,
             "thumb1_l": 0.5,
-            "thumb2_l": -0.6,
-            "thumb3_l": -0.7,
+            "thumb2_l": 0.6,
+            "thumb3_l": 0.7,
             "index1_base_l": 0.1,
             "index1_l": -0.8,
             "index2_l": -0.7,
@@ -62,7 +65,7 @@ class TestG1Pose(unittest.TestCase):
         self.assertLess(g1_pose["left_shoulder_pitch_joint"], -0.9)
         self.assertGreater(g1_pose["left_shoulder_roll_joint"], 0.35)
         self.assertGreater(g1_pose["left_elbow_pitch_joint"], 1.0)
-        self.assertAlmostEqual(g1_pose["L_thumb_proximal_yaw_joint"], 0.36)
+        self.assertAlmostEqual(g1_pose["L_thumb_proximal_yaw_joint"], 0.08)
         self.assertAlmostEqual(g1_pose["L_thumb_proximal_pitch_joint"], 0.1965)
         self.assertGreater(g1_pose["L_index_proximal_joint"], 0.35)
         self.assertGreater(g1_pose["L_middle_proximal_joint"], 0.4)
@@ -70,7 +73,7 @@ class TestG1Pose(unittest.TestCase):
         self.assertGreater(g1_pose["L_pinky_proximal_joint"], 0.2)
 
         left_hand = h1_2_hand_pose_summary(g1_pose, "left")
-        self.assertAlmostEqual(left_hand["thumb"][0], 0.36)
+        self.assertAlmostEqual(left_hand["thumb"][0], 0.08)
         self.assertAlmostEqual(left_hand["thumb"][1], 0.1965)
 
     def test_map_landau_pose_to_g1_pose_honors_joint_limits(self):

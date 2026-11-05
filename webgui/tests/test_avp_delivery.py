@@ -38,6 +38,45 @@ class AvpDeliveryTests(unittest.TestCase):
         connection.close()
         return result
 
+    def test_noncurrent_walk_node_can_load_declared_compressed_motion(self):
+        import json
+        prefix = 'algorithms/urdf_learn_wasd_walk/outputs/'
+        tree_path, motion_path = prefix + 'evolution.json', prefix + 'older_run/motion.bin.gz'
+        tree = self.root / tree_path
+        samples = self.root / motion_path
+        samples.parent.mkdir(parents=True)
+        samples.write_bytes(gzip.compress(b'recorded motion'))
+        tree.write_text(json.dumps({'nodes': [{'id': 'older', 'artifacts': [
+            {'path': motion_path, 'kind': 'binary'},
+            {'path': prefix + 'older_run/model.pt', 'kind': 'binary'},
+            {'path': prefix + '../private/motion.bin.gz', 'kind': 'binary'}]}]}))
+        manifest = {'id': 'urdf_learn_wasd_walk', 'inspector': {'type': 'evolutionTree', 'path': tree_path}}
+        def resolve(relative):
+            path = self.root / relative
+            return ('repo', path) if path.is_file() else None
+        with patch.object(server, 'REPO_ROOT', self.root), patch.object(server.storage, 'cloud_root', return_value=self.root / 'cloud'), patch.object(server, 'discover_manifests', return_value=[manifest]), patch.object(server, 'resolve_artifact', side_effect=resolve), patch.object(server, 'nesting_workspace_files', return_value={}):
+            status, _, data = self.request(path='/api/artifact?path=' + motion_path)
+            self.assertEqual((status, data), (200, samples.read_bytes()))
+            for private in (prefix + 'older_run/model.pt', prefix + '../private/motion.bin.gz', prefix + 'unlisted/motion.bin.gz'):
+                status, _, _ = self.request(path='/api/artifact?path=' + private)
+                self.assertEqual(status, 403)
+
+    def test_robot_json_is_cached_compressed_and_invalidated(self):
+        urdf = self.root / 'robot.urdf'
+        urdf.write_text('<robot name="test">' + '<!-- mesh -->' * 500 + '</robot>')
+        with patch.object(server, '_allowed_robot_path', return_value=True), patch.object(server, 'resolve_artifact', return_value=('repo', urdf)):
+            status, headers, body = self.request(path='/api/robot/urdf?path=robot.urdf', headers={'Accept-Encoding': 'gzip'})
+            self.assertEqual(status, 200)
+            self.assertIn('no-cache', headers['Cache-Control'])
+            self.assertNotIn('no-store', headers['Cache-Control'])
+            self.assertIn(b'<robot', gzip.decompress(body))
+            status, _, body = self.request(path='/api/robot/urdf?path=robot.urdf', headers={'If-None-Match': headers['ETag']})
+            self.assertEqual((status, body), (304, b''))
+            urdf.write_text('<robot name="changed"/>')
+            status, new_headers, _ = self.request(path='/api/robot/urdf?path=robot.urdf', headers={'If-None-Match': headers['ETag']})
+            self.assertEqual(status, 200)
+            self.assertNotEqual(headers['ETag'], new_headers['ETag'])
+
     def test_compression_revalidation_and_rebuild_invalidation(self):
         status, headers, data = self.request(headers={'Accept-Encoding': 'gzip'})
         self.assertEqual(status, 200)

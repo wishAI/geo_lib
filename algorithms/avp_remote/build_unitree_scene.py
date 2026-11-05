@@ -87,6 +87,6 @@ def build(out, landau_joints):
     hashes[str(Path(__file__).relative_to(ROOT.parents[1]))] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     mapper = ROOT / 'avp_g1_pose.py'
     hashes[str(mapper.relative_to(ROOT.parents[1]))] = hashlib.sha256(mapper.read_bytes()).hexdigest()
-    payload = dict(name='Unitree H1-2', root='pelvis', rootHeight=estimate_urdf_root_height(source, baseline), links=links, joints=joints, rules=rules, sourceHashes=hashes, glbSha256=hashlib.sha256((out/'unitree.glb').read_bytes()).hexdigest())
+    payload = dict(scalarFingerVersion=2, name='Unitree H1-2', root='pelvis', rootHeight=estimate_urdf_root_height(source, baseline), links=links, joints=joints, rules=rules, sourceHashes=hashes, glbSha256=hashlib.sha256((out/'unitree.glb').read_bytes()).hexdigest())
     (out/'unitree.json').write_text(json.dumps(payload, separators=(',',':')))
     return payload

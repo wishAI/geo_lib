@@ -75,17 +75,17 @@ def run(args):
     initial_pelvis = data.xpos[pelvis].copy()
     initial_rotation = data.xmat[pelvis].reshape(3,3).copy()
     initial_com = data.subtree_com[model.body('base_link').id].copy()
-    pose_geometry=model_spec.analyze_pose_geometry({r['name']:float(data.qpos[model.joint(r['name']).qposadr[0]]) for r in spec['joints']})
+    pose_geometry=model_spec.analyze_pose_geometry({r['name']:float(data.qpos[model.joint(r['name']).qposadr[0]]) for r in spec['joints']},Path(spec.get('urdf_path',model_spec.URDF_PATH)))
     support_hull=pose_geometry['support_hull_xy_m']
     minimum_margin=float('inf'); first_support_exit=None
     control_identity=hashlib.sha256(json.dumps({'initial_qpos':data.qpos.tolist(),'initial_ctrl':data.ctrl.tolist()},sort_keys=True).encode()).hexdigest()
     assist = Assistance(args.assistance)
     policy = None
-    previous_action = np.zeros(17, dtype=np.float32)
+    previous_action = np.zeros(len(spec['action_joints']), dtype=np.float32)
     policy_calls = 0
     max_action = 0.
-    raw_min=np.full(17,np.inf); raw_max=np.full(17,-np.inf)
-    target_min=np.full(17,np.inf); target_max=np.full(17,-np.inf)
+    raw_min=np.full(len(spec['action_joints']),np.inf); raw_max=np.full(len(spec['action_joints']),-np.inf)
+    target_min=np.full(len(spec['action_joints']),np.inf); target_max=np.full(len(spec['action_joints']),-np.inf)
     if args.checkpoint:
         if args.assistance != 0:
             raise ValueError('Policy evaluation requires exactly zero auxiliary assistance')
@@ -95,8 +95,9 @@ def run(args):
         policy, checkpoint_data = load_actor(args.checkpoint, model, spec)
         if checkpoint_data['backend']!=getattr(args,'backend','mujoco_cpu') or checkpoint_data['mujoco_version']!=mujoco.__version__:
             raise ValueError('Policy backend/version differs from evaluation; no inherited pass across physics backends')
-        if checkpoint_data.get('observation_dim') != 70:
-            raise ValueError('This evaluator requires the 70-feature Landau policy')
+        sensor_width=5 if checkpoint_data.get('policy_family')=='anatomical_feedback_residual_ppo' else 0
+        if checkpoint_data.get('observation_dim') != 19+3*len(spec['action_joints'])+sensor_width:
+            raise ValueError('Observation width does not match the declared action joints')
         if checkpoint_data['model_xml_sha256'] != hashlib.sha256(xml.encode()).hexdigest():
             raise ValueError('Policy physics configuration differs from evaluation model')
         if not np.allclose(initial_q, checkpoint_data['nominal_q'], atol=1e-12):
@@ -306,7 +307,7 @@ def run(args):
     if policy is not None:
         gate_metrics['max_abs_action'] = 0.  # Passive-only predicate; actions are audited above.
     if args.forward:
-        metrics.update(semantic_forward_displacement_m=float(data.xpos[pelvis,1]-initial_pelvis[1]),
+        metrics.update(semantic_forward_displacement_m=float(data.xpos[pelvis,1]-initial_pelvis[1])*(-1 if spec['frames']['body_forward_axis']=='-Y' else 1),
                        semantic_strafe_displacement_m=float(data.xpos[pelvis,0]-initial_pelvis[0]),
                        left_foot_liftoff_count=liftoffs['left'],right_foot_liftoff_count=liftoffs['right'],
                        mean_contact_foot_slip_mps=float(np.mean([f['mean_slip_mps'] for f in foot_samples])),
@@ -348,15 +349,13 @@ def run(args):
         write_json(out/'foot_trace.json',foot_samples)
     else:
         passed, failures = evaluate_gate(gate_metrics)
-        failures.extend(evaluate_free_root_support(metrics))
+        failures.extend(evaluate_free_root_support(metrics,getattr(args,'support_profile','robot_strict_v1')))
     if failure:
         failures.append(failure)
     if max_speed > limits.min()+1e-6:
         failures.append('joint velocity exceeded URDF limit')
-    if not .5 <= metrics['mean_support_body_weight_ratio'] <= 1.5:
-        failures.append('mean ground support outside [0.5, 1.5] body weight')
-    if metrics['peak_support_body_weight_ratio'] > 3:
-        failures.append('peak support exceeded 3 body weights')
+    from algorithms.urdf_learn_wasd_walk.forward_walk_contract import support_force_failures
+    failures.extend(support_force_failures(metrics, getattr(args,'support_profile','robot_strict_v1')))
     if bad_contacts:
         failures.append('nonfoot ground contact')
     if args.assistance != 0 or max_assist != 0:

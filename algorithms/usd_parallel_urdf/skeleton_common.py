@@ -616,29 +616,44 @@ def _append_origin(parent, xyz: Sequence[float], rpy: Sequence[float]):
     )
 
 
-def _inertial_from_geoms(geoms: Sequence[dict]) -> tuple[float, tuple[float, float, float]]:
-    mass = 0.0
-    ixx = iyy = izz = 0.0
+def _inertial_from_geoms(geoms: Sequence[dict]) -> tuple[float, np.ndarray, np.ndarray]:
+    """Approximate primitive mass properties about their combined center of mass.
+
+    Geometry origins are expressed in the link frame. URDF inertia is expressed
+    about the inertial origin, so rotate each centroidal tensor and then apply
+    the parallel-axis theorem relative to the combined center, not the joint.
+    """
+    parts = []
     for geom in geoms:
         if geom['kind'] == 'sphere':
-            radius = geom['radius']
-            volume = 4.0 / 3.0 * math.pi * radius**3
-            part_mass = max(volume * 250.0, 0.01)
-            inertia = 0.4 * part_mass * radius**2
-            mass += part_mass
-            ixx += inertia
-            iyy += inertia
-            izz += inertia
+            radius = float(geom['radius'])
+            if not math.isfinite(radius) or radius <= 0:
+                raise ValueError('Inertial sphere radius must be positive and finite')
+            part_mass = max(4.0 / 3.0 * math.pi * radius**3 * 250.0, 0.01)
+            tensor = np.eye(3) * (0.4 * part_mass * radius**2)
         else:
-            lx, ly, lz = geom['size_xyz']
-            volume = lx * ly * lz
-            part_mass = max(volume * 250.0, 0.01)
-            mass += part_mass
-            ixx += (part_mass / 12.0) * (ly**2 + lz**2)
-            iyy += (part_mass / 12.0) * (lx**2 + lz**2)
-            izz += (part_mass / 12.0) * (lx**2 + ly**2)
-    mass = max(mass, 0.02)
-    return mass, (max(ixx, 1e-5), max(iyy, 1e-5), max(izz, 1e-5))
+            size = np.asarray(geom['size_xyz'], dtype=float)
+            if size.shape != (3,) or not np.isfinite(size).all() or np.any(size <= 0):
+                raise ValueError('Inertial box dimensions must be positive and finite')
+            part_mass = max(float(np.prod(size)) * 250.0, 0.01)
+            tensor = np.diag(part_mass / 12.0 * (np.sum(size**2) - size**2))
+        center = np.asarray(geom.get('origin_xyz', [0., 0., 0.]), dtype=float)
+        rotation = rpy_to_matrix(geom.get('origin_rpy', [0., 0., 0.]))
+        if center.shape != (3,) or not np.isfinite(center).all() or not np.isfinite(rotation).all():
+            raise ValueError('Inertial geometry origin must be finite')
+        parts.append((part_mass, center, rotation @ tensor @ rotation.T))
+    if not parts:
+        # Empty virtual articulation links retain their explicit small proxy.
+        return 0.02, np.zeros(3), np.eye(3) * 1e-5
+    source_mass = sum(part[0] for part in parts)
+    center = sum(part_mass * xyz for part_mass, xyz, _ in parts) / source_mass
+    inertia = np.zeros((3, 3))
+    for part_mass, xyz, tensor in parts:
+        offset = xyz - center
+        inertia += tensor + part_mass * (np.dot(offset, offset) * np.eye(3) - np.outer(offset, offset))
+    mass = max(source_mass, 0.02)
+    inertia *= mass / source_mass
+    return mass, center, inertia
 
 
 @dataclass(frozen=True)
@@ -982,19 +997,19 @@ def generate_urdf_text(
             link_spec,
             link_spec.inertial_source_names,
         )
-        mass, inertia = _inertial_from_geoms(inertial_geoms)
+        mass, center, inertia = _inertial_from_geoms(inertial_geoms)
         inertial = ET.SubElement(link, 'inertial')
-        _append_origin(inertial, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
-        ET.SubElement(inertial, 'mass', value=f'{mass:.6f}')
+        _append_origin(inertial, center, [0.0, 0.0, 0.0])
+        ET.SubElement(inertial, 'mass', value=f'{mass:.12g}')
         ET.SubElement(
             inertial,
             'inertia',
-            ixx=f'{inertia[0]:.6f}',
-            ixy='0.0',
-            ixz='0.0',
-            iyy=f'{inertia[1]:.6f}',
-            iyz='0.0',
-            izz=f'{inertia[2]:.6f}',
+            ixx=f'{inertia[0, 0]:.12g}',
+            ixy=f'{inertia[0, 1]:.12g}',
+            ixz=f'{inertia[0, 2]:.12g}',
+            iyy=f'{inertia[1, 1]:.12g}',
+            iyz=f'{inertia[1, 2]:.12g}',
+            izz=f'{inertia[2, 2]:.12g}',
         )
 
         render_geoms = _collect_link_geometries(
@@ -1131,16 +1146,29 @@ class UrdfSkinMapper:
         rest = world_map_from_joint_specs(self.specs)
         skin_rest = world_matrices_from_local(records, [r['local_matrix'] for r in records])
         parents = {s.child_link: s.parent_link for s in self.specs.values()}
+        def descendant(child, ancestor):
+            seen = set()
+            while child in parents and child not in seen:
+                seen.add(child)
+                child = parents[child]
+                if child == ancestor:
+                    return True
+            return False
+
+        owners = {
+            f'{part}_stretch_{side}': (f'{part}_twist_{side}', f'{distal}_{side}')
+            for side in ('l', 'r')
+            for part, distal in (('arm', 'forearm_stretch'), ('thigh', 'leg_stretch'), ('leg', 'foot'))
+        }
         self.sources = {}
         self.offsets = {}
         for record in records:
             name = record['name']
             source = name
-            if name in ('arm_stretch_l', 'arm_stretch_r'):
-                twist = name.replace('arm_stretch_', 'arm_twist_')
-                forearm = name.replace('arm_stretch_', 'forearm_stretch_')
-                if parents.get(twist) == name and parents.get(forearm) == twist:
-                    source = twist
+            if name in owners:
+                owner, distal = owners[name]
+                if descendant(owner, name) and descendant(distal, owner):
+                    source = owner
             self.sources[name] = source
             self.offsets[name] = np.linalg.inv(rest[source]) @ skin_rest[record['index']]
 
