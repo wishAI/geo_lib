@@ -1078,3 +1078,11 @@ body.walk-workspace #app { padding: 7px 12px 10px; }
 .lineage-playback [data-video] { align-self: end; min-height: 25px; padding: 4px 8px; font-size: 10px; }
 .motion-stage .motion-status { position: absolute; z-index: 2; bottom: 7px; left: 7px; max-width: calc(100% - 14px); padding: 4px 6px; border-radius: 5px; color: #e8f2eb; background: #193729b8; font: 9px/1.4 var(--sans); pointer-events: none; }
 .lineage-playback .viewport-expand { top: 7px; right: 7px; width: 28px; height: 28px; border-radius: 7px; }.lineage-playback .viewport-expand .walk-icon { width: 16px; height: 16px; }
+.lineage-workspace .evolution-node .node-status-badge { fill: #e6ebe5; stroke: none; filter: none; pointer-events: none; }
+.lineage-workspace .evolution-node .node-metric { fill: #65746a; font-weight: 650; letter-spacing: .3px; }
+.lineage-workspace .evolution-node.completed .node-status-badge { fill: #dceee1; }
+.lineage-workspace .evolution-node.completed .node-metric { fill: #236847; }
+.lineage-workspace .evolution-node.failed .node-status-badge { fill: #f5ded7; }
+.lineage-workspace .evolution-node.failed .node-metric { fill: #a33d2c; }
+.lineage-workspace .evolution-node.running .node-status-badge { fill: #f6e7bd; }
+.lineage-workspace .evolution-node.running .node-metric { fill: #88600c; }

@@ -109,7 +109,7 @@
   }
 
   // Milestone bands share coordinates with their nodes; branches reuse rows.
-  function layout(visible, milestones = []) {
+  function layout(visible, milestones = [], availableHeight = 364) {
     const byId = new Map(visible.map(n => [n.id, n]));
     const stages = [{id: '', label: 'Experiments', order: '·', status: 'diagnostic'}, ...milestones];
     const stageIndex = new Map(stages.map((m, i) => [m.id, i]));
@@ -140,8 +140,9 @@
       const columns = Math.max(1,...[...assigned.values()].filter(p=>p.stage===index).map(p=>p.column+1));
       const band={...stage,x:offset,width:columns*154};offset+=band.width;return band;
     });
-    const points=new Map([...assigned].map(([id,p])=>[id,{x:bands[p.stage].x+p.column*154+12,y:28+p.row*108}]));
-    return {width:offset+16,height:364,bands,point:id=>points.get(id)};
+    const height=Math.max(300,availableHeight);
+    const points=new Map([...assigned].map(([id,p])=>[id,{x:bands[p.stage].x+p.column*154+12,y:(p.row+.5)*height/3-42.5}]));
+    return {width:offset+16,height,bands,point:id=>points.get(id)};
   }
 
   function progressLabel(node) {
@@ -258,7 +259,7 @@
     dialog.showModal();
   }
 
-  function destroy(container) { container._closePicker?.(); container._closeExpanded?.(); container.querySelector('[data-inspector-body]')?._dispose?.(); }
+  function destroy(container) { container._disposeGraph?.(); container._disposeGraph=null; container._closePicker?.(); container._closeExpanded?.(); container.querySelector('[data-inspector-body]')?._dispose?.(); }
 
   const workspaceStateKey='geo.landau.workspace.v1';
   function restoredWorkspace() {
@@ -300,16 +301,20 @@
     }
     if (model.search) visible = scoped.filter(n => (n.label+' '+n.id+' '+(n.result||'')).toLowerCase().includes(model.search.toLowerCase()));
     const milestones = robot?.milestones?.length ? robot.milestones : (data.milestones || []).map(m=>({...m,status:'unverified'}));
-    const graph = layout(visible, milestones), visibleIds = new Set(visible.map(n=>n.id));
-    const edges = visible.flatMap(n=>(n.parentIds||[]).filter(id=>visibleIds.has(id)).map(id=>{
-      const a=graph.point(id), b=graph.point(n.id);
-      const route=Math.abs(b.x-a.x)<180?`M ${a.x+60} ${a.y+26} C ${a.x+95} ${a.y+26}, ${b.x-6} ${b.y+26}, ${b.x+21} ${b.y+26}`:`M ${a.x+60} ${a.y+26} Q ${a.x+80} ${a.y+26} ${a.x+80} ${a.y-8} L ${b.x+3} ${a.y-8} Q ${b.x+3} ${b.y+26} ${b.x+21} ${b.y+26}`;
-      return `<path class="evolution-edge${ancestry.has(id)&&ancestry.has(n.id)?' active':''}" marker-end="url(#lineage-arrow)" d="${route}"/>`;
-    })).join('');
+    let graph = layout(visible, milestones);
+    const visibleIds = new Set(visible.map(n=>n.id));
+    const connections=visible.flatMap(n=>(n.parentIds||[]).filter(id=>visibleIds.has(id)).map(id=>({parent:id,child:n.id})));
+    const edgePath=({parent,child})=>{
+      const a=graph.point(parent),b=graph.point(child);
+      return Math.abs(b.x-a.x)<180?`M ${a.x+60} ${a.y+26} C ${a.x+95} ${a.y+26}, ${b.x-6} ${b.y+26}, ${b.x+21} ${b.y+26}`:`M ${a.x+60} ${a.y+26} Q ${a.x+80} ${a.y+26} ${a.x+80} ${a.y-8} L ${b.x+3} ${a.y-8} Q ${b.x+3} ${b.y+26} ${b.x+21} ${b.y+26}`;
+    };
+    const edges=connections.map(edge=>`<path class="evolution-edge${ancestry.has(edge.parent)&&ancestry.has(edge.child)?' active':''}" marker-end="url(#lineage-arrow)" d="${edgePath(edge)}"/>`).join('');
     const cards = visible.map(n=>{
       const p=graph.point(n.id);
+      const statusLabel=n.kind==='milestone'&&n.status==='completed'?'certified':n.status;
+      const statusWidth=Math.max(44,statusLabel.length*4.9+14);
       const symbol=n.kind==='milestone'?(n.status==='completed'?'✓':'◇'):n.kind==='checkpoint'?'⬡':n.playback?'▶':'•';
-      return `<g class="evolution-node ${escapeHtml(n.status)}${n.id===model.selectedId?' selected':''}${ancestry.has(n.id)?' ancestor':''}" transform="translate(${p.x} ${p.y})" role="button" tabindex="0" data-node="${escapeHtml(n.id)}" aria-label="${escapeHtml(n.label)}"><title>${escapeHtml(n.label+' — '+(n.result||''))}</title><rect width="130" height="85" rx="8"/><circle class="node-disc" cx="42" cy="26" r="18"/><text class="node-symbol" x="42" y="31" text-anchor="middle">${symbol}</text><circle class="node-state-dot" cx="57" cy="12" r="4"/><text class="node-label" x="42" y="61" text-anchor="middle">${escapeHtml(displayLabel(n).slice(0,22))}</text><text class="node-metric" x="42" y="76" text-anchor="middle">${escapeHtml(n.kind==='milestone'&&n.status==='completed'?'certified':n.status)}</text></g>`;
+      return `<g class="evolution-node ${escapeHtml(n.status)}${n.id===model.selectedId?' selected':''}${ancestry.has(n.id)?' ancestor':''}" transform="translate(${p.x} ${p.y})" role="button" tabindex="0" data-node="${escapeHtml(n.id)}" aria-label="${escapeHtml(n.label)}"><title>${escapeHtml(n.label+' — '+(n.result||''))}</title><rect width="130" height="85" rx="8"/><circle class="node-disc" cx="42" cy="26" r="18"/><text class="node-symbol" x="42" y="31" text-anchor="middle">${symbol}</text><circle class="node-state-dot" cx="57" cy="12" r="4"/><text class="node-label" x="42" y="61" text-anchor="middle">${escapeHtml(displayLabel(n).slice(0,22))}</text><rect class="node-status-badge" x="${42-statusWidth/2}" y="65" width="${statusWidth}" height="16" rx="8"/><text class="node-metric" x="42" y="76" text-anchor="middle">${escapeHtml(statusLabel)}</text></g>`;
     }).join('');
     const bands = graph.bands.map((b,i)=>`<div class="lineage-band ${escapeHtml(b.status)}" style="left:${b.x}px;width:${b.width}px;--band-hue:${[205,155,175,35,26,270,290,310,210,225,95,65,0][i%13]}"><span>${b.id?'M'+b.order:'LAB'}</span><b>${escapeHtml(b.label)}</b><small>${escapeHtml(b.status.replaceAll('_',' '))}</small></div>`).join('');
     const video = selected?.artifacts?.find(a=>a.kind==='video');
@@ -353,6 +358,19 @@
       if(e.key==='ArrowUp')next=visible[Math.max(0,index-1)]?.id;
       if(e.key==='ArrowDown')next=visible[Math.min(visible.length-1,index+1)]?.id;
       if(next){e.preventDefault();select(next);queueMicrotask(()=>container.querySelector(`[data-node="${CSS.escape(next)}"]`)?.focus({preventScroll:true}));}};});
+    const scroll=container.querySelector('.lineage-scroll'),svg=scroll.querySelector('svg');
+    const fitGraph=()=>{
+      const height=Math.max(300,Math.floor(scroll.clientHeight-scroll.querySelector('.lineage-band-header').offsetHeight));
+      if(graph.height===height)return;
+      graph=layout(visible,milestones,height);
+      svg.setAttribute('height',height);
+      svg.querySelectorAll(':scope > rect').forEach(rect=>rect.setAttribute('height',height));
+      svg.querySelectorAll('[data-node]').forEach(node=>{const p=graph.point(node.dataset.node);node.setAttribute('transform',`translate(${p.x} ${p.y})`);});
+      svg.querySelectorAll('.evolution-edge').forEach((edge,i)=>edge.setAttribute('d',edgePath(connections[i])));
+    };
+    fitGraph();
+    const graphResize=new ResizeObserver(fitGraph);graphResize.observe(scroll);
+    container._disposeGraph=()=>graphResize.disconnect();
     const locate=()=>{const p=graph.point(model.selectedId);if(p)container.querySelector('.lineage-scroll').scrollTo({left:Math.max(0,p.x-container.querySelector('.lineage-scroll').clientWidth+170),top:0});};
     container.querySelector('[data-fit]').onclick=locate;
     // Selection and inspector changes rebuild the DOM, but must not move the graph.
