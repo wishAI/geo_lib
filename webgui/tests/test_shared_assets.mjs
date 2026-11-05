@@ -54,3 +54,41 @@ test('JSON and parsed geometry are shared, failed parsing is retryable',async()=
   await assert.rejects(assets.memo('geometry',()=>{throw new Error('parse failed');}),/parse failed/);
   assert.equal(await assets.memo('geometry',()=>42),42);
 });
+
+test('identical content under different model paths shares download and parsed mesh key',async()=>{
+  let calls=0;const assets=cache(async()=>{calls++;return new Response('same mesh');});
+  const sha256='a'.repeat(64),a='/api/robot/asset?urdf=one.urdf&uri=package://one/leg.stl',b='/api/robot/asset?urdf=two.urdf&uri=file:///copy/leg.stl';
+  const [first,second]=await Promise.all([assets.file(a,{sha256}),assets.file(b,{sha256})]);
+  assert.equal(first,second);assert.equal(calls,1);assert.equal(assets.keyFor(a),assets.keyFor(b));
+  const parsed=await assets.memo('stl:'+assets.keyFor(a),()=>({mesh:true}));
+  assert.equal(await assets.memo('stl:'+assets.keyFor(b),()=>assert.fail('parsed twice')),parsed);
+});
+
+test('same filename with different contents never shares a cache entry',async()=>{
+  let calls=0;const assets=cache(async()=>new Response(String(++calls)));
+  const a=await assets.file('/one/mesh.stl',{sha256:'a'.repeat(64)});
+  const b=await assets.file('/two/mesh.stl',{sha256:'b'.repeat(64)});
+  assert.notEqual(a,b);assert.equal(calls,2);
+});
+
+test('arbitrary shared files resolve small metadata before downloading the content once',async()=>{
+  let metadata=0,downloads=0;
+  const assets=cache(async url=>{
+    if(new URL(url).searchParams.has('metadata')){metadata++;return Response.json({sha256:'c'.repeat(64)});}
+    downloads++;return new Response('shared character');
+  });
+  const a='/api/artifact?path=model-a/character.glb',b='/api/artifact?path=model-b/character.glb';
+  assert.equal(await assets.file(a),await assets.file(b));
+  await assets.file(a);assert.equal(metadata,2);assert.equal(downloads,1);
+});
+
+test('a changed file refreshes its identity once instead of caching the old contents',async()=>{
+  let calls=0;
+  const assets=cache(async url=>{
+    calls++;const request=new URL(url);
+    if(request.searchParams.has('metadata'))return Response.json({sha256:'b'.repeat(64)});
+    return request.searchParams.get('sha256')==='a'.repeat(64)?new Response('',{status:409}):new Response('updated');
+  });
+  assert.equal(new TextDecoder().decode(await assets.file('/api/artifact?path=robot.glb',{sha256:'a'.repeat(64)})),'updated');
+  assert.equal(calls,3);
+});

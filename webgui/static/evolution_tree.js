@@ -342,7 +342,7 @@
         if(!button||button.disabled)return;
         model.autoLoadPlayback=true;saveWorkspace(model);
         button.disabled=true;button.textContent='Loading…';
-        try { const module=await import('/character_motion_viewer.js?v=11'); if(!body.isConnected)return;
+        try { const module=await import('/character_motion_viewer.js?v=12'); if(!body.isConnected)return;
           body._dispose?.();
           const viewer=module.mount(body.querySelector('[data-motion]'), {...selected.playback,onExpand,expandIcon:icon('expand'),onError:()=>{
             if(body.isConnected){button.hidden=false;button.disabled=false;button.textContent='Retry 3D playback';}

@@ -23,7 +23,7 @@ export async function hash(bytes) {
 }
 
 async function bytes(path,signal,onProgress) {
-  if(window.GeoAssets)return window.GeoAssets.read(url(path),{signal,onProgress});
+  if(window.GeoAssets)return window.GeoAssets.file(url(path),{signal,onProgress});
   const response=await fetch(url(path),{signal});
   if(!response.ok)throw new Error(`${path.split('/').pop()} loading failed: ${response.status}`);
   const buffer=await response.arrayBuffer();
@@ -180,7 +180,7 @@ export function mount(root,{motionPath,scenePath,usdPath,onError,onExpand,expand
   async function load(){try{
     const sceneBuffer=await bytes(scenePath,abort.signal,report('Robot scene'));
     const decodeScene=async()=>JSON.parse(new TextDecoder().decode(await gunzip(sceneBuffer)));
-    sceneData=window.GeoAssets?await window.GeoAssets.memo('scene:'+scenePath,decodeScene):await decodeScene();
+    sceneData=window.GeoAssets?await window.GeoAssets.memo('scene:'+window.GeoAssets.keyFor(url(scenePath)),decodeScene):await decodeScene();
     const meta=JSON.parse(new TextDecoder().decode(await bytes(motionPath,abort.signal,report('Motion metadata'))));
       if(meta.source.urdfSha256!==sceneData.source.urdfSha256||meta.payload!=='motion.bin.gz')throw new Error('动作与模型版本不匹配');
       const packed=await bytes(motionPath.replace(/[^/]+$/,'')+meta.payload,abort.signal,report('Motion frames'));

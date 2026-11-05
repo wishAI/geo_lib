@@ -61,6 +61,53 @@ class AvpDeliveryTests(unittest.TestCase):
                 status, _, _ = self.request(path='/api/artifact?path=' + private)
                 self.assertEqual(status, 403)
 
+    def test_shared_asset_identity_and_version_validation(self):
+        import json
+        from urllib.parse import urlencode
+        left, right = self.root / 'one.stl', self.root / 'two.stl'
+        left.write_bytes(b'identical mesh');right.write_bytes(left.read_bytes())
+        urdf = '<robot name="shared"><link name="body"><visual><geometry><mesh filename="package://body.stl"/></geometry></visual></link></robot>'
+        with patch.object(server, '_resolve_robot_asset', side_effect=lambda model, uri: left if model == 'one.urdf' else right):
+            one = server.robot_asset_identities('one.urdf', urdf)
+            two = server.robot_asset_identities('two.urdf', urdf)
+            self.assertEqual(one, two)
+        with patch.object(server, '_allowed_robot_path', return_value=True), patch.object(server, '_resolve_robot_asset', return_value=left):
+            path = '/api/robot/asset?' + urlencode({'urdf': 'one.urdf', 'uri': 'package://body.stl'})
+            status, _, body = self.request(path=path+'&metadata=1')
+            self.assertEqual(status, 200)
+            identity = json.loads(body)
+            self.assertEqual(identity['byteLength'], len(b'identical mesh'))
+            status, headers, body = self.request(path=path+'&sha256='+identity['sha256'])
+            self.assertEqual((status, body), (200, b'identical mesh'))
+            self.assertIn('immutable', headers['Cache-Control'])
+            left.write_bytes(b'changed mesh')
+            status, _, _ = self.request(path=path+'&sha256='+identity['sha256'])
+            self.assertEqual(status, 409)
+            status, _, body = self.request(path=path+'&metadata=1')
+            self.assertNotEqual(json.loads(body)['sha256'], identity['sha256'])
+        with patch.object(server, '_allowed_robot_path', return_value=False):
+            status, _, _ = self.request(path=path+'&metadata=1')
+            self.assertEqual(status, 403)
+
+    def test_mesh_workbench_supports_shared_file_identity(self):
+        import json
+        asset = self.root / 'part.stl';asset.write_bytes(b'workbench mesh')
+        with patch.object(server, '_mesh_asset_relative', return_value=('part.stl', None)), patch.object(server, 'resolve_artifact', return_value=('repo', asset)):
+            status, _, body = self.request(path='/api/mesh/asset?sandbox=model&part=leg&variant=source&metadata=1')
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body), server.asset_identity(asset))
+
+    def test_artifact_metadata_uses_original_allowlist(self):
+        import json
+        relative = 'algorithms/example/shared.glb'
+        artifact = self.root / 'shared.glb';artifact.write_bytes(b'character')
+        with patch.object(server, 'declared_artifact_paths', return_value={relative}), patch.object(server, 'nesting_workspace_files', return_value=set()), patch.object(server, 'resolve_artifact', return_value=('repo', artifact)):
+            status, _, body = self.request(path='/api/artifact?path='+relative+'&metadata=1')
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body), server.asset_identity(artifact))
+            status, _, _ = self.request(path='/api/artifact?path=private.glb&metadata=1')
+            self.assertEqual(status, 403)
+
     def test_robot_json_is_cached_compressed_and_invalidated(self):
         urdf = self.root / 'robot.urdf'
         urdf.write_text('<robot name="test">' + '<!-- mesh -->' * 500 + '</robot>')

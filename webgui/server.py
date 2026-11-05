@@ -131,6 +131,21 @@ def compressed_file(path: str, modified: int, size: int) -> bytes:
     return gzip.compress(Path(path).read_bytes(), compresslevel=5, mtime=0)
 
 
+@lru_cache(maxsize=1024)
+def asset_digest(path: str, modified: int, changed: int, size: int) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def asset_identity(path: Path) -> dict:
+    stat = path.stat()
+    return {'sha256': asset_digest(str(path.resolve()), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size),
+            'byteLength': stat.st_size}
+
+
 def gui_bind_host(value: str) -> str:
     if value == 'localhost':
         return '127.0.0.1'
@@ -1323,6 +1338,15 @@ def _is_relative_to(path: Path, root: Path) -> bool:
         return False
 
 
+def robot_asset_identities(relative: str, urdf: str) -> dict:
+    identities = {}
+    for uri in sorted({mesh.get('filename') for mesh in ET.fromstring(urdf).iter('mesh')} - {None, ''}):
+        asset = _resolve_robot_asset(relative, uri)
+        if asset:
+            identities[uri] = asset_identity(asset)
+    return identities
+
+
 class GeoGuiServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -1412,6 +1436,19 @@ class Handler(BaseHTTPRequestHandler):
             if len(raw)>avp_recordings.MAX_UPLOAD:raise ValueError('Expanded upload is too large')
         elif encoding!='identity':raise ValueError('Unsupported upload encoding')
         return json.loads(raw or b"{}")
+
+    def _asset_file(self, path: Path, query: dict, *, cache: str = 'no-cache') -> None:
+        # Called only after the original path/URDF allowlist has been checked.
+        if query.get('metadata') == ['1']:
+            self._json(asset_identity(path), revalidate=True)
+            return
+        expected = query.get('sha256', [''])[0]
+        if expected:
+            if expected != asset_identity(path)['sha256']:
+                self._error('Asset changed; refresh its identity', HTTPStatus.CONFLICT)
+                return
+            cache = 'private, max-age=31536000, immutable'
+        self._file(path, cache=cache)
 
     def _file(self, path: Path, *, cache: str = "no-cache") -> None:
         if not path.is_file():
@@ -1524,7 +1561,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not resolved:
                     self._error("Artifact is not available", HTTPStatus.NOT_FOUND)
                     return
-                self._file(resolved[1])
+                self._asset_file(resolved[1], query)
                 return
             if parsed.path == "/api/storage":
                 self._json({"storage": storage.status(), "audit": storage.audit_tracked_files()})
@@ -1570,7 +1607,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._error("URDF is not available", HTTPStatus.NOT_FOUND)
                     return
                 text = resolved[1].read_text(encoding="utf-8")
-                self._json({"urdf": text, "path": relative, "joints": _robot_joint_info(text)}, revalidate=True)
+                self._json({"urdf": text, "path": relative, "joints": _robot_joint_info(text),
+                            "assetIdentities": robot_asset_identities(relative, text)}, revalidate=True)
                 return
             if parsed.path == "/api/robot/asset":
                 urdf = query.get("urdf", [""])[0]
@@ -1582,7 +1620,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not asset:
                     self._error("Robot asset is not available", HTTPStatus.NOT_FOUND)
                     return
-                self._file(asset, cache="public, max-age=300")
+                self._asset_file(asset, query, cache="public, max-age=300")
                 return
             if parsed.path == "/api/mesh/catalog":
                 sandbox = query.get("sandbox", [""])[0]
@@ -1603,7 +1641,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not resolved:
                     self._error("Mesh asset is not available", HTTPStatus.NOT_FOUND)
                     return
-                self._file(resolved[1], cache="public, max-age=60")
+                self._asset_file(resolved[1], query, cache="public, max-age=60")
                 return
             if parsed.path in {"/", "/index.html"}:
                 self._file(STATIC_ROOT / "index.html")

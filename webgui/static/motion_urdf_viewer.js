@@ -40,6 +40,7 @@
       if (this.destroyed) return null;
       if (payload.error) throw new Error(payload.error);
       this.model = parseUrdf(payload.urdf);
+      this.assetIdentities = payload.assetIdentities || {};
       this.armJointNames = Array.from(jointNames || []);
       const values = Array.from(jointValues || []);
       if (values.length !== this.armJointNames.length || values.some(value => !Number.isFinite(Number(value)))) {
@@ -221,7 +222,7 @@
         if (!this.meshCache.has(visual.uri)) {
           const separator = this.assetUrl.includes('?') ? '&' : '?';
           const assetRequest = `${this.assetUrl}${separator}uri=${encodeURIComponent(visual.uri)}`;
-          const bytes = window.GeoAssets ? await window.GeoAssets.read(assetRequest) : await fetch(assetRequest).then(response=>{if(!response.ok)throw new Error(response.statusText);return response.arrayBuffer();});
+          const bytes = window.GeoAssets ? await window.GeoAssets.file(assetRequest,{sha256:this.assetIdentities[visual.uri]?.sha256}) : await fetch(assetRequest).then(response=>{if(!response.ok)throw new Error(response.statusText);return response.arrayBuffer();});
           const geometry = window.GeoAssets ? await window.GeoAssets.memo('stl:'+window.GeoAssets.keyFor(assetRequest),()=>parseStl(bytes)) : parseStl(bytes);
           // Geometry arrays are shared; WebGL buffers belong to this viewer's context.
           const mesh = {...geometry, buffers:null};
