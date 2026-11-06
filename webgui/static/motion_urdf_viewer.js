@@ -32,7 +32,7 @@
       document.body.dataset.robotRenderMode = 'loading';
     }
 
-    async load(urdfUrl, jointNames, jointValues) {
+    async load(urdfUrl, jointNames, jointValues, onModelReady) {
       this.onStatus('Loading robot URDF');
       const payload = window.GeoAssets
         ? await window.GeoAssets.json(urdfUrl)
@@ -54,6 +54,7 @@
       this.updateLinkWorlds();
       this.fitPending = true;
       this.draw();
+      onModelReady?.();
       this.onStatus('Loading URDF meshes');
       await this.loadMeshes();
       if (this.destroyed) return null;
@@ -94,6 +95,21 @@
         for (const joint of this.model.childrenByParent[link] || []) pending.push(joint.child);
       }
       this.draw();
+    }
+
+    static pivotPrefix(cluster) {
+      const names=cluster.joints.map(j=>j.name.replace(/_joint$/, '').split('_'));
+      return names[0].filter((part,i)=>names.every(name=>name.slice(0,i+1).join('_')===names[0].slice(0,i+1).join('_'))).join('_');
+    }
+
+    static pivotLabel(cluster) {
+      const prefix=this.pivotPrefix(cluster).replaceAll('_',' ');
+      return `${prefix || 'Shared pivot'}${cluster.joints.length>1?' · '+cluster.joints.length+' axes':''}`;
+    }
+
+    static axisLabel(name, cluster) {
+      const prefix=this.pivotPrefix(cluster);
+      return (name.replace(/_joint$/, '').replace(prefix+'_','') || name).replaceAll('_',' ');
     }
 
     groupJointPivots(joints, tolerance = 1e-5) {

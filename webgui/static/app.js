@@ -153,30 +153,50 @@
   function openWalkTools(sandbox) {
     artifactPreview.innerHTML=`<div class="walk-tools"><h2>Tools & logs</h2><button class="button" data-open-workbench="urdf">Open URDF workbench</button><details open><summary>Run logs</summary>${consolePanel(sandbox)}</details><details><summary>Legacy Isaac tools</summary>${visibleExamples(sandbox).map(example=>exampleCard(sandbox,example)).join('')}</details><details><summary>Result files</summary>${artifactPanel(sandbox)}</details></div>`;
     artifactDialog.showModal();bindSandbox(sandbox);
+    if(!state.artifactsLoaded?.[sandbox.id])void loadArtifacts(sandbox);
   }
 
-  async function loadTrainingTree(sandbox) {
+  async function loadTrainingTree(sandbox, force = false) {
     const roots=[app.querySelector('[data-training-tree]'),
       evolutionDialog.open && evolutionDialog.dataset.sandbox===sandbox.id ? evolutionDialogContent : null].filter(Boolean);
     if(!roots.length)return;
+    const mount=(root,data)=>{
+      if(!root.isConnected || root.dataset.revision===data.revision)return;
+      window.GeoEvolutionTree.mount(root,{data,artifacts:(state.artifacts[sandbox.id] ||= []),onPreview:previewArtifact,
+        loadNode:(id,onProgress)=>window.GeoLineage.node(sandbox.id,data.revision,id,onProgress),
+        onRefresh:()=>void loadTrainingTree(sandbox,true),onTools:()=>openWalkTools(sandbox)});
+      root.dataset.revision=data.revision;
+    };
+    const cached=window.GeoLineage.peek(sandbox.id);
+    if(cached)for(const root of roots)if(!root.dataset.revision)mount(root,cached);
     try {
-      const data=await api('/api/artifact?path='+encodeURIComponent(sandbox.inspector.path));
+      const data=await window.GeoLineage.index(sandbox.id,{force,onProgress:p=>{
+        for(const root of roots)if(root.isConnected && !root.dataset.revision){
+          root.innerHTML=window.GeoEvolutionTree.loading(p.state==='connecting'?'Connecting to checkpoint lineage…':
+            'Loading lineage index · '+window.GeoAssets.describe(p))+`<progress class="lineage-load-progress" ${p.total?`max="${p.total}" value="${p.loaded}"`:''} aria-label="Lineage download progress"></progress>`;
+        }
+      }});
       state.evolution[sandbox.id]=data;
       for(const root of roots){
-        if(!root.isConnected || root.dataset.generatedAt===data.generatedAt)continue;
-        // Automatic tree refresh must not restart a video/3D proof being watched.
-        if(root._evolutionModel?.tab==='playback')continue;
-        window.GeoEvolutionTree.mount(root,{data,artifacts:(state.artifacts[sandbox.id] ||= []),onPreview:previewArtifact,onRefresh:()=>void refreshAll(true),onTools:()=>openWalkTools(sandbox)});
-        root.dataset.generatedAt=data.generatedAt;
+        // Keep the active inspector intact until the user chooses to refresh.
+        if(!force && root.dataset.revision && root.dataset.revision!==data.revision){
+          const button=root.querySelector('[data-refresh]');
+          if(button){button.textContent='↻ Updates';button.title='New lineage available — click to refresh';}
+        } else mount(root,data);
       }
-    } catch(error) {for(const root of roots)if(root.isConnected && !root.dataset.generatedAt)root.innerHTML='<p class="evolution-empty">Lineage unavailable. Use Refresh to retry.</p>';toast(error.message,true);}
+    } catch(error) {
+      for(const root of roots)if(root.isConnected && !root.dataset.revision){
+        root.innerHTML='<div class="evolution-empty">Lineage unavailable. <button class="button" data-retry-lineage>Retry</button></div>';
+        root.querySelector('[data-retry-lineage]').onclick=()=>void loadTrainingTree(sandbox,true);
+      }
+      toast(error.message,true);
+    }
   }
 
   setInterval(() => {
     const sandbox=currentSandbox();
-    if(document.visibilityState==='visible' && sandbox?.inspector &&
-      (app.querySelector('[data-training-tree]') || (evolutionDialog.open && evolutionDialog.dataset.sandbox===sandbox.id))) void loadTrainingTree(sandbox);
-  },15000);
+    if(document.visibilityState==='visible' && sandbox?.trainingDashboard)void loadTrainingTree(sandbox);
+  },60000);
 
   function artifactPanel(sandbox) {
     const artifacts = state.artifacts[sandbox.id] || [];
@@ -609,25 +629,12 @@
   }
 
   async function openEvolutionTree(sandbox) {
+    window.GeoEvolutionTree.destroy(evolutionDialogContent);
     evolutionDialog.dataset.sandbox = sandbox.id;
-    evolutionDialogContent.innerHTML = `<div class="viewer-loading">${icon('milestones')}<span>Loading real lineage…</span></div>`;
+    delete evolutionDialogContent.dataset.revision;
+    evolutionDialogContent.innerHTML = window.GeoEvolutionTree.loading('Loading checkpoint lineage…');
     evolutionDialog.showModal();
-    try {
-      const path = sandbox.inspector?.path;
-      if (!path) throw new Error('This sandbox does not declare an evolution artifact.');
-      const payload = await api(`/api/artifact?path=${encodeURIComponent(path)}`);
-      state.evolution[sandbox.id] = payload;
-      if (!window.GeoEvolutionTree) throw new Error('Evolution Tree renderer is unavailable.');
-      window.GeoEvolutionTree.mount(evolutionDialogContent, {
-        data: payload,
-        artifacts: state.artifacts[sandbox.id] || [],
-        onPreview: (artifactPath, kind) => void previewArtifact(artifactPath, kind),
-      });
-      evolutionDialogContent.dataset.generatedAt=payload.generatedAt;
-    } catch (error) {
-      evolutionDialogContent.innerHTML = `<div class="workbench-retry workbench-retry-centered"><div class="warning-box">Evolution data could not be loaded. ${escapeHtml(error.message)}</div><button class="button button-with-icon" type="button" data-retry-evolution>${icon('refresh')}<span>Retry</span></button></div>`;
-      evolutionDialogContent.querySelector('[data-retry-evolution]')?.addEventListener('click', () => void openEvolutionTree(sandbox));
-    }
+    await loadTrainingTree(sandbox);
   }
 
   async function previewArtifact(path, kind) {
@@ -654,7 +661,12 @@
       const payload = await api(`/api/artifacts/${encodeURIComponent(sandbox.id)}`);
       if(sandbox.trainingDashboard && state.artifacts[sandbox.id]) state.artifacts[sandbox.id].splice(0,state.artifacts[sandbox.id].length,...payload.artifacts);
       else state.artifacts[sandbox.id] = payload.artifacts;
-      delete state.evolution[sandbox.id];
+      (state.artifactsLoaded ||= {})[sandbox.id]=true;
+      if(sandbox.trainingDashboard && artifactDialog.open){
+        const panel=artifactPreview.querySelector('[data-refresh-artifacts]')?.closest('.panel');
+        if(panel){panel.outerHTML=artifactPanel(sandbox);artifactPreview.querySelector('[data-refresh-artifacts]').onclick=()=>void loadArtifacts(sandbox,true);
+          artifactPreview.querySelectorAll('[data-artifact]').forEach(button=>button.onclick=()=>void previewArtifact(button.dataset.artifact,button.dataset.kind));}
+      }
       if (currentSandbox()?.id === sandbox.id && !sandbox.trainingDashboard && sandbox.designer?.type !== 'avpRemote') sandboxView(sandbox);
       if (announce) toast('Results refreshed');
     } catch (error) { toast(error.message, true); }
@@ -757,26 +769,27 @@
       document.querySelectorAll('.joint-row').forEach(row=>row.classList.toggle('joint-row-selected',row.dataset.name===name.toLowerCase()));
       document.querySelector('#robot-joint-detail').textContent=[name,`${frame.parent} → ${frame.child}`,`局部轴 ${frame.axis.map(x=>x.toFixed(4)).join(', ')}`,`世界轴 ${frame.worldAxis.map(x=>x.toFixed(4)).join(', ')} (Z-up)`,`限位 ${j.lower.toFixed(3)} … ${j.upper.toFixed(3)} rad`,'正角遵循右手规则 · 修改仅用于预览', ...((sandboxContactProperties(path) && /ankle|toe/.test(name)) ? contactPropertyLines(sandboxContactProperties(path)) : [])].join('\n');
     };
-    await viewer.load(`/api/robot/urdf?path=${encodeURIComponent(path)}`, joints.map(item => item.name), joints.map(() => 0));
-    if(state.robotViewer!==viewer)return;
-    const knownGroups = new Set(JOINT_GROUPS.map(([group]) => group));
-    const groups = [...JOINT_GROUPS];
-    if (joints.some(joint => !knownGroups.has(joint.group))) groups.push(['other', 'Other']);
-    list.innerHTML = groups.map(([group, label]) => {
-      const grouped = joints.filter(joint => group === 'other' ? !knownGroups.has(joint.group) : joint.group === group);
-      if (!grouped.length) return '';
-      return `<details class="joint-group" data-joint-group="${group}" open><summary><span>${escapeHtml(label)}</span><small>${grouped.length}</small></summary><div>${viewer.groupJointPivots(grouped).map(cluster => `<fieldset class="joint-pivot-group"><legend>${escapeHtml(cluster.joints.length > 1 ? '同一关节点 · ' + cluster.joints.length + ' 轴' : cluster.joints[0].name.replace(/_joint$/, ''))}</legend>${cluster.joints.map(joint => `<div class="joint-row" data-name="${escapeHtml(joint.name.toLowerCase())}"><div class="joint-label"><span>${escapeHtml(joint.name)}</span><output>0.000</output></div><input type="range" min="${joint.lower}" max="${joint.upper}" step="0.001" value="0" data-joint="${escapeHtml(joint.name)}" aria-label="${escapeHtml(joint.name)} angle"></div>`).join('')}</fieldset>`).join('')}</div></details>`;
-    }).join('');
-    if (!joints.length) list.innerHTML = '<div class="warning-box">This URDF contains no controllable joints.</div>';
-    list.removeAttribute('aria-busy');
-    document.querySelectorAll('[data-joint]').forEach(input => input.addEventListener('input', () => {
-      input.closest('.joint-row').querySelector('output').textContent = Number(input.value).toFixed(3);
-      state.robotViewer.setJoints([input.dataset.joint], [Number(input.value)]);inspect(input.dataset.joint);
-    }));
+    await viewer.load(`/api/robot/urdf?path=${encodeURIComponent(path)}`, joints.map(item => item.name), joints.map(() => 0), () => {
+      if(state.robotViewer!==viewer)return;
+      const knownGroups = new Set(JOINT_GROUPS.map(([group]) => group));
+      const groups = [...JOINT_GROUPS];
+      if (joints.some(joint => !knownGroups.has(joint.group))) groups.push(['other', 'Other']);
+      list.innerHTML = groups.map(([group, label]) => {
+        const grouped = joints.filter(joint => group === 'other' ? !knownGroups.has(joint.group) : joint.group === group);
+        if (!grouped.length) return '';
+        return `<details class="joint-group" data-joint-group="${group}" open><summary><span>${escapeHtml(label)}</span><small>${grouped.length}</small></summary><div>${viewer.groupJointPivots(grouped).map(cluster => `<fieldset class="joint-pivot-group"><legend>${escapeHtml(window.MotionUrdfViewer.pivotLabel(cluster))}</legend>${cluster.joints.map(joint => `<div class="joint-row" data-name="${escapeHtml(joint.name.toLowerCase())}"><div class="joint-label"><span title="${escapeHtml(joint.name)}">${escapeHtml(window.MotionUrdfViewer.axisLabel(joint.name,cluster))}</span><output>0.000</output></div><input type="range" min="${joint.lower}" max="${joint.upper}" step="0.001" value="0" data-joint="${escapeHtml(joint.name)}" aria-label="${escapeHtml(joint.name)} angle"></div>`).join('')}</fieldset>`).join('')}</div></details>`;
+      }).join('');
+      if (!joints.length) list.innerHTML = '<div class="warning-box">This URDF contains no controllable joints.</div>';
+      list.removeAttribute('aria-busy');
+      document.querySelectorAll('[data-joint]').forEach(input => input.addEventListener('input', () => {
+        input.closest('.joint-row').querySelector('output').textContent = Number(input.value).toFixed(3);
+        state.robotViewer.setJoints([input.dataset.joint], [Number(input.value)]);inspect(input.dataset.joint);
+      }));
 
-    if(state.robotViewer!==viewer)return;
-    document.querySelectorAll('[data-joint]').forEach(input=>input.addEventListener('focus',()=>inspect(input.dataset.joint)));
-    if(joints.length)inspect(joints.find(j=>j.name==='left_ankle_roll_joint')?.name||joints[0].name);
+      if(state.robotViewer!==viewer)return;
+      document.querySelectorAll('[data-joint]').forEach(input=>input.addEventListener('focus',()=>inspect(input.dataset.joint)));
+      if(joints.length)inspect(joints.find(j=>j.name==='left_ankle_roll_joint')?.name||joints[0].name);
+    });
   }
 
   function bindViewerGestures(stage, viewerProvider) {
@@ -953,7 +966,7 @@
     if (evolutionDialog.open && evolutionDialog.dataset.sandbox !== sandbox?.id) evolutionDialog.close();
     if (sandbox) {
       sandboxView(sandbox);
-      if (sandbox.workspace?.type !== 'nesting' && sandbox.designer?.type !== 'avpRemote' && !state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
+      if (!sandbox.trainingDashboard && sandbox.workspace?.type !== 'nesting' && sandbox.designer?.type !== 'avpRemote' && !state.artifacts[sandbox.id]) void loadArtifacts(sandbox);
     } else {
       homeView();
     }
@@ -977,7 +990,7 @@
           });
         } else if (!sandbox.trainingDashboard) sandboxView(sandbox);
         if (after && ['succeeded', 'failed', 'cancelled'].includes(after.status)) {
-          if (sandbox.workspace?.type !== 'nesting') void loadArtifacts(sandbox);
+          if (!sandbox.trainingDashboard && sandbox.workspace?.type !== 'nesting') void loadArtifacts(sandbox);
           if (meshDialog.open && after.example === sandbox.meshWorkbench?.applyExample) {
             if (after.status === 'succeeded') void setupMeshWorkbench(sandbox, state.meshPart);
             else document.querySelector('#mesh-apply-status')?.append(` Build ${after.status}.`);
@@ -995,8 +1008,7 @@
   }
 
   async function refreshAll(announce = false) {
-    state.evolution = {};
-    state.artifacts = {};
+    if(!currentSandbox()?.trainingDashboard){state.evolution={};state.artifacts={};state.artifactsLoaded={};}
     // Health checks can involve SSH; the local workspace needs only its catalog.
     const status = api('/api/status').then(payload => {
       state.status = payload;
@@ -1010,7 +1022,8 @@
       const catalog = await api('/api/catalog');
       state.catalog = catalog.sandboxes;
       renderStatus();
-      if (currentSandbox()?.designer?.type !== 'avpRemote' || !state.avpRemote) renderRoute();
+      if(currentSandbox()?.trainingDashboard && app.querySelector('.lineage-workspace'))void loadTrainingTree(currentSandbox(),announce);
+      else if (currentSandbox()?.designer?.type !== 'avpRemote' || !state.avpRemote) renderRoute();
       if (announce) {
         await Promise.all([status, jobs]);
         toast('Mac, TK2, storage, jobs, and results refreshed');
@@ -1059,7 +1072,7 @@
   for (const dialog of [urdfDialog, meshDialog, evolutionDialog]) dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
   urdfDialog.addEventListener('close', () => { state.robotViewer?.destroy?.(); state.robotViewer = null; urdfDialogContent.innerHTML = ''; });
   meshDialog.addEventListener('close', () => { state.meshViewers.forEach(viewer => viewer.destroy?.()); state.meshViewers = []; meshDialogContent.innerHTML = ''; });
-  evolutionDialog.addEventListener('close', () => { evolutionDialogContent.innerHTML = ''; });
+  evolutionDialog.addEventListener('close', () => { window.GeoEvolutionTree.destroy(evolutionDialogContent); evolutionDialogContent.innerHTML = ''; delete evolutionDialogContent.dataset.revision; });
   window.addEventListener('hashchange', renderRoute);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void refreshAll(); else clearTimeout(state.pollTimer); });
   void refreshAll();

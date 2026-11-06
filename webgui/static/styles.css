@@ -1097,3 +1097,36 @@ body.walk-workspace #app { padding: 7px 12px 10px; }
 .joint-pivot-group { margin: 10px 0; padding: 8px; border: 1px solid #ccd8d1; border-radius: 8px; }
 .joint-pivot-group legend { padding: 0 5px; font-size: 11px; color: #52645a; }
 .joint-contact-properties { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 var(--font-sans, sans-serif); padding: 10px; border: 1px solid #ccd8d1; border-radius: 8px; background: #f5f8f3; }
+
+/* Keep lineage navigation horizontal; node selection never changes this grid. */
+.lineage-scroll { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.lineage-band b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lineage-workspace .evolution-node.folded .node-disc { fill: #e4eee8; stroke-dasharray: 3 2; }
+.lineage-workspace .evolution-node.folded.selected .node-disc { fill: #1d6b54; stroke-dasharray: none; }
+.lineage-workspace .evolution-edge { opacity: .25; stroke-linejoin: round; pointer-events: stroke; }
+.lineage-workspace .evolution-edge:hover { opacity: .9; }
+.lineage-workspace .evolution-edge.active { opacity: 1; }
+.lineage-load-progress { display: block; width: min(320px,80%); height: 5px; margin: 12px auto; accent-color: #287b60; }
+.lineage-fold-dialog { width: min(520px,90vw); max-height: 75dvh; margin: auto; padding: 0; border: 1px solid #c3d4c8; border-radius: 12px; background: #fffefa; color: var(--ink); }
+.lineage-fold-dialog::backdrop { background: #132d2366; }
+.lineage-fold-dialog header { position: sticky; top: 0; background: #edf4ee; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+.lineage-fold-dialog [data-fold-node] { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 14px; border: 0; border-bottom: 1px solid #e4eae2; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.lineage-fold-dialog [data-fold-node]:hover { background: #e8f2e9; }
+.lineage-fold-dialog small { color: #6a8274; }
+.lineage-joint-list { padding: 8px; }
+.lineage-joint-list p { margin: 5px 0; font-size: 10px; }
+.joint-pivot-group { min-width: 0; margin: 6px 0; padding: 2px 5px 4px; background: #f4f8f2; }
+.joint-pivot-group legend { font-size: 10px; text-transform: capitalize; }
+.lineage-joint { display: grid; grid-template-columns: minmax(75px,.8fr) minmax(100px,1.2fr); align-items: center; gap: 5px; padding: 4px 2px; min-height: 29px; }
+.lineage-joint .joint-select { min-width: 0; padding: 0; gap: 4px; }
+.joint-select span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.joint-select i { flex-shrink: 0; }
+.lineage-joint .joint-select small { font-size: 8px; }
+.joint-adjust { min-width: 0; gap: 4px; }
+.joint-adjust input[type=number] { width: 53px; padding: 3px 1px; }
+.held-joint-group summary { padding: 6px 3px; }
+.joint-pivot-group .joint-row { display: grid; grid-template-columns: minmax(80px,1fr) minmax(70px,1fr); align-items: center; gap: 8px; padding: 5px 0; }
+.joint-pivot-group .joint-label { min-width: 0; align-items: center; }
+.joint-pivot-group .joint-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.joint-controls { padding: 10px; }
+.joint-group summary { min-height: 30px; }

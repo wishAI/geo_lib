@@ -292,6 +292,40 @@ def evolution_artifacts(manifest: dict) -> list[dict]:
     return list(artifacts.values())
 
 
+@lru_cache(maxsize=8)
+def lineage_snapshot(path: str, modified: int, changed: int, size: int) -> tuple[dict, dict]:
+    """Cache only the declared ledger; never inspect its checkpoint/media files."""
+    tree = json.loads(Path(path).read_text())
+    nodes = {node['id']: node for node in tree.get('nodes', [])}
+    fields = {'id', 'label', 'modelId', 'parentIds', 'milestoneId', 'kind', 'status',
+              'startedAt', 'result', 'step'}
+    summary = {key: tree[key] for key in ('models', 'milestones', 'activeModelId',
+               'currentNodeId', 'speedGoal', 'generatedAt') if key in tree}
+    summary['nodes'] = [{**{key: value for key, value in node.items() if key in fields},
+                         'hasPlayback': bool(node.get('playback'))} for node in nodes.values()]
+    summary['revision'] = hashlib.sha256(f'{path}:{modified}:{changed}:{size}'.encode()).hexdigest()
+    summary['summaryOnly'] = True
+    return summary, nodes
+
+
+def lineage_payload(sandbox: str, node_id: str = '') -> dict:
+    manifest = manifest_map().get(sandbox, {})
+    inspector = manifest.get('inspector', {})
+    if inspector.get('type') != 'evolutionTree' or not inspector.get('path'):
+        raise ValueError('Sandbox does not declare a checkpoint lineage')
+    resolved = resolve_artifact(inspector['path'])
+    if not resolved:
+        raise ValueError('Checkpoint lineage is not available')
+    path = resolved[1]
+    stat = path.stat()
+    summary, nodes = lineage_snapshot(str(path), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size)
+    if not node_id:
+        return summary
+    if node_id not in nodes:
+        raise ValueError('Unknown lineage node')
+    return {'revision': summary['revision'], 'node': nodes[node_id]}
+
+
 def _nesting_artifact_entries(root: Path):
     """Scan each directory once, without following file or directory symlinks."""
     root_names = {"problem.json", "solution.json", "run.json", "index.json", "analysis.json"}
@@ -1383,6 +1417,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, payload: object, status: HTTPStatus = HTTPStatus.OK, *, revalidate: bool = False) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        decoded_size = len(data)
         if revalidate:
             import hashlib
             etag = 'W/"' + hashlib.sha256(data).hexdigest() + '"'
@@ -1405,6 +1440,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('ETag', etag)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header('X-Uncompressed-Content-Length', str(decoded_size))
         self.send_header("Cache-Control", "private, no-cache" if revalidate else "no-store")
         self.end_headers()
         self.wfile.write(data)
@@ -1622,6 +1658,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/jobs":
                 self._json({"jobs": JOBS.list()})
+                return
+            if parsed.path == '/api/lineage':
+                self._json(lineage_payload(query.get('sandbox', [''])[0], query.get('node', [''])[0]), revalidate=True)
                 return
             if parsed.path.startswith("/api/jobs/"):
                 self._json(JOBS.get(parsed.path.rsplit("/", 1)[-1]).public())
