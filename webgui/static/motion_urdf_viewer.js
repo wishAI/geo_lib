@@ -96,6 +96,17 @@
       this.draw();
     }
 
+    groupJointPivots(joints, tolerance = 1e-5) {
+      const groups = [];
+      for (const joint of joints) {
+        const pivot = this.jointFrame(joint.name)?.pivot;
+        let group = pivot && groups.find(g => g.pivot && Math.hypot(...pivot.map((v,i) => v-g.pivot[i])) <= tolerance);
+        if (!group) { group = {pivot, joints: []}; groups.push(group); }
+        group.joints.push(joint);
+      }
+      return groups;
+    }
+
     jointFrame(name) {
       const j=this.model?.joints.find(j=>j.name===name);if(!j)return null;
       const frame=matMul(this.model.linkWorld[j.parent],j.origin),pivot=transformPoint(frame,[0,0,0]);

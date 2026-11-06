@@ -684,7 +684,9 @@ def main():
     if args.triangle and args.mode!='evaluate':raise ValueError('Triangle is evaluation only')
     if args.direction_navigation!='legacy' and (args.mode!='evaluate' or not args.direction):
         raise ValueError('Signed navigation is serial evaluation only; legacy training memory is unchanged')
-    if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=(600 if args.triangle else 240 if args.direction else 120):
+    from .forward_walk_contract import diagnostic_duration_limit
+    duration_limit=diagnostic_duration_limit(triangle=args.triangle,direction=args.direction,turn=args.turn,teleop=args.teleop)
+    if not 4<=args.num_envs<=1024 or not 1<=args.iterations<=2000 or not 0<=args.forward<=.4 or not 0<args.seconds<=duration_limit:
         raise ValueError('Experiment exceeds bounded limits')
     if args.hip_roll_range not in (.2,.4):raise ValueError('Use an audited hip-roll range')
     if args.moving_tilt_weight not in (.5,2.):raise ValueError('Use a bounded tilt-penalty comparison')

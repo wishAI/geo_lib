@@ -222,7 +222,12 @@ class Assistance:
 def initialize(model, spec, *, pose='source', gain_scale=1.):
     data = mujoco.MjData(model)
     geometry = model_spec.derive_static_pose(Path(spec.get('urdf_path', model_spec.URDF_PATH)), hand_pose=spec.get('hand_pose', 'open')) if pose == 'geometric' else spec['nominal_pose']['geometry']
-    positions = geometry['joint_positions_rad']
+    positions = dict(geometry['joint_positions_rad'])
+    nominal_profile=spec.get('nominal_pose_profile','geometric')
+    if nominal_profile not in ('geometric','upright_waist_v1'):raise ValueError('Unknown nominal pose profile')
+    if nominal_profile=='upright_waist_v1':
+        if pose!='geometric':raise ValueError('Upright profile requires geometric stance')
+        positions['waist_pitch_joint']=0.
     for r in spec['joints']:
         j, a = model.joint(r['name']), model.actuator(r['name'])
         q = positions.get(r['name'], 0.)

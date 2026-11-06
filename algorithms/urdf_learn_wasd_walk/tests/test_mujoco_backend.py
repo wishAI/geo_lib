@@ -29,6 +29,32 @@ class MuJoCoBackendTests(unittest.TestCase):
         if importlib.util.find_spec(name) is None:
             self.skipTest(f"Optional {name} dependency is absent")
 
+    def test_upright_profile_changes_only_waist_initial_position_and_target(self):
+        model,spec,_=self.compiled
+        old=initialize(model,spec,pose='geometric')
+        new=initialize(model,{**spec,'nominal_pose_profile':'upright_waist_v1'},pose='geometric')
+        expected=old.qpos.copy();expected[model.joint('waist_pitch_joint').qposadr[0]]=0.
+        np.testing.assert_array_equal(new.qpos,expected)
+        expected_ctrl=old.ctrl.copy();expected_ctrl[model.actuator('waist_pitch_joint').id]=0.
+        np.testing.assert_array_equal(new.ctrl,expected_ctrl)
+        np.testing.assert_array_equal(new.qvel,old.qvel)
+        with self.assertRaises(ValueError):initialize(model,{**spec,'nominal_pose_profile':'unknown'},pose='geometric')
+
+    def test_continuous_sole_preserves_mass_and_disables_overlapping_contacts(self):
+        from algorithms.urdf_learn_wasd_walk.foot_contact_probe import continuous_sole
+        model,spec,xml=self.compiled
+        changed,_,bounds=continuous_sole(model,spec,xml)
+        np.testing.assert_array_equal(changed.body_mass,model.body_mass)
+        np.testing.assert_allclose(changed.body_inertia,model.body_inertia,rtol=0,atol=1e-12)
+        self.assertEqual(changed.nu,model.nu)
+        for suffix in ('l','r'):
+            for body in ('foot_','toes_01_'):
+                name=body+suffix+'_collision_0'
+                self.assertEqual(model.geom_contype[model.geom(name).id],2)
+                self.assertEqual(changed.geom_contype[changed.geom(name).id],0)
+            self.assertEqual(changed.geom_contype[changed.geom('continuous_sole_'+suffix).id],2)
+            self.assertAlmostEqual(bounds[suffix]['world_high_m'][2]-bounds[suffix]['world_low_m'][2],.008)
+
     def test_compiled_asset_mass_frames_and_actions(self):
         compiled = self.compiled
 

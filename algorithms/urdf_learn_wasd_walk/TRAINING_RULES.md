@@ -31,6 +31,35 @@ This file is the only retained behavioral contract from the old locomotion imple
 
 `milestones.json` is the machine-readable source for status. It starts with every milestone set to `not_started`.
 
+## Sustained walking speed (2026-11-06)
+
+The user confirmed a final walking target of **1.2 m/s**. The original M1–M12
+IDs and historical certificates stay intact. The current lineage's execution
+order is M1 → M2 → M3 → S1 → S2 → S3 → S4 → M4 … M12.
+
+| Gate | Sustained forward speed |
+|------|-------------------------|
+| S1 | 0.1 m/s |
+| S2 | 0.4 m/s |
+| S3 | 0.8 m/s |
+| S4 | 1.2 m/s |
+
+Each speed proof has a fixed 10 s startup and 30 s measurement, with no reset,
+fall or done event throughout. Every one of six consecutive 5 s blocks must
+reach its target using signed native-forward pelvis displacement / elapsed time
+(reconstructed from the saved model and complete joint trajectory),
+and contain a completed supported swing from each foot. Mean contact slip in
+each block must be at most min(0.1 m/s, 20% of target speed). Existing joint,
+heading, lateral drift, support, flight, source, full-trace and visual walking
+checks still apply. Distance-triggered early stopping is disabled. Speed is
+actual simulated movement, never command magnitude or peak velocity.
+
+Each candidate re-passes passive stand, policy stand, the 5 m gate and earlier
+speed gates with the exact checkpoint. Later behavioral gates require the same
+candidate's S4 certificate and revalidated cumulative components. The GUI must
+show the current speed gate, target in m/s, measured mean/sustained speed when
+available, and the final 1.2 m/s goal. Distance-only history is not speed proof.
+
 ## Animation physical estimates (2026-11-04)
 
 The user clarified that Landau is a wuxia furry animation character: masses and

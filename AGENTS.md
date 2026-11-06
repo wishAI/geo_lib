@@ -18,6 +18,10 @@ If the repository is heavily restructured, or most code files are deleted and re
 
 - For AVP head/neck or hand/finger mapping, palm orientation, arm skin deformation, URDF-to-USD pose transfer, or their playback regressions, read [`skills/avp-hand-arm-retargeting/SKILL.md`](skills/avp-hand-arm-retargeting/SKILL.md). It covers both `avp_remote` and `usd_parallel_urdf`; this work does not advance the locomotion milestone ladder.
 
+## Long-Running Training and Host Stability
+
+For unattended runs, cloud-backed GUI changes, or SSH/host instability, follow [the walking skill's runtime guidance](skills/geo-walk-training/references/runtime-stability.md). Keep runs checkpointable and bounded, preserve cached/streamed asset delivery, and record interrupted workers truthfully after a reboot. Git cleanup must preserve ignored training outputs and checkpoint lineage.
+
 ## What To Preserve If You Wipe And Rebuild
 
 Keep these files and folders even if most code is deleted:
@@ -39,6 +43,7 @@ The previous implementation, run history, and checkpoint lineage were intentiona
 - Standing for 30 seconds with zero signal and no reset is the first hard gate.
 - Then standing for 30 seconds under policy control without reset is the next gate.
 - Then record the first 5 m no-reset gate checkpoint.
+- Then pass sustained walking speed gates at 0.1, 0.4, 0.8 and the user-confirmed 1.2 m/s target, following the explicit execution order in `milestones.json`.
 - Then record the first 10 m no-reset gate checkpoint.
 - Do not skip forward to later polish while an earlier gate is still broken.
 

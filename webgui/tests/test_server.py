@@ -317,7 +317,12 @@ class ManifestTests(unittest.TestCase):
         root = server.REPO_ROOT / "algorithms" / "urdf_learn_wasd_walk"
         payload = json.loads((root / "milestones.json").read_text(encoding="utf-8"))
         self.assertEqual(len(payload["milestones"]), 12)
-        statuses = [item["status"] for item in payload["milestones"]]
+        records = {item['id']:item for item in payload['milestones']+payload.get('speedMilestones',[])}
+        ordered = [records[key] for key in payload.get('executionOrder',records)]
+        statuses = [item["status"] for item in ordered]
+        if payload.get('speedMilestones'):
+            self.assertEqual(len(ordered),16)
+            self.assertEqual([item['targetSpeedMps'] for item in payload['speedMilestones']],[.1,.4,.8,1.2])
         first_unresolved = next((index for index, status in enumerate(statuses) if status != "passed"), len(statuses))
         if first_unresolved < len(statuses):
             self.assertEqual(statuses[first_unresolved], "in_progress")
@@ -339,6 +344,8 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(manifest['trainingState']['nextWork'], payload['sessionStatus']['nextWork'])
         self.assertNotIn('recentEvaluations', manifest['trainingState'])
         self.assertEqual([item['status'] for item in manifest['milestones']], statuses)
+        self.assertEqual([item['id'] for item in manifest['milestones']], [item['id'] for item in ordered])
+        self.assertEqual(manifest.get('currentGateId'),payload.get('currentGateId'))
         example = next(item for item in manifest["examples"] if item["id"] == "validate_passive_stand")
         self.assertEqual(example["command"][:3], ["./geo", "walk", "validate-passive"])
         self.assertEqual({artifact["kind"] for artifact in example["artifacts"]}, {"json", "video", "image"})

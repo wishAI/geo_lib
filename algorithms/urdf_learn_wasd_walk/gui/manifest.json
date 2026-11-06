@@ -328,84 +328,132 @@
       "name": "Passive stand · 30 s",
       "stage": "stand",
       "passWhen": "Zero actions, zero command, zero resets or done events.",
-      "status": "passed"
+      "status": "passed",
+      "displayLabel": "M1"
     },
     {
       "id": "stand_30s_no_reset",
       "name": "Policy stand · 30 s",
       "stage": "stand",
       "passWhen": "Policy control with zero falls, resets, or done events.",
-      "status": "passed"
+      "status": "passed",
+      "displayLabel": "M2"
     },
     {
       "id": "gate_5m_no_reset",
       "name": "Forward gate · 5 m",
       "stage": "fwd_only",
       "passWhen": "Walking pose preserved with no reset.",
-      "status": "in progress"
+      "status": "passed",
+      "displayLabel": "M3"
+    },
+    {
+      "id": "walk_speed_0p1_mps_30s",
+      "displayLabel": "S1",
+      "name": "Sustained walking · 0.1 m/s",
+      "targetSpeedMps": 0.1,
+      "stage": "fwd_speed",
+      "status": "in_progress",
+      "passWhen": "After 10 s warmup, walk for 30 s with every 5 s block at least 0.1 m/s forward. Both feet step in each block; no fall/reset/done, no sliding. Fresh exact-checkpoint standing and 5 m proofs required."
+    },
+    {
+      "id": "walk_speed_0p4_mps_30s",
+      "displayLabel": "S2",
+      "name": "Sustained walking · 0.4 m/s",
+      "targetSpeedMps": 0.4,
+      "stage": "fwd_speed",
+      "status": "not_started",
+      "passWhen": "After 10 s warmup, walk for 30 s with every 5 s block at least 0.4 m/s forward. Both feet step in each block; no fall/reset/done, no sliding. Fresh exact-checkpoint standing and 5 m proofs required."
+    },
+    {
+      "id": "walk_speed_0p8_mps_30s",
+      "displayLabel": "S3",
+      "name": "Sustained walking · 0.8 m/s",
+      "targetSpeedMps": 0.8,
+      "stage": "fwd_speed",
+      "status": "not_started",
+      "passWhen": "After 10 s warmup, walk for 30 s with every 5 s block at least 0.8 m/s forward. Both feet step in each block; no fall/reset/done, no sliding. Fresh exact-checkpoint standing and 5 m proofs required."
+    },
+    {
+      "id": "walk_speed_1p2_mps_30s",
+      "displayLabel": "S4",
+      "name": "Sustained walking · 1.2 m/s",
+      "targetSpeedMps": 1.2,
+      "stage": "fwd_speed",
+      "status": "not_started",
+      "passWhen": "After 10 s warmup, walk for 30 s with every 5 s block at least 1.2 m/s forward. Both feet step in each block; no fall/reset/done, no sliding. Fresh exact-checkpoint standing and 5 m proofs required."
     },
     {
       "id": "gate_10m_no_reset",
       "name": "Forward gate · 10 m",
       "stage": "fwd_only",
       "passWhen": "Same checkpoint re-passes all earlier gates.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M4"
     },
     {
       "id": "yaw_turn_90deg_hold",
       "name": "Turn 90° and hold",
       "stage": "fwd_yaw",
       "passWhen": "Turn, settle, and hold without reset.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M5"
     },
     {
       "id": "teleop_60s_forward_turn",
       "name": "Teleop · 60 s",
       "stage": "fwd_yaw",
       "passWhen": "Forward and turn commands without reset or frozen joints.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M6"
     },
     {
       "id": "gate_10m_four_directions_no_reset",
       "name": "Four directions · 10 m",
       "stage": "fwd_yaw",
       "passWhen": "One checkpoint clears forward, left, right, and backward.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M7"
     },
     {
       "id": "triangle_path_follow_no_reset",
       "name": "Triangle path",
       "stage": "fwd_yaw",
       "passWhen": "Joystick-style waypoint commands with no reset.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M8"
     },
     {
       "id": "square_path_follow_no_reset",
       "name": "Square path",
       "stage": "fwd_yaw",
       "passWhen": "Closed square within waypoint tolerance.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M9"
     },
     {
       "id": "terrain_5m_no_reset",
       "name": "Rough terrain · 5 m",
       "stage": "game",
       "passWhen": "Cross the small map without reset.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M10"
     },
     {
       "id": "obstacle_stop_before_collision",
       "name": "Obstacle braking",
       "stage": "game",
       "passWhen": "Stop before collision without reset.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M11"
     },
     {
       "id": "game_10m_no_reset",
       "name": "Mixed game gate · 10 m",
       "stage": "game",
       "passWhen": "Terrain and obstacles with a preserved walking pose.",
-      "status": "not started"
+      "status": "not_started",
+      "displayLabel": "M12"
     }
   ],
   "viewer": {
@@ -420,29 +468,57 @@
         "path": "algorithms/urdf_learn_wasd_walk/inputs/anatomical_legs_v1/landau.urdf"
       },
       {
-        "label": "Landau · 当前质量实验 v2 · 19动作 / 18 kg",
+        "label": "Landau · 质量 v2 · 18 kg · 33 动作训练实验",
         "path": "algorithms/urdf_learn_wasd_walk/inputs/anatomical_legs_mass_v2/landau.urdf"
       }
     ],
-    "defaultUrdf": "algorithms/urdf_learn_wasd_walk/inputs/anatomical_legs_mass_v2/landau.urdf"
+    "defaultUrdf": "algorithms/urdf_learn_wasd_walk/inputs/anatomical_legs_mass_v2/landau.urdf",
+    "contactProperties": {
+      "backend": "MuJoCo Warp · 当前 articulated mesh",
+      "footFriction": [
+        0.9,
+        0.005,
+        0.0001
+      ],
+      "groundFriction": [
+        0.9,
+        0.005,
+        0.0001
+      ],
+      "condim": 3,
+      "activeFriction": "仅滑动摩擦启用；扭转/滚动未启用",
+      "combineRule": "相同 priority 时逐项取最大值",
+      "solref": [
+        0.004,
+        1.0
+      ],
+      "solimp": [
+        0.9,
+        0.95,
+        0.001,
+        0.5,
+        2.0
+      ],
+      "footModel": "脚掌与脚趾独立凸包，脚趾可动；不是连续鞋底"
+    }
   },
   "milestonePath": "algorithms/urdf_learn_wasd_walk/milestones.json",
   "trainingDashboard": true,
   "approaches": [
     {
-      "name": "当前模型：解剖腿部与质量分布 v2",
-      "status": "2 / 12 已认证；5 米门槛未通过",
-      "detail": "18 kg；19 个身体动作，固定握拳；新增踝侧倾并保留原骨骼绑定。已分别完成 30 秒零信号与策略站立验证。"
+      "name": "当前模型：18 kg · 全身控制实验",
+      "status": "直立与5米已认证；持续速度门槛训练中",
+      "detail": "33个非手指关节参与控制，包括头颈和手臂；手指固定。当前认证进度以里程碑列表为准，速度目标为1.2 m/s。"
     },
     {
       "name": "支撑转移与单步动力学诊断",
-      "status": "进行中",
-      "detail": "检查重心侧移、躯干倾斜与抬脚时序。仅使用现有关节电机，不施加外力或改写根节点状态；诊断不计入 milestone。"
+      "status": "快速落脚与支撑转移诊断",
+      "detail": "快速步态首次落脚冲击后出现双脚离地；逐步训练落脚与承重转移。现有证据尚未证明摩擦或脚趾间隙是根因。"
     },
     {
-      "name": "接触反馈残差 PPO",
-      "status": "已测试；尚未形成持续步态",
-      "detail": "尝试协调屈膝、100 ms 动作保持与完整支撑摆腿奖励。最终均值策略仍缺少合格摆腿，没有晋级。"
+      "name": "全身残差PPO · 渐进速度课程",
+      "status": "200次更新 · 256个训练世界 · 独立复验",
+      "detail": "继承已训练的actor/critic；每次完整存活且双脚完成有支撑步数后增加步态难度。界面分开展示课程目标与实测速度，验收始终使用固定目标步态。"
     },
     {
       "name": "历史 v10 步态",
@@ -451,8 +527,8 @@
     },
     {
       "name": "后续方向、路径与游戏控制",
-      "status": "等待当前模型通过 5 米、10 米门槛",
-      "detail": "每次晋级使用同一 checkpoint 重验累计门槛，再推进转向、遥控、路径、地形与障碍。"
+      "status": "等待持续速度门槛与10米门槛",
+      "detail": "先完成0.1、0.4、0.8、1.2 m/s的持续步行验收，再推进10米、转向、遥控、路径、地形与障碍。"
     }
   ],
   "motionViewer": {
@@ -479,6 +555,86 @@
       "label": "质量修正版场景",
       "path": "algorithms/urdf_learn_wasd_walk/outputs/playback/anatomical_legs_mass_v2/scene.json.gz",
       "kind": "binary"
+    },
+    {
+      "label": "contact comparison.json",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_contact_ab/contact_comparison.json",
+      "kind": "json"
+    },
+    {
+      "label": "balance audit.json",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_contact_ab/balance_audit.json",
+      "kind": "json"
+    },
+    {
+      "label": "posture comparison.json",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_posture_ab/posture_comparison.json",
+      "kind": "json"
+    },
+    {
+      "label": "头部惯性对照：均匀实体估计，未替换训练模型",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_head_inertia_ab/head_inertia_comparison.json",
+      "kind": "json"
+    },
+    {
+      "label": "支撑与抬脚奖励时序审计",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_timing_audit/audit.json",
+      "kind": "json"
+    },
+    {
+      "label": "Upright foot contact comparison: original, flat sole, continuous convex hull",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_upright_contact_ab/contact_comparison.json",
+      "kind": "json"
+    },
+    {
+      "label": "CPU stepping contact comparison: diagnostic only, all cases fell",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_upright_contact_step_ab_v2/contact_comparison.json",
+      "kind": "json"
+    },
+    {
+      "label": "Whole-body continuous-foot comparison: CPU diagnostic; both cases fell",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_exact_foot_probe/contact_comparison.json",
+      "kind": "json"
+    },
+    {
+      "label": "Fast landing versus stable landing: force and support audit",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_fast_support_audit/support_audit.json",
+      "kind": "json"
+    },
+    {
+      "label": "Fast landing versus stable landing: contact comparison plot",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_fast_support_audit/landing_comparison.png",
+      "kind": "image"
+    },
+    {
+      "label": "20% gait diagnostic: stance slip and backward/lateral transfer failure",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_curriculum_level020/transfer_audit.json",
+      "kind": "json"
+    },
+    {
+      "label": "M7 phase retarget: kinematic fit; dynamic proof required",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_m7_phase_retarget/phase_retarget_v3.json",
+      "kind": "json"
+    },
+    {
+      "label": "M7 retarget: dense floor-clearance check",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_m7_phase_retarget/dense_feasibility.json",
+      "kind": "json"
+    },
+    {
+      "label": "M7 retarget: four free-root motor tests rejected",
+      "path": "algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_fullbody_20261106_m7_phase_retarget/dynamic_comparison.json",
+      "kind": "json"
     }
-  ]
+  ],
+  "speedGoal": {
+    "targetSpeedMps": 1.2,
+    "unit": "m/s",
+    "userConfirmed": true,
+    "measurementSeconds": 30,
+    "warmupSeconds": 10,
+    "blockSeconds": 5,
+    "scope": "Sustained forward walking; every 5 s block meets target with alternating supported steps, no reset or fall."
+  },
+  "currentGateId": "walk_speed_0p1_mps_30s"
 }

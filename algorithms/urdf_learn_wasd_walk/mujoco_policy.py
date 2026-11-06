@@ -73,6 +73,9 @@ def foot_state(model, data, *, clearance=False, diagnostics=False):
     forces = {'left':0.,'right':0.}; slips=[]
     weighted_velocity={side:0. for side in forces};weights={side:0. for side in forces}
     weighted_position={side:np.zeros(3) for side in forces}
+    contact_count={side:0 for side in forces};loaded_count={side:0 for side in forces}
+    weighted_radius2={side:0. for side in forces};weighted_spin={side:0. for side in forces}
+    spin_torque={side:0. for side in forces}
     force=np.zeros(6)
     for index in range(data.ncon):
         contact=data.contact[index]
@@ -83,15 +86,21 @@ def foot_state(model, data, *, clearance=False, diagnostics=False):
         if side is None: continue
         mujoco.mj_contactForce(model,data,index,force)
         forces[side]+=max(float(force[0]),0.)
+        if diagnostics:
+            contact_count[side]+=1
+            spin_torque[side]+=abs(float(force[3]))
         if force[0]>.05:
             velocity=np.zeros(6)
             mujoco.mj_objectVelocity(model,data,mujoco.mjtObj.mjOBJ_GEOM,int(geom),velocity,0)
             point_velocity=velocity[3:]+np.cross(velocity[:3],contact.pos-data.geom_xpos[geom])
             slips.append(float(np.linalg.norm(point_velocity[:2])))
             if diagnostics:
+                loaded_count[side]+=1
                 weights[side]+=float(force[0])
                 weighted_velocity[side]+=float(force[0]*point_velocity[2])
                 weighted_position[side]+=float(force[0])*contact.pos
+                weighted_radius2[side]+=float(force[0])*float(contact.pos[:2]@contact.pos[:2])
+                weighted_spin[side]+=float(force[0]*velocity[2])
     result = {'left_contact':forces['left']>.1,'right_contact':forces['right']>.1,
               'mean_slip_mps':float(np.mean(slips)) if slips else 0.}
     if diagnostics:
@@ -99,6 +108,12 @@ def foot_state(model, data, *, clearance=False, diagnostics=False):
             result[side+'_normal_force_N']=forces[side]
             result[side+'_contact_vertical_velocity_mps']=weighted_velocity[side]/weights[side] if weights[side] else None
             result[side+'_contact_centroid_world_m']=(weighted_position[side]/weights[side]).tolist() if weights[side] else None
+            result[side+'_contact_count']=contact_count[side]
+            result[side+'_loaded_contact_count']=loaded_count[side]  # Individual normal force > 0.05 N.
+            center=weighted_position[side][:2]/weights[side] if weights[side] else np.zeros(2)
+            result[side+'_contact_rms_radius_m']=float(np.sqrt(max(0.,weighted_radius2[side]/weights[side]-center@center))) if weights[side] else None
+            result[side+'_contact_spin_rad_s']=weighted_spin[side]/weights[side] if weights[side] else None
+            result[side+'_sum_abs_contact_spin_torque_Nm']=spin_torque[side]
     if clearance:
         for side,suffix in (('left','l'),('right','r')):
             heights=[]

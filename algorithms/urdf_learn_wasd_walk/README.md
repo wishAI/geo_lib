@@ -1,5 +1,344 @@
 # URDF Learn WASD Walk — Clean Room
 
+Current continuation (2026-11-06): the experimental residual policy now exposes
+all 33 non-finger joints (123 raw observations / 122 residual features in the
+aligned-timing contract, or 123 features with the explicit curriculum level;
+earlier snapshots retain 120). The
+validated current-model 19-action standing branch remains frozen and is mapped
+by joint name. Existing checkpoints keep their original interfaces. The new
+`--whole-body` and `--graft-checkpoint` options record the exact M7 donor, source,
+parameters, explicit stride reversal for native -Y, and blend fraction; turn and
+cruise residual actors are not transferred because their original gates are
+inactive during the first straight walk. Direct M7 graft fell at 2.326 s;
+10% graft fell at 4.374 s. These failures remain visible. Current v2 previously
+used fresh standing/CEM training, **not** M7 weight grafting.
+
+A six-second residual horizon cannot span the retained 16-second stepping
+cycle. Long runs now reject horizons shorter than startup plus one complete
+cycle; aligned-timing experiments use 34-second episodes (two complete pairs).
+The independent validator
+checks named output mapping, donor identity, transformed parameters, mixed gait
+sources and full action replay. No training reward promotes a milestone.
+
+The inspector groups colocated world pivots and shows current foot/ground
+friction, contact dimension, mixing rule and solver softness. The training tree
+reads active metadata and iteration logs, links both gait parents, and refreshes
+with `python3 -m algorithms.urdf_learn_wasd_walk.training_monitor --job JOB` in a
+separate process. Browser polling alone does not regenerate the snapshot.
+
+`foot_contact_probe` compares mass-preserving continuous sole proxies and
+friction settings, or `--posture` compares waist targets. CPU 30-second probes:
+original foot drift 6.86 mm; continuous soles drifted 0.60–1.04 m across sliding
+friction 0.6/0.9/1.2, so they are rejected as a training replacement. Current
+contact dimension is 3: torsional/rolling coefficients are inactive. See the
+[MuJoCo contact model](https://mujoco.readthedocs.io/en/3.5.0/modeling.html#contact-parameters).
+The independent posture comparison reduced drift to 4.21 mm with zero waist
+pitch versus the initializer's -0.35 rad target. `upright_waist_v1` is explicit
+and now has fresh GPU passive/policy standing certificates. Mass is not missing,
+but head/neck inertial centers remain link pivots and their small tensors are
+still approximate. Enabling head actions does not by itself correct those
+physical estimates. Diagnostic records live under `outputs/mujoco/anatomical_fullbody_20261106_*`.
+
+The completed 100-update full-cycle graft candidate passed 30-second standing
+with 7.23 mm drift and exact action replay, but fell walking at 6.336 s. Upright
+GPU passive and policy-standing trials subsequently passed numerically with
+5.05/4.97 mm drift; the upright stepping baseline survived 30 s and moved only
+0.0343 m. These early results were diagnostic. The completed
+`anatomical_fullbody_20261106_upright200` branch used the stable anatomical gait
+parent with lower exploration, followed automatically by separate standing and
+90-second walking evaluations via `whole_body_campaign`. Rejected M7 graft
+branches remain in the tree. The upright candidate has its own optional
+`mujoco-milestone init --anatomical-mass --upright-waist` lineage path, requiring
+complete passive proof before changing the canonical ledger; it inherits no
+certificates. Posture is retained through CEM/residual continuation and replay.
+
+The follow-up timing audit found a causal reward conflict: the saved controller
+starts its half-cycle clock at age minus 2 seconds, while residual PPO used an
+age-minus-1 sinusoid. At 8 seconds a healthy 36 mm left swing was rewarded for
+carrying 0.607 body weights near the floor. `anatomical_schedule_v2` now derives
+load/35 mm clearance targets from the exact frozen transfer and lift parameters;
+the saved baseline agrees at both left and right swings. Two extra bounded
+features distinguish initial transfer from later cycles. Discount/GAE horizons
+are explicitly 20/2 seconds, rollout length 64 decisions, and initial speed
+target 0.01 m/s. This follows the aligned phase principle in
+[Periodic Reward Composition](https://arxiv.org/abs/2011.01387); it is an
+experimental correction, not a milestone claim. The independent validator
+retains old source-defined dimensions and checks the new timing contract.
+
+`upright200` finished with 16,398/16,398 training episodes falling, no right
+qualified swings, and independent walking failure at 12.934 s (-0.0438 m).
+The aligned smoke passed, and `anatomical_fullbody_20261106_aligned60` trained
+all joints with std 0.05 (knees 0.1), then serially evaluated standing/walking.
+Its first five updates already produced supported swings on both feet (284/153),
+which is training evidence only. The GUI publisher records live iteration counts
+without confusing a training input parent with its unpublished output checkpoint.
+
+Completed aligned60 evidence: 708/4,687 training episodes lasted the full34s;
+3,496 had both feet swing. Its exact model59 independently stood30s (5.12mm
+drift) and walked90s without falls/resets, with five qualified swings per foot
+and0.1285m progress. Distance was the only numerical failure. All1,500 standing
+actions replayed independently against the new122-feature source contract.
+
+The upright stride/cadence grid selected-.025rad at15.714s (worst of four
+starts0.120m/50s). A separately hash-bound M7 stride-only graft preserves endpoint
+excursion under new timing: `a = donor[2] * cos(donor[14]) = -0.1393409565`rad.
+It does not mix the donor's0.893s clock with the anatomical clock or transfer
+actor weights. The full amplitude fell backward at13s during transfer onto the
+advanced left foot. The broad search selected-.02633rad at14s,0.133m/50s.
+Failure traces implicated backward COM transfer rather than joint speed or
+support force. Positive pitch means torso inclination toward native-Y, so the
+previous negative-only pitch-reference bound was expanded to+.08rad. The next
+grid selected+.022857rad pitch reference and-.04rad stride, improving worst-start
+distance to0.183m/50s with three swings per foot. Every run preserves its source.
+
+`--residual-checkpoint` retains compatible learned actor/critic weights with a
+fresh optimizer and records their hashes. Initialization weights are checked
+exactly against the donor; nominal pose, model, named actions and feature/action
+functions must match. Default episodes now cover startup plus two cycles at the
+actual parent period. `stride_warm2` adapts aligned60's33-action policy to the
+forward-lean gait and independently evaluates it. `--stop-at-gate` allows long
+straight trials to end on the first valid distance crossing after30s, while
+retaining the declared horizon, every preceding physics sample and full video.
+
+Fresh `stride_warm2` passive/policy proofs certified M1/M2 in
+`landau_anatomical_upright_mujoco_20261106`; the prior geometric-waist lineage is
+archived intact. Exact model1 (SHA `50d0d8fe542150f69e6d2936631cdabc2411ebf32af12e396473d4581e1b15e5`)
+walked 90 s with 0.3321 m progress and six qualified swings per foot, but its
+prospective 5 m attempt fell at 7.118 s, before any qualified landing. M3 remains
+unpassed. Identical model, initial state and source hashes do not imply identical
+GPU trajectories: observations diverged at 20 ms while policy outputs remained
+equal until 1 s. This is consistent with documented
+[MJWarp nondeterministic atomic operations](https://mujoco.readthedocs.io/en/3.5.0/mjwarp/index.html#frequently-asked-questions),
+not proof of a unique numerical root cause. A direct observation/reset audit
+found no deployment schema mismatch.
+
+Two updates supplied only 12.8 simulated seconds per world on the changed
+14-second gait, before its first right landing; all 99 completed training
+episodes fell. `stride_robust100` continues the exact actor/critic for 100 updates
+with 30-second episodes and serial independent standing/walking checks. The GUI
+selects this live branch while retaining the failed proof. Future iteration
+records also show recent completed-episode survival, both-foot swings, duration
+and distance; instantaneous fall fractions alone are insufficient evidence.
+
+Completed robust100: 929/9,006 episodes lasted 30 s, with 75/256 among the last
+episodes. Its exact model99 (SHA `b3be6be0d08abb0ab48ea59370e3625fd34ffa6a2375ff0517ed2af69ec36c05`)
+independently stood 30 s with 4.96 mm drift and walked 90 s without falls/resets,
+advancing 0.3546 m with six qualified swings per foot. Distance remained the
+only numerical failure. Its longer attempt was interrupted after corridor
+drift: last progress at 498 s reported 1.959 m forward, 0.777 m lateral,
+35 swings per foot and no fall/reset. Only partial live progress remains,
+not a completed full trajectory/video or milestone proof. Fresh passive proof
+is required after the next selected checkpoint before any M3 promotion.
+
+The initial warm2 bifurcation is lateral transfer: at 5 s the failed run's COM
+lags the successful run by about 41 mm laterally despite nearly equal pitch.
+The right foot rocks onto an edge, then slips during left lift. Its estimated
+near-ground geometric support margin at 5.52 s is 7.4 mm versus 23.3 mm; this
+mesh-based diagnostic is not a measured contact polygon. After robust100,
+training failures shift mainly to the next transfer/right lift around 12–14 s.
+If fresh deployment remains fragile, compare transfer duration and later swing
+onset with more independent starts. The search now supports 8/16 replicas per
+candidate; selection still uses the worst start, and proves no milestone.
+
+Frozen-residual CEM screening now keeps the learned 33-action controller while
+optimizing selected gait parameters. Period and startup clocks stay fixed;
+the emitted checkpoint is explicitly a 19-action gait parent that must be
+recombined with the recorded whole-body actor before deployment. The adapter
+matched all 900 residual decision boundaries in robust100's saved walking
+trace within 9.54e-7. A 512-world heading grid found 16 eligible candidates;
+the selected gain/damping .0885714/.00666667 completed 120 s in all 16 starts,
+with at least 0.487 m forward and lateral displacement 0.014–0.070 m. The exact
+incumbent failed two starts. `heading_warm2` recombined that gait with robust100's
+actor/critic, passed the full standing validator, and walked 90 s without falls
+or resets for 0.359 m. No certificate is inherited from screening.
+
+A larger-stride/pitch grid retained the original small stride. A subsequent
+stride/lift-onset grid found a better supported step: stride -0.0485714 rad,
+swing onset 0.566667 of the half-cycle, fixed 14 s period. All 16 selected starts
+survived 120 s with at least 0.556 m forward. `faster_warm2` recomposed the learned
+actor/critic with this gait and independently walked 90 s for 0.406 m without
+falls/resets. Its standing proof passed full validation; the 5 m gate is still
+unresolved. The left foot's longer measured flight and late landing motivate
+timing refinement; no foot/mass change is inferred from this diagnostic.
+
+The bounded cross-track experiment appends a zero-initialized 21st gait
+parameter. It adds at most 0.2 rad to the heading error from native world-X
+displacement, acting only through joint motors. Source-bound 20-parameter seeds
+retain exact targets at zero gain: all 4,500 saved moving outputs matched
+exactly. Walking position slots are now explicitly versioned; residual features
+omit them, and standing observations stay unchanged. Certification checks the
+position signal against the physical body trace. Search results remain
+diagnostics until a recomposed checkpoint passes independent cumulative proof.
+Long search generations publish survival/distance progress every 5 simulated
+seconds so the GUI does not incorrectly mark an active generation stale.
+
+The cross-track-only long trial reached 1.449 m in 329 s without falling, but
+failed the 30-degree heading limit. Its full interrupted trace/video is retained;
+the lateral correction had saturated before heading drift accelerated. A 22nd
+parameter now changes yaw correction smoothly with each foot's support phase,
+so the incoming foot can steer differently from the loaded foot. Zero correction
+reproduced all 4,500 saved targets exactly. Paired-start screens retain the exact
+initial-state arrays and their hashes for candidate comparisons.
+
+`swing_heading_strong` screened seven corrections for 360 s using the frozen
+trained full-body actor and 16 identical perturbed starts per candidate. Six
+candidates survived every start. The selected correction 0.293333 had minimum
+forward distance 1.681 m, maximum lateral displacement 0.247 m and maximum
+heading deviation 0.227 rad. These are training diagnostics, not certification.
+`swing_heading_exact` preserves that screened actor exactly in `model_initial.pt`;
+fresh passive and policy standing proofs passed full validation. Its independent
+90 s walk reached 0.403 m with six completed swings per foot, no fall/reset,
+and maximum heading 0.192 rad. The full 5 m evaluation is the next hard gate.
+Initial exports are certifiable only when exact actor/critic equality, source,
+semantics and hashes trace through every weight donor to a trained checkpoint;
+an untrained initial checkpoint remains ineligible. Certificates are not inherited.
+
+The exact candidate subsequently passed and certified M3: 5.000013 m in
+1,050.14 s, zero falls/resets/done events, 75/74 completed swings, 0.442 m lateral
+drift and 0.249 rad maximum heading deviation. Full video, every policy output,
+and fresh cumulative standing proofs were checked. Mean speed is only about
+0.00476 m/s, so this is a distance foundation, not acceptable game-speed motion.
+The user confirmed 1.2 m/s as the final walking target. New sustained-speed
+gates S1–S4 (0.1, 0.4, 0.8, 1.2 m/s) now precede M4. Their fixed 40 s protocol
+uses 10 s warmup and six consecutive 5 s measurement blocks; see TRAINING_RULES.
+Speed certification reconstructs pelvis movement from the complete joint
+trajectory and model, and requires opposite-foot support throughout each counted
+swing. Use `mujoco-milestone certify-speed` with fresh passive, standing, 5 m and
+earlier speed proof directories. `qualify-speed` records the same cumulative S4
+capability for a replacement candidate after the speed ladder has passed.
+
+The slow controller's first speed diagnostic measured 0.00475 m/s mean and
+0.00334 m/s minimum five-second speed, failing S1. Correcting first-transfer
+timing produced four 16/16-surviving 60 s screen candidates; the selected 10 s
+period moved at least 0.3399 m. Faster smooth-lift candidates fell. The next
+whole-body adaptation keeps the trained actor/critic ancestry and learns against
+that stable 10 s gait. The experimental 23rd gait parameter advances only initial
+weight transfer; zero preserves old targets exactly. It supports testing faster
+cadence without forcing first lift before transfer finishes. Stride search now
+permits ±0.25 rad while retaining motor, joint-speed and physical acceptance
+limits. Training speed targets can reach 1.2 m/s, with a documented wider forward
+tracking kernel above 0.1 m/s; this does not change independent speed thresholds.
+
+The completed `speed_adapt50` candidate walked the full40s without falls/resets,
+but measured only0.00668m/s mean and0.00511m/s sustained speed. The3.5s fast
+gait failed even after100 PPO updates. Recorded first touchdown was0.184m/s
+downward versus0.0237m/s for the stable gait, with2.96 versus1.27 body weights
+peak load over the next200ms. The fast gait rebounded into60ms of unsupported
+flight. This identifies hard landing and failed load transfer; it does not
+establish a friction or toe-gap defect. Exact FK COM agrees with recorded COM.
+
+`--curriculum-start-checkpoint` interpolates the stable10s gait toward the fast
+target independently in each training world. Level increases0.05 only after a
+full surviving episode with at least two supported steps per foot and positive
+progress; failures reduce it0.025. Gait, observed phase, reward schedule and
+speed target change together only at reset. A new observable level input is
+grafted by appending a zero column to both actor and critic; every other donor
+weight is preserved. The validator binds both endpoint sources, hashes and
+parameters. Conditioned policies use all33 non-finger actions. Independent
+deployment always uses level1 and the fixed target gait, so intermediate
+training levels cannot pass S1. The four-update smoke advanced96/256 worlds,
+and its initial checkpoint independently passed standing and full action replay.
+`speed_curriculum200` continues its learned checkpoint with200 updates and
+separate standing/0.1m/s evaluations. The GUI displays level and training target
+separately from measured speed, with both endpoint and learned-weight ancestry.
+
+The corrected CPU foot comparison now loads the exact33-action residual policy,
+its frozen gait/source, world-position feedback and held-action clock. Using
+`speed_adapt50/model_49.pt`, articulated feet fell at5.982s and a mass-preserving
+continuous convex foot/toe envelope at5.448s. The CPU baseline itself differs
+from the successful40s GPU rollout, so this is neither a GPU validation nor
+evidence for promoting the continuous proxy. The GUI exposes both this result
+and the landing-force audit. A more advanced alternative is a passive deformable
+mesh with pinned attachment vertices and constrained edges, trained by transfer
+from a rigid-foot policy: see [Contact-Rich and Deformable Foot Modeling](https://arxiv.org/abs/2508.11885).
+That paper's soft-foot method is a research reference, not implemented here.
+
+Continuation options (deploy only between GPU jobs): `--landing-quality`
+multiplies the existing qualified-step bonus by a bounded touchdown-speed score.
+The last two airborne20ms clearance samples determine pre-impact velocity;
+episode resets clear that history. Downward speeds up to0.05m/s retain full
+credit, with scale0.05m/s above that. Replaying the saved fast first landing
+gives multiplier0.119 versus1.0 for all seven stable landings. These are
+experimental reward settings, not changes to acceptance thresholds or physics.
+`leg_forward_control --diagnostic-curriculum-level LEVEL` can inspect an
+intermediate learned gait with consistent parameters, phase, ramp and observed
+level. Every such run is explicitly barred from certification, including
+LEVEL=1; normal speed tests always use the fixed endpoint.
+
+`speed_curriculum200/model_199.pt` completed200 updates (SHA
+`4924c3c2e91566428665fbcb361165fa2a0303dfba847f08180a77b26887f367`).
+Fresh30s standing passed visual review and independent full-policy replay, but
+the full S1 gait fell at4.272s. No speed gate passed. The20% diagnostic lasted
+30.354s with0.21006m progress and three steps per foot, then fell; all1,518
+recorded actions independently replayed within9.54e-7. Its complete-duration
+three-page overview was rejected for walking certification. Training survival
+fell sharply near20% level, while recent episodes at0–12.5% survived73–81%.
+The soft-landing smoke retained exact actor/critic ancestry, completed four
+updates with96.5% recent survival at the easy starting gait, and recorded1,016
+landing events whose quality multipliers and totals were independently checked.
+`softlanding200` completed200 updates; its model199 SHA is
+`114da0a358a6ed8ab5339f60fbc9806cfd3ce51f81b50be2f32f9c0e4b750d91`.
+Independent30s standing passed, including complete action replay and visual
+review. Full-target walking fell at4.38s. Maximum training curriculum level
+reached35%, but no world reached the fixed endpoint. Canonical progress remains
+M1/M2/M3 only.
+The20% diagnostic's final failure is distinct from the fast touchdown failure:
+the right stance foot slips about48mm and loses its contact patch before the
+body tips backward/laterally. Its preceding landing peaks at1.269BW, comparable
+to earlier successful landings. `transfer_audit.json` records the matched-cycle
+comparison and input hashes. Tangential forces were not recorded, so this does
+not establish inadequate friction or demonstrate a soft-landing-reward fix.
+
+The M7 donor's recorded foot/sole/COM trajectories were also retargeted through
+the current model's FK, with periodic smoothing and bounded joint offsets.
+The32-bin fit has1.27mm maximum foot-position error and0.52mm COM error;
+2,048 interpolated samples show at most0.263mm penetration and no phase with
+both feet more than1mm above the floor. Target rates remain2.13rad/s at a1.2s
+cycle. These are kinematic results only: the optimized root pose is never
+imposed in physics. Four motor-only tests fell at3.118s (1.8s cycle),3.038s
+(feedback disabled),4.234s (1.2s cycle, double-support startup hold), and4.286s
+(1.8s cycle, startup hold). All complete-duration overviews were rejected.
+The GUI records donor ancestry and these failures; no retarget milestone is
+inherited. `--diagnostic-phase-template` is barred from certification.
+Future retarget inputs must bind target checkpoint/nominal pose as well as XML;
+`phase_retarget_v3_bound.json` adds that binding without changing fitted poses.
+
+`longhorizon200_v2` resumes the exact softlanding200 actor/critic for200 updates
+with40-second training episodes, covering the observed30.35s transfer failure
+that the previous22s horizon missed. The first launcher request was rejected
+before training by its old36s episode cap; the explicit training-only cap is
+now60s. Physics and acceptance limits are unchanged. The campaign schedules
+fresh30s standing and fixed40s S1 checks after training, and its separate GUI
+publisher reports progress. Longer-horizon survival is training evidence only.
+
+Straight-walk diagnostics now permit a declared budget up to 1,800 seconds;
+Original distance gates impose distance and physical walking; the new speed
+gates have their separate fixed-duration contract.
+All trace, no-reset and full-video requirements remain; direction/path budgets
+retain their separate contracts. New runtime code is deployed only between jobs.
+An explicit `stop_requested.json` in an active evaluation directory stops at
+the next one-second boundary and preserves its partial trace/video as failed,
+interrupted evidence; it cannot produce a milestone pass.
+
+`foot_contact_probe --head-inertia` isolates a uniform-solid head estimate at
+unchanged 2.25 kg head / 18 kg total mass. Its closed mesh places the head center
+0.2133 m from the pivot; central principal inertias are 29–65 times the authored
+0.001125 kg m². Moving only this head COM raises upright whole-body COM by
+26.66 mm and shifts it backward 3.17 mm. CPU 30 s drift: authored 4.21 mm,
+centroid-only 6.25 mm, centroid+tensor 6.50 mm; all survived without nonfoot
+contacts. This is a recorded approximation comparison, not a model promotion.
+Tiny neck/hand visual partitions do not justify automatic mass-by-volume
+redistribution. The active model and its certificate hashes remain intact.
+
+The upright contact follow-up also tests a massless convex envelope spanning
+the actual foot/toe vertices. At 30 s passive CPU stand it drifts 5.20 mm versus
+4.21 mm for original articulated contacts; flat soles drift 0.229–0.637 m.
+With the same hash-bound forward-lean gait on CPU, original contacts fall at
+5.79 s, the envelope at 6.24 s and flat soles at 14.29–16.71 s. None establishes
+walking stability or replaces the active model. `foot_contact_probe` records
+both shape methods, explicit nominal posture and optional `--gait-checkpoint`;
+asset relocation is accepted only when XML and mesh-content hashes match.
+
 Current work (2026-11-04): the user explicitly authorized leg-axis/DOF changes
 and requested reuse of the other sandboxes' URDF editor. The walking header now
 opens that shared workbench with original/experimental model selection, grouped

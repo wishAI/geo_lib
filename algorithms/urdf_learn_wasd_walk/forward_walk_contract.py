@@ -44,6 +44,15 @@ TARGET_DISTANCE_M = 5.0
 SUPPORT_PROFILES = ('robot_strict_v1', 'animation_approximate_v1')
 
 
+def diagnostic_duration_limit(*, triangle=False, direction=False, turn=False, teleop=False):
+    """Execution budget only: TRAINING_RULES has no straight-walking deadline.
+
+    Longer slow-gait trials still require every physics sample and full proof.
+    The separate direction, turn and path protocols retain their budgets.
+    """
+    return 600. if triangle else 240. if direction else 120. if turn or teleop else 1800.
+
+
 def support_force_failures(metrics: dict, profile: str = 'robot_strict_v1') -> list[str]:
     """Animation masses are estimates; isolated impulses remain diagnostics.
 

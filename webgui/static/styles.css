@@ -1093,3 +1093,7 @@ body.walk-workspace #app { padding: 7px 12px 10px; }
 .held-joint-group summary::-webkit-details-marker { display: none; }.held-joint-group summary::before { content: '›'; font-size: 15px; line-height: 10px; }.held-joint-group[open] summary::before { transform: rotate(90deg); }
 .held-joint-group summary b { font: 9px var(--mono); padding: 2px 5px; border-radius: 5px; background: #edf1e9; }.held-joint-group summary small { margin-left: auto; color: #8b9d8f; font-size: 8px; }
 .lineage-joint-list .joint-default-note { padding: 7px 8px; border-radius: 6px; color: #658574; background: #edf4ec; font-size: 10px; }
+
+.joint-pivot-group { margin: 10px 0; padding: 8px; border: 1px solid #ccd8d1; border-radius: 8px; }
+.joint-pivot-group legend { padding: 0 5px; font-size: 11px; color: #52645a; }
+.joint-contact-properties { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 var(--font-sans, sans-serif); padding: 10px; border: 1px solid #ccd8d1; border-radius: 8px; background: #f5f8f3; }

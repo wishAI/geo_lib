@@ -10,6 +10,115 @@ from algorithms.urdf_learn_wasd_walk import evolution
 
 
 class WorkspaceTests(unittest.TestCase):
+    def test_curriculum_links_both_gait_endpoints_and_weight_donor(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);algorithm=root/'algorithms/walk';output=algorithm/'outputs'
+            base=output/'tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training'
+            for name in ('start','target','weights','child'):
+                folder=base/('anatomical_'+name);folder.mkdir(parents=True)
+                record={'status':'completed','checkpoints':{'model_1.pt':name}}
+                if name=='child':
+                    record.update(policy_family='anatomical_feedback_residual_ppo',training_target_forward_mps=.1,
+                        parent_checkpoint=str(base/'anatomical_target/model_1.pt'),parent_checkpoint_sha256='target',
+                        residual_weight_parent={'checkpoint':str(base/'anatomical_weights/model_1.pt'),'sha256':'weights'},
+                        gait_curriculum={'checkpoint':str(base/'anatomical_start/model_1.pt'),'sha256':'start'})
+                (folder/'training.json').write_text(json.dumps(record))
+            ledger=algorithm/'milestones.json';ledger.write_text('{}')
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+            child=next(n for n in tree['nodes'] if n['id']=='run:anatomical_child')
+            self.assertEqual(set(child['parentIds']),{'run:anatomical_start','run:anatomical_target','run:anatomical_weights'})
+            self.assertEqual(child['milestoneId'],'walk_speed_0p1_mps_30s')
+
+    def test_identical_warm_weights_resolve_declared_run_without_cycles(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);algorithm=root/'algorithms/walk';output=algorithm/'outputs'
+            base=output/'tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco'
+            donor=base/'training/anatomical_donor';child=base/'training/anatomical_child'
+            for folder,last in ((donor,'donor-last'),(child,'child-last')):
+                folder.mkdir(parents=True)
+                record={'status':'completed','checkpoints':{'model_initial.pt':'shared','model_1.pt':last}}
+                if folder==child:record['residual_weight_parent']={'checkpoint':str(donor/'model_initial.pt'),'sha256':'shared'}
+                (folder/'training.json').write_text(json.dumps(record))
+            evaluation=base/'anatomical_eval';evaluation.mkdir()
+            (evaluation/'progress.json').write_text(json.dumps({'status':'running','checkpoint':str(child/'model_initial.pt'),'checkpoint_sha256':'shared'}))
+            ledger=algorithm/'milestones.json';ledger.write_text('{}')
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+            nodes={n['id']:n for n in tree['nodes']}
+            self.assertEqual(nodes['run:anatomical_child']['parentIds'],['run:anatomical_donor'])
+            self.assertEqual(nodes['run:anatomical_eval']['parentIds'],['run:anatomical_child'])
+            self.assertTrue(all(n['id'] not in n['parentIds'] for n in nodes.values()))
+            missing={'status':'running','checkpoint':str(base/'unindexed/model_initial.pt'),'checkpoint_sha256':'shared'}
+            (evaluation/'progress.json').write_text(json.dumps(missing))
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+            node=next(n for n in tree['nodes'] if n['id']=='run:anatomical_eval')
+            self.assertEqual(node['parentIds'],[])
+
+    def test_initial_checkpoint_parent_resolves_even_when_run_has_later_updates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);algorithm=root/'algorithms/walk';output=algorithm/'outputs'
+            base=output/'tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training'
+            for name,record in [('anatomical_parent',{'checkpoints':{'model_initial.pt':'initial-sha','model_1.pt':'last-sha'}}),
+                                ('anatomical_child',{'parent_checkpoint_sha256':'initial-sha'})]:
+                folder=base/name;folder.mkdir(parents=True)
+                (folder/'training.json').write_text(json.dumps({'status':'completed',**record}))
+            ledger=algorithm/'milestones.json';ledger.write_text('{}')
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+            child=next(n for n in tree['nodes'] if n['id']=='run:anatomical_child')
+            self.assertIn('run:anatomical_parent',child['parentIds'])
+
+    def test_live_evaluation_resolves_to_final_evidence_without_changing_node(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);algorithm=root/'algorithms/walk';output=algorithm/'outputs'
+            run=output/'tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/anatomical_long_walk'
+            run.mkdir(parents=True);progress=run/'progress.json'
+            progress.write_text(json.dumps({'status':'running','checkpoint':'candidate.pt','checkpoint_sha256':'candidate-sha',
+                'metrics':{'duration_s':300.,'semantic_forward_displacement_m':1.2}}))
+            ledger=algorithm/'milestones.json';ledger.write_text(json.dumps({'sessionStatus':{'currentExperiment':{'evidence':str(progress)}}}))
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+                node=next(n for n in tree['nodes'] if n['id']=='run:anatomical_long_walk')
+                self.assertEqual(node['status'],'running')
+                self.assertEqual(node['metrics']['semantic_forward_displacement_m'],1.2)
+                (run/'dynamics.json').write_text(json.dumps({'failures':['distance too short'],'config':{'checkpoint':'candidate.pt'}}))
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+                node=next(n for n in tree['nodes'] if n['id']=='run:anatomical_long_walk')
+                self.assertEqual(node['status'],'failed')
+                self.assertEqual(tree['currentNodeId'],node['id'])
+
+    def test_active_training_does_not_present_input_parent_as_produced_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);algorithm=root/'algorithms/walk';output=algorithm/'outputs'
+            run=output/'tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco/training/anatomical_active'
+            run.mkdir(parents=True)
+            (run/'metadata.json').write_text(json.dumps({'status':'running','policy_family':'anatomical_feedback_residual_ppo',
+                'arguments':{'checkpoint':'parent.pt','iterations':60,'num_envs':256},'parent_checkpoint_sha256':'parent-sha',
+                'timing_contract':'anatomical_schedule_v2','runner_config':{'num_steps_per_env':64}}))
+            (run/'iterations.jsonl').write_text(json.dumps({'iteration':5})+'\n')
+            previous=run.parent.parent/'anatomical_previous'
+            previous.mkdir();(previous/'dynamics.json').write_text(json.dumps({'failures':['fall']}))
+            ledger=algorithm/'milestones.json';ledger.write_text(json.dumps({'sessionStatus':{'currentExperiment':{
+                'evidence':str(previous/'dynamics.json'),
+                'activeTraining':{'name':'anatomical_active','state':'running'}}}}))
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+            node=next(n for n in tree['nodes'] if n['id']=='run:anatomical_active')
+            self.assertEqual(node['status'],'running')
+            self.assertIsNone(node.get('checkpointPath'))
+            self.assertEqual(node['parentCheckpointSha256'],'parent-sha')
+            self.assertEqual(node['trainingProgress']['completedIterations'],5)
+            self.assertEqual(node['trainingProgress']['requestedIterations'],60)
+            self.assertEqual(node['trainingProgress']['sampleCount'],81920)
+            self.assertEqual(tree['currentNodeId'],node['id'])
+            # A stale/completed active pointer must not hide the final proof.
+            (run/'training.json').write_text(json.dumps({'status':'completed'}))
+            with patch.object(evolution,'REPO_ROOT',root),patch.object(evolution,'ALGORITHM_ROOT',algorithm):
+                tree=evolution.enrich_workspace({'nodes':[],'summary':{}},output,ledger)
+            self.assertEqual(tree['currentNodeId'],'run:anatomical_previous')
+
     def test_exact_parent_checkpoint_model_scope_and_motion_identity(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

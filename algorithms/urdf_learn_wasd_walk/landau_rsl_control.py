@@ -15,7 +15,8 @@ from types import SimpleNamespace
 import time
 
 
-def configure_model(profile, hand_pose='open'):
+def configure_model(profile, hand_pose='open', whole_body=False, nominal_pose_profile='geometric'):
+    if nominal_pose_profile not in ('geometric','upright_waist_v1') or (nominal_pose_profile!='geometric' and profile not in ('anatomical_legs_v1','anatomical_legs_mass_v2')):raise ValueError('Unsupported nominal pose profile')
     import mujoco
     from algorithms.urdf_learn_wasd_walk import mujoco_backend as backend
     from algorithms.urdf_learn_wasd_walk import mujoco_warp_batch as batch
@@ -28,6 +29,15 @@ def configure_model(profile, hand_pose='open'):
             from . import leg_model_variant as legs
             if hand_pose != 'closed_fists_v1':raise ValueError('Anatomical profile requires fixed fists')
             spec=legs.specification(profile)
+            spec['nominal_pose_profile']=nominal_pose_profile
+            if whole_body:
+                from .model_spec import FINGER_JOINTS
+                extra=[r['name'] for r in spec['joints'] if r['name'] not in FINGER_JOINTS and r['name'] not in spec['action_joints']]
+                spec['action_joints'] += extra
+                spec['locked_joints'] = [n for n in spec['locked_joints'] if n not in extra]
+                for record in spec['joints']:
+                    if record['name'] in extra: record.update(control='action',role=record['name'].removesuffix('_joint'))
+                spec['whole_body']=True
             model,spec,xml=original_build(urdf_path=spec['urdf_path'],specification=spec,**kwargs)
             variant.update(spec['variant'],source_audit=original_audit(model,spec))
             return model,spec,xml
@@ -56,7 +66,7 @@ def train(args):
     import torch
     from tensordict import TensorDict
     from mjlab.rl import MjlabOnPolicyRunner, RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
-    backend, batch_module, variant = configure_model(args.profile, args.hand_pose)
+    backend, batch_module, variant = configure_model(args.profile, args.hand_pose, nominal_pose_profile=getattr(args,'nominal_pose_profile','geometric'))
     directory = (backend.OUTPUT / 'training' / args.name).resolve()
     directory.relative_to((backend.OUTPUT / 'training').resolve())
     directory.mkdir(parents=True, exist_ok=False)
@@ -167,7 +177,7 @@ def evaluate(args):
     from algorithms.urdf_learn_wasd_walk import mujoco_policy as old_policy
     checkpoint = Path(args.checkpoint).resolve()
     meta = json.loads((checkpoint.parent / 'training.json').read_text())
-    backend, _, _ = configure_model(meta['arguments']['profile'], meta['arguments'].get('hand_pose', 'open'))
+    backend, _, _ = configure_model(meta['arguments']['profile'], meta['arguments'].get('hand_pose', 'open'), nominal_pose_profile=meta['arguments'].get('nominal_pose_profile','geometric'))
     checkpoint.relative_to((backend.OUTPUT / 'training').resolve())
     if backend.digest(checkpoint) != meta['checkpoints'][checkpoint.name]:
         raise ValueError('Checkpoint differs from completed training provenance')
@@ -215,16 +225,18 @@ def main():
     parser.add_argument('--profile', choices=['original', 'balanced_hands_v1', 'anatomical_legs_v1','anatomical_legs_mass_v2'], default='balanced_hands_v1')
     parser.add_argument('--num-envs', type=int, default=256)
     parser.add_argument('--iterations', type=int, default=500)
+    parser.add_argument('--nominal-pose-profile',choices=('geometric','upright_waist_v1'),default='geometric')
     parser.add_argument('--checkpoint')
     parser.add_argument('--render', action='store_true', help='Record every evaluation frame in a separate renderer process')
     args = parser.parse_args()
     if not 1 <= args.num_envs <= 512 or not 1 <= args.iterations <= 1000:
         raise ValueError('Standing transfer budget exceeded')
     if args.mode == 'passive':
-        backend, _, _ = configure_model(args.profile, args.hand_pose)
+        backend, _, _ = configure_model(args.profile, args.hand_pose, nominal_pose_profile=getattr(args,'nominal_pose_profile','geometric'))
         backend.run(SimpleNamespace(name=args.name, backend='mujoco_warp_cuda', seconds=30.,
             dt=.002, seed=42, pose='geometric', gain_scale=1., noslip_iterations=0,
-            contact_timeconst=.004, assistance=0., checkpoint=None, forward=0., render=False))
+            contact_timeconst=.004, assistance=0., checkpoint=None, forward=0., render=False,
+            model_profile=args.profile,nominal_pose_profile=args.nominal_pose_profile,support_profile='animation_approximate_v1' if args.profile.startswith('anatomical_') else 'robot_strict_v1'))
     elif args.mode == 'evaluate':
         if not args.checkpoint:
             raise ValueError('An exact checkpoint is required')

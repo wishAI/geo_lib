@@ -85,7 +85,7 @@ def record_airborne(normal: wp.array2d(dtype=wp.float32), current: wp.array(dtyp
 PARAMETERS = {
     'period_s': (2., 16.),
     'knee_flexion_rad': (.5, .75),
-    'fore_aft_hip_rad': (-.15, .15),
+    'fore_aft_hip_rad': (-.25, .25),
     'support_lean_rad': (.10, .18),
     'transfer_fraction': (.25, .5),
     'ankle_pitch_feedback': (.15, .45),
@@ -94,7 +94,7 @@ PARAMETERS = {
     'support_lean_bias_rad': (-.025, .025),
     'forward_velocity_feedback': (-.1, 0.),
     'hip_pitch_feedback': (-.1, .1),
-    'pitch_reference_rad': (-.06, -.02),
+    'pitch_reference_rad': (-.06, .08),
     'heading_feedback': (0., .2),
     'heading_damping': (0., .04),
     'swing_start_fraction': (.5, .6),
@@ -103,10 +103,27 @@ PARAMETERS = {
     'ankle_roll_damping': (0., .025),
     'swing_end_fraction': (.8, .95),
     'swing_rise_fraction': (.1, .2),
+    'cross_track_heading_gain': (0., 2.),
+    'swing_heading_correction': (0., .4),
+    'startup_lead_s': (0., 1.5),
 }
 # A CPU single-step diagnostic initial condition, not a trained/passing gait.
 REFERENCE_PARAMETERS = [16., .65, 0., .14, .375, .3, .03, 0., 0., 0.,
-                        0., -.0411, 0., 0., .5, 3., 1., .0125, .875, .125]
+                        0., -.0411, 0., 0., .5, 3., 1., .0125, .875, .125, 0., 0., 0.]
+
+
+def retimed_stride(parameters):
+    """Transfer endpoint excursion from +Y cosine to -Y swing progression.
+
+    Donor left-swing excursion is -2*d*cos(phi); anatomical excursion is 2*a.
+    Reversing semantic forward gives a=d*cos(phi), without another sign flip.
+    Timing, lift and feedback remain those of the anatomical controller.
+    """
+    if len(parameters)!=16:raise ValueError('Expected the 16-parameter gait donor')
+    value=float(parameters[2])*math.cos(float(parameters[14]))
+    if not math.isfinite(value) or not PARAMETERS['fore_aft_hip_rad'][0]<=value<=PARAMETERS['fore_aft_hip_rad'][1]:
+        raise ValueError('Retimed donor stride outside anatomical bounds')
+    return value
 
 
 def action_scales(names, hip_roll=.4):
@@ -133,13 +150,15 @@ def gait_action(observation, parameters, names):
     sign=1.-2.*half.remainder(2)
     transfer=smooth(fraction/p[:,4])
     shift=sign*p[:,3]*(2.*transfer-1.)
-    shift=torch.where(half==0,p[:,3]*smooth(clock/p[:,15]),shift)
+    startup_clock=(age-2.+p[:,22]).clamp_min(0) if p.shape[1]>=23 else clock
+    shift=torch.where(half==0,p[:,3]*smooth(startup_clock/p[:,15]),shift)
     activation=smooth(age-1.)
     shift+=p[:,8]*activation
     lift=p[:,1]*smooth((fraction-p[:,14])/p[:,19])*smooth((p[:,18]-fraction)/p[:,19])
     pitch=torch.atan2(-observation[:,7],-observation[:,8])
     roll=torch.atan2(-observation[:,6],-observation[:,8])
     heading=torch.atan2(observation[:,74],observation[:,75]+1.)
+    if p.shape[1]>=21:heading=heading+(p[:,20]*observation[:,66]).clamp(-.2,.2)
     pitch_error=pitch-p[:,11]
     ankle=(p[:,5]*pitch_error+p[:,6]*observation[:,3]+p[:,9]*(observation[:,1]-observation[:,69]*activation))*activation
     lateral=(shift-p[:,16]*(roll-.0035-shift)+p[:,17]*observation[:,4])*activation
@@ -158,6 +177,9 @@ def gait_action(observation, parameters, names):
         offsets[:,index[side+'_ankle_pitch_joint']]=-.5*flexion-side_sign*stride+ankle
         offsets[:,index[side+'_hip_roll_joint']]=p[:,7]*(roll-.0035-shift)*activation
         offsets[:,index[side+'_hip_yaw_joint']]=yaw
+        if p.shape[1]>=22:
+            swing_share=(1.+side_sign*(shift-p[:,8]*activation)/p[:,3]).clamp(0,2)*.5
+            offsets[:,index[side+'_hip_yaw_joint']]-=p[:,21]*swing_share*heading*activation
         offsets[:,index[side+'_ankle_roll_joint']]=lateral
 
     return offsets/.08
@@ -184,15 +206,23 @@ def main():
     p.add_argument('--num-envs',type=int,default=512);p.add_argument('--generations',type=int,default=20)
     p.add_argument('--seconds',type=float,default=6.)
     p.add_argument('--seed-checkpoint')
+    p.add_argument('--transfer-seed-posture',action='store_true',help='Explicit geometric-to-upright parameter graft; requires the identical physical model and a fresh upright standing parent')
+    p.add_argument('--graft-stride-checkpoint',help='Hash-bound historical cosine gait; transfer only forward-reversed endpoint excursion into anatomical timing')
+    p.add_argument('--couple-startup-to-period',action='store_true',help='For period sweeps at8s or longer, finish initial transfer before the first swing')
     p.add_argument('--target-distance',type=float,choices=(5.,10.),default=5.)
     p.add_argument('--objective',choices=('discovery','forward'),default='discovery')
     p.add_argument('--discovery-swings-per-foot',type=int,
                    help='Explicit slow support-transition curriculum; independent walking acceptance is unchanged')
-    p.add_argument('--replicas',type=int,choices=(1,4),default=4)
+    p.add_argument('--replicas',type=int,choices=(1,4,8,16),default=4,
+                   help='Independent starts per candidate; selection uses the worst start')
+    p.add_argument('--paired-starts',action='store_true',help='Use identical initial joint/velocity perturbations for each candidate; GPU physics can still diverge')
+    p.add_argument('--lateral-cost',type=float,default=.1,help='Distance-equivalent cost per metre of lateral displacement')
+    p.add_argument('--heading-cost',type=float,default=0.,help='Distance-equivalent cost per radian of maximum heading error')
     p.add_argument('--search-std',type=float,default=.35)
     p.add_argument('--minimum-search-std',type=float,default=.08,help='Normalized search-deviation floor; smaller values permit fine balance refinement')
     p.add_argument('--stop-forward-m',type=float,help='Finish the search for independent validation after an eligible candidate reaches this worst-replica distance')
     p.add_argument('--search-mode',choices=('cem','stride_sweep'),default='cem')
+    p.add_argument('--search-parameters',nargs='+',choices=tuple(PARAMETERS),help='CEM only: vary these coordinates and retain every other initial parameter exactly')
     p.add_argument('--sweep-primary',choices=tuple(PARAMETERS),default='fore_aft_hip_rad')
     p.add_argument('--sweep-min',type=float,default=.025)
     p.add_argument('--sweep-max',type=float,default=.12)
@@ -203,11 +233,18 @@ def main():
     p.add_argument('--initial-parameters',type=json.loads,default={},help='Explicit bounded moving-controller search initialization; never modifies the standing branch')
     p.add_argument('--stride-sign',choices=('any','positive','negative'),default='any')
     p.add_argument('--trace-seed',action='store_true',help='Record first-generation nominal seed observations and states for evaluator parity diagnosis')
+    p.add_argument('--residual-checkpoint',help='Screen gait parameters with a frozen whole-body residual; export remains a gait parent, not the combined policy')
     p.add_argument('--support-profile', choices=('robot_strict_v1', 'animation_approximate_v1'), default='robot_strict_v1')
     args=p.parse_args()
-    if not 32<=args.num_envs<=2048 or not 1<=args.generations<=40 or not 3<=args.seconds<=120:
+    if not 32<=args.num_envs<=2048 or not 1<=args.generations<=40 or not 3<=args.seconds<=360:
         raise ValueError('Bounded search limits exceeded')
     if args.num_envs%args.replicas:raise ValueError('Replicas must divide the world count')
+    if not 0<=args.lateral_cost<=1 or not 0<=args.heading_cost<=1:raise ValueError('Straightness costs outside bounds')
+    if args.transfer_seed_posture and not args.seed_checkpoint:raise ValueError('Posture transfer requires a hash-bound seed')
+    if args.graft_stride_checkpoint and (not args.seed_checkpoint or 'fore_aft_hip_rad' in args.initial_parameters):
+        raise ValueError('Stride graft requires an anatomical seed and no conflicting stride override')
+    if args.couple_startup_to_period and (args.search_mode!='stride_sweep' or args.sweep_secondary!='period_s' or args.secondary_min is None or args.secondary_min<8):
+        raise ValueError('Coupled startup requires a period grid at8s or longer')
     if args.discovery_swings_per_foot is not None and (args.objective!='discovery' or not 1<=args.discovery_swings_per_foot<=50):
         raise ValueError('Slow support curriculum is only available for discovery')
     if not .05<=args.search_std<=.65:raise ValueError('Search deviation outside bounded range')
@@ -215,6 +252,8 @@ def main():
     if args.stop_forward_m is not None and (args.objective!='forward' or args.seconds<30. or not args.target_distance<=args.stop_forward_m<=args.target_distance+.5):
         raise ValueError('Candidate stop distance requires at least30seconds and a threshold within0.5m above the distance gate')
     if args.exclude_seed and args.search_mode!='stride_sweep':raise ValueError('Seed exclusion is only supported for grid experiments')
+    if args.search_parameters and (args.search_mode!='cem' or len(set(args.search_parameters))!=len(args.search_parameters)):
+        raise ValueError('Restricted CEM requires distinct parameter names')
     if args.stride_sign!='any' and args.search_mode!='cem':raise ValueError('Stride-sign restriction applies to CEM discovery')
     if not isinstance(args.initial_parameters,dict):raise ValueError('Initial parameters must be a JSON object')
     if args.search_mode=='stride_sweep' and (args.generations!=1 or not (args.seed_checkpoint or args.initial_parameters) or not PARAMETERS[args.sweep_primary][0]<=args.sweep_min<args.sweep_max<=PARAMETERS[args.sweep_primary][1]):
@@ -224,11 +263,23 @@ def main():
         bounds=PARAMETERS[args.sweep_secondary]
         if args.search_mode!='stride_sweep' or args.secondary_min is None or args.secondary_max is None or not bounds[0]<=args.secondary_min<args.secondary_max<=bounds[1]:
             raise ValueError('Secondary sweep must stay inside the existing parameter bounds')
+    screen_parameters=('heading_feedback','heading_damping','fore_aft_hip_rad','pitch_reference_rad',
+                       'transfer_fraction','swing_start_fraction','cross_track_heading_gain','swing_heading_correction','period_s',
+                       'knee_flexion_rad','swing_rise_fraction','swing_end_fraction','startup_ramp_s','startup_lead_s',
+                       'support_lean_rad','support_lean_bias_rad','ankle_pitch_feedback','ankle_pitch_damping',
+                       'forward_velocity_feedback','hip_pitch_feedback','ankle_roll_feedback','ankle_roll_damping','hip_roll_feedback')
+    if args.residual_checkpoint and ((args.search_mode=='cem' and not args.search_parameters) or
+        (args.search_mode=='stride_sweep' and (args.sweep_primary not in screen_parameters or args.sweep_secondary not in (None,*screen_parameters))) or
+        not args.seed_checkpoint or any(key not in screen_parameters for key in args.initial_parameters) or
+        args.graft_stride_checkpoint or args.transfer_seed_posture):
+        raise ValueError('Frozen residual screening requires explicit bounded gait parameters and the original hash-bound donor')
     from algorithms.urdf_learn_wasd_walk.model_spec import checkpoint_hand_pose
     parent_meta=json.loads((Path(args.checkpoint).resolve().parent/'training.json').read_text())
     profile=parent_meta['arguments']['profile']
     if profile not in ('anatomical_legs_v1','anatomical_legs_mass_v2'):raise ValueError('Unsupported anatomical model')
-    backend,batches,variant=configure_model(profile, checkpoint_hand_pose(parent_meta))
+    nominal_profile=parent_meta.get('nominal_pose_profile',parent_meta.get('arguments',{}).get('nominal_pose_profile','geometric'))
+    backend,batches,variant=configure_model(profile, checkpoint_hand_pose(parent_meta),
+        whole_body=bool(args.residual_checkpoint),nominal_pose_profile=nominal_profile)
     parent=Path(args.checkpoint).resolve();parent.relative_to((backend.OUTPUT/'training').resolve())
     parent_meta=json.loads((parent.parent/'training.json').read_text())
     if parent_meta['observation_dim']!=69 or parent_meta['checkpoints'][parent.name]!=backend.digest(parent):
@@ -238,6 +289,9 @@ def main():
     torch.set_num_threads(4);torch.manual_seed(42)
     began=time.perf_counter()
     batch=batches.WarpBatch(args.num_envs,42,0.,'stand','load',.004,.2,.0225)
+    import numpy as np
+    if not np.allclose(batch.nominal_q,parent_meta['nominal_q'],rtol=0,atol=1e-12) or not np.allclose(batch.nominal_ctrl,parent_meta['nominal_ctrl'],rtol=0,atol=1e-12):
+        raise ValueError('Standing donor nominal pose changed')
     # The 4 rad/s acceptance limit applies to all physical joints at every
     # physics step, including short contact transients between policy updates.
     speed_dofs=wp.array([int(batch.model.joint(row['name']).dofadr[0]) for row in batch.spec['joints']],dtype=wp.int32,device='cuda:0')
@@ -285,7 +339,47 @@ def main():
     if model_hash!=parent_meta['model_xml_sha256']:raise ValueError('Standing model mismatch')
     batch.commands[:]=-.2
     names=batch.spec['action_joints'];n=args.num_envs
+    gait_names=parent_meta['action_joints']
     limits=torch.tensor(action_scales(names,.4),device='cuda')/.08
+    overlay=None;residual=actor=None
+    if args.residual_checkpoint:
+        import importlib.util
+        from types import SimpleNamespace
+        donor=Path(args.residual_checkpoint).resolve();donor.relative_to((backend.OUTPUT/'training').resolve())
+        rm=json.loads((donor.parent/'training.json').read_text());source=donor.parent/'residual_source.py'
+        if (rm.get('policy_family')!='anatomical_feedback_residual_ppo' or not rm.get('whole_body') or rm.get('graft') or
+            rm.get('timing_contract')!='anatomical_schedule_v2' or rm['checkpoints'][donor.name]!=backend.digest(donor) or
+            rm['residual_source_sha256']!=backend.digest(source) or rm['model_xml_sha256']!=model_hash or
+            rm['action_joints']!=names or rm['gait_action_joints']!=gait_names or
+            rm['nominal_q']!=batch.nominal_q.tolist() or rm['nominal_ctrl']!=batch.nominal_ctrl.tolist() or
+            rm['support_profile']!=args.support_profile or rm['model_profile']!=profile or
+            rm.get('nominal_pose_profile','geometric')!=nominal_profile or
+            rm['standing_checkpoint_sha256']!=backend.digest(parent) or
+            Path(rm['parent_checkpoint']).resolve()!=Path(args.seed_checkpoint).resolve() or
+            rm['parent_checkpoint_sha256']!=backend.digest(args.seed_checkpoint) or
+            rm['parent_training_sha256']!=backend.digest(Path(args.seed_checkpoint).parent/'training.json') or
+            rm['residual_clock_period']!=rm['gait_parameters'][0] or
+            rm['residual_ramp_s']!=rm['gait_parameters'][15] or
+            rm['gait_parameters']!=torch.load(args.seed_checkpoint,map_location='cpu',weights_only=False)['parameters'].tolist()):
+            raise ValueError('Frozen residual screening identity mismatch')
+        ms=importlib.util.spec_from_file_location('screen_residual_'+rm['residual_source_sha256'][:16],source)
+        residual=importlib.util.module_from_spec(ms);ms.loader.exec_module(residual)
+        conditioned=rm.get('gait_conditioning')=='curriculum_level_v1'
+        actor=residual.make_actor(device='cuda:0',num_actions=len(names),**({'conditioned':True} if conditioned else {}))
+        actor.gait_conditioned=conditioned
+        actor.load_state_dict(torch.load(donor,map_location='cuda:0',weights_only=False)['actor_state_dict']);actor.eval()
+        actor.residual_hold_steps=rm.get('residual_hold_steps',1)
+        base_limits=torch.tensor(rm['base_action_scale'],device='cuda')/.08
+        limits=torch.tensor(rm['action_scale'],device='cuda')/.08
+        screen_gait=SimpleNamespace(gait_action=gait_action)
+        overlay={'checkpoint':str(donor),'sha256':backend.digest(donor),
+            'training_sha256':backend.digest(donor.parent/'training.json'),'source_sha256':backend.digest(source),
+            'action_joints':names,'searched_parameters':args.search_parameters or [key for key in (args.sweep_primary,args.sweep_secondary) if key],
+            'explicit_parameter_overrides':args.initial_parameters,
+            'clock_contract':'Per-candidate gait period feeds the frozen actor phase features; decision hold remains fixed in physical time.',
+            'scope':'Frozen whole-body residual during gait parameter search; exported checkpoint contains gait and standing actor only. Recompose with this residual parent before independent evaluation.',
+            'inherited_milestone_passes':0}
+        (folder/'screen_residual_source.py').write_text(source.read_text())
     lows=torch.tensor([v[0] for v in PARAMETERS.values()],device='cuda')
     highs=torch.tensor([v[1] for v in PARAMETERS.values()],device='cuda')
     reference=torch.tensor(REFERENCE_PARAMETERS,device='cuda')
@@ -298,30 +392,53 @@ def main():
         seed_meta=json.loads((seed_checkpoint.parent/'training.json').read_text())
         if seed_meta.get('policy_family')!='anatomical_periodic_feedback_cem' or seed_meta['model_xml_sha256']!=model_hash or seed_meta['checkpoints'][seed_checkpoint.name]!=backend.digest(seed_checkpoint):
             raise ValueError('Search seed provenance mismatch')
+        seed_pose=seed_meta.get('nominal_pose_profile','geometric')
+        if seed_pose!=nominal_profile and not (args.transfer_seed_posture and seed_pose=='geometric' and nominal_profile=='upright_waist_v1'):
+            raise ValueError('Search seed nominal posture differs; use an explicit geometric-to-upright graft')
         seed_module,_=load_gait_source(seed_checkpoint,seed_meta)
         seed_ranges=dict(seed_module.PARAMETERS)
-        if seed_ranges.get('fore_aft_hip_rad')==(0.,.2):
+        if seed_ranges.get('fore_aft_hip_rad') in ((0.,.2),(-.15,.15)):
             seed_ranges['fore_aft_hip_rad']=PARAMETERS['fore_aft_hip_rad']
         if seed_ranges.get('forward_velocity_feedback') in ((-.4,.4),(-.8,.4)):
             seed_ranges['forward_velocity_feedback']=PARAMETERS['forward_velocity_feedback']
         if seed_ranges.get('stride_phase_rad')==(-.45,0.):
             seed_ranges['stride_phase_rad']=PARAMETERS['stride_phase_rad']
+        if seed_ranges.get('pitch_reference_rad')==(-.06,-.02):
+            seed_ranges['pitch_reference_rad']=PARAMETERS['pitch_reference_rad']
         seed_source=inspect.getsource(seed_module.gait_action)
         current_source=inspect.getsource(gait_action)
+        startup_lead_line='    startup_clock=(age-2.+p[:,22]).clamp_min(0) if p.shape[1]>=23 else clock\n'
+        legacy_22_source=current_source.replace(startup_lead_line,'').replace('smooth(startup_clock/','smooth(clock/')
+        legacy_lead=(seed_ranges=={k:v for k,v in PARAMETERS.items() if k!='startup_lead_s'} and seed_source==legacy_22_source)
+        swing_lines="        if p.shape[1]>=22:\n            swing_share=(1.+side_sign*(shift-p[:,8]*activation)/p[:,3]).clamp(0,2)*.5\n            offsets[:,index[side+'_hip_yaw_joint']]-=p[:,21]*swing_share*heading*activation\n"
+        legacy_21_source=legacy_22_source.replace(swing_lines,'').replace('if p.shape[1]>=21:','if p.shape[1]==21:')
+        cross_track_line='    if p.shape[1]==21:heading=heading+(p[:,20]*observation[:,66]).clamp(-.2,.2)\n'
+        legacy_cross_track=(seed_ranges=={k:v for k,v in PARAMETERS.items() if k not in ('cross_track_heading_gain','swing_heading_correction','startup_lead_s')}
+                            and seed_source==legacy_21_source.replace(cross_track_line,''))
+        legacy_swing_heading=(seed_ranges=={k:v for k,v in PARAMETERS.items() if k not in ('swing_heading_correction','startup_lead_s')}
+                              and seed_source==legacy_21_source)
         fixed_startup_source=current_source.replace('/p[:,15]','/.8')
         legacy_startup=(seed_ranges=={k:v for k,v in PARAMETERS.items() if k!='startup_ramp_s'}
                         and seed_source==fixed_startup_source)
         legacy_phase=(seed_ranges=={k:v for k,v in PARAMETERS.items() if k not in ('stride_phase_rad','startup_ramp_s')}
                       and seed_source==fixed_startup_source.replace('(phase+p[:,14])','phase'))
-        if not (legacy_phase or legacy_startup) and (seed_source!=current_source or seed_ranges!=PARAMETERS):
+        if not (legacy_phase or legacy_startup or legacy_cross_track or legacy_swing_heading or legacy_lead) and (seed_source!=current_source or seed_ranges!=PARAMETERS):
             raise ValueError('Search seed controller family changed')
         seed_parameters=torch.load(seed_checkpoint,map_location='cuda:0',weights_only=False)['parameters']
+        if legacy_cross_track:
+            if seed_parameters.shape!=(20,):raise ValueError('Legacy cross-track seed requires exactly 20 parameters')
+            seed_parameters=torch.cat((seed_parameters,torch.zeros(1,device='cuda:0')))
+        if legacy_cross_track or legacy_swing_heading:
+            if seed_parameters.shape!=(21,):raise ValueError('Legacy swing-heading seed requires exactly 21 parameters')
+            seed_parameters=torch.cat((seed_parameters,torch.zeros(1,device='cuda:0')))
         if legacy_phase:
             # Exactly preserve the parent's motor targets before optimizing the
             # added touchdown-timing parameter. Saved parents retain own source.
             seed_parameters=torch.cat((seed_parameters,torch.zeros(1,device='cuda:0')))
         if legacy_phase or legacy_startup:
             seed_parameters=torch.cat((seed_parameters,torch.tensor([.8],device='cuda:0')))
+        if seed_parameters.numel()==22:
+            seed_parameters=torch.cat((seed_parameters,torch.zeros(1,device='cuda:0')))
         for key,value in args.initial_parameters.items():
             if key not in PARAMETERS or not PARAMETERS[key][0]<=value<=PARAMETERS[key][1]:
                 raise ValueError('Initial search parameter outside declared bounds')
@@ -334,17 +451,36 @@ def main():
             if key not in PARAMETERS or not PARAMETERS[key][0]<=value<=PARAMETERS[key][1]:
                 raise ValueError('Initial search parameter outside declared bounds')
             index=list(PARAMETERS).index(key);mean[index]=2.*(value-lows[index])/(highs[index]-lows[index])-1.
+    parameter_graft=None
+    if args.graft_stride_checkpoint:
+        donor=Path(args.graft_stride_checkpoint).resolve();donor.relative_to((backend.OUTPUT/'training').resolve())
+        donor_meta=json.loads((donor.parent/'training.json').read_text())
+        if donor_meta['checkpoints'][donor.name]!=backend.digest(donor):raise ValueError('Stride donor checkpoint changed')
+        donor_module,donor_source=load_gait_source(donor,donor_meta)
+        donor_names=list(donor_module.PARAMETERS)
+        if len(donor_names)!=16 or donor_names[2]!='fore_aft_hip_rad' or donor_names[14]!='stride_phase_rad':
+            raise ValueError('Stride donor parameter semantics changed')
+        donor_values=torch.load(donor,map_location='cpu',weights_only=False)['parameters'].tolist()
+        stride=retimed_stride(donor_values);mean[2]=2.*(stride-lows[2])/(highs[2]-lows[2])-1.
+        parameter_graft={'checkpoint':str(donor),'sha256':backend.digest(donor),'source_sha256':backend.digest(donor_source),
+            'original_parameters':donor_values,'initial_fore_aft_hip_rad':stride,
+            'transformation':'a=d*cos(phi): reverse +Y cosine endpoint excursion into native -Y increasing swing progress',
+            'scope':'Stride endpoint excursion seed only; anatomical timing, lift and feedback retained; no actor transfer',
+            'inherited_milestone_passes':0}
+        (folder/'stride_graft_source.py').write_text(donor_source.read_text())
     if args.stride_sign=='negative' and mean[2]>0 or args.stride_sign=='positive' and mean[2]<0:
         raise ValueError('Seed stride conflicts with the requested search region')
     standing=torch.load(parent,map_location='cpu',weights_only=False)['actor_state_dict']
-    metadata={'created_at':datetime.now(timezone.utc).isoformat(),'arguments':{**vars(args),'hip_roll_range':.4},
+    metadata={'created_at':datetime.now(timezone.utc).isoformat(),'status':'running','arguments':{**vars(args),'hip_roll_range':.4},
         'policy_family':'anatomical_periodic_feedback_cem','policy_composition':('Grid-selected' if args.search_mode=='stride_sweep' else 'CEM-trained')+' periodic proprioceptive feedback; frozen standing MLP at zero command',
-        'backend':'mujoco_warp_cuda','mujoco_version':mujoco.__version__,'observation_dim':76,'model_profile':profile,'semantic_forward_native':[0,-1,0],'period_s':PERIOD,
+        'backend':'mujoco_warp_cuda','mujoco_version':mujoco.__version__,'observation_dim':76,'model_profile':profile,'nominal_pose_profile':nominal_profile,'semantic_forward_native':[0,-1,0],'period_s':PERIOD,
         'observation_clock_period_s':PERIOD,'gait_period_source':'saved checkpoint parameters[0], independently optimized in [2, 16] seconds',
         'controller_revision':'support_lean_v4_swing_start',
         'controller_change_evidence':'CPU single-step established ankle-led lean with low gyro feedback at20ms. Prior learned support gait independently sustained40s. Its first-stride preload moved two loaded feet before lift; this revision begins stride during the first swing, preserving symmetric initial stance. Same physical model and frozen standing branch; new controller needs fresh evaluation.',
         'packages':{name:importlib.metadata.version(name) for name in ('torch','mujoco','mujoco-warp','warp-lang','rsl-rl-lib')},
-        'action_joints':names,'action_scale':action_scales(names,.4),'stand_action_scale':.08,
+        'action_joints':gait_names,'action_scale':action_scales(gait_names,.4),'stand_action_scale':.08,
+        'residual_screen_parent':overlay,
+        'metrics_controller':'candidate gait plus frozen whole-body residual' if overlay else 'candidate gait only',
         'action_mapping':'legacy_radians_v2','nominal_q':batch.nominal_q.tolist(),'nominal_ctrl':batch.nominal_ctrl.tolist(),
         'hand_pose':batch.spec.get('hand_pose','open'),
         'support_profile':args.support_profile,
@@ -353,6 +489,9 @@ def main():
         'parent_checkpoint':str(seed_checkpoint or parent),'parent_checkpoint_sha256':backend.digest(seed_checkpoint or parent),'mass_variant':variant,
         'standing_checkpoint':str(parent),'standing_checkpoint_sha256':backend.digest(parent),
         'search_seed_checkpoint':str(seed_checkpoint) if seed_checkpoint else None,
+        'seed_posture_transfer':({'from':seed_pose,'to':nominal_profile,'inherited_milestone_passes':0} if args.transfer_seed_posture else None),
+        'parameter_graft':parameter_graft,
+        'coupled_startup_rule':'min(saved startup, 0.225 * period); initial transfer ends before first swing at >=0.25 * period' if args.couple_startup_to_period else None,
         'objective':args.objective,
         'forward_fitness_contract':f'After survival and sustained-swing constraints, prioritize worst-replica distance up to {args.target_distance+.5:g} m for validation margin; clearance score only breaks near ties. Incomplete candidates retain discovery shaping.',
         'joint_speed_acceptance':'all 71 physical joints, every 0.002 s physics step; above 4 rad/s makes the candidate ineligible',
@@ -364,28 +503,44 @@ def main():
         'flight_acceptance':'Both foot normal forces <=0.1 N, measured every 0.002 s: at most 0.12 s continuous and 5% total flight, matching independent validation',
         'completed_swing_contract':'At least 0.06 s air and 0.015 m clearance before touchdown; no phase-aliased opposite-foot-contact exclusion',
         'stride_phase_seed_migration':'14-parameter parents append exactly zero stride phase; existing motor-target terms unchanged; signed stride expansion recorded separately',
-        'signed_stride_seed_migration':'Physical parent parameters preserved unless explicitly overridden in arguments.initial_parameters; search coordinates re-encoded under [-.2, .2] rad',
+        'signed_stride_seed_migration':'Physical parent parameters preserved unless explicitly overridden; search coordinates re-encoded under [-.25, .25] rad, with unchanged motor and joint-speed limits',
+        'startup_lead_seed_migration':'Older parents append zero startup lead, preserving motor targets exactly; positive lead advances initial weight transfer only, without changing steady gait phase',
         'startup_seed_migration':'Older parents append their fixed 0.8 s startup ramp; all steady-state motor-target terms remain unchanged',
         'velocity_feedback_seed_migration':'Physical gains preserved within the current [-0.4, 0.4] bounds; wider-range parents are usable only when their actual gain lies inside these bounds',
         'signed_phase_seed_migration':'Existing physical stride phase preserved while extending the search from [-0.45, 0] to [-0.45, 0.45] rad',
         'initial_search_parameters':dict(zip(PARAMETERS,(lows+(mean+1)*.5*(highs-lows)).tolist())),
         'candidate_replicas':args.replicas,'replica_selection':'worst fitness; first replica starts exactly nominal, remaining replicas use bounded joint noise',
+        'paired_start_contract':'Identical initial qpos/qvel for corresponding replicas across candidates; GPU contact ordering is still nondeterministic' if args.paired_starts else None,
         'minimum_training_swings_per_foot':minimum_swings,
         'discovery_curriculum_only':args.discovery_swings_per_foot is not None,
         'curriculum_acceptance':'Training candidate selection only; never replaces independent walking cadence, distance, or cumulative milestone validation',
         'failure_bitmask':{'tilt':1,'height':2,'nonfinite':4,'joint_speed':8,'support_force':16,'heading':32,'nonfoot_ground_contact':64,'continuous_flight':128,'flight_fraction':256,'lateral_drift':512},
         'parameter_ranges':PARAMETERS,'assistance':0.,'canonical_milestone_pass':False,
+        'walking_position_observation':'native_world_xy_m_v1',
+        'cross_track_seed_migration':'Source-bound 20-parameter parents append zero cross-track gain; unchanged motor targets at zero gain. Standing drift and residual actor features unchanged.',
+        'swing_heading_seed_migration':'Source-bound 21-parameter parents append zero swing-heading correction, exactly preserving prior motor targets.',
         'training_reset_semantics':'Reset only between independent candidate episodes; never validation evidence',
         'source_sha256':{str(x):backend.digest(x) for x in (Path(__file__),Path(batches.__file__),Path(backend.__file__))}}
     backend.write_json(folder/'metadata.json',metadata)
     (folder/'model.xml').write_text(batch.xml);(folder/'control_source.py').write_text(Path(__file__).read_text())
-    def record_progress(state,generation):
+    def record_progress(state,generation,live_metrics=None):
+        if live_metrics is not None:
+            metadata.update(status=state,metrics=live_metrics)
+            # A single long generation must stay live in the evolution tree.
+            backend.write_json(folder/'metadata.json',metadata)
         path=backend.OUTPUT.parent/'backend_progress.json'
         record=json.loads(path.read_text()) if path.exists() else {}
-        record.update(updated_at=datetime.now(timezone.utc).isoformat(),current_gate=f'gate_{args.target_distance:g}m_no_reset',
+        from algorithms.urdf_learn_wasd_walk.milestone_schedule import active_milestone
+        ledger_path=Path(__file__).with_name('milestones.json')
+        ledger=json.loads(ledger_path.read_text()) if ledger_path.exists() else {}
+        current_gate=(active_milestone(ledger) or {}).get('id',f'gate_{args.target_distance:g}m_no_reset')
+        record.update(updated_at=datetime.now(timezone.utc).isoformat(),current_gate=current_gate,
             simulator='mujoco_warp_cuda',variant=profile,iteration=generation,
             active_process=args.name if state=='running' else None,assistance_coefficient=0.,artifact_paths=[str(folder)],
+            session_state='training' if state=='running' else 'evaluation_pending',paused=False,
+            monitoring='active',validation={},
             next_step='Search coordinated gait and proprioceptive balance feedback; no milestone claim.' if state=='running' else
+                      'Recompose the exported gait with the recorded whole-body residual donor, then independently evaluate the resulting checkpoint.' if overlay else
                       f'Evaluate the saved checkpoint for{args.seconds:g}seconds against{args.target_distance:g}m and record debug video.')
         backend.write_json(path,record)
     record_progress('running',0)
@@ -393,6 +548,9 @@ def main():
     for generation in range(args.generations):
         candidates=n//args.replicas
         z=(mean+std*torch.randn(candidates,len(mean),device='cuda')).clamp(-1,1)
+        if args.search_parameters:
+            fixed=[i for i,key in enumerate(PARAMETERS) if key not in args.search_parameters]
+            z[:,fixed]=mean[fixed]
         if args.stride_sign=='negative':z[:,2].clamp_(max=0.)
         if args.stride_sign=='positive':z[:,2].clamp_(min=0.)
         if args.search_mode=='stride_sweep':
@@ -410,8 +568,16 @@ def main():
             z[:,primary]=2.*(amplitudes-lows[primary])/(highs[primary]-lows[primary])-1.
         if best_z is not None and not args.exclude_seed:z[0]=best_z
         params=(lows+(z+1)*.5*(highs-lows)).repeat_interleave(args.replicas,dim=0)
+        if args.couple_startup_to_period:params[:,15]=torch.minimum(params[:,15],.225*params[:,0])
         batch.reset(torch.ones(n,device='cuda',dtype=torch.bool))
+        if args.paired_starts:
+            batch.q[:]=batch.q[:args.replicas].repeat(candidates,1)
+            batch.v[:]=batch.v[:args.replicas].repeat(candidates,1)
         batch.q[::args.replicas]=batch.nominal
+        if args.paired_starts and generation==0:
+            import numpy as np
+            np.savez_compressed(folder/'paired_initial_states.npz',qpos=batch.q.cpu().numpy(),qvel=batch.v.cpu().numpy())
+            metadata['paired_initial_states_sha256']=backend.digest(folder/'paired_initial_states.npz')
         torch.cuda.synchronize()
         wp.capture_launch(batch.forward_graph);wp.synchronize()
         speed_view.zero_()
@@ -434,11 +600,20 @@ def main():
         for step in range(round(args.seconds/.02)):
             phase=2*torch.pi*(step*.02)/PERIOD
             extra=torch.zeros((n,10),device='cuda')
+            extra[:,:2]=batch.pos[:,batch.pelvis,:2]-batch.reference_xy
             extra[:,2]=1.-step*.02/30.;extra[:,3]=-.2
             extra[:,6]=torch.sin(torch.tensor(phase,device='cuda'));extra[:,7]=torch.cos(torch.tensor(phase,device='cuda'))
             extra[:,8]=batch.rot[:,batch.base,1,0];extra[:,9]=batch.rot[:,batch.base,0,0]-1.
             obs=torch.cat((batch.observations(),extra),dim=1)
-            action=gait_action(obs,params,names).clamp(-limits,limits)
+            if residual:
+                _,_,clearance,forces=batch.feet(with_forces=True)
+                sensors=torch.cat((forces/body_weight,clearance,(batch.pos[:,batch.pelvis,2]-batch.reference_height)[:,None]),dim=1)
+                obs=torch.cat((obs,sensors),dim=1)
+                with torch.no_grad():
+                    base=residual.base_action(screen_gait,params,obs,names,gait_names).clamp(-base_limits,base_limits)
+                    latent=residual.held_actor_mean(actor,obs,params[:,0])
+                    action=residual.compose(base,latent,obs,names,params[:,15]).clamp(-limits,limits)
+            else:action=gait_action(obs,params,names).clamp(-limits,limits)
             if args.trace_seed and generation==0:
                 seed_trace.append((obs[0].cpu().numpy().copy(),action[0].cpu().numpy().copy(),
                                    batch.q[0].cpu().numpy().copy(),batch.v[0].cpu().numpy().copy()))
@@ -481,6 +656,14 @@ def main():
             score+=torch.where(alive,rate,0.).nan_to_num(0.)*.02
             batch.previous=action
             if newly_failed.any():batch.reset(newly_failed)
+            if (step+1)%250==0:
+                record_progress('running',generation,{
+                    'generation':generation,'simulated_seconds_per_start':(step+1)*.02,
+                    'requested_seconds_per_start':args.seconds,
+                    'population_survival_fraction':float(alive.float().mean()),
+                    'surviving_starts':int(alive.sum()),'total_starts':n,
+                    'surviving_forward_max_m':float(torch.where(alive,last_progress,0.).max()),
+                    'canonical_milestone_pass':False})
         excess_flight=flight_total_view>round(args.seconds/.002)*.05
         failure_reasons=torch.where(alive&excess_flight,256,failure_reasons)
         alive &= ~excess_flight
@@ -502,7 +685,7 @@ def main():
         else:
             fitness=score+5.*completed.min(1).values+completed.sum(1)+10.*last_progress.clamp(-.5,1.)-10.*(~alive).float()
         # Give failed straightness candidates a useful gradient toward the corridor.
-        fitness-=100.*last_lateral.abs()
+        fitness-=1000.*args.lateral_cost*last_lateral.abs()+1000.*args.heading_cost*max_heading
         fitness=torch.where(torch.isfinite(fitness),fitness,-1e6)
         candidate_fitness=fitness.reshape(candidates,args.replicas).min(1).values
         physics_eligible=alive.reshape(candidates,args.replicas).all(1)
@@ -555,11 +738,11 @@ def main():
             'replica_lateral_m':last_lateral[members].tolist(),
             'replica_forward_m':last_progress[members].tolist(),'replica_survival_s':duration[members].tolist(),
             'population_max_completed_swings':completed.max(0).values.tolist(),
-            'incumbent_probe':{'eligible':bool(eligible[0]),'forward_m':float(last_progress[:args.replicas].min()),
+            'incumbent_probe':({'eligible':bool(eligible[0]),'forward_m':float(last_progress[:args.replicas].min()),
                 'completed_swings':completed[:args.replicas].min(0).values.tolist(),
                 'failure_reasons':failure_reasons[:args.replicas].tolist(),
                 'max_continuous_flight_s':float(flight_max_view[:args.replicas].max())*.002,
-                'simultaneous_air_fraction':float(flight_total_view[:args.replicas].max())/round(args.seconds/.002)},
+                'simultaneous_air_fraction':float(flight_total_view[:args.replicas].max())/round(args.seconds/.002)} if not args.exclude_seed else None),
             'parameters':dict(zip(PARAMETERS,params[best].tolist()))}
         with (folder/'generations.jsonl').open('a') as stream:stream.write(json.dumps(metrics)+'\n')
         torch.save({'parameters':params[best].detach().cpu(),'standing_actor_state_dict':standing,
@@ -568,12 +751,65 @@ def main():
         record_progress('running',generation+1)
         if args.stop_forward_m is not None and metrics['eligible'] and metrics['forward_m']>=args.stop_forward_m:
             break
-    metadata.update(wall_s=time.perf_counter()-began,metrics=metrics,
+    metadata.update(status='completed',wall_s=time.perf_counter()-began,metrics=metrics,
         generations_completed=generation+1,
         stop_reason='candidate_distance_target_reached' if args.stop_forward_m is not None and metrics['eligible'] and metrics['forward_m']>=args.stop_forward_m else 'generation_budget_exhausted',
         checkpoints={x.name:backend.digest(x) for x in folder.glob('model_*.pt')})
     backend.write_json(folder/'training.json',metadata)
     record_progress('completed',generation+1)
+
+
+def export_straightness_selection(source, destination, lateral_cost=.5):
+    """Rescore every eligible recorded grid row; never manufacture new trials.
+
+    This exports a candidate for independent validation, with both the original
+    screen and the changed selection rule preserved as hash-bound evidence.
+    """
+    import copy
+    import shutil
+    import torch
+    source=Path(source).resolve();destination=Path(destination).resolve()
+    if destination.parent!=source.parent or not 0<=lateral_cost<=1:
+        raise ValueError('Selection must remain in the training registry with bounded lateral cost')
+    metadata_path=source/'training.json';sweep_path=source/'stride_sweep.json'
+    metadata=json.loads(metadata_path.read_text());rows=json.loads(sweep_path.read_text())
+    if metadata.get('status')!='completed' or not metadata.get('residual_screen_parent'):
+        raise ValueError('Require a completed frozen-residual grid')
+    eligible=[r for r in rows if r['eligible'] and all(x==0 for x in r['failure_reasons'])]
+    if not eligible:raise ValueError('No eligible recorded candidate')
+    def score(row):return min(f-lateral_cost*abs(x) for f,x in zip(row['forward_m'],row['lateral_m']))
+    chosen=max(eligible,key=score)
+    checkpoint=source/'model_0.pt'
+    digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+    if metadata['checkpoints'].get(checkpoint.name)!=digest(checkpoint):raise ValueError('Screen checkpoint changed')
+    blob=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    names=list(metadata['parameter_ranges'])
+    for axis in ('primary','secondary'):
+        key=chosen.get(axis+'_parameter')
+        if key:blob['parameters'][names.index(key)]=chosen[axis+'_value']
+    result=copy.deepcopy(metadata)
+    result.update(created_at=datetime.now(timezone.utc).isoformat(),canonical_milestone_pass=False,
+        screen_selection={'source_checkpoint':str(checkpoint),'source_checkpoint_sha256':digest(checkpoint),
+            'source_training':str(metadata_path),'source_training_sha256':digest(metadata_path),
+            'source_sweep':str(sweep_path),'source_sweep_sha256':digest(sweep_path),
+            'candidate':chosen['candidate'],'eligible_candidates':[r['candidate'] for r in eligible],
+            'criterion':'maximize worst-start (forward_m - lateral_cost * abs(lateral_m))',
+            'lateral_cost':lateral_cost,'scores':{str(r['candidate']):score(r) for r in eligible},
+            'scope':'Re-selected recorded gait candidate; no additional simulation or inherited certificate'})
+    result['arguments']['name']=destination.name
+    result['metrics']={**chosen,'forward_m':min(chosen['forward_m']),
+        'replica_forward_m':chosen['forward_m'],'replica_lateral_m':chosen['lateral_m'],
+        'survival_s':min(chosen['survival_s']),
+        'parameters':dict(zip(names,blob['parameters'].tolist()))}
+    destination.mkdir(exist_ok=False)
+    for name in ('control_source.py','model.xml','screen_residual_source.py'):
+        shutil.copy2(source/name,destination/name)
+    (destination/'selection_source.py').write_text(Path(__file__).read_text())
+    result['screen_selection']['export_source_sha256']=digest(destination/'selection_source.py')
+    torch.save(blob,destination/'model_0.pt')
+    result['checkpoints']={'model_0.pt':digest(destination/'model_0.pt')}
+    (destination/'training.json').write_text(json.dumps(result,indent=2)+'\n')
+    return result['screen_selection']
 
 
 if __name__=='__main__':main()

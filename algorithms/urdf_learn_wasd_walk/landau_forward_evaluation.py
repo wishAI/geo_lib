@@ -54,10 +54,23 @@ def run(args):
         raise ValueError('Turn evaluation must include five seconds of zero-command hold')
     if args.forward and not args.checkpoint:
         raise ValueError('Forward evaluation requires a command-conditioned checkpoint')
-    if args.seconds <= 0 or args.seconds > (600 if triangle else 240 if direction else 120) or args.dt <= 0 or args.gain_scale <= 0:
-        raise ValueError('Diagnostics require a positive bounded duration (M7: 240 s; otherwise: 120 s), dt and gains')
+    from .forward_walk_contract import diagnostic_duration_limit
+    duration_limit=diagnostic_duration_limit(triangle=triangle,direction=direction,turn=turn_mode,teleop=teleop_mode)
+    if not np.isfinite(args.seconds) or args.seconds <= 0 or args.seconds > duration_limit or args.dt <= 0 or args.gain_scale <= 0:
+        raise ValueError(f'Diagnostics require a positive duration at most {duration_limit:g} s, dt and gains')
     target_distance=float(getattr(args,'target_distance_m',5.))
+    speed_target=getattr(args,'speed_target_mps',None)
+    if speed_target is not None:
+        from . import walking_speed_contract as speed_contract
+        speed_contract.gate_id(speed_target)
+        if (not args.forward or direction or triangle or turn_mode or teleop_mode or
+            args.seconds!=speed_contract.DURATION_S or getattr(args,'speed_protocol',None)!=speed_contract.PROTOCOL or
+            getattr(args,'stop_at_gate',False)):
+            raise ValueError('Speed gate requires the fixed uninterrupted 40 s straight-walk protocol')
     if target_distance not in (5.,10.):raise ValueError('Unsupported distance gate')
+    stop_at_gate=bool(getattr(args,'stop_at_gate',False));forward_reached=False;forward_horizon=args.seconds
+    if stop_at_gate and (not args.forward or direction or triangle or turn_mode or teleop_mode):
+        raise ValueError('Distance stopping requires a straight walking trial')
     out = (OUTPUT / args.name).resolve()
     out.relative_to(OUTPUT.resolve())
     out.mkdir(parents=True, exist_ok=False)
@@ -121,6 +134,8 @@ def run(args):
         warp_runtime = WarpEvaluation(model,data,out)
     cpu_start = process.cpu_times()
     loop_start = time.perf_counter()
+    progress_started_at=datetime.now(timezone.utc).isoformat()
+    progress_checkpoint_sha=digest(args.checkpoint) if args.checkpoint else None
     failure = None
     steps = round(args.seconds/args.dt)
     foot_samples=[]; liftoffs={'left':0,'right':0}; air_runs={'left':0,'right':0}; touched={'left':False,'right':False}
@@ -269,14 +284,38 @@ def run(args):
                     fraction=(10.-previous_along)/(along-previous_along)
                     direction_reached=abs(previous_cross+fraction*(cross-previous_cross))<=GATE_WIDTH_M
                 previous_along,previous_cross=along,cross
+            if stop_at_gate and data.time>=30.:
+                forward_progress=float(data.xpos[pelvis,1]-initial_pelvis[1])*(-1 if spec['frames']['body_forward_axis']=='-Y' else 1)
+                forward_reached=forward_progress>=target_distance and abs(data.xpos[pelvis,0]-initial_pelvis[0])<=.75
         if not np.isfinite(data.qpos).all() or any(w.number for w in data.warning):
             failure = 'nonfinite state or MuJoCo numerical warning'
             break
         if tilt > math.pi/6 or initial_pelvis[2]-data.xpos[pelvis,2] > .08:
             failure = 'fall'
             break
-        if (direction and direction_reached) or (triangle and path_tracker.complete):
+        if (direction and direction_reached) or (triangle and path_tracker.complete) or forward_reached:
             break
+        if (step+1)%round(1./args.dt)==0:
+            if (out/'stop_requested.json').exists():
+                # Finish the recorded partial trajectory and video instead of
+                # discarding them on worker termination. An interrupted trial
+                # remains a failed run, even if other numerical checks pass.
+                failure='evaluation interrupted by explicit stop request'
+                write_json(out/'interruption.json',{'reason':failure,'duration_s':float(data.time),
+                    'request_sha256':digest(out/'stop_requested.json'),'canonical_milestone_pass':False})
+                break
+            write_json(out/'progress.json',{'status':'running','created_at':progress_started_at,
+                'canonical_milestone_pass':False,'urdf_sha256':spec['source']['urdf_sha256'],
+                'action_joints':spec['action_joints'],'checkpoint':args.checkpoint,'checkpoint_sha256':progress_checkpoint_sha,
+                'metrics':{'duration_s':float(data.time),'requested_duration_s':forward_horizon,
+                    'semantic_forward_displacement_m':float(data.xpos[pelvis,1]-initial_pelvis[1])*(-1 if spec['frames']['body_forward_axis']=='-Y' else 1),
+                    'semantic_strafe_displacement_m':float(data.xpos[pelvis,0]-initial_pelvis[0]),
+                    'left_completed_swings':swing['left']['completed'],'right_completed_swings':swing['right']['completed'],
+                    'current_heading_rad':heading,'max_heading_deviation_rad':max_heading,
+                    'max_reference_tilt_rad':max_tilt,'max_joint_speed_rad_s':max_speed,
+                    'max_simultaneous_flight_s':max_flight_s,'nonfoot_contacts':sorted(bad_contacts),
+                    'reset_count':0,'fall_count':0},
+                'config':{'checkpoint':args.checkpoint,'seconds':forward_horizon,'forward':args.forward}})
     wall_s = time.perf_counter()-loop_start
     warp_info = warp_runtime.close() if warp_runtime is not None else None
     cpu = process.cpu_times()
@@ -288,6 +327,9 @@ def run(args):
     if triangle:
         args.triangle_horizon_s=triangle_horizon
         if path_tracker.complete:args.seconds=round(float(data.time)/.02)*.02
+    if stop_at_gate:
+        args.forward_horizon_s=forward_horizon
+        if forward_reached:args.seconds=round(float(data.time)/.02)*.02
     metrics = {'duration_s': float(data.time), 'reset_count': 0, 'done_count': int(failure is not None),
                'fall_count': int(failure == 'fall'), 'max_reference_tilt_rad': max_tilt,
                'root_height_drop_m': max_drop, 'horizontal_drift_m': max_drift,
@@ -340,7 +382,14 @@ def run(args):
         elif triangle:
             metrics.update(path_tracker.metrics())
             failures=triangle_contract.evaluate_gate(metrics,args.seconds)
-        else:failures=evaluate_forward_gate(metrics,required_distance_m=target_distance)
+        else:
+            failures=evaluate_forward_gate(metrics,required_distance_m=0. if speed_target is not None else target_distance)
+            if speed_target is not None and not failure:
+                response=speed_contract.metrics(np.array([r['time_s'] for r in rows]),speed_contract.pelvis_positions(model,frame_states),foot_samples,
+                    forward_sign=-1 if spec['frames']['body_forward_axis']=='-Y' else 1)
+                metrics['speed_response']=response
+                metrics.update({key:response[key] for key in ('mean_forward_speed_mps','sustained_forward_speed_mps')})
+                failures.extend(speed_contract.failures(response,speed_target))
         for side in ('left','right'):
             if swing[side]['completed']<3:failures.append(f'{side} has fewer than 3 completed swings with 15 mm clearance and 60 ms airtime')
         if max_flight_s>.12:failures.append('continuous simultaneous flight exceeded 120 ms')
@@ -389,6 +438,10 @@ def run(args):
               'reproduce': shlex.join(['env', *[f'{k}={os.environ[k]}' for k in ('MUJOCO_GL','LIBGL_ALWAYS_SOFTWARE') if k in os.environ],sys.executable, '-m', 'algorithms.urdf_learn_wasd_walk.landau_forward_control', *sys.argv[1:]]),
               'created_at': datetime.now(timezone.utc).isoformat(), 'visual_review': 'pending'}
     result['controller_source_sha256']=digest(Path(__file__).with_name('landau_forward_control.py'))
+    if speed_target is not None:
+        result['milestone']=speed_contract.gate_id(speed_target)
+        (out/'speed_contract_source.py').write_text(Path(speed_contract.__file__).read_text())
+        result['speed_contract_sha256']=digest(out/'speed_contract_source.py')
     if args.forward:
         result['foot_trace_sha256']=digest(out/'foot_trace.json')
         result['walking_acceptance']={'minimum_completed_swings_per_foot':3,
@@ -444,7 +497,7 @@ def run(args):
             render_env=dict(os.environ)
             render_env.setdefault('MUJOCO_GL','egl')
             subprocess.run([sys.executable, '-m', 'algorithms.urdf_learn_wasd_walk.mujoco_render', str(out)],
-                           check=True, timeout=180,env=render_env)
+                           check=True, timeout=max(180.,1.5*float(args.seconds)+120.),env=render_env)
             result['proof'] = json.loads((out/'proof_metadata.json').read_text())
         except Exception as error:
             result['proof_error'] = repr(error)
@@ -454,7 +507,8 @@ def run(args):
     pass_key='gpu_backend_passes' if warp_info is not None else 'backend_passes'
     ledger_path=model_spec.ALGORITHM_ROOT/'milestones.json'
     ledger=json.loads(ledger_path.read_text()) if ledger_path.is_file() else {}
-    current_gate=next((gate['id'] for gate in ledger.get('milestones',[]) if gate['status']!='passed'),result['milestone'])
+    from algorithms.urdf_learn_wasd_walk.milestone_schedule import active_milestone
+    current_gate=(active_milestone(ledger) or {}).get('id',result['milestone'])
     progress.update(updated_at=datetime.now(timezone.utc).isoformat(), current_gate=current_gate,evaluation_gate=result['milestone'],
                     simulator=identity['backend'], variant=f'passive_{args.pose}_gain{args.gain_scale}', assistance_coefficient=args.assistance,
                     active_process=None, throughput=performance, validation=metrics, failure_metrics=failures,

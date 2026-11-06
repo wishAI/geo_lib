@@ -136,8 +136,9 @@ class ForwardWalkContractTests(unittest.TestCase):
 
     def test_walking_distance_has_no_standing_time_deadline(self):
         metrics = passing_forward()
-        metrics.update(duration_s=45., control_steps=2250, policy_inference_steps=2250)
-        self.assertEqual(contract.evaluate_forward_gate(metrics), [])
+        for duration in (45.,600.,1800.):
+            metrics.update(duration_s=duration, control_steps=round(duration/.02), policy_inference_steps=round(duration/.02))
+            self.assertEqual(contract.evaluate_forward_gate(metrics), [])
         for duration in (0., -1., float('nan'), float('inf')):
             metrics['duration_s'] = duration
             self.assertIn('walking duration must be finite and positive', contract.evaluate_forward_gate(metrics))

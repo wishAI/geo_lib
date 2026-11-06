@@ -187,9 +187,13 @@ def discover_manifests() -> list[dict]:
         ledger_path = payload.get("milestonePath")
         if ledger_path:
             ledger = json.loads(_safe_under(REPO_ROOT, ledger_path).read_text())
-            statuses = {item["id"]: item for item in ledger.get("milestones", [])}
-            payload["milestones"] = [{**item, "status": statuses.get(item["id"], {}).get("status", "not_started")}
-                                     for item in payload.get("milestones", [])]
+            records=[*ledger.get('milestones',[]),*ledger.get('speedMilestones',[])]
+            statuses = {item["id"]: item for item in records}
+            declared={item['id']:item for item in payload.get('milestones',[])}
+            order=ledger.get('executionOrder',list(declared))
+            payload['milestones']=[{**declared.get(key,{}),**{k:v for k,v in statuses.get(key,{}).items()
+                if k in ('id','name','displayLabel','targetSpeedMps','passWhen','status')}} for key in order]
+            payload['currentGateId']=ledger.get('currentGateId')
             if payload.get("trainingDashboard"):
                 session = ledger.get("sessionStatus", {})
                 payload["trainingState"] = {
@@ -1490,11 +1494,47 @@ class Handler(BaseHTTPRequestHandler):
         if not unchanged:
             self.wfile.write(data)
 
+    def _stream_large_file(self, path: Path, stat: os.stat_result, cache: str) -> None:
+        # Send headers before reading cloud-backed data, and stop reading when
+        # the client disconnects instead of materializing the entire artifact.
+        etag = f'W/"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+        unchanged = self.headers.get('If-None-Match') == etag
+        self.send_response(HTTPStatus.NOT_MODIFIED if unchanged else HTTPStatus.OK)
+        self.send_header('ETag', etag)
+        self.send_header('Cache-Control', cache)
+        self.send_header('Vary', 'Accept-Encoding')
+        if not unchanged:
+            self.send_header('Content-Type', mimetypes.guess_type(path.name)[0] or 'application/octet-stream')
+            self.send_header('Content-Length', str(stat.st_size))
+            self.send_header('Permissions-Policy', 'xr-spatial-tracking=(self)')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+        self.end_headers()
+        if unchanged:
+            return
+        try:
+            with path.open('rb') as source:
+                remaining = stat.st_size
+                while remaining:
+                    chunk = source.read(min(64 * 1024, remaining))
+                    if not chunk:
+                        self.close_connection = True
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            self.close_connection = True
+        except OSError as error:
+            self.close_connection = True
+            self.log_error('Artifact stream failed: %s', error)
+
     def _file(self, path: Path, *, cache: str = "no-cache") -> None:
         if not path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         stat = path.stat()
+        if stat.st_size > 16_000_000 and path.suffix.lower() != '.pgm':
+            self._stream_large_file(path, stat, cache)
+            return
         etag = f'W/"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
         if self.headers.get('If-None-Match') == etag:
             self.send_response(HTTPStatus.NOT_MODIFIED)

@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 import subprocess
 import shlex
+from .milestone_schedule import ordered_milestones, advance_schedule, require_current_gate
 
 ROOT = Path(__file__).resolve().parents[2]
 ALG = Path(__file__).resolve().parent
@@ -19,7 +20,8 @@ LEDGER = ALG / 'milestones.json'
 LINEAGE = 'landau_balanced_hands_mujoco_20260922'
 FISTS_LINEAGE = 'landau_fists_animation_mujoco_20261104'
 ANATOMICAL_LINEAGE = 'landau_anatomical_mass_animation_mujoco_20261104'
-SUPPORTED_LINEAGES = (LINEAGE, FISTS_LINEAGE, ANATOMICAL_LINEAGE)
+UPRIGHT_LINEAGE = 'landau_anatomical_upright_mujoco_20261106'
+SUPPORTED_LINEAGES = (LINEAGE, FISTS_LINEAGE, ANATOMICAL_LINEAGE, UPRIGHT_LINEAGE)
 STANDING = ('stand_zero_signal_30s_no_reset', 'stand_30s_no_reset')
 
 
@@ -49,9 +51,72 @@ def require(condition, message):
 
 
 def check_certifiable_configuration(result):
+    require(result.get('diagnostic_phase_template') is None and
+            result.get('config',{}).get('diagnostic_phase_template') is None,
+            'Phase retarget diagnostics cannot be certified')
     require(not result.get('diagnostic_hand_pose_override') and
             not result.get('config', {}).get('diagnostic_hand_pose_override'),
             'Diagnostic hand pose overrides cannot be certified')
+    require(result.get('diagnostic_curriculum_level') is None and
+            result.get('config',{}).get('diagnostic_curriculum_level') is None,
+            'Intermediate curriculum diagnostics cannot be certified')
+
+
+def check_input_migration(training,prior):
+    migration=(training.get('residual_weight_parent') or {}).get('input_migration')
+    require(migration in (None,'append_zero_curriculum_column_v1'), 'Unknown weight input migration')
+    if migration:
+        require(training.get('gait_conditioning')=='curriculum_level_v1' and prior.get('gait_conditioning') is None and
+            training['residual_feature_dim']==prior['residual_feature_dim']+1, 'Invalid curriculum input migration')
+    else:
+        require(training['residual_feature_dim']==prior['residual_feature_dim'] and
+            training.get('gait_conditioning')==prior.get('gait_conditioning'), 'Residual feature semantics changed')
+    return bool(migration)
+
+
+def check_transferred_weights(candidate,original,expanded,message):
+    import torch
+    for group in ('actor_state_dict','critic_state_dict'):
+        require(candidate[group].keys()==original[group].keys(),message)
+        count=0
+        for key,value in candidate[group].items():
+            old=original[group][key]
+            if value.shape==old.shape:require(torch.equal(value,old),message)
+            else:
+                require(expanded and old.ndim==2 and value.shape==(old.shape[0],old.shape[1]+1) and
+                    torch.equal(value[:,:-1],old) and bool((value[:,-1]==0).all()),message)
+                count+=1
+        require(count==int(expanded),message)
+
+
+def check_trained_checkpoint(checkpoint, training):
+    """Initial exports qualify only through exact, hash-bound trained ancestry."""
+    checkpoint=Path(checkpoint).resolve();seen=set()
+    while True:
+        require(checkpoint not in seen, 'Cyclic residual weight ancestry')
+        seen.add(checkpoint)
+        require(training.get('checkpoints',{}).get(checkpoint.name)==digest(checkpoint),
+                'Checkpoint not from recorded training')
+        require(not str(training.get('status','')).startswith('invalidated_'), 'Invalidated weight ancestry')
+        if checkpoint.name!='model_initial.pt':
+            return
+        import torch
+        parent=training.get('residual_weight_parent')
+        require(training.get('policy_family')=='anatomical_feedback_residual_ppo' and parent,
+                'Initial checkpoint has no trained weight ancestry')
+        donor=Path(parent['checkpoint']).resolve();donor.relative_to((ALG/'outputs').resolve())
+        prior=read(donor.parent/'training.json')
+        require(digest(donor)==parent['sha256'] and digest(donor.parent/'training.json')==parent['training_sha256'] and
+                digest(donor.parent/'residual_source.py')==parent['source_sha256']==prior['residual_source_sha256'],
+                'Trained weight ancestry hash mismatch')
+        expanded=check_input_migration(training,prior)
+        for key in ('timing_contract','action_joints','model_xml_sha256','nominal_q','nominal_ctrl'):
+            require(training[key]==prior[key], 'Trained weight ancestry semantics changed: '+key)
+        require(training.get('residual_hold_steps',1)==prior.get('residual_hold_steps',1), 'Trained weight ancestry clock changed')
+        candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
+        original=torch.load(donor,map_location='cpu',weights_only=False)
+        check_transferred_weights(candidate,original,expanded,'Initial weights differ from trained ancestry')
+        checkpoint,training=donor,prior
 
 
 def artifact(path, kind):
@@ -147,7 +212,7 @@ def initialize_fists(folder, checkpoint):
     return ledger
 
 
-def initialize_anatomical(folder, checkpoint):
+def initialize_anatomical(folder, checkpoint, *, upright=False):
     """Begin the authorized new articulation; validate before archiving history."""
     import copy
     from .leg_model_variant import MASS_PROFILE, specification
@@ -155,13 +220,17 @@ def initialize_anatomical(folder, checkpoint):
     folder.relative_to((ALG/'outputs').resolve())
     checkpoint.relative_to((ALG/'outputs').resolve())
     previous = read(LEDGER)
-    if previous['lineage'] == ANATOMICAL_LINEAGE:
+    target_lineage=UPRIGHT_LINEAGE if upright else ANATOMICAL_LINEAGE
+    training = read(checkpoint.parent/'training.json')
+    requested_pose=training.get('nominal_pose_profile',training.get('arguments',{}).get('nominal_pose_profile','geometric'))
+    require(requested_pose==('upright_waist_v1' if upright else 'geometric'), 'Explicit posture lineage flag required')
+    if previous['lineage'] == target_lineage:
         return previous
     require(previous['lineage'] in SUPPORTED_LINEAGES, 'Unknown parent lineage')
     spec = specification(MASS_PROFILE)
     training = read(checkpoint.parent/'training.json')
     record = read(folder/'dynamics.json'); identity = record['identity']
-    require(training['arguments']['profile'] == record['config']['model_profile'] == MASS_PROFILE,
+    require(training.get('model_profile',training.get('arguments',{}).get('profile')) == record['config']['model_profile'] == MASS_PROFILE,
             'Anatomical mass profile mismatch')
     require(training['hand_pose'] == 'closed_fists_v1' and training['support_profile'] ==
             record['config']['support_profile'] == 'animation_approximate_v1', 'Wrong hand/acceptance profile')
@@ -174,12 +243,15 @@ def initialize_anatomical(folder, checkpoint):
     require(hashlib.sha256(json.dumps(controls,sort_keys=True).encode()).hexdigest() ==
             identity['initial_control_sha256'], 'Passive pose differs from trained pose')
     ledger = copy.deepcopy(previous)
-    ledger.update(lineage=ANATOMICAL_LINEAGE, historyCarriedForward=False,
+    nominal_profile=training.get('nominal_pose_profile',training.get('arguments',{}).get('nominal_pose_profile','geometric'))
+    require(nominal_profile==('upright_waist_v1' if upright else 'geometric'), 'Explicit posture lineage flag required')
+    require(record['config'].get('nominal_pose_profile','geometric')==nominal_profile, 'Passive posture profile mismatch')
+    ledger.update(lineage=target_lineage, historyCarriedForward=False,
                   implementationStatus='milestone_1_in_progress')
     ledger['assetContract'].update(urdfPath=str(Path(spec['urdf_path']).relative_to(ALG)),
         urdfSha256=identity['urdf_sha256'], meshTreeSha256=identity['mesh_tree_sha256'],
         modelXmlSha256=identity['model_xml_sha256'], initialControlSha256=identity['initial_control_sha256'],
-        massProfile=MASS_PROFILE, massVariant=spec['variant'], handPose='closed_fists_v1',
+        massProfile=MASS_PROFILE, massVariant=spec['variant'], handPose='closed_fists_v1',nominalPoseProfile=nominal_profile,
         semanticForwardNative=[0,-1,0], physicsIdentity={k:identity[k] for k in
             ('mujoco_version','warp_version','mujoco_warp_version')})
     ledger['acceptance'].update(support_profile='animation_approximate_v1',
@@ -271,7 +343,8 @@ def check_standing(folder, ledger, checkpoint=None):
             require(training[key] == identity[key], f'Checkpoint identity mismatch: {key}')
         controls = {'initial_qpos': training['nominal_q'], 'initial_ctrl': training['nominal_ctrl']}
         require(hashlib.sha256(json.dumps(controls, sort_keys=True).encode()).hexdigest() == identity['initial_control_sha256'], 'Checkpoint initial controls mismatch')
-        require(checkpoint.name != 'model_initial.pt' and metrics['policy_calls'] == 1500, 'No trained policy control')
+        check_trained_checkpoint(checkpoint,training)
+        require(metrics['policy_calls'] == 1500, 'No trained policy control')
     for key, name in [('video_sha256', 'proof.mp4'), ('trajectory_sha256', 'trajectory.npz'),
                       ('dynamics_sha256', 'dynamics.json'), ('model_xml_sha256', 'model.xml')]:
         require(proof[key] == digest(folder / name), f'Proof hash mismatch: {name}')
@@ -296,13 +369,28 @@ def check_standing(folder, ledger, checkpoint=None):
 
 
 def check_gait_source(folder,result,training):
+    if training.get('screen_selection'):
+        check_recorded_screen_selection(Path(result['config']['checkpoint']),training)
     anatomical=training.get('policy_family') in ('anatomical_periodic_feedback_cem','anatomical_feedback_residual_ppo')
-    source_name='leg_gait_search.py' if anatomical else 'landau_gait_search.py'
+    source_name='leg_gait_search.py' if anatomical and not training.get('graft') else 'landau_gait_search.py'
     sources=training.get('parent_source_sha256',training['source_sha256']) if training.get('policy_family')=='anatomical_feedback_residual_ppo' else training['source_sha256']
     expected=[value for path,value in sources.items() if Path(path).name==source_name]
     require(len(expected)==1 and result.get('gait_source_sha256')==expected[0], 'Gait source not bound to training')
     require(digest(folder/'gait_source.py')==expected[0], 'Gait source snapshot changed')
     require(result['controller_source_sha256']==digest(folder/'controller_source.py'), 'Gait evaluation adapter changed')
+    if training.get('parameter_graft'):
+        import torch
+        import math
+        graft=training['parameter_graft'];donor=Path(graft['checkpoint']).resolve()
+        donor.relative_to((ALG/'outputs').resolve());old=read(donor.parent/'training.json')
+        require(digest(donor)==graft['sha256']==old['checkpoints'][donor.name], 'Stride seed donor changed')
+        values=torch.load(donor,map_location='cpu',weights_only=False)['parameters'].tolist()
+        require(len(values)==16 and values==graft['original_parameters'], 'Stride seed parameters changed')
+        candidate=Path(result['config']['checkpoint']).resolve()
+        require(graft['source_sha256']==digest(donor.parent/'control_source.py')==digest(candidate.parent/'stride_graft_source.py'), 'Stride seed source changed')
+        stride=float(values[2])*math.cos(float(values[14]))
+        require(graft['inherited_milestone_passes']==0 and abs(stride-graft['initial_fore_aft_hip_rad'])<1e-12 and
+            abs(stride-training['initial_search_parameters']['fore_aft_hip_rad'])<1e-7, 'Stride endpoint transformation changed')
     if training.get('command_extension')=='yaw_v1':
         require(digest(folder/'turn_source.py')==training['turn_source_sha256'], 'Cumulative controller omits trained turn source')
         require(result.get('turn_source_sha256')==training['turn_source_sha256'], 'Dynamics omits trained turn source')
@@ -543,6 +631,80 @@ def check_scaled_active(folder,result,training,checkpoint):
     check_residual_source(donor.parent,donor_result,old,donor)
 
 
+def check_recorded_screen_selection(checkpoint, training):
+    """Verify an alternate grid export against every eligible recorded row."""
+    selection=training.get('screen_selection')
+    if not selection:return
+    import torch
+    checkpoint=Path(checkpoint)
+    for key in ('source_checkpoint','source_training','source_sweep'):
+        path=Path(selection[key]).resolve();path.relative_to((ALG/'outputs').resolve())
+        require(digest(path)==selection[key+'_sha256'], 'Recorded screen selection source changed: '+key)
+    source=Path(selection['source_checkpoint']);original=read(selection['source_training'])
+    require(original['checkpoints'][source.name]==digest(source) and original['status']=='completed', 'Invalid source screen')
+    require(digest(checkpoint.parent/'selection_source.py')==selection['export_source_sha256'], 'Selection exporter changed')
+    rows=read(selection['source_sweep']);eligible=[r for r in rows if r['eligible'] and all(x==0 for x in r['failure_reasons'])]
+    cost=selection['lateral_cost'];require(0<=cost<=1 and bool(eligible), 'Invalid straightness selection')
+    scores={str(r['candidate']):min(f-cost*abs(x) for f,x in zip(r['forward_m'],r['lateral_m'])) for r in eligible}
+    require(scores==selection['scores'] and [r['candidate'] for r in eligible]==selection['eligible_candidates'], 'Selection scores changed')
+    chosen=max(eligible,key=lambda r:scores[str(r['candidate'])])
+    require(chosen['candidate']==selection['candidate'], 'Export differs from declared selection rule')
+    old_blob=torch.load(source,map_location='cpu',weights_only=False);new_blob=torch.load(checkpoint,map_location='cpu',weights_only=False)
+    expected=old_blob['parameters'].clone();names=list(original['parameter_ranges'])
+    for axis in ('primary','secondary'):
+        key=chosen.get(axis+'_parameter')
+        if key:expected[names.index(key)]=chosen[axis+'_value']
+    require(torch.equal(new_blob['parameters'],expected), 'Exported gait differs from recorded candidate')
+    require(new_blob.keys()==old_blob.keys(), 'Screen export payload changed')
+    for key,value in old_blob.items():
+        if key=='parameters':continue
+        if isinstance(value,dict):
+            require(value.keys()==new_blob[key].keys() and all(torch.equal(v,new_blob[key][k]) for k,v in value.items()), 'Screen export weights changed')
+        else:require(torch.equal(value,new_blob[key]), 'Screen export state changed')
+
+
+def check_gait_curriculum(training, target):
+    """Verify both curriculum endpoints without inheriting their certificates."""
+    curriculum=training.get('gait_curriculum')
+    if not curriculum:return
+    import inspect
+    import torch
+    from .landau_forward_control import load_gait_source
+    require(training.get('whole_body') and training.get('gait_conditioning')=='curriculum_level_v1' and
+            training.get('timing_contract')=='anatomical_schedule_v2' and not training.get('graft'), 'Invalid curriculum semantics')
+    start=Path(curriculum['checkpoint']).resolve();start.relative_to((ALG/'outputs').resolve())
+    metadata=read(start.parent/'training.json')
+    require(metadata.get('policy_family')=='anatomical_periodic_feedback_cem' and
+            not str(metadata.get('status','')).startswith('invalidated_'), 'Invalid curriculum start')
+    require(digest(start)==curriculum['sha256']==metadata['checkpoints'][start.name] and
+            digest(start.parent/'training.json')==curriculum['training_sha256'], 'Curriculum start hash mismatch')
+    for key in ('model_xml_sha256','action_joints','nominal_q','nominal_ctrl','support_profile','standing_checkpoint_sha256'):
+        require(metadata[key]==target[key], 'Curriculum physical identity changed: '+key)
+    gait,source=load_gait_source(start,metadata)
+    require(digest(source)==curriculum['source_sha256'], 'Curriculum source hash mismatch')
+    parent=Path(training['parent_checkpoint'])
+    target_gait,_=load_gait_source(parent,target)
+    current=inspect.getsource(target_gait.gait_action)
+    previous=current.replace('    startup_clock=(age-2.+p[:,22]).clamp_min(0) if p.shape[1]>=23 else clock\n','').replace('smooth(startup_clock/','smooth(clock/')
+    require(inspect.getsource(gait.gait_action) in (current,previous), 'Curriculum controller semantics changed')
+    parameters=torch.load(start,map_location='cpu',weights_only=False)['parameters']
+    require(parameters.shape in ((22,),(23,)), 'Curriculum start schema changed')
+    if parameters.numel()==22:parameters=torch.cat((parameters,parameters.new_zeros(1)))
+    end=torch.load(parent,map_location='cpu',weights_only=False)['parameters']
+    require(parameters.tolist()==curriculum['start_parameters'] and end.shape==(23,) and
+            end.tolist()==curriculum['target_parameters']==training['gait_parameters'], 'Curriculum parameters changed')
+    arguments=training['arguments']
+    declared=Path(arguments['curriculum_start_checkpoint'])
+    same_path=declared.resolve()==start if declared.is_absolute() else (
+        declared.parts[:3]==('algorithms','urdf_learn_wasd_walk','outputs') and '..' not in declared.parts and
+        start.parts[-len(declared.parts):]==declared.parts)
+    require(same_path and
+            curriculum['start_speed_mps']==arguments['curriculum_start_speed'] and
+            curriculum['target_speed_mps']==arguments['target_speed'] and
+            .002<=curriculum['start_speed_mps']<=curriculum['target_speed_mps']<=1.2 and
+            curriculum.get('inherited_milestone_passes')==0, 'Curriculum declaration changed')
+
+
 def check_anatomical_residual_source(folder,result,training,checkpoint):
     """Bind contact residual weights, frozen gait, model, limits and deployment source."""
     import torch
@@ -552,31 +714,132 @@ def check_anatomical_residual_source(folder,result,training,checkpoint):
     require(expected==digest(checkpoint.parent/'residual_source.py')==digest(folder/'residual_source.py')==result.get('residual_source_sha256'), 'Anatomical residual source mismatch')
     require(result.get('policy_family')==training['policy_family'], 'Anatomical residual dispatch mismatch')
     hold=training.get('residual_hold_steps',1)
+    aligned=training.get('timing_contract')=='anatomical_schedule_v2'
+    require(training.get('timing_contract') in (None,'anatomical_schedule_v2'), 'Unknown anatomical timing contract')
     require(hold in (1,5) and result.get('residual_hold_steps',1)==hold, 'Anatomical residual clock changed')
     if 'residual_hold_steps' in training:
+        import math
+        gamma=math.exp(-.02/20.) if aligned else .99
+        lam=math.exp(-.02/2.) if aligned else .95
         require(training['residual_decision_dt_s']==.02*hold and
-            training['runner_config']['algorithm']['gamma']==.99**hold and
-            training['runner_config']['algorithm']['lam']==.95**hold, 'Residual training time scale changed')
-    require(training['observation_dim']==81 and training['residual_feature_dim']==78 and
-        len(training['action_joints'])==19, 'Anatomical residual schema changed')
+            training['runner_config']['algorithm']['gamma']==gamma**hold and
+            training['runner_config']['algorithm']['lam']==lam**hold, 'Residual training time scale changed')
+    n=len(training['action_joints'])
+    conditioning=training.get('gait_conditioning')
+    require(conditioning in (None,'curriculum_level_v1'), 'Unknown gait conditioning')
+    conditioned=conditioning is not None
+    require(not conditioned or training.get('whole_body'), 'Gait conditioning requires all33 non-finger actions')
+    require(n==(33 if training.get('whole_body') else 19) and training['observation_dim']==24+3*n and
+        training['residual_feature_dim']==(23 if aligned else 21)+3*n+int(conditioned), 'Anatomical residual schema changed')
     require(training['residual_bounds_rad']==residual.residual_bounds(training['action_joints']) and
         training['action_scale']==residual.action_scales(training['action_joints']), 'Anatomical residual bounds changed')
     parent=Path(training['parent_checkpoint']);parent.relative_to((ALG/'outputs').resolve())
     old=read(parent.parent/'training.json')
+    check_recorded_screen_selection(parent,old)
     require(digest(parent)==training['parent_checkpoint_sha256']==old['checkpoints'][parent.name] and
         digest(parent.parent/'training.json')==training['parent_training_sha256'], 'Anatomical frozen parent changed')
     require(old.get('policy_family')=='anatomical_periodic_feedback_cem' and
         not str(old.get('status','')).startswith('invalidated_'), 'Invalid anatomical gait parent')
-    for key in ('model_profile','model_xml_sha256','urdf_sha256','mesh_tree_sha256','action_joints',
+    check_gait_curriculum(training,old)
+    for key in ('model_profile','model_xml_sha256','urdf_sha256','mesh_tree_sha256',
                 'nominal_q','nominal_ctrl','hand_pose','support_profile','standing_checkpoint','standing_checkpoint_sha256'):
+        if key in ('nominal_q','nominal_ctrl') and training.get('nominal_pose_profile')=='upright_waist_v1':continue
         require(training[key]==old[key], 'Anatomical frozen identity changed: '+key)
-    require(training['base_action_scale']==old['action_scale'], 'Anatomical base limits changed')
-    require(training.get('parent_source_sha256',old['source_sha256'])==old['source_sha256'], 'Anatomical parent sources changed')
-    require(digest(parent.parent/'control_source.py')==digest(checkpoint.parent/'control_source.py')==digest(folder/'gait_source.py'), 'Anatomical frozen gait changed')
-    actor=residual.make_actor()
+    if training.get('nominal_pose_profile')=='upright_waist_v1':
+        from .leg_model_variant import specification
+        from .mujoco_backend import build_model, initialize
+        import numpy as np
+        nominal_spec=specification(training['model_profile']);nominal_spec['nominal_pose_profile']='upright_waist_v1'
+        nominal_model,_,_=build_model(urdf_path=nominal_spec['urdf_path'],specification=nominal_spec,contact_timeconst=.004)
+        nominal=initialize(nominal_model,nominal_spec,pose='geometric')
+        require(np.allclose(nominal.qpos,training['nominal_q'],atol=1e-12,rtol=0) and
+                np.allclose(nominal.ctrl,training['nominal_ctrl'],atol=1e-12,rtol=0), 'Upright nominal pose changed')
+    if training.get('whole_body') or training.get('graft'):
+        from .leg_model_variant import specification
+        from .model_spec import FINGER_JOINTS
+        from .landau_forward_control import load_gait_source
+        import numpy as np
+        names=list(old['action_joints'])
+        if training.get('whole_body'):
+            spec=specification(training['model_profile'])
+            names += [r['name'] for r in spec['joints'] if r['name'] not in FINGER_JOINTS and r['name'] not in names]
+        require(training['action_joints']==names and training['standing_action_joints']==old['action_joints'], 'Body graft joint mapping changed')
+        limits=residual.action_scales(names)
+        parent_blob=torch.load(parent,map_location='cpu',weights_only=False)
+        parameters=parent_blob['parameters'].clone()
+        graft=training.get('graft')
+        if graft:
+            donor=Path(graft['checkpoint']);donor.relative_to((ALG/'outputs').resolve())
+            donor_meta=read(donor.parent/'training.json')
+            require(digest(donor)==graft['sha256']==donor_meta['checkpoints'][donor.name], 'Graft donor changed')
+            require(graft.get('inherited_milestone_passes')==0, 'Graft must not inherit certificates')
+            original=torch.load(donor,map_location='cpu',weights_only=False)['parameters']
+            require(original.shape==(16,) and np.array_equal(original.numpy(),graft['original_parameters']), 'Graft parameters changed')
+            parameters=original.clone();parameters[2]*=-1
+            require(np.array_equal(parameters.numpy(),graft['parameters']), 'Graft stride transformation changed')
+            require(training['gait_action_joints']==donor_meta['action_joints'] and
+                training['parent_source_sha256']==donor_meta['source_sha256'], 'Graft source mapping changed')
+            require(digest(donor.parent/'control_source.py')==graft['source_sha256']==digest(checkpoint.parent/'control_source.py')==digest(folder/'gait_source.py'), 'Graft source snapshot changed')
+            blend=graft.get('blend',1.)
+            require(0<=blend<=1 and blend==training['arguments'].get('graft_blend',1.), 'Graft blend changed')
+            load_gait_source(parent,old)  # The independently frozen anatomical branch is also hash-bound.
+        else:
+            limits[:len(old['action_joints'])]=old['action_scale']
+            require(training['parent_source_sha256']==old['source_sha256'] and
+                digest(parent.parent/'control_source.py')==digest(checkpoint.parent/'control_source.py')==digest(folder/'gait_source.py'), 'Anatomical frozen gait changed')
+        require(np.allclose(training['base_action_scale'],limits,rtol=0,atol=1e-7), 'Body graft base limits changed')
+        require(np.array_equal(parameters.numpy(),training['gait_parameters']), 'Frozen gait parameters changed')
+        position_contract=training.get('walking_position_observation','zero_drift_v1')
+        require(position_contract in ('zero_drift_v1','native_world_xy_m_v1'), 'Unknown walking position observation')
+        if position_contract=='native_world_xy_m_v1':
+            require(not graft and parameters.shape in ((21,),(22,),(23,)) and 0<=float(parameters[20])<=2 and
+                old.get('walking_position_observation')==position_contract, 'Cross-track controller identity changed')
+            if parameters.numel()>=22:require(0<=float(parameters[21])<=.4, 'Swing-heading correction outside bounds')
+            if parameters.numel()==23:require(0<=float(parameters[22])<=1.5, 'Startup lead outside bounds')
+        else:
+            require(parameters.shape not in ((21,),(22,),(23,)), 'Cross-track controller omitted position observation contract')
+        clock=parent_blob['parameters'] if graft and graft.get('blend',1.)<1 else parameters
+        if 'residual_clock_period' in training:
+            require(training['residual_clock_period']==float(clock[0]) and training['residual_ramp_s']==float(clock[15]), 'Graft residual clock changed')
+    else:
+        require(training['action_joints']==old['action_joints'], 'Anatomical frozen action mapping changed')
+        require(training['base_action_scale']==old['action_scale'], 'Anatomical base limits changed')
+        require(training.get('parent_source_sha256',old['source_sha256'])==old['source_sha256'], 'Anatomical parent sources changed')
+        require(digest(parent.parent/'control_source.py')==digest(checkpoint.parent/'control_source.py')==digest(folder/'gait_source.py'), 'Anatomical frozen gait changed')
+    # Old checkpoint dimensions are defined by their hash-bound source snapshot.
+    import importlib.util
+    spec=importlib.util.spec_from_file_location('checked_residual_'+expected[:16],checkpoint.parent/'residual_source.py')
+    saved=importlib.util.module_from_spec(spec);spec.loader.exec_module(saved)
+    if aligned:
+        require(training['discount_horizon_s']==20. and training['gae_horizon_s']==2. and
+            saved.TIMING_CONTRACT==training['timing_contract'], 'Aligned residual contract changed')
+        parent_parameters=torch.load(parent,map_location='cpu',weights_only=False)['parameters']
+        require(parent_parameters.tolist()==training['reward_schedule_parameters'], 'Reward schedule differs from frozen anatomical gait')
+    actor=saved.make_actor(num_actions=n,**({'conditioned':True} if conditioned else {})) if training.get('whole_body') else saved.make_actor()
     candidate=torch.load(checkpoint,map_location='cpu',weights_only=False)
     actor.load_state_dict(candidate['actor_state_dict'],strict=True)
     require(all(bool(torch.isfinite(value).all()) for value in actor.state_dict().values()), 'Nonfinite anatomical residual weights')
+    if training.get('residual_weight_parent'):
+        parent_info=training['residual_weight_parent'];weight_parent=Path(parent_info['checkpoint']).resolve()
+        weight_parent.relative_to((ALG/'outputs').resolve());parent_meta=read(weight_parent.parent/'training.json')
+        require(digest(weight_parent)==parent_info['sha256']==parent_meta['checkpoints'][weight_parent.name] and
+            digest(weight_parent.parent/'training.json')==parent_info['training_sha256'] and
+            digest(weight_parent.parent/'residual_source.py')==parent_info['source_sha256']==parent_meta['residual_source_sha256'], 'Residual weight parent changed')
+        expanded=check_input_migration(training,parent_meta)
+        for key in ('timing_contract','action_joints','model_xml_sha256','nominal_q','nominal_ctrl'):
+            require(parent_meta[key]==training[key], 'Residual weight parent semantics changed: '+key)
+        require(parent_meta.get('residual_hold_steps',1)==training.get('residual_hold_steps',1), 'Residual weight parent decision clock changed')
+        initial=torch.load(checkpoint.parent/'model_initial.pt',map_location='cpu',weights_only=False)
+        weights=torch.load(weight_parent,map_location='cpu',weights_only=False)
+        require(digest(checkpoint.parent/'model_initial.pt')==training['checkpoints']['model_initial.pt'], 'Warm-start checkpoint changed')
+        check_transferred_weights(initial,weights,expanded,'Warm-start weights differ from declared donor')
+
+
+def check_float32_policy_clock(values,times):
+    """Compare the exact recorded float32 encoding, including long episodes."""
+    import numpy as np
+    expected=np.asarray(1-np.asarray(times,dtype=np.float64)/30,dtype=np.float32)
+    require(values.dtype==np.float32 and np.array_equal(values,expected), 'Anatomical observation clock changed')
 
 
 def check_anatomical_policy_trace(folder,result,training,checkpoint):
@@ -591,34 +854,62 @@ def check_anatomical_policy_trace(folder,result,training,checkpoint):
     require(result.get('policy_trace_sha256')==digest(folder/'policy_trace.npz'), 'Anatomical policy trace changed')
     trace=np.load(folder/'policy_trace.npz');obs=trace['observation'];times=trace['time']
     steps=round(result['config']['seconds']/.02)
-    require(obs.shape==(steps,81) and np.isfinite(obs).all() and times.shape==(steps,) and
+    n=len(training['action_joints']);b=9+3*n
+    require(obs.shape==(steps,24+3*n) and np.isfinite(obs).all() and times.shape==(steps,) and
         np.allclose(times,np.arange(steps)*.02,atol=1e-6,rtol=0), 'Incomplete anatomical policy trace')
-    require(np.allclose(obs[:,68],1-times/30,atol=1e-6,rtol=0), 'Anatomical observation clock changed')
-    require(np.all(obs[:,69]==(0 if result['config']['forward']==0 else np.float32(-.2))) and
-        np.all(obs[:,70:72]==0), 'Anatomical command trace changed')
+    check_float32_policy_clock(obs[:,b+2],times)
+    require(np.all(obs[:,b+3]==(0 if result['config']['forward']==0 else np.float32(-.2))) and
+        np.all(obs[:,b+4:b+6]==0), 'Anatomical command trace changed')
+    if result['config']['forward'] and training.get('walking_position_observation')=='native_world_xy_m_v1':
+        rows=read(folder/'trace.json')
+        require(len(rows)==steps+1, 'Incomplete cross-track body trace')
+        positions=np.array([training['reference_xy']]+[row['pelvis_position_m'][:2] for row in rows[1:steps]])
+        require(np.allclose(obs[:,b:b+2],positions-np.array(training['reference_xy']),atol=2e-6,rtol=0),
+                'Cross-track observations differ from recorded physical positions')
     source=checkpoint.parent/'residual_source.py'
     spec=importlib.util.spec_from_file_location('validated_residual_'+digest(source)[:16],source)
     residual=importlib.util.module_from_spec(spec);spec.loader.exec_module(residual)
-    actor=residual.make_actor();actor.load_state_dict(torch.load(checkpoint,map_location='cpu',weights_only=False)['actor_state_dict']);actor.eval()
+    conditioned=training.get('gait_conditioning')=='curriculum_level_v1'
+    actor=(residual.make_actor(num_actions=n,**({'conditioned':True} if conditioned else {})) if training.get('whole_body') else residual.make_actor());actor.load_state_dict(torch.load(checkpoint,map_location='cpu',weights_only=False)['actor_state_dict']);actor.eval()
     parent=torch.load(training['parent_checkpoint'],map_location='cpu',weights_only=False)
-    gait,_=load_gait_source(checkpoint,training);parameters=parent['parameters'];value=torch.tensor(obs)
+    gait,_=load_gait_source(checkpoint,training);parameters=torch.tensor(training['gait_parameters']) if training.get('graft') else parent['parameters'];value=torch.tensor(obs)
     hold=training.get('residual_hold_steps',1)
     with torch.no_grad():
         indices=torch.arange(0,steps,hold)
-        latent=actor(TensorDict({'actor':residual.features(value[indices],parameters[0])},batch_size=[len(indices)]))
+        actor_features=residual.features(value[indices],training.get('residual_clock_period',parameters[0]))
+        if conditioned:actor_features=torch.cat((actor_features,torch.ones((len(indices),1),dtype=actor_features.dtype)),dim=1)
+        latent=actor(TensorDict({'actor':actor_features},batch_size=[len(indices)]))
         latent=latent.repeat_interleave(hold,dim=0)[:steps]
         limits=torch.tensor(training['base_action_scale'])/.08
-        base=gait.gait_action(value[:,:76],parameters,training['action_joints']).clamp(-limits,limits)
-        predicted=residual.compose(base,latent,value,training['action_joints'],parameters[15])
+        def mapped(module, params, selected):
+            names=training['action_joints'];ids=[names.index(name) for name in selected]
+            columns=list(range(9))+[9+block*n+i for block in range(3) for i in ids]+list(range(b,b+10))
+            output=torch.zeros((steps,n));output[:,ids]=module.gait_action(value[:,columns],params,selected)
+            return output
+        if training.get('whole_body') or training.get('graft'):
+            base=mapped(gait,parameters,training['gait_action_joints'])
+            graft=training.get('graft')
+            if graft and 'blend' in graft:
+                parent_path=Path(training['parent_checkpoint']);prior_meta=read(parent_path.parent/'training.json')
+                prior_gait,_=load_gait_source(parent_path,prior_meta)
+                baseline=mapped(prior_gait,parent['parameters'],prior_meta['action_joints'])
+                base=baseline+(base-baseline)*graft['blend']
+            base=base.clamp(-limits,limits)
+        else:base=gait.gait_action(value[:,:76],parameters,training['action_joints']).clamp(-limits,limits)
+        predicted=residual.compose(base,latent,value,training['action_joints'],training.get('residual_ramp_s',parameters[15]))
         if result['config']['forward']==0:
             prior=MLPModel(TensorDict({'actor':torch.zeros(1,69)},batch_size=[1]),{'actor':['actor']},'actor',19,
                 hidden_dims=[128,128],activation='elu',obs_normalization=True,
                 distribution_cfg={'class_name':'GaussianDistribution','init_std':.1,'std_type':'scalar'})
             prior.load_state_dict(parent['standing_actor_state_dict']);prior.eval()
-            predicted=prior(TensorDict({'actor':value[:,:69]},batch_size=[steps]))
-    require(trace['raw_action'].shape==(steps,19) and np.allclose(predicted.numpy(),trace['raw_action'],atol=1e-5,rtol=0), 'Recorded actions differ from anatomical checkpoint')
+            if training.get('whole_body'):
+                names=training['action_joints'];ids=[names.index(name) for name in training['standing_action_joints']]
+                columns=list(range(9))+[9+block*n+i for block in range(3) for i in ids]+list(range(b,b+3))
+                predicted=torch.zeros((steps,n));predicted[:,ids]=prior(TensorDict({'actor':value[:,columns]},batch_size=[steps]))
+            else:predicted=prior(TensorDict({'actor':value[:,:69]},batch_size=[steps]))
+    require(trace['raw_action'].shape==(steps,n) and np.allclose(predicted.numpy(),trace['raw_action'],atol=1e-5,rtol=0), 'Recorded actions differ from anatomical checkpoint')
     limits=np.array(training['action_scale'] if result['config']['forward'] else training['stand_action_scale'])/.08
-    require(trace['applied_action'].shape==(steps,19) and
+    require(trace['applied_action'].shape==(steps,n) and
         np.allclose(np.clip(trace['raw_action'],-limits,limits),trace['applied_action'],atol=1e-6,rtol=0), 'Anatomical applied motor targets changed')
 
 
@@ -815,7 +1106,7 @@ def check_residual_source(folder,result,training,checkpoint):
     require(left.keys()==right.keys() and all(torch.equal(left[k],right[k]) for k in left), 'Frozen standing policy changed')
 
 
-def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=False, direction=None, triangle=False):
+def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=False, direction=None, triangle=False, speed_target=None):
     """Recheck the full distance run; only standing has a 30 s contract."""
     import numpy as np
     folder=Path(folder).resolve(); checkpoint=Path(checkpoint).resolve()
@@ -824,11 +1115,21 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     check_certifiable_configuration(result)
     identity=result['identity']; contract=ledger['assetContract']
     require(distance in (5.,10.), 'Unsupported walking gate')
+    if speed_target is not None:
+        from . import walking_speed_contract as sc
+        sc.gate_id(speed_target)
+        require(not (turn or teleop or direction or triangle) and cfg.get('speed_target_mps')==speed_target and
+                cfg.get('speed_protocol')==sc.PROTOCOL and cfg['seconds']==sc.DURATION_S and not cfg.get('stop_at_gate'),
+                'Speed gate protocol mismatch')
+        require(result.get('speed_contract_sha256')==digest(folder/'speed_contract_source.py')==digest(sc.__file__), 'Speed contract source mismatch')
+        distance=0.
+    else:require(cfg.get('speed_target_mps') is None, 'Speed proof cannot replace a distance proof')
     require(sum((bool(turn),bool(teleop),bool(direction),bool(triangle)))<=1,'Choose one walking protocol')
     if direction:
         from algorithms.urdf_learn_wasd_walk import landau_direction_contract as dc
         require(direction in dc.DIRECTIONS and distance==10.,'Wrong directional gate')
     expected='triangle_path_follow_no_reset' if triangle else 'gate_10m_four_directions_no_reset' if direction else 'teleop_60s_forward_turn' if teleop else 'yaw_turn_90deg_hold' if turn else f'gate_{distance:g}m_no_reset'
+    if speed_target is not None:expected=sc.gate_id(speed_target)
     require(result['milestone']==expected and not result['failures'], 'Walking dynamics failed')
     require(bool(cfg.get('triangle',False))==triangle, 'Triangle protocol mismatch')
     require(cfg.get('direction')==direction and bool(cfg.get('turn',False))==turn and bool(cfg.get('teleop',False))==teleop, 'Command protocol mismatch')
@@ -842,11 +1143,15 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     require(identity['config_sha256']==hashlib.sha256(json.dumps(cfg,sort_keys=True).encode()).hexdigest(), 'Walking config mismatch')
     # TRAINING_RULES assigns 30 s to standing, not a walking deadline.
     duration=float(cfg['seconds'])
-    require(math.isfinite(duration) and (24. if turn else 30.)<=duration<=(600. if triangle else 240. if direction else 120.), 'Walking diagnostic duration outside supported bounds')
+    from .forward_walk_contract import diagnostic_duration_limit
+    require(math.isfinite(duration) and (24. if turn else 30.)<=duration<=diagnostic_duration_limit(triangle=triangle,direction=direction,turn=turn,teleop=teleop), 'Walking diagnostic duration outside supported bounds')
+    if cfg.get('stop_at_gate'):
+        require(not (triangle or direction or turn or teleop) and type(cfg['stop_at_gate']) is bool and
+            math.isfinite(cfg['forward_horizon_s']) and duration<=cfg['forward_horizon_s']<=diagnostic_duration_limit(), 'Invalid straight-gate stopping horizon')
     physics_steps=round(duration/.002); control_steps=round(duration/.02)
     require(abs(control_steps*.02-duration)<1e-8, 'Walking duration not aligned to control steps')
     require(cfg['assistance']==0 and cfg['dt']==.002 and 0<cfg['forward']<=.4, 'Wrong walking protocol')
-    if not triangle and not turn and not teleop:require(cfg.get('target_distance_m',5.)==distance, 'Walking distance protocol mismatch')
+    if not triangle and not turn and not teleop and speed_target is None:require(cfg.get('target_distance_m',5.)==distance, 'Walking distance protocol mismatch')
     require(cfg['gain_scale']==1. and cfg['contact_timeconst']==.004, 'Walking physics changed')
     require(Path(cfg['checkpoint']).resolve()==checkpoint and cfg['checkpoint_sha256']==digest(checkpoint), 'Walking checkpoint mismatch')
     training=read(checkpoint.parent/'training.json')
@@ -856,7 +1161,7 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     check_residual_source(folder,result,training,checkpoint)
     if training.get('policy_family')=='anatomical_feedback_residual_ppo':
         check_anatomical_policy_trace(folder,result,training,checkpoint)
-    require(checkpoint.name!='model_initial.pt' and training['checkpoints'][checkpoint.name]==digest(checkpoint), 'Walking checkpoint not trained')
+    check_trained_checkpoint(checkpoint,training)
     for key in ('model_xml_sha256','urdf_sha256','mesh_tree_sha256','backend','mujoco_version'):
         require(training[key]==identity[key], 'Walking training mismatch: '+key)
     controls={'initial_qpos':training['nominal_q'],'initial_ctrl':training['nominal_ctrl']}
@@ -921,6 +1226,13 @@ def check_walking(folder, ledger, checkpoint, distance=5., turn=False, teleop=Fa
     trace=np.load(folder/'trajectory.npz'); q,t=trace['qpos'],trace['time']
     require(np.isfinite(q).all() and np.isfinite(t).all() and len(q)==len(t)==proof['frames']==control_steps+1, 'Incomplete walking trajectory')
     require(abs(t[0])<1e-8 and abs(t[-1]-duration)<1e-6 and np.allclose(np.diff(t),.02,atol=1e-6), 'Walking trajectory time gap/reset')
+    if speed_target is not None:
+        import mujoco
+        speed_model=mujoco.MjModel.from_xml_path(str(folder/'model.xml'))
+        response=sc.metrics(t,sc.pelvis_positions(speed_model,q),feet,contract.get('semanticForwardNative',[0,1,0])[1])
+        require(not sc.failures(response,speed_target), 'Sustained walking speed failed: '+str(sc.failures(response,speed_target)))
+        require(response==metrics.get('speed_response') and all(metrics.get(k)==response[k] for k in
+                ('mean_forward_speed_mps','sustained_forward_speed_mps')), 'Speed metrics differ from complete trajectory')
     w,x,y,z=q[:,3:7].T; heading=np.unwrap(np.arctan2(2*(w*z+x*y),1-2*(y*y+z*z)))
     if turn:
         hold_start=float(cfg['turn_hold_start'])
@@ -1105,7 +1417,7 @@ def check_triangle_trajectory(folder, result, training, q, t, control_steps):
 def sync_gui(ledger):
     path = ALG / 'gui/manifest.json'
     gui = read(path)
-    states = {m['id']: m['status'].replace('_', ' ') for m in ledger['milestones']}
+    states = {m['id']: m['status'] for m in ordered_milestones(ledger)}
     for item in gui['milestones']:
         item['status'] = states[item['id']]
     gui['runtimeLabel'] = 'TK2 · MuJoCo · '+ledger['assetContract'].get('massProfile','balanced_hands_v1')
@@ -1124,14 +1436,20 @@ def reproduction_job(result, checkpoint):
             if training.get('policy_family') in ('anatomical_periodic_feedback_cem','anatomical_feedback_residual_ppo'):
                 module='leg_forward_control'
                 args=['--checkpoint',str(Path(checkpoint).resolve()),'--name',cfg['name']+'__replay']
-                args+=['--stand'] if cfg['forward']==0 else ['--seconds',str(cfg['seconds']),'--target-distance',str(cfg.get('target_distance_m',5.))]
+                args+=['--stand'] if cfg['forward']==0 else ['--seconds',str(cfg.get('forward_horizon_s',cfg['seconds'])),'--target-distance',str(cfg.get('target_distance_m',5.))]
+                if cfg.get('stop_at_gate'):args+=['--stop-at-gate']
+                if cfg.get('speed_target_mps') is not None:args+=['--speed-target',str(cfg['speed_target_mps'])]
             else:
                 module='landau_rsl_control'
                 args=['--mode','evaluate','--profile',profile,'--checkpoint',str(Path(checkpoint).resolve()),'--name',cfg['name']+'__replay','--render']
         else:
             module='leg_model_variant'
             args=['--profile',cfg['model_profile'],'--passive-name',cfg['name']+'__replay']
-        return dict(kind='module',module='algorithms.urdf_learn_wasd_walk.'+module,args=args,timeout_s=1200)
+            if cfg.get('nominal_pose_profile')=='upright_waist_v1':
+                module='landau_rsl_control'
+                args=['--mode','passive','--profile',profile,'--nominal-pose-profile','upright_waist_v1','--name',cfg['name']+'__replay','--render']
+        return dict(kind='module',module='algorithms.urdf_learn_wasd_walk.'+module,args=args,
+                    timeout_s=min(7200,max(1200,round(4*float(cfg.get('forward_horizon_s',cfg['seconds']))+300))))
     if checkpoint:
         training=read(Path(checkpoint).parent/'training.json')
         walking=training['observation_dim']==70
@@ -1155,7 +1473,8 @@ def reproduction_job(result, checkpoint):
         require('--baseline' in args and '--name' in args, 'Passive reproduction arguments unavailable')
         args[args.index('--name')+1]=cfg['name']+'__replay'
         module='continuation'
-    return {'kind':'module','module':'algorithms.urdf_learn_wasd_walk.'+module,'args':args,'timeout_s':3600 if cfg.get('triangle') else 1200 if cfg.get('direction') else 240}
+    return {'kind':'module','module':'algorithms.urdf_learn_wasd_walk.'+module,'args':args,
+            'timeout_s':3600 if cfg.get('triangle') else 1200 if cfg.get('direction') else min(7200,max(240,round(4*float(cfg['seconds'])+300)))}
 
 
 def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, five_metre_folder=None, ten_metre_folder=None, turn_folder=None):
@@ -1163,6 +1482,8 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
     require(ledger['lineage'] in SUPPORTED_LINEAGES, 'Initialize the explicit model/backend lineage first')
     index = 5 if turn_folder is not None else 4 if ten_metre_folder is not None else 3 if five_metre_folder is not None else 2 if standing_folder is not None else int(checkpoint is not None)
     target = ledger['milestones'][index]
+    require_current_gate(ledger,target['id'])
+    if index>=3:check_speed_prerequisites(ledger,checkpoint)
     require(all(item['status'] == 'passed' for item in ledger['milestones'][:index]), 'Prior milestone unresolved')
     require(target['status'] == 'in_progress', 'Only the first unresolved milestone can be certified')
     result, metrics = check_walking(folder, ledger, checkpoint, 10. if index==3 else 5., turn=index==4,teleop=index==5) if index >= 2 else check_standing(folder, ledger, checkpoint)
@@ -1206,6 +1527,8 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
         evidence.append(artifact(Path(checkpoint).parent/'training.json','checkpoint_training_metadata'))
     if policy_kind in ('periodic_feedback_cem','periodic_feedback_residual_ppo','anatomical_periodic_feedback_cem','anatomical_feedback_residual_ppo'):
         evidence.append(artifact(folder/'gait_source.py','trained_gait_source'))
+        if read(checkpoint.parent/'training.json').get('parameter_graft'):
+            evidence.append(artifact(checkpoint.parent/'stride_graft_source.py','stride_seed_source'))
     if policy_kind in ('periodic_feedback_residual_ppo','anatomical_feedback_residual_ppo'):
         evidence.append(artifact(folder/'residual_source.py','trained_residual_source'))
         if read(checkpoint.parent/'training.json').get('residual_variant'):
@@ -1234,9 +1557,76 @@ def certify(folder, checkpoint=None, passive_folder=None, standing_folder=None, 
     if 'sessionStatus' in ledger:
         ledger['sessionStatus'].update(certifiedMilestones=index+1,nextMilestone=ledger['milestones'][index+1]['id'])
         if checkpoint:ledger['sessionStatus']['checkpoint']=ckpt
+    if ledger.get('speedMilestones'):advance_schedule(ledger)
     write(LEDGER, ledger)
     sync_gui(ledger)
     return final
+
+
+def certify_speed(folder,checkpoint,passive_folder,standing_folder,five_metre_folder,prior_speed_folders=(),*,promote=True):
+    from .walking_speed_contract import TARGETS,gate_id
+    ledger=read(LEDGER);folder=Path(folder).resolve();checkpoint=Path(checkpoint).resolve()
+    require(ledger['lineage'] in SUPPORTED_LINEAGES, 'Wrong speed lineage')
+    result=read(folder/'dynamics.json');target_speed=result['config']['speed_target_mps'];index=TARGETS.index(target_speed)
+    target=next(item for item in ledger.get('speedMilestones',[]) if item['id']==gate_id(target_speed))
+    if promote:require_current_gate(ledger,target['id'])
+    else:require(index==len(TARGETS)-1 and all(g['status']=='passed' for g in ledger['speedMilestones']), 'Candidate prerequisite requires the completed speed ladder')
+    result,metrics=check_walking(folder,ledger,checkpoint,speed_target=target_speed)
+    require(len(prior_speed_folders)==index, 'Fresh exact-checkpoint earlier speed proofs required')
+    runs=[(STANDING[0],passive_folder),(STANDING[1],standing_folder),('gate_5m_no_reset',five_metre_folder)]
+    runs.extend((gate_id(TARGETS[i]),path) for i,path in enumerate(prior_speed_folders))
+    components=[];component_runs=[]
+    for gate,path in runs:
+        path=Path(path).resolve()
+        if gate in STANDING:r,_=check_standing(path,ledger,checkpoint if gate==STANDING[1] else None)
+        else:
+            speed=next((v for v in TARGETS if gate_id(v)==gate),None)
+            r,_=check_walking(path,ledger,checkpoint,speed_target=speed)
+        require(datetime.fromisoformat(r['created_at']).timestamp()>=checkpoint.stat().st_mtime, 'Speed prerequisite predates checkpoint')
+        component_runs.append({'gateId':gate,'folder':str(path.relative_to(ROOT))})
+        components.extend(artifact(path/name,gate+'_'+name) for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4','trajectory.npz'))
+    require(datetime.fromisoformat(result['created_at']).timestamp()>=checkpoint.stat().st_mtime, 'Speed proof predates checkpoint')
+    evidence=[artifact(folder/name,name) for name in ('dynamics.json','proof_metadata.json','visual_review.json','proof.mp4',
+        'trajectory.npz','policy_trace.npz','foot_trace.json','model.xml','controller_source.py','speed_contract_source.py')]
+    ckpt={'kind':read(checkpoint.parent/'training.json')['policy_family'],'path':str(checkpoint.relative_to(ROOT)),'sha256':digest(checkpoint)}
+    final={'status':'passed','milestone':target['id'],'lineage':ledger['lineage'],'backend':ledger['backend'],
+        'checkpoint':ckpt,'metrics':metrics,'evidence':evidence,'cumulative_components':components,'component_runs':component_runs,
+        'assembled_at':datetime.now(timezone.utc).isoformat(),'reproduction_job':reproduction_job(result,checkpoint),
+        'finalizer_source_sha256':digest(__file__),'canonical_milestone_pass':promote,
+        'scope':'Sustained physical forward walking speed; no inherited certificates'}
+    (folder/'milestone_finalizer_source.py').write_text(Path(__file__).read_text());write(folder/'milestone_validation.json',final)
+    if promote:
+        target.update(status='passed',passedAt=final['assembled_at'],checkpoint=ckpt,metrics=metrics,
+            evidence=[artifact(folder/'milestone_validation.json','validation'),*evidence])
+        advance_schedule(ledger)
+    else:
+        ledger.setdefault('speedPrerequisiteCertificates',{})[ckpt['path']]=artifact(folder/'milestone_validation.json','validation')
+    write(LEDGER,ledger);sync_gui(ledger)
+    return final
+
+
+def check_speed_prerequisites(ledger,checkpoint):
+    """Later distance/task gates must retain certified game-speed capability."""
+    if not ledger.get('speedMilestones'):return
+    from .walking_speed_contract import TARGETS,gate_id
+    require(all(g['status']=='passed' for g in ledger['speedMilestones']), 'Speed ladder unresolved')
+    final=next(g for g in ledger['speedMilestones'] if g['id']==gate_id(TARGETS[-1]))
+    key=str(Path(checkpoint).resolve().relative_to(ROOT))
+    entry=ledger.get('speedPrerequisiteCertificates',{}).get(key) or next(a for a in final['evidence'] if a['kind']=='validation')
+    path=(ROOT/entry['path']).resolve()
+    require(digest(path)==entry['sha256'], 'Speed certificate changed');certificate=read(path)
+    require(certificate['status']=='passed' and certificate['milestone']==final['id'] and
+            certificate['lineage']==ledger['lineage'] and certificate['backend']==ledger['backend'], 'Invalid speed prerequisite certificate')
+    checkpoint=Path(checkpoint).resolve()
+    require((ROOT/certificate['checkpoint']['path']).resolve()==checkpoint and certificate['checkpoint']['sha256']==digest(checkpoint),
+            'Candidate needs fresh exact-checkpoint speed certification')
+    for item in certificate['evidence']+certificate['cumulative_components']:
+        require(digest(ROOT/item['path'])==item['sha256'], 'Speed prerequisite artifact changed')
+    check_walking(path.parent,ledger,checkpoint,speed_target=TARGETS[-1])
+    for component in certificate['component_runs']:
+        gate=component['gateId'];folder=ROOT/component['folder']
+        if gate in STANDING:check_standing(folder,ledger,checkpoint if gate==STANDING[1] else None)
+        else:check_walking(folder,ledger,checkpoint,speed_target=next((v for v in TARGETS if gate_id(v)==gate),None))
 
 
 def certify_directions(folder, checkpoint, direction_folders, cumulative_folders, *, promote=True):
@@ -1247,6 +1637,8 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
     require(ledger['lineage'] in SUPPORTED_LINEAGES, 'Wrong direction lineage')
     require(all(m['status']=='passed' for m in ledger['milestones'][:6]), 'Prior milestone unresolved')
     target=ledger['milestones'][6]
+    if promote:require_current_gate(ledger,target['id'])
+    check_speed_prerequisites(ledger,checkpoint)
     require(target['id']=='gate_10m_four_directions_no_reset', 'Wrong M7 identity')
     if promote:
         require(target['status']=='in_progress', 'Only unresolved M7 can be certified')
@@ -1311,6 +1703,7 @@ def certify_directions(folder, checkpoint, direction_folders, cumulative_folders
                   evidence=[artifact(folder/'milestone_validation.json','validation'),*evidence])
     ledger['milestones'][7]['status']='in_progress'
     ledger['implementationStatus']='milestone_7_passed_milestone_8_in_progress'
+    if ledger.get('speedMilestones'):advance_schedule(ledger)
     write(LEDGER,ledger);sync_gui(ledger)
     return final
 
@@ -1321,6 +1714,8 @@ def certify_triangle(folder, checkpoint, triangle_folder, *, prerequisite_certif
     triangle_folder=Path(triangle_folder).resolve();folder.relative_to((ALG/'outputs').resolve())
     require(ledger['lineage'] in SUPPORTED_LINEAGES and all(m['status']=='passed' for m in ledger['milestones'][:7]), 'Prior triangle milestone unresolved')
     target=ledger['milestones'][7]
+    require_current_gate(ledger,target['id'])
+    check_speed_prerequisites(ledger,checkpoint)
     require(target['id']=='triangle_path_follow_no_reset' and target['status']=='in_progress', 'Only unresolved M8 can be certified')
     require(not folder.exists(), 'Triangle certificate folder exists')
     previous=ledger['milestones'][6]
@@ -1387,16 +1782,18 @@ def certify_triangle(folder, checkpoint, triangle_folder, *, prerequisite_certif
                   evidence=[artifact(folder/'milestone_validation.json','validation'),*evidence])
     ledger['milestones'][8]['status']='in_progress';ledger['implementationStatus']='milestone_8_passed_milestone_9_in_progress'
     ledger['sessionStatus'].update(certifiedMilestones=8,nextMilestone=ledger['milestones'][8]['id'],nextWork='Closed square path following')
+    if ledger.get('speedMilestones'):advance_schedule(ledger)
     write(LEDGER,ledger);sync_gui(ledger)
     return final
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('mode', choices=('init', 'certify', 'certify-directions', 'qualify-directions', 'certify-triangle'))
+    p.add_argument('mode', choices=('init', 'certify', 'certify-speed', 'qualify-speed', 'certify-directions', 'qualify-directions', 'certify-triangle'))
     p.add_argument('--directory', required=True, type=Path)
     p.add_argument('--checkpoint', type=Path)
     p.add_argument('--fists-animation',action='store_true',help='Initialize the separate user-selected fist/animation lineage')
+    p.add_argument('--upright-waist',action='store_true',help='With --anatomical-mass, require fresh upright passive proof and initialize a separate posture lineage')
     p.add_argument('--anatomical-mass',action='store_true',help='Initialize the separately validated anatomical mass lineage')
     p.add_argument('--passive-directory', type=Path)
     p.add_argument('--standing-directory', type=Path)
@@ -1408,13 +1805,20 @@ def main():
     p.add_argument('--prerequisite-certificate',type=Path)
     p.add_argument('--prerequisite-sha256')
     p.add_argument('--direction-directory',type=Path,action='append',default=[])
+    p.add_argument('--prior-speed-directory',type=Path,action='append',default=[])
     args = p.parse_args()
     if args.fists_animation and (args.mode!='init' or args.checkpoint is None):
         p.error('--fists-animation requires init and --checkpoint')
     if args.anatomical_mass and (args.mode!='init' or args.checkpoint is None or args.fists_animation):
         p.error('--anatomical-mass requires init, --checkpoint, and no other lineage flag')
+    if args.upright_waist and not args.anatomical_mass:p.error('--upright-waist requires --anatomical-mass')
     if args.anatomical_mass:
-        result=initialize_anatomical(args.directory,args.checkpoint)
+        result=initialize_anatomical(args.directory,args.checkpoint,upright=args.upright_waist)
+    elif args.mode in ('certify-speed','qualify-speed'):
+        if any(value is None for value in (args.checkpoint,args.passive_directory,args.standing_directory,args.five_metre_directory)):
+            p.error('Speed certification requires checkpoint, passive, standing and five-metre directories')
+        result=certify_speed(args.directory,args.checkpoint,args.passive_directory,args.standing_directory,
+            args.five_metre_directory,args.prior_speed_directory,promote=args.mode=='certify-speed')
     elif args.mode=='certify-triangle':
         if args.checkpoint is None or args.triangle_directory is None:p.error('Triangle certification requires checkpoint and triangle directory')
         result=certify_triangle(args.directory,args.checkpoint,args.triangle_directory,

@@ -1,11 +1,11 @@
 ---
 name: geo-walk-training
-description: Use when rebuilding Isaac Lab locomotion training, validation, playback, or teleop in the intentionally empty urdf_learn_wasd_walk sandbox. Read the clean milestone ladder first, implement only the earliest unresolved milestone, keep Isaac single-process, and do not revive old history or code.
+description: Train, validate, and inspect Landau locomotion in urdf_learn_wasd_walk on TK2. Follow the current milestone execution order, preserve clean lineage and proof requirements, and bound resource use and cloud-asset I/O during long runs.
 ---
 
-# Geo Walk Training — Clean-Room Rebuild
+# Geo Walk Training
 
-The old Landau training implementation and its experimental history were intentionally removed on 2026-08-22. Do not search Git history, old branches, or remote checkpoints to reconstruct it unless the user explicitly asks. The clean reset is a product decision, not missing context.
+The old implementation and experimental history were intentionally removed on 2026-08-22. Do not reconstruct that deleted implementation from Git history or old checkpoints unless the user requests it. Preserve the new implementation and its explicit lineage.
 
 ## First Reads
 
@@ -15,16 +15,26 @@ The old Landau training implementation and its experimental history were intenti
 4. `algorithms/urdf_learn_wasd_walk/milestones.json`
 5. `algorithms/urdf_learn_wasd_walk/gui/manifest.json`
 
-## Rebuild Rules
+For unattended training, large cloud-backed assets, or GUI/SSH instability, also read [runtime stability](references/runtime-stability.md).
 
-- Work on the first `not_started` milestone only.
-- Recreate the smallest launcher, environment, validator, and tests needed for that milestone.
-- Never run two Isaac processes simultaneously.
-- Use TK2 for Isaac work and keep commands compatible with the root Geo Web GUI.
-- Keep generated runs and checkpoints out of Git. Files over 5 MiB follow root `large_files.json` and the Nextcloud storage contract.
-- A passing implementation needs machine-readable validation plus a short proof video before the milestone status changes.
-- Later motion, teleop, terrain, obstacle, and path logic must not be added while an earlier gate is unresolved.
+## Training and Acceptance
+
+- Work on the earliest unresolved gate in the ledger's explicit `executionOrder`, including an already `in_progress` gate. Do not skip it because later code exists.
+- Use the current code and CLI as the implementation inventory. Historical clean-room notes do not establish that training commands are still absent.
+- Keep Isaac single-process on TK2; use the backend and interpreter declared by the current launcher. Do not run a second training job against the same lineage or outputs.
+- Keep algorithm imports isolated and hand off through declared files.
+- Keep generated runs and checkpoints out of Git. Durable files over 5 MiB follow root `large_files.json` and the Nextcloud contract.
+- A pass requires machine-readable validation, checkpoint/source hashes, the exact acceptance protocol, and a short proof video with the required visual review. Keep diagnostic or review-pending candidates distinct from certified gates.
+- Preserve the donor checkpoint, parent lineage, and cumulative proof needed by later gates. Do not inherit old certificates merely because weights were reused.
+
+## Long Runs
+
+- Choose bounded batches, CPU/thread concurrency, checkpoint cadence, log retention, and a local storage budget before launching an unattended campaign. Start conservatively and increase only while the host remains responsive.
+- Keep the latest resumable checkpoint and the best checkpoint/proof per milestone; publish selected durable artifacts instead of every temporary rollout. Propose any pruning of existing runs before deletion.
+- Preserve streamed large-file delivery and the bounded TK2 Nextcloud read cache. Avoid eager reads, duplicate cloud downloads, or repeated hashing of large files for GUI refreshes.
+- Keep GUI status and console summaries small; use bounded log tails and refresh rates instead of loading complete training histories on every update.
+- After a reboot or confirmed worker loss, mark the run interrupted and preserve its checkpoint/evidence. Never leave a dashboard claiming that an absent process is still training, or promote a milestone because a run ended.
 
 ## Current State
 
-There is no train/play/validation implementation. `./geo walk milestones` is the only supported walk command and every milestone is `not_started`.
+Read the live ledger and running-process state. Certified gates, current speed target, checkpoint identity, and interrupted/pending work must come from those records, not a hard-coded status in this skill.

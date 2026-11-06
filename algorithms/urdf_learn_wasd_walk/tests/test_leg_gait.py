@@ -6,6 +6,72 @@ from algorithms.urdf_learn_wasd_walk.model_spec import ACTION_JOINTS
 
 
 class LegGaitTests(unittest.TestCase):
+    def test_startup_lead_preserves_legacy_and_only_advances_first_transfer(self):
+        from algorithms.urdf_learn_wasd_walk.leg_residual_training import reference_targets
+        parameters=torch.tensor(gait.REFERENCE_PARAMETERS)
+        parameters[0]=2.5;parameters[15]=1.5
+        age=torch.linspace(0,20,1001)
+        observation=self.obs[:1].repeat(len(age),1);observation[:,68]=1-age/30
+        legacy=gait.gait_action(observation,parameters[:22],self.names)
+        torch.testing.assert_close(gait.gait_action(observation,parameters,self.names),legacy,rtol=0,atol=0)
+        parameters[22]=1.
+        advanced=gait.gait_action(observation,parameters,self.names)
+        # Startup lead alters load transfer, not lift phase or steady gait.
+        for side in ('left','right'):
+            index=self.names.index(side+'_knee_joint')
+            torch.testing.assert_close(advanced[:,index],legacy[:,index],rtol=0,atol=0)
+        torch.testing.assert_close(advanced[age>=3.26],legacy[age>=3.26],rtol=0,atol=0)
+        load,clearance=reference_targets(torch.tensor([1.,2.,2.5]),parameters)
+        self.assertEqual(float(load[0,0]),.5)
+        self.assertLess(float(load[1,0]),.2)
+        self.assertEqual(float(load[2,0]),0.)
+        self.assertTrue(torch.equal(advanced[0],legacy[0]))
+
+    def test_cross_track_feedback_is_bounded_restoring_and_zero_preserves_targets(self):
+        legacy=torch.tensor(gait.REFERENCE_PARAMETERS[:20])
+        self.obs[:,68]=1-12/30
+        self.obs[:,66]=torch.tensor([.1,-.1])
+        expected=gait.gait_action(self.obs,legacy,self.names)
+        parameters=torch.cat((legacy,torch.zeros(1)))
+        torch.testing.assert_close(gait.gait_action(self.obs,parameters,self.names),expected,rtol=0,atol=0)
+        parameters[12]=.1;parameters[20]=2.
+        result=gait.gait_action(self.obs,parameters,self.names)*.08
+        # Native -Y: +X error calls for positive hip yaw, rotating the
+        # supported pelvis toward negative world heading.
+        for side in ('left','right'):
+            torch.testing.assert_close(result[:,self.names.index(side+'_hip_yaw_joint')],torch.tensor([.02,-.02]))
+        self.obs[:,66]*=100
+        torch.testing.assert_close(gait.gait_action(self.obs,parameters,self.names)*.08,result)
+
+    def test_swing_heading_correction_preserves_stance_and_transfers_smoothly(self):
+        import math
+        parameters=torch.tensor(gait.REFERENCE_PARAMETERS)
+        parameters[12]=.1;parameters[21]=.2
+        self.obs[:,74]=math.sin(.2);self.obs[:,75]=math.cos(.2)-1
+        for seconds,left,right in ((7.,-.02,.02),(15.,.02,-.02)):
+            self.obs[:,68]=1-seconds/30
+            action=.08*gait.gait_action(self.obs,parameters,self.names)
+            for side,target in (('left',left),('right',right)):
+                self.assertAlmostEqual(float(action[0,self.names.index(side+'_hip_yaw_joint')]),target,places=6)
+        self.obs[:,68]=1-(10.-1e-4)/30
+        before=gait.gait_action(self.obs,parameters,self.names)
+        self.obs[:,68]=1-(10.+1e-4)/30
+        after=gait.gait_action(self.obs,parameters,self.names)
+        torch.testing.assert_close(before,after,atol=2e-5,rtol=0)
+        parameters[21]=0
+        torch.testing.assert_close(gait.gait_action(self.obs,parameters,self.names),
+                                  gait.gait_action(self.obs,parameters[:21],self.names),rtol=0,atol=0)
+
+    def test_retimed_stride_preserves_forward_reversed_endpoint_excursion(self):
+        import math
+        donor=[0.]*16;donor[2]=-.1394907385110855;donor[14]=-.04634585976600647
+        target=gait.retimed_stride(donor)
+        old_excursion=donor[2]*(math.cos(math.pi+donor[14])-math.cos(donor[14]))
+        self.assertAlmostEqual(2*target,-old_excursion,places=12)
+        self.assertLess(target,0.)
+        donor[2]=1.
+        with self.assertRaisesRegex(ValueError,'outside anatomical bounds'):gait.retimed_stride(donor)
+
     def setUp(self):
         self.names=[*ACTION_JOINTS,'left_ankle_roll_joint','right_ankle_roll_joint']
         self.obs=torch.zeros(2,76);self.obs[:,8]=-1;self.obs[:,68]=1-2/30;self.obs[:,69]=-.2

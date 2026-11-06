@@ -11,6 +11,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
+from .milestone_schedule import ordered_milestones, active_milestone
 
 
 ALGORITHM_ROOT = Path(__file__).resolve().parent
@@ -20,6 +21,7 @@ MILESTONES_PATH = ALGORITHM_ROOT / "milestones.json"
 DEFAULT_OUTPUT = OUTPUT_ROOT / "evolution.json"
 VISIBLE_NODE_BUDGET = 40
 METRIC_KEYS = (
+    'duration_s', 'mean_forward_speed_mps', 'sustained_forward_speed_mps',
     "semantic_forward_displacement_m",
     "mean_semantic_forward_velocity_mps",
     "reverse_motion_step_fraction",
@@ -43,6 +45,16 @@ def _chronology(node: dict) -> str:
 
 
 def _run_label(name: str) -> str:
+    landing=re.fullmatch(r'anatomical_fullbody_\d+_softlanding(\d+|_smoke)(?:_(stand|walk))?',name)
+    if landing:
+        amount,stage=landing.groups()
+        return 'Soft landing · '+({'stand':'standing check','walk':'speed check'}[stage] if stage else
+            'smoke test' if amount=='_smoke' else amount+' updates')
+    curriculum=re.fullmatch(r'anatomical_fullbody_\d+_speed_curriculum(\d+|_smoke)(?:_(stand|walk))?',name)
+    if curriculum:
+        amount,stage=curriculum.groups()
+        return 'Gradual speed · '+({'stand':'standing check','walk':'speed check'}[stage] if stage else
+            'smoke test' if amount=='_smoke' else amount+' updates')
     return {
         'rsl_transfer_20260922_teleop5_m5': '90° recheck · settling regression',
         'rsl_transfer_20260922_teleop_preserve_left': 'Joystick control · preserve certified turn',
@@ -592,7 +604,7 @@ MILESTONE_LABELS = {
 
 def _milestone_summaries(ledger: dict) -> list[dict]:
     summaries = []
-    for record in ledger.get("milestones", []):
+    for record in ordered_milestones(ledger):
         checkpoint = record.get("checkpoint", {})
         checkpoint = checkpoint if isinstance(checkpoint, dict) else {}
         status = str(record.get("status", "not_started"))
@@ -605,8 +617,10 @@ def _milestone_summaries(ledger: dict) -> list[dict]:
             result = "Blocked by the preceding gate"
         summaries.append({
             "order": record.get("order"),
+            'displayLabel':record.get('displayLabel','M'+str(record.get('order'))),
+            'targetSpeedMps':record.get('targetSpeedMps'),
             "id": record.get("id"),
-            "label": MILESTONE_LABELS.get(str(record.get("id")), str(record.get("id"))),
+            "label": record.get('name') or MILESTONE_LABELS.get(str(record.get("id")), str(record.get("id"))),
             "status": status,
             "result": result,
             "metrics": metrics,
@@ -1138,7 +1152,7 @@ def build_evolution(
     if ledger.get("backend") == "mujoco_warp_cuda":
         nodes = [node for node in nodes if not node["id"].startswith("milestone:")]
         previous = None
-        for record in ledger.get("milestones", []):
+        for execution_index,record in enumerate(ordered_milestones(ledger),1):
             if record.get("status") not in {"passed", "in_progress"}:
                 continue
             node_id = "milestone:" + record["id"]
@@ -1158,8 +1172,8 @@ def build_evolution(
                 artifacts.append(artifact)
             passed = record["status"] == "passed"
             nodes.append({"id": node_id, "parentIds": [previous] if previous else [],
-                          "label": {1:"M1 · passive stand 30 s",2:"M2 · policy stand 30 s",3:"M3 · walk 5 m",4:"M4 · walk 10 m",5:"M5 · turn90° and hold",6:"M6 · joystick commands60s"}.get(record['order'],f"M{record['order']} · {record['id'].replace('_', ' ')}"),
-                          "step": record["order"], "status": "completed" if passed else "running",
+                          "label": f"{record.get('displayLabel', 'M'+str(record['order']))} · {record.get('name',record['id'].replace('_', ' '))}",
+                          "step": execution_index, "status": "completed" if passed else "running",
                           "kind": "milestone", "milestoneId": record["id"], "lineage": lineage,
                           "startedAt": record.get("passedAt"), "important": True,
                           "developmentReference": passed, "artifacts": artifacts,
@@ -1189,10 +1203,8 @@ def build_evolution(
     visible_set = set(visible[:VISIBLE_NODE_BUDGET])
     default_visible = [node["id"] for node in nodes if node["id"] in visible_set]
     _parameter_changes(nodes)
-    active = next(
-        (item.get("id") for item in ledger.get("milestones", []) if item.get("status") == "in_progress"),
-        None,
-    )
+    active_record=active_milestone(ledger) or {}
+    active=active_record.get('id')
     current_candidates = [
         node for node in nodes
         if node.get("lineage") == lineage
@@ -1234,15 +1246,17 @@ def build_evolution(
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "primaryMetric": "direction_progress_m" if active=="gate_10m_four_directions_no_reset" else "duration_s" if active=="teleop_60s_forward_turn" else "final_heading_rad" if active=="yaw_turn_90deg_hold" else "semantic_forward_displacement_m",
         "targetMetricValue": 60. if active=="teleop_60s_forward_turn" else 1.5707963267948966 if active=="yaw_turn_90deg_hold" else 10.0 if active in ("gate_10m_no_reset", "gate_10m_four_directions_no_reset") else 5.0,
+        'speedGoal':ledger.get('speedGoal'),
+        'currentGateId':active,
         "visibleNodeBudget": VISIBLE_NODE_BUDGET,
         "defaultVisibleNodeIds": default_visible,
         "currentNodeId": current,
         "nodes": nodes,
         "summary": {
-            "passedMilestoneCount": sum(m.get("status") == "passed" for m in ledger.get("milestones", [])),
+            "passedMilestoneCount": sum(m.get("status") == "passed" for m in ordered_milestones(ledger)),
             "nodeCount": len(nodes),
             "failedCount": sum(node["status"] == "failed" for node in nodes),
-            "milestoneCount": len(ledger.get("milestones", [])),
+            "milestoneCount": len(ordered_milestones(ledger)),
             "checkpointBytes": sum(int(node.get("diskBytes") or 0) for node in nodes),
             "checkpointStorage": "Nextcloud online-only; not hydrated on Mac",
         },
@@ -1340,7 +1354,9 @@ def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path
     nodes.extend(archived_nodes)
     represented = {a["path"] for n in nodes for a in n.get("artifacts", [])}
     runtime = output_root / "tk2-backend-20260918/source/algorithms/urdf_learn_wasd_walk/outputs/mujoco"
-    sources = [*runtime.glob("training/anatomical*/training.json"), *runtime.glob("anatomical*/dynamics.json"),
+    sources = [*runtime.glob("training/anatomical*/training.json"),
+               *(p for p in runtime.glob("training/anatomical*/metadata.json") if not (p.parent/"training.json").exists()), *runtime.glob("anatomical*/dynamics.json"),
+               *(p for p in runtime.glob("anatomical*/progress.json") if not (p.parent/"dynamics.json").exists()),
                *output_root.glob("support_transition_*/dynamics.json")]
     for path in sorted(sources):
         if _relative(path) in represented:
@@ -1348,17 +1364,25 @@ def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path
         record = _read_json(path) or {}
         node_id = "run:" + path.parent.name
         nodes.append({"id": node_id, "parentIds": [], "label": _run_label(path.parent.name),
-                      "kind": "checkpoint" if path.name == "training.json" else "experiment",
-                      "status": "failed" if record.get("failures") or record.get("status") in {"failed", "interrupted_after_checkpoint"} else "completed",
-                      "milestoneId": record.get("milestone"), "startedAt": record.get("created_at"),
+                      "kind": "checkpoint" if path.name in ("training.json", "metadata.json") else "experiment",
+                      "status": ("running" if record.get("status", "running") == "running" and (datetime.now(timezone.utc).timestamp()-max([path.stat().st_mtime]+[p.stat().st_mtime for p in (path.parent/"iterations.jsonl",path.parent/"generations.jsonl") if p.exists()])) < 180 else "failed") if path.name in ("metadata.json","progress.json") else "failed" if record.get("failures") or record.get("status") in {"failed", "interrupted_after_checkpoint"} else "completed",
+                      "milestoneId": record.get("milestone") or ("gate_5m_no_reset" if record.get("policy_family") in ("anatomical_feedback_residual_ppo", "anatomical_periodic_feedback_cem") else None), "startedAt": record.get("created_at"),
                       "result": "; ".join(map(str, record.get("failures", [])[:3])) or "Recorded run; certification requires cumulative evidence",
                       "metrics": _metrics(record), "artifacts": [_artifact(path, node_id)] + _proof_artifacts(path.parent, node_id, record)})
     for node in nodes:
+        for artifact in node.get('artifacts', []):
+            folder=(REPO_ROOT/artifact['path']).parent
+            progress=folder/('iterations.jsonl' if (folder/'iterations.jsonl').exists() else 'generations.jsonl')
+            if progress.is_file():
+                try:
+                    latest=json.loads(progress.read_text().splitlines()[-1])
+                    node['metrics'].update(latest)
+                except (ValueError, IndexError):pass
         certificate = {key: node.get(key) for key in ("checkpointPath", "checkpointSha256", "milestoneId", "parentIds")} if node.get("kind") == "milestone" else None
         records = []
         for artifact in list(node.get("artifacts", [])):
             path = REPO_ROOT / artifact["path"]
-            if path.name in {"training.json", "metadata.json", "dynamics.json", "validation.json", "result.json"}:
+            if path.name in {"training.json", "metadata.json", "progress.json", "dynamics.json", "validation.json", "result.json"}:
                 record = _read_json(path)
                 if record:
                     records.append((path, record))
@@ -1370,26 +1394,76 @@ def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path
             config = record.get("config") or record.get("arguments") or {}
             sha = record.get("urdf_sha256") or identity.get("urdf_sha256") or sha
             checkpoints = record.get("checkpoints") or {}
+            if isinstance(checkpoints,dict) and checkpoints:
+                node['checkpointVariants']=checkpoints
             checkpoint_name = max(checkpoints, key=lambda name: int(re.search(r"(\d+)", name).group(1)) if re.search(r"(\d+)", name) else -1) if isinstance(checkpoints, dict) and checkpoints else None
             # Training arguments identify the input parent, never the produced model.
-            cp = str(path.parent / checkpoint_name) if checkpoint_name else record.get("checkpoint") or (config.get("checkpoint") if path.name != "training.json" else None)
+            cp = str(path.parent / checkpoint_name) if checkpoint_name else record.get("checkpoint") or (config.get("checkpoint") if path.name not in ("training.json", "metadata.json") else None)
             if isinstance(cp, dict):
                 cp = cp.get("path")
             if isinstance(cp, str):
                 node["checkpointPath"] = cp
+            if path.name in ('training.json','metadata.json') and record.get('policy_family')=='anatomical_feedback_residual_ppo':
+                if record.get('training_target_forward_mps') in (.1,.4,.8,1.2):
+                    from .walking_speed_contract import gate_id
+                    node['milestoneId']=gate_id(record['training_target_forward_mps'])
+                node['trainingProgress']={'kind':'training','completedIterations':node.get('metrics',{}).get('iteration'),
+                    'requestedIterations':config.get('iterations'),'numEnvs':config.get('num_envs'),
+                    'rolloutStepsPerEnv':record.get('runner_config',{}).get('num_steps_per_env')}
+                progress = node['trainingProgress']
+                counts = [progress[key] for key in ('completedIterations','numEnvs','rolloutStepsPerEnv')]
+                if all(isinstance(value,int) and value>=0 for value in counts):
+                    progress['sampleCount']=math.prod(counts)
+                if record.get('gait_curriculum'):
+                    progress.update(curriculumMeanLevel=node['metrics'].get('curriculum_mean_level'),
+                        curriculumMaxLevel=node['metrics'].get('curriculum_max_level'),
+                        curriculumTargetFraction=node['metrics'].get('curriculum_target_fraction'))
+                node['experimentParameters']={key:record[key] for key in ('timing_contract','training_target_forward_mps',
+                    'discount_horizon_s','gae_horizon_s','nominal_pose_profile','gait_conditioning','gait_curriculum','touchdown_quality_contract') if key in record}
+            if path.name in ('training.json','metadata.json') and record.get('policy_family')=='anatomical_periodic_feedback_cem':
+                node['metrics'].update(record.get('metrics',{}))
+                live=record.get('metrics',{})
+                node['trainingProgress']={'kind':'search',
+                    'simulatedSeconds':live.get('simulated_seconds_per_start',config.get('seconds') if record.get('status')=='completed' else 0),
+                    'requestedSeconds':config.get('seconds'),'numEnvs':config.get('num_envs'),
+                    'survivingStarts':live.get('surviving_starts')}
             node["checkpointSha256"] = checkpoints[checkpoint_name] if checkpoint_name else record.get("checkpoint_sha256") or config.get("checkpoint_sha256") or node.get("checkpointSha256")
+            if record.get("graft"):
+                node["graft"] = record["graft"]
+                node["changeSummary"] = f"{len(record.get('action_joints', []))} body actions; {record['graft'].get('blend', 1):.0%} M7 gait graft; fixed fingers"
+                node["bodySettings"] = {"graft donor SHA": record['graft']['sha256']}
+            if record.get('parameter_graft'):
+                node['parameterGraft']=record['parameter_graft']
+                node['changeSummary']='M7 stride endpoint seed; anatomical support/lift timing and feedback retained'
+                node['bodySettings']={**node.get('bodySettings',{}),'stride seed donor SHA':record['parameter_graft']['sha256']}
+            if record.get('residual_weight_parent'):
+                node['residualWeightParent']=record['residual_weight_parent']
+                node['changeSummary']='Continue learned whole-body actor/critic with the new anatomical gait parent'
+            if record.get('gait_curriculum'):
+                node['gaitCurriculum']=record['gait_curriculum']
+                node['changeSummary']='Gradually increase gait speed after successful episodes; independent evaluation uses the fixed target gait'
+            if record.get('residual_screen_parent'):
+                node['residualScreenParent']=record['residual_screen_parent']
+                node['changeSummary']='Search gait parameters with frozen whole-body policy; exported gait requires policy recomposition'
+                node['bodySettings']={**node.get('bodySettings',{}),
+                    'screen policy actions':len(record['residual_screen_parent']['action_joints']),
+                    'exported gait actions':len(record['action_joints'])}
+            if record.get('screen_selection'):
+                node['screenSelection']=record['screen_selection']
+                node['changeSummary']='Select recorded eligible gait by worst-start forward travel and lateral drift; independent proof pending'
             node["parentCheckpointSha256"] = record.get("parent_checkpoint_sha256") or node.get("parentCheckpointSha256")
+            node['parentCheckpointPath']=record.get('parent_checkpoint') or node.get('parentCheckpointPath')
             node["milestoneId"] = record.get("milestone") or node.get("milestoneId")
             if not node.get("milestoneId") and path.name == "training.json":
                 distance = config.get("target_distance") or config.get("target_distance_m")
                 node["milestoneId"] = {5: "gate_5m_no_reset", 10: "gate_10m_no_reset"}.get(distance)
-            node["bodySettings"] = {k: v for k, v in {
+            node["bodySettings"] = {**node.get("bodySettings", {}), **{k: v for k, v in {
                 "mass profile": config.get("model_profile") or config.get("profile") or (record.get("mass_variant") or {}).get("profile"),
                 "hands": record.get("hand_pose") or config.get("hand_pose"),
                 "support": record.get("support_profile") or config.get("support_profile"),
                 "assistance": config.get("assistance"), "action scale": record.get("action_scale"),
                 "physics model SHA": identity.get("model_xml_sha256") or record.get("model_xml_sha256"),
-            }.items() if v is not None}
+            }.items() if v is not None}}
             actions = record.get("action_joints")
             training, training_path = {}, None
             if isinstance(cp, str):
@@ -1404,6 +1478,16 @@ def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path
                 sha = sha or training.get("urdf_sha256")
             if not isinstance(actions, list):
                 actions = training.get('action_joints')
+            if record.get('diagnostic_curriculum_level') is not None:
+                node['diagnosticCurriculumLevel']=record['diagnostic_curriculum_level']
+                target=(training.get('gait_curriculum') or {}).get('target_speed_mps')
+                if target in (.1,.4,.8,1.2):
+                    from .walking_speed_contract import gate_id
+                    node['milestoneId']=gate_id(target)
+            if record.get('diagnostic_phase_template') is not None:
+                node['diagnosticPhaseTemplate']=record['diagnostic_phase_template']
+                node['milestoneId']='walk_speed_0p1_mps_30s'
+                node['label']='M7 phase retarget · motor diagnostic'
             if isinstance(actions, list):
                 node["actionJoints"] = actions
             defaults = recorded_joint_defaults(path.parent, record)
@@ -1454,24 +1538,75 @@ def enrich_workspace(payload: dict, output_root: Path = OUTPUT_ROOT, ledger_path
                 node[key] = node[key].get("sha256")
     checkpoint_nodes = {n.get("checkpointSha256"): n["id"] for n in nodes if n.get("checkpointSha256") and n.get("kind") == "milestone"}
     checkpoint_nodes.update({n.get("checkpointSha256"): n["id"] for n in nodes if n.get("checkpointSha256") and n.get("kind") == "checkpoint"})
+    checkpoint_paths={};hash_owners={}
     for node in nodes:
-        parent = checkpoint_nodes.get(node.get("parentCheckpointSha256"))
+        if node.get('kind')=='checkpoint':
+            for sha in [node.get('checkpointSha256'),*node.get('checkpointVariants',{}).values()]:
+                if sha:hash_owners.setdefault(sha,set()).add(node['id'])
+        if node.get('kind')=='checkpoint':
+            for name,checkpoint_sha in node.get('checkpointVariants',{}).items():
+                checkpoint_nodes.setdefault(checkpoint_sha,node['id'])
+                if node.get('checkpointPath'):
+                    path=(REPO_ROOT/Path(node['checkpointPath']).parent/name).resolve()
+                    checkpoint_paths[(str(path),checkpoint_sha)]=node['id']
+        if node.get('checkpointPath') and node.get('kind') in ('checkpoint','milestone'):
+            checkpoint_paths[(str((REPO_ROOT/node['checkpointPath']).resolve()),node.get('checkpointSha256'))]=node['id']
+    def checkpoint_parent(sha,path=None):
+        # Identical weights can be exported under a new gait. Their file hash alone
+        # cannot identify which training run supplied the declared parent.
+        if path:
+            return checkpoint_paths.get((str((REPO_ROOT/path).resolve()),sha))
+        if len(hash_owners.get(sha,set()))>1:return None
+        return checkpoint_nodes.get(sha)
+    for node in nodes:
+        parent = checkpoint_parent(node.get("parentCheckpointSha256"),node.get('parentCheckpointPath'))
         if node.get("kind") not in {"checkpoint", "milestone"}:
-            parent = checkpoint_nodes.get(node.get("checkpointSha256")) or parent
+            parent = checkpoint_parent(node.get("checkpointSha256"),node.get('checkpointPath')) or parent
         if parent and parent != node["id"]:
             node["parentIds"] = [parent]
+    for node in nodes:
+        sources=[node.get('graft') or node.get('parameterGraft') or {},node.get('residualWeightParent') or {},
+                 node.get('residualScreenParent') or {},node.get('gaitCurriculum') or {},
+                 {'checkpoint':(node.get('diagnosticPhaseTemplate') or {}).get('donor_checkpoint'),
+                  'sha256':(node.get('diagnosticPhaseTemplate') or {}).get('donor_sha256')}]
+        selection=node.get('screenSelection') or {}
+        sources.append({'sha256':selection.get('source_checkpoint_sha256'),'checkpoint':selection.get('source_checkpoint')})
+        node['parentIds']=[p for p in node.get('parentIds',[]) if p!=node['id']]
+        for source in sources:
+            parent=checkpoint_parent(source.get('sha256'),source.get('checkpoint'))
+            if parent and parent!=node['id'] and parent not in node['parentIds']:node['parentIds'].append(parent)
     for node in nodes:
         if node.get("kind") == "checkpoint" and not node.get("milestoneId"):
             gates = {child["milestoneId"] for child in nodes if node["id"] in child.get("parentIds", []) and child.get("milestoneId")}
             if len(gates) == 1:
                 node["milestoneId"] = gates.pop()
     active_model = ledger.get("assetContract", {}).get("urdfSha256")
+    if active_model in models and manifest.get('viewer',{}).get('contactProperties'):
+        models[active_model]['contactProperties']=manifest['viewer']['contactProperties']
     payload["models"] = list(models.values())
     payload["activeModelId"] = active_model
-    current_evidence = ledger.get("sessionStatus", {}).get("currentExperiment", {}).get("evidence")
-    current = next((n for n in nodes if any(a["path"] == current_evidence for a in n.get("artifacts", []))), None)
+    experiment = ledger.get("sessionStatus", {}).get("currentExperiment", {})
+    current_evidence = experiment.get("evidence")
+    if current_evidence and Path(current_evidence).is_absolute():current_evidence=_relative(Path(current_evidence))
+    current = next((n for n in nodes if any(a["path"] == current_evidence or (current_evidence and Path(a["path"]).parent == Path(current_evidence).parent and Path(a["path"]).name in ("metadata.json", "training.json", "progress.json", "dynamics.json")) for a in n.get("artifacts", []))), None)
+    active = experiment.get("activeTraining", {})
+    task_node=next((n for n in nodes if n['id']=='run:'+str(active.get('name'))),None)
+    if task_node and active.get('milestoneId'):
+        task_node['milestoneId']=active['milestoneId']
+    if active.get("state") == "running":
+        # Keep the last completed proof available while selecting the live run.
+        live = next((n for n in nodes if n["id"] == "run:" + str(active.get("name")) and n["status"] == "running"), None)
+        current = live or current
     if current:
         payload["currentNodeId"] = current["id"]
+    gate=active_milestone(ledger) or {}
+    if gate.get('targetSpeedMps'):
+        payload.update(primaryMetric='sustained_forward_speed_mps',primaryMetricUnit='m/s',
+            targetMetricValue=gate['targetSpeedMps'])
+    for node in nodes:
+        metrics=node.get('metrics',{})
+        if metrics.get('duration_s',0)>0 and 'semantic_forward_displacement_m' in metrics:
+            metrics.setdefault('mean_forward_speed_mps',metrics['semantic_forward_displacement_m']/metrics['duration_s'])
     payload["summary"]["nodeCount"] = len(nodes)
     # Count each local checkpoint once, even when several evaluations reference it.
     sizes = {str((REPO_ROOT / n["checkpointPath"]).resolve()): n.get("diskBytes", 0) for n in nodes if isinstance(n.get("checkpointPath"), str)}

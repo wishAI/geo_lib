@@ -286,7 +286,9 @@ class WalkingCertificateTests(StandingCertificateTests):
 
     def test_direction_promotion_requires_four_distinct_runs_and_six_predecessors(self):
         checkpoint=self.folder/'candidate.pt';checkpoint.write_bytes(b'candidate')
-        ledger=dict(lineage=gates.LINEAGE,milestones=[{'status':'passed'} for _ in range(6)]+
+        prior_ids=('stand_zero_signal_30s_no_reset','stand_30s_no_reset','gate_5m_no_reset',
+                   'gate_10m_no_reset','yaw_turn_90deg_hold','teleop_60s_forward_turn')
+        ledger=dict(lineage=gates.LINEAGE,milestones=[{'id':name,'status':'passed'} for name in prior_ids]+
                     [{'id':'gate_10m_four_directions_no_reset','status':'in_progress'}])
         path=self.root/'milestones.json';gates.write(path,ledger)
         with patch.object(gates,'LEDGER',path):
@@ -478,6 +480,37 @@ class WalkingCertificateTests(StandingCertificateTests):
         gates.write(self.folder/'proof_metadata.json',proof)
         patch.object(gates.subprocess,'check_output',return_value=json.dumps({'streams':[{'nb_frames':str(frames),'duration':str(seconds+.02)}]}).encode()).start()
         return checkpoint,feet
+
+    def test_speed_certificate_reconstructs_trajectory(self):
+        from algorithms.urdf_learn_wasd_walk import walking_speed_contract as sc
+        cp, feet = self.walking_fixture(sc.DURATION_S)
+        (self.folder/'model.xml').write_text('<mujoco><worldbody><body name="base_link"><freejoint/><geom size=".1" mass="1"/><body name="root_x"/></body></worldbody></mujoco>')
+        model_hash = gates.digest(self.folder/'model.xml')
+        self.record['identity']['model_xml_sha256'] = model_hash
+        self.ledger['assetContract']['modelXmlSha256'] = model_hash
+        self.ledger['assetContract']['semanticForwardNative'] = [0, 1, 0]
+        training = gates.read(self.folder/'training.json')
+        training['model_xml_sha256'] = model_hash
+        gates.write(self.folder/'training.json', training)
+        self.cfg.update(speed_target_mps=.1, speed_protocol=sc.PROTOCOL)
+        self.record['milestone'] = sc.gate_id(.1)
+        self.record['identity']['config_sha256'] = hashlib.sha256(json.dumps(self.cfg, sort_keys=True).encode()).hexdigest()
+        (self.folder/'speed_contract_source.py').write_text(Path(sc.__file__).read_text())
+        self.record['speed_contract_sha256'] = gates.digest(self.folder/'speed_contract_source.py')
+        with np.load(self.folder/'trajectory.npz') as trace:
+            response = sc.metrics(trace['time'], trace['qpos'][:, :3], feet, forward_sign=1)
+        self.metrics.update(speed_response=response, mean_forward_speed_mps=response['mean_forward_speed_mps'], sustained_forward_speed_mps=response['sustained_forward_speed_mps'])
+        def save_speed():
+            self.save()
+            proof = gates.read(self.folder/'proof_metadata.json')
+            proof['frames'] = 2001
+            gates.write(self.folder/'proof_metadata.json', proof)
+        save_speed()
+        gates.check_walking(self.folder, self.ledger, cp, speed_target=.1)
+        self.metrics['sustained_forward_speed_mps'] = 1.2
+        save_speed()
+        with self.assertRaisesRegex(ValueError, 'Speed metrics differ from complete trajectory'):
+            gates.check_walking(self.folder, self.ledger, cp, speed_target=.1)
 
     def test_completed_walking_protocol(self):
         cp,_=self.walking_fixture();gates.check_walking(self.folder,self.ledger,cp)
